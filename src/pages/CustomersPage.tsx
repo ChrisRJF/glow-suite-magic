@@ -1,8 +1,8 @@
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
-import { customers } from "@/lib/data";
+import { customers, formatEuro } from "@/lib/data";
 import { useState } from "react";
-import { Search, Phone, Mail, Calendar, DollarSign, ArrowRight, X } from "lucide-react";
+import { Search, Phone, Mail, Calendar, Euro, ArrowRight, X } from "lucide-react";
 import type { Customer } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
@@ -15,13 +15,13 @@ export default function CustomersPage() {
   );
 
   return (
-    <AppLayout title="Customers" subtitle={`${customers.length} clients in your salon`}>
+    <AppLayout title="Klanten" subtitle={`${customers.length} klanten in je salon`}>
       {/* Search */}
       <div className="relative mb-6 max-w-md opacity-0 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <input
           type="text"
-          placeholder="Search clients..."
+          placeholder="Zoek klanten..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full h-11 pl-10 pr-4 rounded-xl bg-secondary border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-shadow"
@@ -47,11 +47,11 @@ export default function CustomersPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium">{customer.name}</p>
-                <p className="text-xs text-muted-foreground">{customer.totalVisits} visits · Last: {customer.lastVisit}</p>
+                <p className="text-xs text-muted-foreground">{customer.totalVisits} bezoeken · Laatst: {customer.lastVisit}</p>
               </div>
               <div className="text-right flex-shrink-0">
-                <p className="text-sm font-semibold tabular-nums">${customer.totalSpent.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">total spent</p>
+                <p className="text-sm font-semibold tabular-nums">{formatEuro(customer.totalSpent)}</p>
+                <p className="text-xs text-muted-foreground">totaal besteed</p>
               </div>
               <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
             </button>
@@ -62,7 +62,7 @@ export default function CustomersPage() {
         {selectedCustomer && (
           <div className="w-full lg:w-[380px] glass-card p-6 opacity-0 animate-fade-in-up flex-shrink-0">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold">Client Profile</h3>
+              <h3 className="text-lg font-semibold">Klantprofiel</h3>
               <button onClick={() => setSelectedCustomer(null)} className="p-1.5 rounded-lg hover:bg-secondary lg:hidden">
                 <X className="w-4 h-4" />
               </button>
@@ -90,17 +90,17 @@ export default function CustomersPage() {
               <div className="p-3 rounded-xl bg-secondary/50 text-center">
                 <Calendar className="w-4 h-4 text-muted-foreground mx-auto mb-1" />
                 <p className="text-lg font-bold tabular-nums">{selectedCustomer.totalVisits}</p>
-                <p className="text-[11px] text-muted-foreground">Visits</p>
+                <p className="text-[11px] text-muted-foreground">Bezoeken</p>
               </div>
               <div className="p-3 rounded-xl bg-secondary/50 text-center">
-                <DollarSign className="w-4 h-4 text-muted-foreground mx-auto mb-1" />
-                <p className="text-lg font-bold tabular-nums">${selectedCustomer.totalSpent.toLocaleString()}</p>
-                <p className="text-[11px] text-muted-foreground">Total Spent</p>
+                <Euro className="w-4 h-4 text-muted-foreground mx-auto mb-1" />
+                <p className="text-lg font-bold tabular-nums">{formatEuro(selectedCustomer.totalSpent)}</p>
+                <p className="text-[11px] text-muted-foreground">Totaal Besteed</p>
               </div>
             </div>
 
             <Button variant="gradient" className="w-full">
-              <Calendar className="w-4 h-4" /> Book Again
+              <Calendar className="w-4 h-4" /> Opnieuw Boeken
             </Button>
           </div>
         )}

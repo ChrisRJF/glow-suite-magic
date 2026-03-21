@@ -1,18 +1,18 @@
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
-import { todaysAppointments, aiSuggestions } from "@/lib/data";
-import { TrendingUp, Users, Calendar, DollarSign, Sparkles, ArrowRight, Clock } from "lucide-react";
+import { todaysAppointments, aiSuggestions, formatEuro } from "@/lib/data";
+import { TrendingUp, Users, Calendar, Euro, Sparkles, ArrowRight, Clock } from "lucide-react";
 
 const stats = [
-  { label: "Revenue Today", value: "$1,245", change: "+18%", icon: DollarSign, positive: true },
-  { label: "Appointments", value: "6", change: "2 pending", icon: Calendar, positive: true },
-  { label: "Customers", value: "847", change: "+12 this week", icon: Users, positive: true },
-  { label: "Avg. Ticket", value: "$104", change: "+8%", icon: TrendingUp, positive: true },
+  { label: "Omzet Vandaag", value: "€1.087", change: "+18%", icon: Euro, positive: true },
+  { label: "Afspraken", value: "6", change: "2 in afwachting", icon: Calendar, positive: true },
+  { label: "Klanten", value: "847", change: "+12 deze week", icon: Users, positive: true },
+  { label: "Gem. Bon", value: "€93", change: "+8%", icon: TrendingUp, positive: true },
 ];
 
 export default function DashboardPage() {
   return (
-    <AppLayout title="Dashboard" subtitle="Saturday, March 21 — Here's your day at a glance.">
+    <AppLayout title="Overzicht" subtitle="Zaterdag 21 maart — Hier is je dag in één oogopslag.">
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {stats.map((stat, i) => (
@@ -37,9 +37,9 @@ export default function DashboardPage() {
         {/* Today's Appointments */}
         <div className="lg:col-span-2 glass-card p-6 opacity-0 animate-fade-in-up" style={{ animationDelay: '300ms' }}>
           <div className="flex items-center justify-between mb-5">
-            <h2 className="text-lg font-semibold">Today's Schedule</h2>
+            <h2 className="text-lg font-semibold">Planning Vandaag</h2>
             <Button variant="ghost" size="sm">
-              View All <ArrowRight className="w-3.5 h-3.5 ml-1" />
+              Alles Bekijken <ArrowRight className="w-3.5 h-3.5 ml-1" />
             </Button>
           </div>
           <div className="space-y-3">
@@ -60,12 +60,12 @@ export default function DashboardPage() {
                   <p className="text-sm font-medium tabular-nums">{apt.time}</p>
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
                     <Clock className="w-3 h-3" />
-                    {apt.duration}min
+                    {apt.duration} min
                   </div>
                 </div>
                 <div
                   className={`px-2.5 py-1 rounded-lg text-[11px] font-medium ${
-                    apt.status === 'confirmed'
+                    apt.status === 'bevestigd'
                       ? 'bg-success/15 text-success'
                       : 'bg-warning/15 text-warning'
                   }`}
@@ -81,7 +81,7 @@ export default function DashboardPage() {
         <div className="glass-card p-6 opacity-0 animate-fade-in-up" style={{ animationDelay: '400ms' }}>
           <div className="flex items-center gap-2 mb-5">
             <Sparkles className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-semibold">AI Suggestions</h2>
+            <h2 className="text-lg font-semibold">AI Suggesties</h2>
           </div>
           <div className="space-y-3">
             {aiSuggestions.map((suggestion) => (

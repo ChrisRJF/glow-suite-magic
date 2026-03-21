@@ -7,6 +7,9 @@ import DashboardPage from "./pages/DashboardPage";
 import CalendarPage from "./pages/CalendarPage";
 import CustomersPage from "./pages/CustomersPage";
 import ServicesPage from "./pages/ServicesPage";
+import BookingPage from "./pages/BookingPage";
+import WhatsAppPage from "./pages/WhatsAppPage";
+import MembershipsPage from "./pages/MembershipsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -19,9 +22,12 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<DashboardPage />} />
-          <Route path="/calendar" element={<CalendarPage />} />
-          <Route path="/customers" element={<CustomersPage />} />
-          <Route path="/services" element={<ServicesPage />} />
+          <Route path="/agenda" element={<CalendarPage />} />
+          <Route path="/klanten" element={<CustomersPage />} />
+          <Route path="/behandelingen" element={<ServicesPage />} />
+          <Route path="/boeken" element={<BookingPage />} />
+          <Route path="/whatsapp" element={<WhatsAppPage />} />
+          <Route path="/abonnementen" element={<MembershipsPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
