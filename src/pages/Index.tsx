@@ -1,33 +1,22 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+// Landing/splash — not currently routed; dashboard is at /
+import logoFull from "@/assets/logo-full.png";
 import logoIcon from "@/assets/logo-icon.png";
 
 export default function Index() {
-  const navigate = useNavigate();
-  const [visible, setVisible] = useState(true);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setVisible(false);
-      setTimeout(() => navigate("/", { replace: true }), 300);
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, [navigate]);
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
-      <div
-        className={`flex flex-col items-center gap-6 transition-opacity duration-300 ${visible ? "opacity-100" : "opacity-0"}`}
-      >
+      <div className="flex flex-col items-center gap-8">
         <img
           src={logoIcon}
           alt="GlowSuite"
           className="w-20 h-20 rounded-2xl animate-pulse"
           style={{ filter: "drop-shadow(0 0 24px hsl(270 80% 60% / 0.4))" }}
         />
-        <p className="text-sm text-muted-foreground font-medium tracking-widest uppercase">
-          Laden...
-        </p>
+        <img
+          src={logoFull}
+          alt="GlowSuite — Salon Business System"
+          className="h-12 w-auto object-contain"
+        />
       </div>
     </div>
   );
