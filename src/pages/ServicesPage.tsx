@@ -1,18 +1,18 @@
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
-import { services } from "@/lib/data";
-import { Plus, Clock, DollarSign, Pencil } from "lucide-react";
+import { services, formatEuro } from "@/lib/data";
+import { Plus, Clock, Euro, Pencil } from "lucide-react";
 
 const categories = [...new Set(services.map((s) => s.category))];
 
 export default function ServicesPage() {
   return (
     <AppLayout
-      title="Services"
-      subtitle="Manage your salon's service menu."
+      title="Behandelingen"
+      subtitle="Beheer je behandelmenu."
       actions={
         <Button variant="gradient" size="sm">
-          <Plus className="w-4 h-4" /> Add Service
+          <Plus className="w-4 h-4" /> Behandeling Toevoegen
         </Button>
       }
     >
@@ -47,7 +47,7 @@ export default function ServicesPage() {
                         <Clock className="w-3.5 h-3.5" /> {service.duration} min
                       </span>
                       <span className="flex items-center gap-1 text-sm font-semibold tabular-nums">
-                        <DollarSign className="w-3.5 h-3.5 text-muted-foreground" />{service.price}
+                        <Euro className="w-3.5 h-3.5 text-muted-foreground" />{formatEuro(service.price)}
                       </span>
                     </div>
                   </div>

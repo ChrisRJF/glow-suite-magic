@@ -7,14 +7,20 @@ import {
   Scissors,
   Menu,
   X,
+  Globe,
+  MessageCircle,
+  CreditCard,
 } from "lucide-react";
 import { useState } from "react";
 
 const navItems = [
-  { label: "Dashboard", icon: LayoutDashboard, path: "/" },
-  { label: "Calendar", icon: Calendar, path: "/calendar" },
-  { label: "Customers", icon: Users, path: "/customers" },
-  { label: "Services", icon: Scissors, path: "/services" },
+  { label: "Overzicht", icon: LayoutDashboard, path: "/" },
+  { label: "Agenda", icon: Calendar, path: "/agenda" },
+  { label: "Klanten", icon: Users, path: "/klanten" },
+  { label: "Behandelingen", icon: Scissors, path: "/behandelingen" },
+  { label: "Online Boeken", icon: Globe, path: "/boeken" },
+  { label: "WhatsApp", icon: MessageCircle, path: "/whatsapp" },
+  { label: "Abonnementen", icon: CreditCard, path: "/abonnementen" },
 ];
 
 export function AppSidebar() {
