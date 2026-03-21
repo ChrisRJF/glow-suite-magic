@@ -1,5 +1,6 @@
 import { ReactNode } from "react";
 import { AppSidebar } from "./AppSidebar";
+import logoIcon from "@/assets/logo-icon.png";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -20,7 +21,14 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
               <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-balance">{title}</h1>
               {subtitle && <p className="text-muted-foreground mt-1 text-sm">{subtitle}</p>}
             </div>
-            {actions && <div className="page-enter stagger-1">{actions}</div>}
+            <div className="flex items-center gap-3 page-enter stagger-1">
+              {actions}
+              <img
+                src={logoIcon}
+                alt="GlowSuite"
+                className="hidden sm:block w-9 h-9 rounded-xl object-contain opacity-80 hover:opacity-100 transition-opacity"
+              />
+            </div>
           </header>
           {children}
         </div>

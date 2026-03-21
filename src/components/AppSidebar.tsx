@@ -12,6 +12,8 @@ import {
   CreditCard,
 } from "lucide-react";
 import { useState } from "react";
+import logoFull from "@/assets/logo-full.png";
+import logoIcon from "@/assets/logo-icon.png";
 
 const navItems = [
   { label: "Overzicht", icon: LayoutDashboard, path: "/" },
@@ -61,14 +63,19 @@ export function AppSidebar() {
         </button>
 
         {/* Logo */}
-        <div className="flex items-center gap-3 mb-10 px-1">
-          <div className="w-9 h-9 rounded-xl gradient-bg flex items-center justify-center">
-            <span className="text-sm font-bold text-primary-foreground">GS</span>
-          </div>
-          <div>
-            <h1 className="text-base font-bold tracking-tight">GlowSuite</h1>
-            <p className="text-[11px] text-muted-foreground font-medium tracking-wide uppercase">Salon System</p>
-          </div>
+        <div className="mb-10 px-1">
+          {/* Full logo on desktop */}
+          <img
+            src={logoFull}
+            alt="GlowSuite"
+            className="hidden lg:block h-10 w-auto object-contain"
+          />
+          {/* Icon logo on mobile */}
+          <img
+            src={logoIcon}
+            alt="GlowSuite"
+            className="lg:hidden h-10 w-10 rounded-xl object-contain"
+          />
         </div>
 
         {/* Nav */}
@@ -92,9 +99,11 @@ export function AppSidebar() {
         {/* Bottom section */}
         <div className="pt-4 border-t border-border">
           <div className="flex items-center gap-3 px-1">
-            <div className="w-8 h-8 rounded-full gradient-bg flex items-center justify-center">
-              <span className="text-xs font-semibold text-primary-foreground">JA</span>
-            </div>
+            <img
+              src={logoIcon}
+              alt="GlowSuite"
+              className="w-8 h-8 rounded-lg object-contain"
+            />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">Jessica A.</p>
               <p className="text-xs text-muted-foreground truncate">Glow Studio</p>
