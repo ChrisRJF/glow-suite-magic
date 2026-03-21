@@ -72,7 +72,7 @@ export const services: Service[] = [
 
 export const aiSuggestions: AISuggestion[] = [
   { id: '1', icon: '📅', title: '3 empty slots tomorrow', description: 'Tuesday 10:00, 13:00, and 16:00 are open. Consider sending a promo to recent clients.', action: 'Fill Slots', priority: 'high' },
-  { id: '2', icon: '💌', title: 'Re-engage inactive clients', description: '4 clients haven't visited in 30+ days. Send them a personalized reminder.', action: 'Send Reminders', priority: 'high' },
+  { id: '2', icon: '💌', title: 'Re-engage inactive clients', description: "4 clients haven't visited in 30+ days. Send them a personalized reminder.", action: 'Send Reminders', priority: 'high' },
   { id: '3', icon: '💰', title: 'Revenue opportunity', description: 'Charlotte W. usually books a treatment add-on. Suggest it at her next visit.', action: 'Note Added', priority: 'medium' },
   { id: '4', icon: '⭐', title: 'Review request ready', description: '3 clients completed services yesterday. Ask them for a Google review.', action: 'Send Requests', priority: 'low' },
 ];
