@@ -1,16 +1,34 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import logoIcon from "@/assets/logo-icon.png";
 
-// IMPORTANT: Fully REPLACE this with your own code
-const PlaceholderIndex = () => {
-  // PLACEHOLDER: Replace this entire return statement with the user's app.
-  // The inline background color is intentionally not part of the design system.
+export default function Index() {
+  const navigate = useNavigate();
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setVisible(false);
+      setTimeout(() => navigate("/", { replace: true }), 300);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [navigate]);
+
   return (
-    <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: '#fcfbf8' }}>
-      <img data-lovable-blank-page-placeholder="REMOVE_THIS" src="/placeholder.svg" alt="Your app will live here!" />
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <div
+        className={`flex flex-col items-center gap-6 transition-opacity duration-300 ${visible ? "opacity-100" : "opacity-0"}`}
+      >
+        <img
+          src={logoIcon}
+          alt="GlowSuite"
+          className="w-20 h-20 rounded-2xl animate-pulse"
+          style={{ filter: "drop-shadow(0 0 24px hsl(270 80% 60% / 0.4))" }}
+        />
+        <p className="text-sm text-muted-foreground font-medium tracking-widest uppercase">
+          Laden...
+        </p>
+      </div>
     </div>
   );
-};
-
-const Index = PlaceholderIndex;
-
-export default Index;
+}
