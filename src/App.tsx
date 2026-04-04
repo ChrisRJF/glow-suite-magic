@@ -10,6 +10,15 @@ import ServicesPage from "./pages/ServicesPage";
 import BookingPage from "./pages/BookingPage";
 import WhatsAppPage from "./pages/WhatsAppPage";
 import MembershipsPage from "./pages/MembershipsPage";
+import OmzetPage from "./pages/OmzetPage";
+import HerboekingenPage from "./pages/HerboekingenPage";
+import MarketingPage from "./pages/MarketingPage";
+import ActiesPage from "./pages/ActiesPage";
+import KassaPage from "./pages/KassaPage";
+import ProductenPage from "./pages/ProductenPage";
+import RapportenPage from "./pages/RapportenPage";
+import InstellingenPage from "./pages/InstellingenPage";
+import SupportPage from "./pages/SupportPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +37,15 @@ const App = () => (
           <Route path="/boeken" element={<BookingPage />} />
           <Route path="/whatsapp" element={<WhatsAppPage />} />
           <Route path="/abonnementen" element={<MembershipsPage />} />
+          <Route path="/omzet" element={<OmzetPage />} />
+          <Route path="/herboekingen" element={<HerboekingenPage />} />
+          <Route path="/marketing" element={<MarketingPage />} />
+          <Route path="/acties" element={<ActiesPage />} />
+          <Route path="/kassa" element={<KassaPage />} />
+          <Route path="/producten" element={<ProductenPage />} />
+          <Route path="/rapporten" element={<RapportenPage />} />
+          <Route path="/instellingen" element={<InstellingenPage />} />
+          <Route path="/support" element={<SupportPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
