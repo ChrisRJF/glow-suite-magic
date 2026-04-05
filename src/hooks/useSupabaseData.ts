@@ -1,0 +1,76 @@
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import type { Tables, TablesInsert } from "@/integrations/supabase/types";
+
+type TableName = keyof import("@/integrations/supabase/types").Database["public"]["Tables"];
+
+export function useSupabaseQuery<T extends TableName>(
+  table: T,
+  options?: { orderBy?: string; ascending?: boolean; enabled?: boolean }
+) {
+  const { user } = useAuth();
+  const [data, setData] = useState<Tables<T>[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetch = useCallback(async () => {
+    if (!user) { setData([]); setLoading(false); return; }
+    setLoading(true);
+    let query = supabase.from(table).select("*");
+    if (options?.orderBy) {
+      query = query.order(options.orderBy, { ascending: options.ascending ?? false });
+    } else {
+      query = query.order("created_at", { ascending: false });
+    }
+    const { data: result, error } = await query;
+    if (!error && result) setData(result as Tables<T>[]);
+    setLoading(false);
+  }, [user, table, options?.orderBy, options?.ascending]);
+
+  useEffect(() => {
+    if (options?.enabled === false) return;
+    fetch();
+  }, [fetch, options?.enabled]);
+
+  return { data, loading, refetch: fetch };
+}
+
+export function useCustomers() {
+  return useSupabaseQuery("customers", { orderBy: "name", ascending: true });
+}
+
+export function useServices() {
+  return useSupabaseQuery("services", { orderBy: "name", ascending: true });
+}
+
+export function useProducts() {
+  return useSupabaseQuery("products", { orderBy: "name", ascending: true });
+}
+
+export function useAppointments() {
+  return useSupabaseQuery("appointments", { orderBy: "appointment_date", ascending: true });
+}
+
+export function useCampaigns() {
+  return useSupabaseQuery("campaigns");
+}
+
+export function useDiscounts() {
+  return useSupabaseQuery("discounts");
+}
+
+export function useFeedback() {
+  return useSupabaseQuery("feedback_entries");
+}
+
+export function useRebookActions() {
+  return useSupabaseQuery("rebook_actions");
+}
+
+export function useSettings() {
+  return useSupabaseQuery("settings");
+}
+
+export function useCheckoutItems() {
+  return useSupabaseQuery("checkout_items");
+}
