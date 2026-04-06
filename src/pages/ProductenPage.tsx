@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useProducts } from "@/hooks/useSupabaseData";
 import { useCrud } from "@/hooks/useCrud";
 import { formatEuro } from "@/lib/data";
-import { Package, Search, Plus, Pencil, Trash2 } from "lucide-react";
+import { Package, Search, Plus, Pencil, Trash2, AlertTriangle } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
