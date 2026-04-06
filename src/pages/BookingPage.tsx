@@ -1,10 +1,19 @@
 import { useState } from "react";
 import { services, formatEuro } from "@/lib/data";
 import { Button } from "@/components/ui/button";
-import { Check, Clock, ArrowLeft, ArrowRight, Calendar, User } from "lucide-react";
+import { Check, Clock, ArrowLeft, ArrowRight, Calendar, User, CreditCard, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { usePaymentRules } from "@/hooks/usePaymentRules";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const availableSlots = ['09:00', '10:00', '11:30', '13:00', '14:30', '16:00', '17:00'];
+const paymentMethods = [
+  { id: 'ideal', label: 'iDEAL', icon: '🏦' },
+  { id: 'bancontact', label: 'Bancontact', icon: '💳' },
+  { id: 'creditcard', label: 'Creditcard', icon: '💳' },
+  { id: 'applepay', label: 'Apple Pay', icon: '🍎' },
+];
 
 export default function BookingPage() {
   const [step, setStep] = useState(1);
@@ -12,8 +21,64 @@ export default function BookingPage() {
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [selectedMethod, setSelectedMethod] = useState('ideal');
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [paymentResult, setPaymentResult] = useState<{ status: string; message: string } | null>(null);
 
   const service = services.find(s => s.id === selectedService);
+
+  // Smart payment rules (demo defaults — in real app these come from settings)
+  const rules = usePaymentRules({
+    deposit_new_client: true,
+    deposit_percentage: 50,
+    full_prepay_threshold: 150,
+    skip_prepay_vip: false,
+    deposit_noshow_risk: true,
+    demo_mode: true,
+  });
+
+  // For public booking, treat as new customer
+  const paymentDecision = service ? rules.decide(service.price, null, true) : null;
+
+  const handleConfirm = async () => {
+    if (!paymentDecision?.required) {
+      toast.success("Afspraak bevestigd! ✅");
+      setPaymentResult({ status: "success", message: "Afspraak bevestigd! Geen betaling vereist." });
+      return;
+    }
+
+    setPaymentLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-payment", {
+        body: {
+          amount: paymentDecision.amount,
+          payment_type: paymentDecision.type,
+          method: selectedMethod,
+          is_demo: true,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.demo) {
+        if (data.payment?.status === "paid") {
+          setPaymentResult({ status: "success", message: data.message });
+          toast.success(data.message);
+        } else {
+          setPaymentResult({ status: "failed", message: data.message });
+          toast.error(data.message);
+        }
+      } else if (data?.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      }
+    } catch (err: any) {
+      const msg = err?.message || "Betaling mislukt";
+      setPaymentResult({ status: "failed", message: msg });
+      toast.error(msg);
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -122,10 +187,10 @@ export default function BookingPage() {
           </div>
         )}
 
-        {/* Step 3: Enter Details */}
+        {/* Step 3: Enter Details + Payment */}
         {step === 3 && (
           <div className="opacity-0 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
-            <button onClick={() => setStep(2)} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors">
+            <button onClick={() => { setStep(2); setPaymentResult(null); }} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors">
               <ArrowLeft className="w-4 h-4" /> Terug
             </button>
             <h2 className="text-xl font-bold mb-6">Jouw gegevens</h2>
@@ -145,6 +210,29 @@ export default function BookingPage() {
                 <span className="font-bold">{service ? formatEuro(service.price) : ''}</span>
               </div>
             </div>
+
+            {/* Payment Decision Info */}
+            {paymentDecision && (
+              <div className={cn(
+                "p-4 rounded-xl mb-6 text-sm",
+                paymentDecision.required
+                  ? "bg-primary/10 border border-primary/20"
+                  : "bg-success/10 border border-success/20"
+              )}>
+                <div className="flex items-center gap-2 mb-1">
+                  <CreditCard className="w-4 h-4" />
+                  <span className="font-medium">
+                    {paymentDecision.required
+                      ? paymentDecision.type === "full" ? "Volledige betaling vereist" : "Aanbetaling vereist"
+                      : "Geen betaling nodig"}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">{paymentDecision.reason}</p>
+                {paymentDecision.required && (
+                  <p className="font-semibold mt-1">Te betalen: {formatEuro(paymentDecision.amount)}</p>
+                )}
+              </div>
+            )}
 
             <div className="space-y-4">
               <div>
@@ -172,14 +260,70 @@ export default function BookingPage() {
               </div>
             </div>
 
-            <Button
-              variant="gradient"
-              className="w-full mt-6"
-              disabled={!name || !phone}
-              onClick={() => alert('Afspraak bevestigd! ✅')}
-            >
-              <Check className="w-4 h-4" /> Afspraak Bevestigen
-            </Button>
+            {/* Payment Method Selection */}
+            {paymentDecision?.required && (
+              <div className="mt-6">
+                <label className="text-sm font-medium mb-2 block">Betaalmethode</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {paymentMethods.map((m) => (
+                    <button
+                      key={m.id}
+                      onClick={() => setSelectedMethod(m.id)}
+                      className={cn(
+                        "p-3 rounded-xl border text-sm font-medium transition-all duration-200 flex items-center gap-2",
+                        selectedMethod === m.id
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border hover:bg-secondary/60"
+                      )}
+                    >
+                      <span>{m.icon}</span> {m.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Payment Result */}
+            {paymentResult && (
+              <div className={cn(
+                "mt-6 p-4 rounded-xl text-sm text-center",
+                paymentResult.status === "success"
+                  ? "bg-success/10 border border-success/20 text-success"
+                  : "bg-destructive/10 border border-destructive/20 text-destructive"
+              )}>
+                <p className="font-semibold">{paymentResult.message}</p>
+                {paymentResult.status === "success" && (
+                  <p className="text-xs mt-1 text-muted-foreground">Je ontvangt een bevestiging per e-mail.</p>
+                )}
+              </div>
+            )}
+
+            {!paymentResult && (
+              <Button
+                variant="gradient"
+                className="w-full mt-6"
+                disabled={!name || !phone || paymentLoading}
+                onClick={handleConfirm}
+              >
+                {paymentLoading ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Betaling verwerken...</>
+                ) : paymentDecision?.required ? (
+                  <><CreditCard className="w-4 h-4" /> Betaal {formatEuro(paymentDecision.amount)}</>
+                ) : (
+                  <><Check className="w-4 h-4" /> Afspraak Bevestigen</>
+                )}
+              </Button>
+            )}
+
+            {paymentResult && (
+              <Button
+                variant="outline"
+                className="w-full mt-3"
+                onClick={() => { setStep(1); setPaymentResult(null); setName(''); setPhone(''); setSelectedService(null); setSelectedTime(null); }}
+              >
+                Nieuwe afspraak maken
+              </Button>
+            )}
           </div>
         )}
       </div>
