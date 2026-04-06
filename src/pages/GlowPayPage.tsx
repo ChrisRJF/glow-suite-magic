@@ -60,6 +60,26 @@ export default function GlowPayPage() {
     refetchPayments();
   };
 
+  const handleRetry = async (id: string) => {
+    // Simulate retry: randomly succeed or fail
+    const success = Math.random() > 0.3;
+    await updatePayment(id, { status: success ? "paid" : "failed", paid_at: success ? new Date().toISOString() : null });
+    toast[success ? "success" : "error"](success ? "Betaling opnieuw gelukt!" : "Betaling opnieuw mislukt");
+    refetchPayments();
+  };
+
+  const handleReminder = async (id: string) => {
+    toast.success("Betaalherinnering verstuurd (demo)");
+  };
+
+  const getRemainingAmount = (p: any) => {
+    if (p.payment_type === "deposit" && p.status === "paid") {
+      const appt = appointments.find(a => a.id === p.appointment_id);
+      if (appt) return Math.max(0, (Number(appt.price) || 0) - Number(p.amount));
+    }
+    return 0;
+  };
+
   const getCustomerName = (id: string | null) => customers.find(c => c.id === id)?.name || "Onbekend";
   const getStatusBadge = (status: string) => {
     const map: Record<string, { label: string; class: string; icon: typeof CheckCircle2 }> = {
