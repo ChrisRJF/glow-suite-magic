@@ -80,6 +80,42 @@ export type Database = {
           },
         ]
       }
+      automation_rules: {
+        Row: {
+          action_type: string
+          config: Json | null
+          created_at: string
+          id: string
+          is_active: boolean | null
+          last_triggered_at: string | null
+          trigger_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          action_type: string
+          config?: Json | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          last_triggered_at?: string | null
+          trigger_type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          config?: Json | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          last_triggered_at?: string | null
+          trigger_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       campaigns: {
         Row: {
           audience: string | null

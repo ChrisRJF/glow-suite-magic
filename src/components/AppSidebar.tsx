@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Calendar, Users, Scissors, Menu, X, Globe,
   MessageCircle, CreditCard, TrendingUp, RefreshCw, Megaphone,
   Zap, ShoppingBag, Package, BarChart3, Settings, HelpCircle, LogOut,
-  Sun, Moon,
+  Sun, Moon, Bot,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -41,6 +41,7 @@ const navGroups: NavGroup[] = [
       { label: "Herboekingen", icon: RefreshCw, path: "/herboekingen" },
       { label: "Marketing", icon: Megaphone, path: "/marketing" },
       { label: "Acties", icon: Zap, path: "/acties", accent: true },
+      { label: "Automatiseringen", icon: Bot, path: "/automatiseringen" },
     ],
   },
   {

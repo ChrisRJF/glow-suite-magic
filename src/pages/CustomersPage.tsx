@@ -3,8 +3,8 @@ import { Button } from "@/components/ui/button";
 import { useCustomers, useAppointments, useServices } from "@/hooks/useSupabaseData";
 import { useCrud } from "@/hooks/useCrud";
 import { formatEuro } from "@/lib/data";
-import { useState } from "react";
-import { Search, Phone, Mail, Calendar, Euro, ArrowRight, X, Plus, Trash2, Pencil, Save } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Search, Phone, Mail, Calendar, Euro, ArrowRight, X, Plus, Trash2, Pencil, Save, Star, AlertTriangle, UserCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
@@ -12,16 +12,34 @@ import type { Tables } from "@/integrations/supabase/types";
 export default function CustomersPage() {
   const { data: customers, loading, refetch } = useCustomers();
   const { data: appointments } = useAppointments();
+  const { data: services } = useServices();
   const { insert, update, remove } = useCrud("customers");
   const [search, setSearch] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Tables<"customers"> | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ name: '', phone: '', email: '', notes: '' });
+  const [filterLabel, setFilterLabel] = useState<string>("alle");
 
-  const filtered = customers.filter((c) =>
-    c.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const customerIntel = useMemo(() => {
+    return customers.map(c => {
+      const custAppts = appointments.filter(a => a.customer_id === c.id && a.status !== 'geannuleerd');
+      const lastAppt = custAppts.sort((a, b) => new Date(b.appointment_date).getTime() - new Date(a.appointment_date).getTime())[0];
+      const daysSinceLast = lastAppt ? Math.floor((Date.now() - new Date(lastAppt.appointment_date).getTime()) / 86400000) : 999;
+      const avgSpend = custAppts.length > 0 ? custAppts.reduce((s, a) => s + (Number(a.price) || 0), 0) / custAppts.length : 0;
+      const isVip = c.is_vip || ((Number(c.total_spent) || 0) > 500 && custAppts.length >= 5);
+      const isRisk = (c.no_show_count || 0) > 0 || (c.cancellation_count || 0) > 2;
+      const isNew = custAppts.length <= 2;
+      const label = isVip ? "VIP" : isRisk ? "Risico" : isNew ? "Nieuw" : "Regulier";
+      return { ...c, custAppts, lastAppt, daysSinceLast, avgSpend, label, isVip, isRisk, isNew };
+    });
+  }, [customers, appointments]);
+
+  const filtered = customerIntel.filter(c => {
+    const matchSearch = c.name.toLowerCase().includes(search.toLowerCase());
+    const matchLabel = filterLabel === "alle" || c.label.toLowerCase() === filterLabel;
+    return matchSearch && matchLabel;
+  });
 
   const handleAdd = async () => {
     if (!form.name.trim()) { toast.error("Naam is verplicht"); return; }
@@ -39,17 +57,23 @@ export default function CustomersPage() {
     if (await remove(id)) { toast.success("Klant verwijderd"); setSelectedCustomer(null); refetch(); }
   };
 
-  const customerAppts = selectedCustomer
-    ? appointments.filter(a => a.customer_id === selectedCustomer.id).sort((a, b) => new Date(b.appointment_date).getTime() - new Date(a.appointment_date).getTime())
-    : [];
+  const selectedIntel = selectedCustomer ? customerIntel.find(c => c.id === selectedCustomer.id) : null;
 
   const initials = (name: string) => name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+
+  const getLabelBadge = (label: string) => {
+    switch (label) {
+      case "VIP": return <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-warning/15 text-warning"><Star className="w-3 h-3" />VIP</span>;
+      case "Risico": return <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-destructive/15 text-destructive"><AlertTriangle className="w-3 h-3" />Risico</span>;
+      case "Nieuw": return <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-primary/15 text-primary"><UserCheck className="w-3 h-3" />Nieuw</span>;
+      default: return null;
+    }
+  };
 
   return (
     <AppLayout title="Klanten" subtitle={`${customers.length} klanten in je salon`}
       actions={<Button variant="gradient" size="sm" onClick={() => { setShowAdd(true); setForm({ name: '', phone: '', email: '', notes: '' }); }}><Plus className="w-4 h-4" /> Nieuwe klant</Button>}>
 
-      {/* Add Modal */}
       {showAdd && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowAdd(false)}>
           <div className="glass-card p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
@@ -68,10 +92,22 @@ export default function CustomersPage() {
         </div>
       )}
 
-      <div className="relative mb-6 max-w-md opacity-0 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <input type="text" placeholder="Zoek klanten..." value={search} onChange={(e) => setSearch(e.target.value)}
-          className="w-full h-11 pl-10 pr-4 rounded-xl bg-secondary border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-shadow" />
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-3 mb-6 opacity-0 animate-fade-in-up" style={{ animationDelay: '50ms' }}>
+        <div className="relative max-w-md flex-1">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <input type="text" placeholder="Zoek klanten..." value={search} onChange={(e) => setSearch(e.target.value)}
+            className="w-full h-11 pl-10 pr-4 rounded-xl bg-secondary border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-shadow" />
+        </div>
+        <div className="flex gap-1 bg-secondary/50 p-1 rounded-xl">
+          {["alle", "vip", "risico", "nieuw"].map(f => (
+            <button key={f} onClick={() => setFilterLabel(f)}
+              className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition-all capitalize",
+                filterLabel === f ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground")}>
+              {f === "alle" ? "Alle" : f === "vip" ? "⭐ VIP" : f === "risico" ? "⚠️ Risico" : "🆕 Nieuw"}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="flex gap-6">
@@ -86,19 +122,22 @@ export default function CustomersPage() {
                 <span className="text-xs font-semibold text-primary-foreground">{initials(customer.name)}</span>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium">{customer.name}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium">{customer.name}</p>
+                  {getLabelBadge(customer.label)}
+                </div>
                 <p className="text-xs text-muted-foreground">{customer.phone || 'Geen telefoon'}</p>
               </div>
               <div className="text-right flex-shrink-0">
                 <p className="text-sm font-semibold tabular-nums">{formatEuro(Number(customer.total_spent) || 0)}</p>
-                <p className="text-xs text-muted-foreground">totaal besteed</p>
+                <p className="text-xs text-muted-foreground">{customer.custAppts.length} bezoeken</p>
               </div>
               <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
             </button>
           ))}
         </div>
 
-        {selectedCustomer && (
+        {selectedCustomer && selectedIntel && (
           <div className="w-full lg:w-[380px] glass-card p-6 opacity-0 animate-fade-in-up flex-shrink-0">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold">Klantprofiel</h3>
@@ -124,28 +163,44 @@ export default function CustomersPage() {
                     <span className="text-xl font-bold text-primary-foreground">{initials(selectedCustomer.name)}</span>
                   </div>
                   <h4 className="text-base font-semibold">{selectedCustomer.name}</h4>
+                  <div className="mt-1">{getLabelBadge(selectedIntel.label)}</div>
                 </div>
                 <div className="space-y-3 mb-6">
                   <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/50"><Phone className="w-4 h-4 text-muted-foreground" /><span className="text-sm">{selectedCustomer.phone || '—'}</span></div>
                   <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/50"><Mail className="w-4 h-4 text-muted-foreground" /><span className="text-sm">{selectedCustomer.email || '—'}</span></div>
                 </div>
+                {/* Intelligence Stats */}
                 <div className="grid grid-cols-2 gap-3 mb-6">
-                  <div className="p-3 rounded-xl bg-secondary/50 text-center">
-                    <Calendar className="w-4 h-4 text-muted-foreground mx-auto mb-1" />
-                    <p className="text-lg font-bold tabular-nums">{customerAppts.length}</p>
-                    <p className="text-[11px] text-muted-foreground">Bezoeken</p>
-                  </div>
                   <div className="p-3 rounded-xl bg-secondary/50 text-center">
                     <Euro className="w-4 h-4 text-muted-foreground mx-auto mb-1" />
                     <p className="text-lg font-bold tabular-nums">{formatEuro(Number(selectedCustomer.total_spent) || 0)}</p>
-                    <p className="text-[11px] text-muted-foreground">Totaal Besteed</p>
+                    <p className="text-[11px] text-muted-foreground">Lifetime Value</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-secondary/50 text-center">
+                    <Calendar className="w-4 h-4 text-muted-foreground mx-auto mb-1" />
+                    <p className="text-lg font-bold tabular-nums">{selectedIntel.custAppts.length}</p>
+                    <p className="text-[11px] text-muted-foreground">Afspraken</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-secondary/50 text-center">
+                    <p className="text-lg font-bold tabular-nums">{formatEuro(selectedIntel.avgSpend)}</p>
+                    <p className="text-[11px] text-muted-foreground">Gem. besteding</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-secondary/50 text-center">
+                    <p className="text-lg font-bold tabular-nums">{selectedIntel.daysSinceLast < 999 ? `${selectedIntel.daysSinceLast}d` : "—"}</p>
+                    <p className="text-[11px] text-muted-foreground">Laatste bezoek</p>
                   </div>
                 </div>
+                {/* No-show score */}
+                {((selectedCustomer.no_show_count || 0) > 0 || (selectedCustomer.cancellation_count || 0) > 0) && (
+                  <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 mb-4">
+                    <p className="text-xs font-medium text-destructive">⚠️ No-show: {selectedCustomer.no_show_count || 0} · Annuleringen: {selectedCustomer.cancellation_count || 0}</p>
+                  </div>
+                )}
                 {selectedCustomer.notes && <div className="p-3 rounded-xl bg-secondary/50 mb-4"><p className="text-xs text-muted-foreground mb-1">Notities</p><p className="text-sm">{selectedCustomer.notes}</p></div>}
-                {customerAppts.length > 0 && (
+                {selectedIntel.custAppts.length > 0 && (
                   <div className="mb-4">
                     <p className="text-xs text-muted-foreground mb-2">Laatste afspraken</p>
-                    {customerAppts.slice(0, 3).map(a => (
+                    {selectedIntel.custAppts.slice(0, 3).map(a => (
                       <div key={a.id} className="flex justify-between text-xs py-1.5 border-b border-border last:border-0">
                         <span>{new Date(a.appointment_date).toLocaleDateString('nl-NL')}</span>
                         <span className="text-muted-foreground">{a.status}</span>
