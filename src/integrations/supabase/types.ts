@@ -532,6 +532,8 @@ export type Database = {
       }
       settings: {
         Row: {
+          auto_block_noshow: number | null
+          buffer_minutes: number | null
           created_at: string
           currency: string | null
           demo_mode: boolean | null
@@ -540,9 +542,14 @@ export type Database = {
           deposit_percentage: number | null
           email_enabled: boolean | null
           full_prepay_threshold: number | null
+          google_calendar_enabled: boolean | null
+          group_bookings_enabled: boolean | null
           id: string
+          instagram_booking_enabled: boolean | null
           language: string | null
+          max_bookings_simultaneous: number | null
           mollie_mode: string | null
+          opening_hours: Json | null
           salon_name: string | null
           skip_prepay_vip: boolean | null
           timezone: string | null
@@ -551,6 +558,8 @@ export type Database = {
           whatsapp_enabled: boolean | null
         }
         Insert: {
+          auto_block_noshow?: number | null
+          buffer_minutes?: number | null
           created_at?: string
           currency?: string | null
           demo_mode?: boolean | null
@@ -559,9 +568,14 @@ export type Database = {
           deposit_percentage?: number | null
           email_enabled?: boolean | null
           full_prepay_threshold?: number | null
+          google_calendar_enabled?: boolean | null
+          group_bookings_enabled?: boolean | null
           id?: string
+          instagram_booking_enabled?: boolean | null
           language?: string | null
+          max_bookings_simultaneous?: number | null
           mollie_mode?: string | null
+          opening_hours?: Json | null
           salon_name?: string | null
           skip_prepay_vip?: boolean | null
           timezone?: string | null
@@ -570,6 +584,8 @@ export type Database = {
           whatsapp_enabled?: boolean | null
         }
         Update: {
+          auto_block_noshow?: number | null
+          buffer_minutes?: number | null
           created_at?: string
           currency?: string | null
           demo_mode?: boolean | null
@@ -578,9 +594,14 @@ export type Database = {
           deposit_percentage?: number | null
           email_enabled?: boolean | null
           full_prepay_threshold?: number | null
+          google_calendar_enabled?: boolean | null
+          group_bookings_enabled?: boolean | null
           id?: string
+          instagram_booking_enabled?: boolean | null
           language?: string | null
+          max_bookings_simultaneous?: number | null
           mollie_mode?: string | null
+          opening_hours?: Json | null
           salon_name?: string | null
           skip_prepay_vip?: boolean | null
           timezone?: string | null
@@ -590,15 +611,96 @@ export type Database = {
         }
         Relationships: []
       }
+      sub_appointments: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          parent_appointment_id: string
+          person_name: string
+          price: number | null
+          service_id: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          parent_appointment_id: string
+          person_name: string
+          price?: number | null
+          service_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          parent_appointment_id?: string
+          person_name?: string
+          price?: number | null
+          service_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sub_appointments_parent_appointment_id_fkey"
+            columns: ["parent_appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sub_appointments_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "eigenaar" | "admin" | "medewerker"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -725,6 +827,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["eigenaar", "admin", "medewerker"],
+    },
   },
 } as const
