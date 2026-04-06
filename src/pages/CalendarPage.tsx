@@ -171,7 +171,16 @@ export default function CalendarPage() {
                               <span className="text-xs text-muted-foreground flex items-center gap-0.5"><Clock className="w-3 h-3" />{svc?.duration_minutes || 30} min</span>
                             </div>
                           </div>
-                          <div className="flex gap-1">
+                          <div className="flex items-center gap-1">
+                            {(apt as any).payment_status && (apt as any).payment_status !== 'none' && (
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                                (apt as any).payment_status === 'betaald' ? 'bg-success/15 text-success' :
+                                (apt as any).payment_status === 'mislukt' ? 'bg-destructive/15 text-destructive' :
+                                'bg-warning/15 text-warning'
+                              }`}>
+                                {(apt as any).payment_status === 'betaald' ? '€✓' : (apt as any).payment_status === 'mislukt' ? '€✗' : '€…'}
+                              </span>
+                            )}
                             <select value={apt.status} onChange={e => handleStatusChange(apt.id, e.target.value)}
                               className="text-[10px] px-1.5 py-0.5 rounded bg-secondary border border-border">
                               <option value="gepland">gepland</option>
