@@ -280,6 +280,7 @@ export type Database = {
         Row: {
           amount: number
           appointment_id: string | null
+          checkout_reference: string | null
           created_at: string
           currency: string
           customer_id: string | null
@@ -287,7 +288,10 @@ export type Database = {
           is_demo: boolean
           method: string | null
           mollie_payment_id: string | null
+          paid_at: string | null
+          payment_method: string | null
           payment_type: string
+          provider: string | null
           status: string
           updated_at: string
           user_id: string
@@ -295,6 +299,7 @@ export type Database = {
         Insert: {
           amount?: number
           appointment_id?: string | null
+          checkout_reference?: string | null
           created_at?: string
           currency?: string
           customer_id?: string | null
@@ -302,7 +307,10 @@ export type Database = {
           is_demo?: boolean
           method?: string | null
           mollie_payment_id?: string | null
+          paid_at?: string | null
+          payment_method?: string | null
           payment_type?: string
+          provider?: string | null
           status?: string
           updated_at?: string
           user_id: string
@@ -310,6 +318,7 @@ export type Database = {
         Update: {
           amount?: number
           appointment_id?: string | null
+          checkout_reference?: string | null
           created_at?: string
           currency?: string
           customer_id?: string | null
@@ -317,7 +326,10 @@ export type Database = {
           is_demo?: boolean
           method?: string | null
           mollie_payment_id?: string | null
+          paid_at?: string | null
+          payment_method?: string | null
           payment_type?: string
+          provider?: string | null
           status?: string
           updated_at?: string
           user_id?: string
