@@ -230,10 +230,15 @@ export default function GlowPayPage() {
                     {p.method && ` · ${p.method}`}
                   </p>
                   {selectedPayment === p.id && (
-                    <div className="flex gap-2 mt-2">
+                    <div className="flex flex-wrap gap-2 mt-2">
                       {p.status === "pending" && (
                         <Button variant="gradient" size="sm" onClick={(e) => { e.stopPropagation(); handleMarkPaid(p.id); }}>
                           <CheckCircle2 className="w-3.5 h-3.5" /> Markeer betaald
+                        </Button>
+                      )}
+                      {p.status === "failed" && (
+                        <Button variant="gradient" size="sm" onClick={(e) => { e.stopPropagation(); handleRetry(p.id); }}>
+                          <RotateCcw className="w-3.5 h-3.5" /> Opnieuw proberen
                         </Button>
                       )}
                       {p.status === "paid" && (
@@ -242,9 +247,19 @@ export default function GlowPayPage() {
                         </Button>
                       )}
                       {p.status === "pending" && (
-                        <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); toast.success("Betaalverzoek opnieuw verstuurd (demo)"); }}>
-                          <Send className="w-3.5 h-3.5" /> Opnieuw versturen
+                        <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleReminder(p.id); }}>
+                          <Send className="w-3.5 h-3.5" /> Herinnering
                         </Button>
+                      )}
+                      {p.status === "pending" && (
+                        <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); toast.success("Betaalverzoek opnieuw verstuurd (demo)"); }}>
+                          <Send className="w-3.5 h-3.5" /> Link opnieuw
+                        </Button>
+                      )}
+                      {getRemainingAmount(p) > 0 && (
+                        <div className="w-full mt-1 p-2 rounded-lg bg-warning/10 border border-warning/20">
+                          <p className="text-[11px] text-warning font-medium">Restbedrag: {formatEuro(getRemainingAmount(p))}</p>
+                        </div>
                       )}
                     </div>
                   )}
