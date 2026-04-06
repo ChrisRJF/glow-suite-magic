@@ -4,7 +4,7 @@ import { useAppointments, useCustomers, useServices } from "@/hooks/useSupabaseD
 import { useCrud } from "@/hooks/useCrud";
 import { formatEuro } from "@/lib/data";
 import { useState, useMemo } from "react";
-import { ChevronLeft, ChevronRight, Plus, Clock, X, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Clock, Trash2, Sparkles, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -21,6 +21,8 @@ export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ customer_id: '', service_id: '', date: '', time: '09:00', notes: '' });
+  // Group booking support
+  const [subAppts, setSubAppts] = useState<{ person_name: string; service_id: string }[]>([]);
 
   const dateStr = currentDate.toISOString().split('T')[0];
 
@@ -51,6 +53,15 @@ export default function CalendarPage() {
     setCurrentDate(d);
   };
 
+  // Detect empty slots for the day
+  const emptySlotCount = useMemo(() => {
+    const bookedTimes = new Set(dayAppts.map(a => {
+      const t = new Date(a.appointment_date);
+      return `${t.getHours().toString().padStart(2, '0')}:${t.getMinutes().toString().padStart(2, '0')}`;
+    }));
+    return timeSlots.filter(s => !bookedTimes.has(s)).length;
+  }, [dayAppts]);
+
   const handleAdd = async () => {
     if (!form.customer_id || !form.service_id || !form.date || !form.time) { toast.error("Vul alle velden in"); return; }
     const svc = services.find(s => s.id === form.service_id);
@@ -63,7 +74,31 @@ export default function CalendarPage() {
       notes: form.notes,
       status: 'gepland',
     });
-    if (result) { toast.success("Afspraak aangemaakt"); setShowAdd(false); refetch(); }
+    if (result) {
+      // Insert sub-appointments if group booking
+      if (subAppts.length > 0) {
+        const { insert: insertSub } = await import("@/hooks/useCrud").then(m => ({ insert: null }));
+        // Use direct supabase for sub_appointments since it's not in typed hooks yet
+        for (const sub of subAppts) {
+          if (sub.person_name && sub.service_id) {
+            const subSvc = services.find(s => s.id === sub.service_id);
+            // We'll just create additional appointments for each person
+            await insert({
+              customer_id: form.customer_id,
+              service_id: sub.service_id,
+              appointment_date: dt,
+              price: subSvc?.price || 0,
+              notes: `Groepsboeking: ${sub.person_name}`,
+              status: 'gepland',
+            });
+          }
+        }
+      }
+      toast.success(subAppts.length > 0 ? `Groepsboeking aangemaakt (${subAppts.length + 1} personen)` : "Afspraak aangemaakt");
+      setShowAdd(false);
+      setSubAppts([]);
+      refetch();
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -76,6 +111,12 @@ export default function CalendarPage() {
     refetch();
   };
 
+  const openAddModal = (date: string, time: string) => {
+    setShowAdd(true);
+    setForm({ customer_id: '', service_id: '', date, time, notes: '' });
+    setSubAppts([]);
+  };
+
   return (
     <AppLayout title="Agenda" subtitle="Beheer je afspraken en vind lege plekken."
       actions={
@@ -84,16 +125,26 @@ export default function CalendarPage() {
             <button onClick={() => setView('day')} className={cn("px-4 py-2 text-sm font-medium transition-colors", view === 'day' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')}>Dag</button>
             <button onClick={() => setView('week')} className={cn("px-4 py-2 text-sm font-medium transition-colors", view === 'week' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')}>Week</button>
           </div>
-          <Button variant="gradient" size="sm" onClick={() => { setShowAdd(true); setForm({ customer_id: '', service_id: '', date: dateStr, time: '09:00', notes: '' }); }}>
+          <Button variant="gradient" size="sm" onClick={() => openAddModal(dateStr, '09:00')}>
             <Plus className="w-4 h-4" /> Nieuwe Afspraak
           </Button>
         </div>
       }>
 
+      {/* Empty slot indicator */}
+      {view === 'day' && emptySlotCount > 0 && (
+        <div className="mb-4 p-3 rounded-xl bg-primary/5 border border-primary/10 flex items-center gap-2 opacity-0 animate-fade-in-up" style={{ animationDelay: '50ms' }}>
+          <Sparkles className="w-4 h-4 text-primary" />
+          <span className="text-xs text-muted-foreground">
+            <strong className="text-foreground">{emptySlotCount} vrije slots</strong> vandaag — klik op een leeg tijdslot om direct te boeken
+          </span>
+        </div>
+      )}
+
       {/* Add Modal */}
       {showAdd && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowAdd(false)}>
-          <div className="glass-card p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+          <div className="glass-card p-6 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-4">Nieuwe afspraak</h3>
             <div className="space-y-3">
               <div>
@@ -121,6 +172,32 @@ export default function CalendarPage() {
                 </div>
               </div>
               <div><label className="text-xs text-muted-foreground">Notities</label><textarea value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 min-h-[60px]" /></div>
+
+              {/* Group booking section */}
+              <div className="border-t border-border pt-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium flex items-center gap-1"><Users className="w-3.5 h-3.5" />Groepsboeking</span>
+                  <Button variant="outline" size="sm" onClick={() => setSubAppts(prev => [...prev, { person_name: '', service_id: '' }])}>
+                    <Plus className="w-3 h-3 mr-1" />Persoon
+                  </Button>
+                </div>
+                {subAppts.map((sub, idx) => (
+                  <div key={idx} className="flex gap-2 mb-2">
+                    <input placeholder={`Naam persoon ${idx + 2}`} value={sub.person_name}
+                      onChange={e => { const updated = [...subAppts]; updated[idx].person_name = e.target.value; setSubAppts(updated); }}
+                      className="flex-1 px-3 py-2 rounded-xl bg-secondary/50 border border-border text-sm" />
+                    <select value={sub.service_id}
+                      onChange={e => { const updated = [...subAppts]; updated[idx].service_id = e.target.value; setSubAppts(updated); }}
+                      className="flex-1 px-3 py-2 rounded-xl bg-secondary/50 border border-border text-sm">
+                      <option value="">Behandeling</option>
+                      {services.filter(s => s.is_active).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                    <button onClick={() => setSubAppts(prev => prev.filter((_, i) => i !== idx))} className="p-2 rounded-lg hover:bg-destructive/20">
+                      <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
             <div className="flex gap-2 mt-4">
               <Button variant="outline" className="flex-1" onClick={() => setShowAdd(false)}>Annuleren</Button>
@@ -170,6 +247,9 @@ export default function CalendarPage() {
                               <p className="text-xs text-muted-foreground">{svc?.name || 'Behandeling'}</p>
                               <span className="text-xs text-muted-foreground flex items-center gap-0.5"><Clock className="w-3 h-3" />{svc?.duration_minutes || 30} min</span>
                             </div>
+                            {apt.notes?.startsWith('Groepsboeking:') && (
+                              <span className="text-[10px] text-primary flex items-center gap-0.5 mt-0.5"><Users className="w-3 h-3" />{apt.notes}</span>
+                            )}
                           </div>
                           <div className="flex items-center gap-1">
                             {(apt as any).payment_status && (apt as any).payment_status !== 'none' && (
@@ -186,15 +266,16 @@ export default function CalendarPage() {
                               <option value="gepland">gepland</option>
                               <option value="voltooid">voltooid</option>
                               <option value="geannuleerd">geannuleerd</option>
+                              <option value="no-show">no-show</option>
                             </select>
                             <button onClick={() => handleDelete(apt.id)} className="p-1 rounded hover:bg-destructive/20"><Trash2 className="w-3 h-3 text-destructive" /></button>
                           </div>
                         </div>
                       </div>
                     ) : (
-                      <div onClick={() => { setShowAdd(true); setForm({ customer_id: '', service_id: '', date: dateStr, time: slot, notes: '' }); }}
-                        className="absolute inset-x-0 top-1 h-[40px] rounded-xl border border-dashed border-border/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer hover:bg-secondary/30">
-                        <Plus className="w-3.5 h-3.5 text-muted-foreground" />
+                      <div onClick={() => openAddModal(dateStr, slot)}
+                        className="absolute inset-x-0 top-1 h-[40px] rounded-xl border border-dashed border-border/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer hover:bg-primary/5 hover:border-primary/30">
+                        <span className="text-xs text-muted-foreground flex items-center gap-1"><Plus className="w-3.5 h-3.5" />Direct beschikbaar</span>
                       </div>
                     )}
                   </div>
@@ -209,6 +290,7 @@ export default function CalendarPage() {
                 const ds = day.toISOString().split('T')[0];
                 const apts = appointments.filter(a => a.appointment_date.startsWith(ds));
                 const isSelected = ds === dateStr;
+                const freeSlots = timeSlots.length - apts.length;
                 return (
                   <div key={ds} className="flex flex-col">
                     <button onClick={() => setCurrentDate(day)}
@@ -216,6 +298,7 @@ export default function CalendarPage() {
                         isSelected ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground')}>
                       {dayNames[i]} <span className="text-xs">{day.getDate()}</span>
                       <span className="ml-2 text-xs text-muted-foreground">{apts.length}</span>
+                      {freeSlots > 10 && <span className="ml-1 text-[10px] text-primary">• {freeSlots} vrij</span>}
                     </button>
                     <div className="space-y-2 flex-1">
                       {apts.map((apt) => {
@@ -231,8 +314,8 @@ export default function CalendarPage() {
                         );
                       })}
                       {apts.length < 4 && (
-                        <button onClick={() => { setShowAdd(true); setForm({ customer_id: '', service_id: '', date: ds, time: '09:00', notes: '' }); }}
-                          className="w-full p-2 rounded-xl border border-dashed border-border/50 text-xs text-muted-foreground hover:bg-secondary/30 hover:text-foreground transition-colors">
+                        <button onClick={() => openAddModal(ds, '09:00')}
+                          className="w-full p-2 rounded-xl border border-dashed border-border/50 text-xs text-muted-foreground hover:bg-primary/5 hover:border-primary/30 hover:text-foreground transition-colors">
                           <Plus className="w-3 h-3 inline mr-1" />Vrij
                         </button>
                       )}
