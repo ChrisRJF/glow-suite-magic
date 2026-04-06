@@ -3,17 +3,30 @@ import { Button } from "@/components/ui/button";
 import { useProducts, useServices, useCustomers } from "@/hooks/useSupabaseData";
 import { useCrud } from "@/hooks/useCrud";
 import { formatEuro } from "@/lib/data";
-import { ShoppingBag, Plus, Minus, CreditCard, Check } from "lucide-react";
+import { ShoppingBag, Plus, Minus, CreditCard, Check, Wallet } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+
+const paymentMethods = [
+  { id: "pin", label: "GlowPay Pin", icon: "📱" },
+  { id: "contant", label: "Contant", icon: "💵" },
+  { id: "ideal", label: "GlowPay Online", icon: "🏦" },
+  { id: "anders", label: "Anders", icon: "💰" },
+];
 
 export default function KassaPage() {
   const { data: products } = useProducts();
   const { data: services } = useServices();
+  const { data: customers } = useCustomers();
   const { insert: insertCheckout } = useCrud("checkout_items");
+  const { insert: insertPayment } = useCrud("payments");
   const { update: updateProduct } = useCrud("products");
+  const { update: updateCustomer } = useCrud("customers");
   const [cart, setCart] = useState<Record<string, { name: string; price: number; qty: number; type: string; itemId: string }>>({});
   const [paid, setPaid] = useState(false);
+  const [selectedMethod, setSelectedMethod] = useState("pin");
+  const [selectedCustomer, setSelectedCustomer] = useState<string>("");
 
   const allItems = [
     ...services.filter(s => s.is_active).map(s => ({ id: s.id, name: s.name, price: s.price, type: 'service' })),
@@ -40,18 +53,36 @@ export default function KassaPage() {
   const handlePay = async () => {
     setPaid(true);
     for (const [key, item] of Object.entries(cart)) {
-      await insertCheckout({ item_type: item.type, item_id: item.itemId, title: item.name, price: item.price, quantity: item.qty });
+      await insertCheckout({ item_type: item.type, item_id: item.itemId, title: item.name, price: item.price, quantity: item.qty, customer_id: selectedCustomer || null });
       if (item.type === 'product') {
         const prod = products.find(p => p.id === item.itemId);
         if (prod) await updateProduct(prod.id, { stock: Math.max(0, (prod.stock || 0) - item.qty) });
       }
     }
-    toast.success(`Betaling van ${formatEuro(total)} voltooid!`);
-    setTimeout(() => { setCart({}); setPaid(false); }, 2000);
+    // Create GlowPay payment record
+    await insertPayment({
+      amount: total,
+      currency: "EUR",
+      payment_type: "full",
+      status: "paid",
+      method: selectedMethod,
+      payment_method: selectedMethod,
+      provider: "glowpay",
+      is_demo: true,
+      customer_id: selectedCustomer || null,
+      paid_at: new Date().toISOString(),
+    });
+    // Update customer total_spent
+    if (selectedCustomer) {
+      const cust = customers.find(c => c.id === selectedCustomer);
+      if (cust) await updateCustomer(cust.id, { total_spent: (Number(cust.total_spent) || 0) + total });
+    }
+    toast.success(`GlowPay betaling van ${formatEuro(total)} voltooid!`);
+    setTimeout(() => { setCart({}); setPaid(false); setSelectedCustomer(""); }, 2000);
   };
 
   return (
-    <AppLayout title="Kassa" subtitle="Snel afrekenen">
+    <AppLayout title="Kassa" subtitle="Snel afrekenen met GlowPay">
       <div className="grid lg:grid-cols-2 gap-6">
         <div className="glass-card p-6">
           <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
@@ -71,7 +102,20 @@ export default function KassaPage() {
         </div>
 
         <div className="glass-card p-6 flex flex-col">
-          <h3 className="text-sm font-semibold mb-4">Huidige bestelling</h3>
+          <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
+            <Wallet className="w-4 h-4 text-primary" /> Bestelling
+          </h3>
+
+          {/* Customer selector */}
+          <div className="mb-4">
+            <label className="text-xs text-muted-foreground">Klant (optioneel)</label>
+            <select value={selectedCustomer} onChange={e => setSelectedCustomer(e.target.value)}
+              className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
+              <option value="">Geen klant geselecteerd</option>
+              {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+
           <div className="flex-1 space-y-2">
             {Object.keys(cart).length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">Klik op een product om toe te voegen</p>
@@ -91,12 +135,25 @@ export default function KassaPage() {
           </div>
           {Object.keys(cart).length > 0 && (
             <div className="mt-4 pt-4 border-t border-border">
+              {/* Payment method */}
+              <div className="mb-4">
+                <p className="text-xs text-muted-foreground mb-2">Betaalmethode</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {paymentMethods.map(m => (
+                    <button key={m.id} onClick={() => setSelectedMethod(m.id)}
+                      className={cn("p-2.5 rounded-xl text-left transition-all text-sm flex items-center gap-2",
+                        selectedMethod === m.id ? "bg-primary/15 border border-primary/30 text-primary font-medium" : "bg-secondary/40 border border-transparent hover:bg-secondary/60")}>
+                      <span>{m.icon}</span> {m.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="flex justify-between mb-4">
                 <span className="text-sm font-semibold">Totaal</span>
                 <span className="text-lg font-bold">{formatEuro(total)}</span>
               </div>
               <Button className="w-full" size="lg" onClick={handlePay} disabled={paid}>
-                {paid ? <><Check className="w-4 h-4 mr-2" /> Betaald!</> : <><CreditCard className="w-4 h-4 mr-2" /> Afrekenen</>}
+                {paid ? <><Check className="w-4 h-4 mr-2" /> Betaald!</> : <><CreditCard className="w-4 h-4 mr-2" /> Afrekenen via GlowPay</>}
               </Button>
             </div>
           )}

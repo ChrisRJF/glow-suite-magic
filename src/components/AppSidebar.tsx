@@ -48,6 +48,7 @@ const navGroups: NavGroup[] = [
     items: [
       { label: "Behandelingen", icon: Scissors, path: "/behandelingen" },
       { label: "Online Boeken", icon: Globe, path: "/boeken" },
+      { label: "GlowPay", icon: CreditCard, path: "/glowpay", accent: true },
       { label: "Kassa", icon: ShoppingBag, path: "/kassa" },
       { label: "Producten", icon: Package, path: "/producten" },
       { label: "Abonnementen", icon: CreditCard, path: "/abonnementen" },

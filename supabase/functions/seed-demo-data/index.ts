@@ -159,21 +159,53 @@ Deno.serve(async (req) => {
       ]);
     }
 
-    // Seed demo payments
+    // Seed GlowPay demo payments
     if (customers && services) {
-      const paymentData = appointmentsData
-        .filter((a: any) => a.payment_status === "betaald")
-        .slice(0, 10)
-        .map((a: any) => ({
+      const methods = ["ideal", "bancontact", "creditcard", "pin", "contant"];
+      const statuses = ["paid", "paid", "paid", "paid", "pending", "failed"];
+      const paymentData: any[] = [];
+
+      // Payments linked to paid appointments
+      const paidAppts = appointmentsData.filter((a: any) => a.payment_status === "betaald");
+      for (let i = 0; i < Math.min(paidAppts.length, 15); i++) {
+        const a = paidAppts[i];
+        const status = i < 12 ? "paid" : statuses[Math.floor(Math.random() * statuses.length)];
+        const method = methods[Math.floor(Math.random() * methods.length)];
+        paymentData.push({
           user_id: uid,
           customer_id: a.customer_id,
           amount: a.price,
           currency: "EUR",
           payment_type: a.price > 100 ? "deposit" : "full",
-          status: "paid",
-          method: ["ideal", "bancontact", "creditcard"][Math.floor(Math.random() * 3)],
+          status,
+          method,
+          payment_method: method,
+          provider: "glowpay",
           is_demo: true,
-        }));
+          paid_at: status === "paid" ? new Date().toISOString() : null,
+        });
+      }
+
+      // Extra standalone checkout payments
+      for (let i = 0; i < 5; i++) {
+        const cust = customers[Math.floor(Math.random() * customers.length)];
+        const amount = [24.95, 19.50, 42, 67.50, 89][i];
+        paymentData.push({
+          user_id: uid,
+          customer_id: cust.id,
+          amount,
+          currency: "EUR",
+          payment_type: "full",
+          status: "paid",
+          method: methods[Math.floor(Math.random() * methods.length)],
+          payment_method: methods[Math.floor(Math.random() * methods.length)],
+          provider: "glowpay",
+          checkout_reference: `KASSA-${Date.now()}-${i}`,
+          is_demo: true,
+          paid_at: new Date().toISOString(),
+        });
+      }
+
       if (paymentData.length > 0) {
         await supabase.from("payments").insert(paymentData);
       }
