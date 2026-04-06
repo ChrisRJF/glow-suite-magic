@@ -16,11 +16,15 @@ export type Database = {
     Tables: {
       appointments: {
         Row: {
+          amount_paid: number | null
           appointment_date: string
           created_at: string
           customer_id: string | null
+          deposit_amount: number | null
           id: string
           notes: string | null
+          payment_required: boolean | null
+          payment_status: string | null
           price: number | null
           service_id: string | null
           status: string
@@ -28,11 +32,15 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          amount_paid?: number | null
           appointment_date: string
           created_at?: string
           customer_id?: string | null
+          deposit_amount?: number | null
           id?: string
           notes?: string | null
+          payment_required?: boolean | null
+          payment_status?: string | null
           price?: number | null
           service_id?: string | null
           status?: string
@@ -40,11 +48,15 @@ export type Database = {
           user_id: string
         }
         Update: {
+          amount_paid?: number | null
           appointment_date?: string
           created_at?: string
           customer_id?: string | null
+          deposit_amount?: number | null
           id?: string
           notes?: string | null
+          payment_required?: boolean | null
+          payment_status?: string | null
           price?: number | null
           service_id?: string | null
           status?: string
@@ -153,10 +165,13 @@ export type Database = {
       }
       customers: {
         Row: {
+          cancellation_count: number | null
           created_at: string
           email: string | null
           id: string
+          is_vip: boolean | null
           name: string
+          no_show_count: number | null
           notes: string | null
           phone: string | null
           total_spent: number | null
@@ -164,10 +179,13 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          cancellation_count?: number | null
           created_at?: string
           email?: string | null
           id?: string
+          is_vip?: boolean | null
           name: string
+          no_show_count?: number | null
           notes?: string | null
           phone?: string | null
           total_spent?: number | null
@@ -175,10 +193,13 @@ export type Database = {
           user_id: string
         }
         Update: {
+          cancellation_count?: number | null
           created_at?: string
           email?: string | null
           id?: string
+          is_vip?: boolean | null
           name?: string
+          no_show_count?: number | null
           notes?: string | null
           phone?: string | null
           total_spent?: number | null
@@ -248,6 +269,69 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "feedback_entries_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          amount: number
+          appointment_id: string | null
+          created_at: string
+          currency: string
+          customer_id: string | null
+          id: string
+          is_demo: boolean
+          method: string | null
+          mollie_payment_id: string | null
+          payment_type: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          appointment_id?: string | null
+          created_at?: string
+          currency?: string
+          customer_id?: string | null
+          id?: string
+          is_demo?: boolean
+          method?: string | null
+          mollie_payment_id?: string | null
+          payment_type?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          appointment_id?: string | null
+          created_at?: string
+          currency?: string
+          customer_id?: string | null
+          id?: string
+          is_demo?: boolean
+          method?: string | null
+          mollie_payment_id?: string | null
+          payment_type?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
@@ -402,10 +486,17 @@ export type Database = {
         Row: {
           created_at: string
           currency: string | null
+          demo_mode: boolean | null
+          deposit_new_client: boolean | null
+          deposit_noshow_risk: boolean | null
+          deposit_percentage: number | null
           email_enabled: boolean | null
+          full_prepay_threshold: number | null
           id: string
           language: string | null
+          mollie_mode: string | null
           salon_name: string | null
+          skip_prepay_vip: boolean | null
           timezone: string | null
           updated_at: string
           user_id: string
@@ -414,10 +505,17 @@ export type Database = {
         Insert: {
           created_at?: string
           currency?: string | null
+          demo_mode?: boolean | null
+          deposit_new_client?: boolean | null
+          deposit_noshow_risk?: boolean | null
+          deposit_percentage?: number | null
           email_enabled?: boolean | null
+          full_prepay_threshold?: number | null
           id?: string
           language?: string | null
+          mollie_mode?: string | null
           salon_name?: string | null
+          skip_prepay_vip?: boolean | null
           timezone?: string | null
           updated_at?: string
           user_id: string
@@ -426,10 +524,17 @@ export type Database = {
         Update: {
           created_at?: string
           currency?: string | null
+          demo_mode?: boolean | null
+          deposit_new_client?: boolean | null
+          deposit_noshow_risk?: boolean | null
+          deposit_percentage?: number | null
           email_enabled?: boolean | null
+          full_prepay_threshold?: number | null
           id?: string
           language?: string | null
+          mollie_mode?: string | null
           salon_name?: string | null
+          skip_prepay_vip?: boolean | null
           timezone?: string | null
           updated_at?: string
           user_id?: string
