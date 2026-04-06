@@ -41,6 +41,7 @@ function AuthRoute({ children }: { children: React.ReactNode }) {
 }
 
 const App = () => (
+  <ThemeProvider>
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <TooltipProvider>
