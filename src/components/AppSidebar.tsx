@@ -4,9 +4,11 @@ import {
   LayoutDashboard, Calendar, Users, Scissors, Menu, X, Globe,
   MessageCircle, CreditCard, TrendingUp, RefreshCw, Megaphone,
   Zap, ShoppingBag, Package, BarChart3, Settings, HelpCircle, LogOut,
+  Sun, Moon,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import logoFull from "@/assets/logo-full.png";
 import logoIcon from "@/assets/logo-icon.png";
 
