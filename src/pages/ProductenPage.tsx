@@ -68,6 +68,19 @@ export default function ProductenPage() {
       )}
 
       <div className="grid gap-6">
+        {/* Low stock alerts */}
+        {products.filter(p => (p.stock || 0) > 0 && (p.stock || 0) < 5).length > 0 && (
+          <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-destructive">Lage voorraad waarschuwing</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {products.filter(p => (p.stock || 0) > 0 && (p.stock || 0) < 5).map(p => `${p.name} (${p.stock})`).join(", ")}
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input type="text" placeholder="Zoek producten..." value={search} onChange={(e) => setSearch(e.target.value)}

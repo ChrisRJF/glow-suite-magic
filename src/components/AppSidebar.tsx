@@ -41,6 +41,7 @@ const navGroups: NavGroup[] = [
       { label: "Herboekingen", icon: RefreshCw, path: "/herboekingen" },
       { label: "Marketing", icon: Megaphone, path: "/marketing" },
       { label: "Acties", icon: Zap, path: "/acties", accent: true },
+      { label: "Automatiseringen", icon: Bot, path: "/automatiseringen" },
     ],
   },
   {
