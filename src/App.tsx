@@ -24,6 +24,7 @@ import InstellingenPage from "./pages/InstellingenPage";
 import SupportPage from "./pages/SupportPage";
 import LoginPage from "./pages/LoginPage";
 import NotFound from "./pages/NotFound";
+import AutomatiseringenPage from "./pages/AutomatiseringenPage";
 
 const queryClient = new QueryClient();
 
