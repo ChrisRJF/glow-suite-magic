@@ -4,9 +4,11 @@ import {
   LayoutDashboard, Calendar, Users, Scissors, Menu, X, Globe,
   MessageCircle, CreditCard, TrendingUp, RefreshCw, Megaphone,
   Zap, ShoppingBag, Package, BarChart3, Settings, HelpCircle, LogOut,
+  Sun, Moon,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import logoFull from "@/assets/logo-full.png";
 import logoIcon from "@/assets/logo-icon.png";
 
@@ -63,6 +65,7 @@ export function AppSidebar() {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user, signOut } = useAuth();
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <>
@@ -173,6 +176,13 @@ export function AppSidebar() {
               <p className="text-sm font-medium truncate">{user?.email?.split("@")[0] || "Gebruiker"}</p>
               <p className="text-xs text-muted-foreground truncate">{user?.email || ""}</p>
             </div>
+            <button
+              onClick={toggleTheme}
+              className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+              title={theme === "dark" ? "Licht thema" : "Donker thema"}
+            >
+              {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
             <button onClick={signOut} className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors" title="Uitloggen">
               <LogOut className="w-4 h-4" />
             </button>
