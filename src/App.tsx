@@ -17,6 +17,7 @@ import HerboekingenPage from "./pages/HerboekingenPage";
 import MarketingPage from "./pages/MarketingPage";
 import ActiesPage from "./pages/ActiesPage";
 import KassaPage from "./pages/KassaPage";
+import GlowPayPage from "./pages/GlowPayPage";
 import ProductenPage from "./pages/ProductenPage";
 import RapportenPage from "./pages/RapportenPage";
 import InstellingenPage from "./pages/InstellingenPage";
