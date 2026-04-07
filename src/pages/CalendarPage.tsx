@@ -4,7 +4,7 @@ import { useAppointments, useCustomers, useServices } from "@/hooks/useSupabaseD
 import { useCrud } from "@/hooks/useCrud";
 import { formatEuro } from "@/lib/data";
 import { useState, useMemo } from "react";
-import { ChevronLeft, ChevronRight, Plus, Clock, Trash2, Sparkles, Users, AlertCircle, CheckCircle2, Zap } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Clock, Trash2, Sparkles, Users, AlertCircle, CheckCircle2, Zap, CalendarDays, Filter, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,12 +14,12 @@ type View = 'day' | 'week';
 
 const timeSlots = ['09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00'];
 
-// Demo medewerkers with their capabilities
+// Demo medewerkers with capabilities and availability
 const MEDEWERKERS = [
-  { name: 'Bas', role: 'Kapper', services: ['Kinder knippen', 'Heren knippen', 'Heren baard trimmen'] },
-  { name: 'Roos', role: 'Kapster', services: ['Dames knippen', 'Kleuren', 'Knippen + föhnen', 'Full balayage', 'Kinder knippen'] },
-  { name: 'Lisa', role: 'Allround stylist', services: ['Kinder knippen', 'Heren knippen', 'Dames knippen', 'Kleuren', 'Knippen + föhnen', 'Brow treatment', 'Lash lift', 'Manicure'] },
-  { name: 'Emma', role: 'Junior stylist', services: ['Kinder knippen', 'Knippen + föhnen', 'Brow treatment', 'BIAB behandeling', 'Manicure'] },
+  { name: 'Bas', role: 'Kapper', services: ['Kinder knippen', 'Heren knippen', 'Heren baard trimmen'], days: [1,2,3,4,5], pauze: '12:00-12:30', color: '#7B61FF' },
+  { name: 'Roos', role: 'Kapster', services: ['Dames knippen', 'Kleuren', 'Knippen + föhnen', 'Full balayage', 'Kinder knippen'], days: [1,2,3,4,5,6], pauze: '12:30-13:00', color: '#FF6B9D' },
+  { name: 'Lisa', role: 'Allround stylist', services: ['Kinder knippen', 'Heren knippen', 'Dames knippen', 'Kleuren', 'Knippen + föhnen', 'Brow treatment', 'Lash lift', 'Manicure'], days: [1,2,4,5,6], pauze: '12:00-12:30', color: '#4ECDC4' },
+  { name: 'Emma', role: 'Junior stylist', services: ['Kinder knippen', 'Knippen + föhnen', 'Brow treatment', 'BIAB behandeling', 'Manicure'], days: [1,3,5], pauze: '13:00-13:30', color: '#FFB347' },
 ];
 
 interface SubApptForm {
@@ -51,12 +51,91 @@ export default function CalendarPage() {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [placementOptions, setPlacementOptions] = useState<PlacementOption[]>([]);
   const [selectedOption, setSelectedOption] = useState(0);
+  const [selectedEmployee, setSelectedEmployee] = useState<string>('alle');
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterAvailability, setFilterAvailability] = useState<string>('alle'); // alle, beschikbaar, afwezig
 
   const dateStr = currentDate.toISOString().split('T')[0];
+  const currentDayOfWeek = currentDate.getDay() === 0 ? 7 : currentDate.getDay(); // 1=ma..7=zo
+
+  // Employee availability for current date
+  const getEmployeeStatus = (emp: typeof MEDEWERKERS[0], date: Date) => {
+    const dow = date.getDay() === 0 ? 7 : date.getDay();
+    if (!emp.days.includes(dow)) return 'afwezig';
+    return 'beschikbaar';
+  };
+
+  const getEmployeePauze = (emp: typeof MEDEWERKERS[0]) => {
+    if (!emp.pauze) return null;
+    const [start, end] = emp.pauze.split('-');
+    return { start, end };
+  };
+
+  const isSlotPauze = (emp: typeof MEDEWERKERS[0], slot: string) => {
+    const p = getEmployeePauze(emp);
+    if (!p) return false;
+    return slot >= p.start && slot < p.end;
+  };
+
+  // Count appointments per employee for a given date
+  const getEmployeeApptCount = (empName: string, date: string) => {
+    return appointments.filter(a =>
+      a.appointment_date.startsWith(date) &&
+      a.notes?.includes(`Medewerker: ${empName}`)
+    ).length;
+  };
+
+  // Get workload label
+  const getWorkloadLabel = (empName: string, date: string) => {
+    const count = getEmployeeApptCount(empName, date);
+    const emp = MEDEWERKERS.find(m => m.name === empName);
+    if (!emp) return { label: '–', variant: 'muted' as const };
+    const status = getEmployeeStatus(emp, new Date(date));
+    if (status === 'afwezig') return { label: 'Afwezig', variant: 'destructive' as const };
+    if (count >= 8) return { label: 'Vol', variant: 'destructive' as const };
+    if (count >= 5) return { label: 'Druk', variant: 'warning' as const };
+    if (count >= 2) return { label: 'Normaal', variant: 'default' as const };
+    return { label: 'Ruimte', variant: 'success' as const };
+  };
+
+  // Free slots per employee
+  const getEmployeeFreeSlots = (empName: string, date: string) => {
+    const emp = MEDEWERKERS.find(m => m.name === empName);
+    if (!emp) return 0;
+    const status = getEmployeeStatus(emp, new Date(date));
+    if (status === 'afwezig') return 0;
+    const bookedTimes = new Set(
+      appointments
+        .filter(a => a.appointment_date.startsWith(date) && a.notes?.includes(`Medewerker: ${empName}`))
+        .map(a => {
+          const t = new Date(a.appointment_date);
+          return `${t.getHours().toString().padStart(2, '0')}:${t.getMinutes().toString().padStart(2, '0')}`;
+        })
+    );
+    return timeSlots.filter(s => !bookedTimes.has(s) && !isSlotPauze(emp, s)).length;
+  };
+
+  // Filter appointments by selected employee
+  const filterByEmployee = (appts: typeof appointments) => {
+    if (selectedEmployee === 'alle') return appts;
+    return appts.filter(a => a.notes?.includes(`Medewerker: ${selectedEmployee}`));
+  };
+
+  // Filter employees by availability
+  const filteredMedewerkers = useMemo(() => {
+    if (filterAvailability === 'alle') return MEDEWERKERS;
+    if (filterAvailability === 'beschikbaar') {
+      return MEDEWERKERS.filter(m => getEmployeeStatus(m, currentDate) === 'beschikbaar');
+    }
+    if (filterAvailability === 'afwezig') {
+      return MEDEWERKERS.filter(m => getEmployeeStatus(m, currentDate) === 'afwezig');
+    }
+    return MEDEWERKERS;
+  }, [filterAvailability, currentDate]);
 
   const dayAppts = useMemo(() =>
-    appointments.filter(a => a.appointment_date.startsWith(dateStr)),
-    [appointments, dateStr]
+    filterByEmployee(appointments.filter(a => a.appointment_date.startsWith(dateStr))),
+    [appointments, dateStr, selectedEmployee]
   );
 
   const weekStart = useMemo(() => {
@@ -81,6 +160,10 @@ export default function CalendarPage() {
     setCurrentDate(d);
   };
 
+  const goToToday = () => {
+    setCurrentDate(new Date());
+  };
+
   const emptySlotCount = useMemo(() => {
     const bookedTimes = new Set(dayAppts.map(a => {
       const t = new Date(a.appointment_date);
@@ -89,15 +172,12 @@ export default function CalendarPage() {
     return timeSlots.filter(s => !bookedTimes.has(s)).length;
   }, [dayAppts]);
 
-  // Get medewerkers that can do a specific service
   const getAvailableEmployees = (serviceName: string) => {
     return MEDEWERKERS.filter(m => m.services.includes(serviceName));
   };
 
-  // Get booked slots for a specific date (including already-assigned subs)
   const getBookedSlots = (date: string, excludeSubIdx?: number): Map<string, Set<string>> => {
-    const booked = new Map<string, Set<string>>(); // employee -> set of times
-    // From existing appointments
+    const booked = new Map<string, Set<string>>();
     appointments.filter(a => a.appointment_date.startsWith(date)).forEach(a => {
       const t = new Date(a.appointment_date);
       const time = `${t.getHours().toString().padStart(2, '0')}:${t.getMinutes().toString().padStart(2, '0')}`;
@@ -105,7 +185,6 @@ export default function CalendarPage() {
       if (emp) {
         if (!booked.has(emp)) booked.set(emp, new Set());
         booked.get(emp)!.add(time);
-        // Block duration slots
         const svc = services.find(s => s.id === a.service_id);
         if (svc) {
           const durationSlots = Math.ceil(svc.duration_minutes / 30);
@@ -116,7 +195,6 @@ export default function CalendarPage() {
         }
       }
     });
-    // From already-assigned sub-appointments in form
     subAppts.forEach((s, i) => {
       if (i !== excludeSubIdx && s.assigned_employee && s.assigned_time) {
         if (!booked.has(s.assigned_employee)) booked.set(s.assigned_employee, new Set());
@@ -126,7 +204,6 @@ export default function CalendarPage() {
     return booked;
   };
 
-  // Smart placement: generate options for group booking
   const generatePlacementOptions = (): PlacementOption[] => {
     const mainSvc = services.find(s => s.id === form.service_id);
     if (!mainSvc) return [];
@@ -146,61 +223,45 @@ export default function CalendarPage() {
     const booked = getBookedSlots(form.date);
     const options: PlacementOption[] = [];
 
-    // OPTION 1: Try simultaneous (all at same time)
+    // OPTION 1: Try simultaneous
     const simultaneousPlacements: { person: string; employee: string; time: string; service: string }[] = [];
     const targetTime = form.time;
     const usedEmps = new Set<string>();
-
     let allSimultaneous = true;
+
     for (const p of allPersons) {
       if (p.assignment_mode === 'manual' && p.assigned_employee) {
-        // Manual: check if employee is free at target time
         const empBooked = booked.get(p.assigned_employee);
-        if (empBooked && empBooked.has(targetTime)) {
-          allSimultaneous = false;
-          break;
-        }
+        if (empBooked && empBooked.has(targetTime)) { allSimultaneous = false; break; }
         simultaneousPlacements.push({ person: p.person, employee: p.assigned_employee, time: targetTime, service: p.service_name });
         usedEmps.add(p.assigned_employee);
       } else {
-        // Auto: find available employee at target time
         const available = getAvailableEmployees(p.service_name).filter(m =>
           !usedEmps.has(m.name) && !(booked.get(m.name)?.has(targetTime))
         );
-        if (available.length === 0) {
-          allSimultaneous = false;
-          break;
-        }
+        if (available.length === 0) { allSimultaneous = false; break; }
         simultaneousPlacements.push({ person: p.person, employee: available[0].name, time: targetTime, service: p.service_name });
         usedEmps.add(available[0].name);
       }
     }
 
     if (allSimultaneous && simultaneousPlacements.length === allPersons.length) {
-      options.push({
-        label: 'Tegelijk',
-        description: 'Alle personen worden tegelijkertijd behandeld',
-        placements: simultaneousPlacements,
-        isSimultaneous: true,
-      });
+      options.push({ label: 'Tegelijk', description: 'Alle personen worden tegelijkertijd behandeld', placements: simultaneousPlacements, isSimultaneous: true });
     }
 
-    // OPTION 2: Sequential (one after another, minimize wait)
+    // OPTION 2: Sequential
     const sequentialPlacements: { person: string; employee: string; time: string; service: string }[] = [];
-    const seqBooked = new Map(booked); // copy
+    const seqBooked = new Map(booked);
     let currentSlotIdx = timeSlots.indexOf(targetTime);
     if (currentSlotIdx < 0) currentSlotIdx = 0;
-
     let allSequential = true;
+
     for (const p of allPersons) {
       const svc = services.find(s => s.id === p.service_id);
       const durationSlots = svc ? Math.ceil(svc.duration_minutes / 30) : 1;
       let placed = false;
-
-      // Try from currentSlotIdx onwards
       for (let si = currentSlotIdx; si < timeSlots.length && !placed; si++) {
         const tryTime = timeSlots[si];
-
         if (p.assignment_mode === 'manual' && p.assigned_employee) {
           const empBooked = seqBooked.get(p.assigned_employee);
           let canPlace = true;
@@ -214,7 +275,6 @@ export default function CalendarPage() {
             placed = true;
           }
         } else {
-          // Auto: find any available employee
           const available = getAvailableEmployees(p.service_name);
           for (const emp of available) {
             const empBooked = seqBooked.get(emp.name);
@@ -248,7 +308,6 @@ export default function CalendarPage() {
     }
 
     if (options.length === 0) {
-      // No valid placement found
       toast.error("Niet alle personen tegelijk beschikbaar. Probeer een andere tijd of medewerker.");
     }
 
@@ -257,20 +316,15 @@ export default function CalendarPage() {
 
   const handlePrepareConfirmation = () => {
     if (!form.customer_id || !form.service_id || !form.date || !form.time) { toast.error("Vul alle velden in"); return; }
-
     if (subAppts.length > 0) {
-      // Generate smart placement options
       const options = generatePlacementOptions();
       if (options.length === 0) return;
       setPlacementOptions(options);
       setSelectedOption(0);
-      // Update subAppts with selected option placements
       const chosen = options[0];
       const updatedSubs = subAppts.map((sub, idx) => {
-        const placement = chosen.placements[idx + 1]; // +1 because first is main person
-        if (placement) {
-          return { ...sub, assigned_employee: placement.employee, assigned_time: placement.time };
-        }
+        const placement = chosen.placements[idx + 1];
+        if (placement) return { ...sub, assigned_employee: placement.employee, assigned_time: placement.time };
         return sub;
       });
       setSubAppts(updatedSubs);
@@ -285,9 +339,7 @@ export default function CalendarPage() {
     const chosen = placementOptions[optIdx];
     const updatedSubs = subAppts.map((sub, idx) => {
       const placement = chosen.placements[idx + 1];
-      if (placement) {
-        return { ...sub, assigned_employee: placement.employee, assigned_time: placement.time };
-      }
+      if (placement) return { ...sub, assigned_employee: placement.employee, assigned_time: placement.time };
       return sub;
     });
     setSubAppts(updatedSubs);
@@ -358,17 +410,32 @@ export default function CalendarPage() {
     setSubAppts(prev => [...prev, { person_name: '', service_id: '', assignment_mode: 'auto', assigned_employee: '', assigned_time: form.time }]);
   };
 
-  // Get employees for a specific service by name
   const getEmployeesForService = (serviceId: string) => {
     const svc = services.find(s => s.id === serviceId);
     if (!svc) return MEDEWERKERS;
     return getAvailableEmployees(svc.name);
   };
 
+  const isToday = dateStr === new Date().toISOString().split('T')[0];
+
+  // Workload variant colors using semantic tokens
+  const workloadColors: Record<string, string> = {
+    success: 'text-primary bg-primary/10',
+    warning: 'text-foreground bg-accent',
+    destructive: 'text-destructive bg-destructive/10',
+    default: 'text-muted-foreground bg-secondary',
+    muted: 'text-muted-foreground bg-secondary/50',
+  };
+
   return (
     <AppLayout title="Agenda" subtitle="Beheer je afspraken en vind lege plekken."
       actions={
         <div className="flex items-center gap-2">
+          {!isToday && (
+            <Button variant="outline" size="sm" onClick={goToToday}>
+              <CalendarDays className="w-4 h-4 mr-1" /> Vandaag
+            </Button>
+          )}
           <div className="flex rounded-xl border border-border overflow-hidden">
             <button onClick={() => setView('day')} className={cn("px-4 py-2 text-sm font-medium transition-colors", view === 'day' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')}>Dag</button>
             <button onClick={() => setView('week')} className={cn("px-4 py-2 text-sm font-medium transition-colors", view === 'week' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')}>Week</button>
@@ -379,12 +446,100 @@ export default function CalendarPage() {
         </div>
       }>
 
+      {/* Employee selector & workload overview */}
+      <div className="mb-4 opacity-0 animate-fade-in-up" style={{ animationDelay: '30ms' }}>
+        {/* Employee quick-switch bar */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => setSelectedEmployee('alle')}
+            className={cn("px-3 py-1.5 rounded-xl text-xs font-medium border transition-all",
+              selectedEmployee === 'alle' ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground hover:bg-secondary")}
+          >
+            Alle medewerkers
+          </button>
+          {MEDEWERKERS.map(emp => {
+            const status = getEmployeeStatus(emp, currentDate);
+            const wl = getWorkloadLabel(emp.name, dateStr);
+            const apptCount = getEmployeeApptCount(emp.name, dateStr);
+            const isSelected = selectedEmployee === emp.name;
+            return (
+              <button key={emp.name} onClick={() => setSelectedEmployee(emp.name)}
+                className={cn("px-3 py-1.5 rounded-xl text-xs font-medium border transition-all flex items-center gap-1.5",
+                  isSelected ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground hover:bg-secondary",
+                  status === 'afwezig' && !isSelected && "opacity-50"
+                )}
+              >
+                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: emp.color }} />
+                {emp.name}
+                {status === 'afwezig' ? (
+                  <span className="text-[10px] text-destructive">Afwezig</span>
+                ) : (
+                  <span className={cn("text-[10px] px-1 py-0.5 rounded", workloadColors[wl.variant])}>{apptCount}</span>
+                )}
+              </button>
+            );
+          })}
+          <button onClick={() => setShowFilters(!showFilters)}
+            className={cn("px-2 py-1.5 rounded-xl border transition-all",
+              showFilters ? "border-primary text-primary bg-primary/5" : "border-border text-muted-foreground hover:text-foreground")}>
+            <Filter className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* Expanded filters */}
+        {showFilters && (
+          <div className="mt-2 p-3 rounded-xl bg-secondary/30 border border-border flex items-center gap-3 flex-wrap">
+            <span className="text-xs text-muted-foreground">Filter:</span>
+            {['alle', 'beschikbaar', 'afwezig'].map(f => (
+              <button key={f} onClick={() => setFilterAvailability(f)}
+                className={cn("px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors",
+                  filterAvailability === f ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground")}>
+                {f === 'alle' ? 'Alle' : f === 'beschikbaar' ? 'Beschikbaar' : 'Afwezig'}
+              </button>
+            ))}
+            <span className="text-[10px] text-muted-foreground ml-auto">
+              {filteredMedewerkers.length} medewerker{filteredMedewerkers.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+        )}
+
+        {/* Compact workload overview */}
+        {selectedEmployee === 'alle' && (
+          <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {filteredMedewerkers.map(emp => {
+              const status = getEmployeeStatus(emp, currentDate);
+              const wl = getWorkloadLabel(emp.name, dateStr);
+              const freeSlots = getEmployeeFreeSlots(emp.name, dateStr);
+              const apptCount = getEmployeeApptCount(emp.name, dateStr);
+              return (
+                <button key={emp.name} onClick={() => setSelectedEmployee(emp.name)}
+                  className="p-2.5 rounded-xl bg-secondary/30 border border-border hover:bg-secondary/50 transition-all text-left">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: emp.color }} />
+                    <span className="text-xs font-medium truncate">{emp.name}</span>
+                    <span className={cn("text-[10px] px-1.5 py-0.5 rounded ml-auto", workloadColors[wl.variant])}>{wl.label}</span>
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">
+                    {status === 'afwezig' ? 'Niet werkzaam vandaag' : (
+                      <>{apptCount} afspraken · {freeSlots} vrij</>
+                    )}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">{emp.role}</div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {/* Empty slot indicator */}
       {view === 'day' && emptySlotCount > 0 && (
         <div className="mb-4 p-3 rounded-xl bg-primary/5 border border-primary/10 flex items-center gap-2 opacity-0 animate-fade-in-up" style={{ animationDelay: '50ms' }}>
           <Sparkles className="w-4 h-4 text-primary" />
           <span className="text-xs text-muted-foreground">
-            <strong className="text-foreground">{emptySlotCount} vrije slots</strong> vandaag — klik op een leeg tijdslot om direct te boeken
+            <strong className="text-foreground">{emptySlotCount} vrije slots</strong> vandaag
+            {selectedEmployee !== 'alle' && ` voor ${selectedEmployee}`}
+            {' '}— klik op een leeg tijdslot om direct te boeken
           </span>
         </div>
       )}
@@ -394,12 +549,9 @@ export default function CalendarPage() {
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => { setShowAdd(false); setShowConfirmation(false); }}>
           <div className="glass-card p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
 
-            {/* Confirmation view with placement options */}
             {showConfirmation ? (
               <>
                 <h3 className="text-lg font-semibold mb-4">Groepsboeking bevestigen</h3>
-
-                {/* Placement options */}
                 {placementOptions.length > 1 && (
                   <div className="mb-4 space-y-2">
                     <p className="text-xs font-medium text-muted-foreground mb-2">Kies een plaatsingsoptie:</p>
@@ -418,9 +570,7 @@ export default function CalendarPage() {
                     ))}
                   </div>
                 )}
-
                 <div className="space-y-2.5">
-                  {/* Show placements from selected option */}
                   {(placementOptions[selectedOption]?.placements || []).map((p, idx) => (
                     <div key={idx} className={cn("p-3 rounded-xl border flex items-center gap-3",
                       idx === 0 ? "bg-primary/5 border-primary/10" : "bg-secondary/30 border-border")}>
@@ -443,7 +593,6 @@ export default function CalendarPage() {
                       </span>
                     </div>
                   ))}
-
                   <div className="p-3 rounded-xl bg-primary/10 border border-primary/20 text-sm font-semibold flex justify-between">
                     <span>Totaal ({(placementOptions[selectedOption]?.placements.length || 0)} personen)</span>
                     <span>{formatEuro(
@@ -514,8 +663,6 @@ export default function CalendarPage() {
                             <option value="">Behandeling</option>
                             {services.filter(s => s.is_active).map(s => <option key={s.id} value={s.id}>{s.name} — {formatEuro(s.price)}</option>)}
                           </select>
-
-                          {/* Assignment mode */}
                           <div className="flex gap-2">
                             <button onClick={() => { const u = [...subAppts]; u[idx].assignment_mode = 'manual'; setSubAppts(u); }}
                               className={cn("flex-1 px-2 py-1.5 rounded-lg text-xs font-medium border transition-colors",
@@ -528,7 +675,6 @@ export default function CalendarPage() {
                               <Zap className="w-3 h-3 inline mr-0.5" />Automatisch
                             </button>
                           </div>
-
                           {sub.assignment_mode === 'manual' && (
                             <div className="grid grid-cols-2 gap-2">
                               <select value={sub.assigned_employee}
@@ -546,7 +692,6 @@ export default function CalendarPage() {
                               </select>
                             </div>
                           )}
-
                           {sub.assignment_mode === 'auto' && sub.service_id && (
                             <div className="px-2 py-1.5 rounded-lg bg-primary/5 border border-primary/10">
                               <p className="text-[11px] text-muted-foreground flex items-center gap-1">
@@ -559,8 +704,6 @@ export default function CalendarPage() {
                         </div>
                       );
                     })}
-
-                    {/* Group total */}
                     {subAppts.length > 0 && form.service_id && (
                       <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 text-sm mt-2">
                         <div className="flex justify-between">
@@ -600,7 +743,8 @@ export default function CalendarPage() {
             <button className="p-2 rounded-lg hover:bg-secondary transition-colors" onClick={() => navigate(1)}><ChevronRight className="w-4 h-4" /></button>
           </div>
           <span className="text-sm text-muted-foreground">
-            {view === 'day' ? `${dayAppts.length} afspraken` : `${appointments.filter(a => weekDays.some(d => a.appointment_date.startsWith(d.toISOString().split('T')[0]))).length} afspraken`}
+            {view === 'day' ? `${dayAppts.length} afspraken` : `${filterByEmployee(appointments.filter(a => weekDays.some(d => a.appointment_date.startsWith(d.toISOString().split('T')[0])))).length} afspraken`}
+            {selectedEmployee !== 'alle' && ` · ${selectedEmployee}`}
           </span>
         </div>
 
@@ -615,11 +759,20 @@ export default function CalendarPage() {
               const cust = apt ? customers.find(c => c.id === apt.customer_id) : null;
               const isGroupBooking = apt?.notes?.includes('Groepsboeking');
               const employeeName = apt?.notes?.match(/Medewerker: (\w+)/)?.[1];
+
+              // Check if this slot is a pause for the selected employee
+              const selectedEmp = MEDEWERKERS.find(m => m.name === selectedEmployee);
+              const isPauzeSlot = selectedEmp && isSlotPauze(selectedEmp, slot);
+
               return (
                 <div key={slot} className="flex gap-4 group min-h-[48px]">
                   <span className="w-14 text-xs text-muted-foreground py-3 tabular-nums flex-shrink-0">{slot}</span>
                   <div className="flex-1 border-t border-border/50 relative">
-                    {apt ? (
+                    {isPauzeSlot && !apt ? (
+                      <div className="absolute inset-x-0 top-1 h-[40px] rounded-xl bg-accent/50 border border-border/30 flex items-center justify-center">
+                        <span className="text-[11px] text-muted-foreground">☕ Pauze — {selectedEmployee}</span>
+                      </div>
+                    ) : apt ? (
                       <div className="absolute inset-x-0 top-1 rounded-xl p-3 transition-all duration-200 hover:scale-[1.01] cursor-pointer"
                         style={{ backgroundColor: `${svc?.color || '#7B61FF'}15`, borderLeft: `3px solid ${svc?.color || '#7B61FF'}`, minHeight: `${((svc?.duration_minutes || 30) / 30) * 48 - 8}px` }}>
                         <div className="flex items-start justify-between">
@@ -639,9 +792,9 @@ export default function CalendarPage() {
                           <div className="flex items-center gap-1">
                             {(apt as any).payment_status && (apt as any).payment_status !== 'none' && (
                               <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
-                                (apt as any).payment_status === 'betaald' ? 'bg-success/15 text-success' :
+                                (apt as any).payment_status === 'betaald' ? 'bg-primary/15 text-primary' :
                                 (apt as any).payment_status === 'mislukt' ? 'bg-destructive/15 text-destructive' :
-                                'bg-warning/15 text-warning'
+                                'bg-accent text-foreground'
                               }`}>
                                 {(apt as any).payment_status === 'betaald' ? '€✓' : (apt as any).payment_status === 'mislukt' ? '€✗' : '€…'}
                               </span>
@@ -673,7 +826,7 @@ export default function CalendarPage() {
             <div className="grid grid-cols-6 gap-3 min-w-[700px]">
               {weekDays.map((day, i) => {
                 const ds = day.toISOString().split('T')[0];
-                const apts = appointments.filter(a => a.appointment_date.startsWith(ds));
+                const apts = filterByEmployee(appointments.filter(a => a.appointment_date.startsWith(ds)));
                 const isSelected = ds === dateStr;
                 const freeSlots = timeSlots.length - apts.length;
                 return (
