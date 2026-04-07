@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useServices } from "@/hooks/useSupabaseData";
 import { useCrud } from "@/hooks/useCrud";
 import { formatEuro } from "@/lib/data";
-import { Plus, Clock, Euro, Pencil, Trash2, X } from "lucide-react";
+import { Plus, Clock, Euro, Pencil, Trash2, Globe, Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -12,7 +12,10 @@ export default function ServicesPage() {
   const { insert, update, remove } = useCrud("services");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: '', duration_minutes: 30, price: 0, category: '', color: '#7B61FF', description: '', is_active: true });
+  const [form, setForm] = useState({
+    name: '', duration_minutes: 30, price: 0, category: '', color: '#7B61FF', description: '',
+    is_active: true, is_online_bookable: true, is_internal_only: false,
+  });
 
   const categories = [...new Set(services.map(s => s.category).filter(Boolean))];
 
@@ -31,11 +34,18 @@ export default function ServicesPage() {
     if (await remove(id)) { toast.success("Behandeling verwijderd"); refetch(); }
   };
 
-  const close = () => { setShowForm(false); setEditingId(null); setForm({ name: '', duration_minutes: 30, price: 0, category: '', color: '#7B61FF', description: '', is_active: true }); };
+  const close = () => {
+    setShowForm(false); setEditingId(null);
+    setForm({ name: '', duration_minutes: 30, price: 0, category: '', color: '#7B61FF', description: '', is_active: true, is_online_bookable: true, is_internal_only: false });
+  };
 
   const openEdit = (s: any) => {
     setEditingId(s.id);
-    setForm({ name: s.name, duration_minutes: s.duration_minutes, price: s.price, category: s.category || '', color: s.color || '#7B61FF', description: s.description || '', is_active: s.is_active ?? true });
+    setForm({
+      name: s.name, duration_minutes: s.duration_minutes, price: s.price,
+      category: s.category || '', color: s.color || '#7B61FF', description: s.description || '',
+      is_active: s.is_active ?? true, is_online_bookable: s.is_online_bookable ?? true, is_internal_only: s.is_internal_only ?? false,
+    });
     setShowForm(true);
   };
 
@@ -55,9 +65,22 @@ export default function ServicesPage() {
               </div>
               <div><label className="text-xs text-muted-foreground">Categorie</label><input value={form.category} onChange={e => setForm({...form, category: e.target.value})} className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="bijv. Haar, Kleur, Styling" /></div>
               <div><label className="text-xs text-muted-foreground">Kleur</label><input type="color" value={form.color} onChange={e => setForm({...form, color: e.target.value})} className="w-full mt-1 h-10 rounded-xl" /></div>
-              <div className="flex items-center gap-2">
-                <input type="checkbox" checked={form.is_active} onChange={e => setForm({...form, is_active: e.target.checked})} className="rounded" />
-                <label className="text-sm">Actief</label>
+
+              {/* Status & Visibility */}
+              <div className="border-t border-border pt-3 space-y-2.5">
+                <p className="text-xs font-medium text-muted-foreground">Status & Zichtbaarheid</p>
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" checked={form.is_active} onChange={e => setForm({...form, is_active: e.target.checked})} className="rounded" />
+                  <label className="text-sm">Actief</label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" checked={form.is_online_bookable} onChange={e => setForm({...form, is_online_bookable: e.target.checked})} className="rounded" />
+                  <label className="text-sm">Online boekbaar</label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" checked={form.is_internal_only} onChange={e => setForm({...form, is_internal_only: e.target.checked})} className="rounded" />
+                  <label className="text-sm">Alleen intern zichtbaar</label>
+                </div>
               </div>
             </div>
             <div className="flex gap-2 mt-4">
@@ -92,7 +115,19 @@ export default function ServicesPage() {
                        <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><Clock className="w-3.5 h-3.5" /> {service.duration_minutes} min</span>
                        <span className="flex items-center gap-1 text-sm font-semibold tabular-nums"><Euro className="w-3.5 h-3.5 text-muted-foreground" />{formatEuro(service.price)}</span>
                      </div>
-                     {!service.is_active && <span className="text-[10px] text-warning mt-2 block">Inactief</span>}
+                     {/* Status badges */}
+                     <div className="flex flex-wrap gap-1.5 mt-2.5">
+                       {!service.is_active && <span className="text-[10px] px-1.5 py-0.5 rounded bg-warning/15 text-warning font-medium">Inactief</span>}
+                       {(service as any).is_online_bookable === false && (
+                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground font-medium flex items-center gap-0.5"><EyeOff className="w-2.5 h-2.5" />Niet online</span>
+                       )}
+                       {(service as any).is_online_bookable !== false && service.is_active && (
+                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium flex items-center gap-0.5"><Globe className="w-2.5 h-2.5" />Online</span>
+                       )}
+                       {(service as any).is_internal_only && (
+                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground font-medium flex items-center gap-0.5"><Eye className="w-2.5 h-2.5" />Intern</span>
+                       )}
+                     </div>
                    </div>
                  ))}
                </div>
