@@ -4,15 +4,26 @@ import { useAppointments, useCustomers, useServices } from "@/hooks/useSupabaseD
 import { useCrud } from "@/hooks/useCrud";
 import { formatEuro } from "@/lib/data";
 import { useState, useMemo } from "react";
-import { ChevronLeft, ChevronRight, Plus, Clock, Trash2, Sparkles, Users } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Clock, Trash2, Sparkles, Users, AlertCircle, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 type View = 'day' | 'week';
 
 const timeSlots = ['09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00'];
 
+interface SubApptForm {
+  person_name: string;
+  service_id: string;
+  assignment_mode: 'manual' | 'auto';
+  assigned_employee: string;
+  assigned_time: string;
+}
+
 export default function CalendarPage() {
+  const { user } = useAuth();
   const { data: appointments, refetch } = useAppointments();
   const { data: customers } = useCustomers();
   const { data: services } = useServices();
@@ -21,8 +32,8 @@ export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ customer_id: '', service_id: '', date: '', time: '09:00', notes: '' });
-  // Group booking support
-  const [subAppts, setSubAppts] = useState<{ person_name: string; service_id: string }[]>([]);
+  const [subAppts, setSubAppts] = useState<SubApptForm[]>([]);
+  const [showConfirmation, setShowConfirmation] = useState(false);
 
   const dateStr = currentDate.toISOString().split('T')[0];
 
@@ -53,7 +64,6 @@ export default function CalendarPage() {
     setCurrentDate(d);
   };
 
-  // Detect empty slots for the day
   const emptySlotCount = useMemo(() => {
     const bookedTimes = new Set(dayAppts.map(a => {
       const t = new Date(a.appointment_date);
@@ -61,6 +71,44 @@ export default function CalendarPage() {
     }));
     return timeSlots.filter(s => !bookedTimes.has(s)).length;
   }, [dayAppts]);
+
+  // Dummy employees for group booking assignment
+  const employees = ['Bas', 'Roos', 'Lisa', 'Emma'];
+
+  // Auto-assign logic for group booking
+  const autoAssign = (subIdx: number): { employee: string; time: string } => {
+    const bookedTimes = new Set(dayAppts.map(a => {
+      const t = new Date(a.appointment_date);
+      return `${t.getHours().toString().padStart(2, '0')}:${t.getMinutes().toString().padStart(2, '0')}`;
+    }));
+    // Also consider already assigned subs
+    subAppts.forEach((s, i) => {
+      if (i !== subIdx && s.assigned_time) bookedTimes.add(s.assigned_time);
+    });
+    const freeSlot = timeSlots.find(s => !bookedTimes.has(s)) || form.time;
+    // Pick employee not already used at same time
+    const usedEmployees = subAppts.filter((s, i) => i !== subIdx && s.assigned_time === freeSlot).map(s => s.assigned_employee);
+    const freeEmployee = employees.find(e => !usedEmployees.includes(e)) || employees[0];
+    return { employee: freeEmployee, time: freeSlot };
+  };
+
+  const handlePrepareConfirmation = () => {
+    if (!form.customer_id || !form.service_id || !form.date || !form.time) { toast.error("Vul alle velden in"); return; }
+    // Auto-assign for subs with auto mode
+    const updatedSubs = subAppts.map((sub, idx) => {
+      if (sub.assignment_mode === 'auto') {
+        const { employee, time } = autoAssign(idx);
+        return { ...sub, assigned_employee: employee, assigned_time: time };
+      }
+      return { ...sub, assigned_time: sub.assigned_time || form.time };
+    });
+    setSubAppts(updatedSubs);
+    if (updatedSubs.length > 0) {
+      setShowConfirmation(true);
+    } else {
+      handleAdd();
+    }
+  };
 
   const handleAdd = async () => {
     if (!form.customer_id || !form.service_id || !form.date || !form.time) { toast.error("Vul alle velden in"); return; }
@@ -74,28 +122,30 @@ export default function CalendarPage() {
       notes: form.notes,
       status: 'gepland',
     });
-    if (result) {
-      // Insert sub-appointments if group booking
-      if (subAppts.length > 0) {
-        const { insert: insertSub } = await import("@/hooks/useCrud").then(m => ({ insert: null }));
-        // Use direct supabase for sub_appointments since it's not in typed hooks yet
-        for (const sub of subAppts) {
-          if (sub.person_name && sub.service_id) {
-            const subSvc = services.find(s => s.id === sub.service_id);
-            // We'll just create additional appointments for each person
-            await insert({
-              customer_id: form.customer_id,
-              service_id: sub.service_id,
-              appointment_date: dt,
-              price: subSvc?.price || 0,
-              notes: `Groepsboeking: ${sub.person_name}`,
-              status: 'gepland',
-            });
-          }
+    if (result && subAppts.length > 0 && user) {
+      // Insert sub_appointments
+      for (const sub of subAppts) {
+        if (sub.person_name && sub.service_id) {
+          const subSvc = services.find(s => s.id === sub.service_id);
+          const subTime = sub.assigned_time || form.time;
+          const subDt = `${form.date}T${subTime}:00`;
+          await (supabase.from("sub_appointments") as any).insert({
+            parent_appointment_id: result.id,
+            person_name: sub.person_name,
+            service_id: sub.service_id,
+            price: subSvc?.price || 0,
+            user_id: user.id,
+            assigned_employee_id: null,
+            assignment_mode: sub.assignment_mode,
+            notes: `Medewerker: ${sub.assigned_employee || 'Niet toegewezen'}`,
+          });
         }
       }
+    }
+    if (result) {
       toast.success(subAppts.length > 0 ? `Groepsboeking aangemaakt (${subAppts.length + 1} personen)` : "Afspraak aangemaakt");
       setShowAdd(false);
+      setShowConfirmation(false);
       setSubAppts([]);
       refetch();
     }
@@ -113,8 +163,13 @@ export default function CalendarPage() {
 
   const openAddModal = (date: string, time: string) => {
     setShowAdd(true);
+    setShowConfirmation(false);
     setForm({ customer_id: '', service_id: '', date, time, notes: '' });
     setSubAppts([]);
+  };
+
+  const addSubAppt = () => {
+    setSubAppts(prev => [...prev, { person_name: '', service_id: '', assignment_mode: 'manual', assigned_employee: '', assigned_time: form.time }]);
   };
 
   return (
@@ -143,66 +198,155 @@ export default function CalendarPage() {
 
       {/* Add Modal */}
       {showAdd && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowAdd(false)}>
-          <div className="glass-card p-6 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold mb-4">Nieuwe afspraak</h3>
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs text-muted-foreground">Klant *</label>
-                <select value={form.customer_id} onChange={e => setForm({...form, customer_id: e.target.value})}
-                  className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
-                  <option value="">Selecteer klant</option>
-                  {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground">Behandeling *</label>
-                <select value={form.service_id} onChange={e => setForm({...form, service_id: e.target.value})}
-                  className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
-                  <option value="">Selecteer behandeling</option>
-                  {services.filter(s => s.is_active).map(s => <option key={s.id} value={s.id}>{s.name} — {formatEuro(s.price)}</option>)}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div><label className="text-xs text-muted-foreground">Datum *</label><input type="date" value={form.date} onChange={e => setForm({...form, date: e.target.value})} className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" /></div>
-                <div><label className="text-xs text-muted-foreground">Tijd *</label>
-                  <select value={form.time} onChange={e => setForm({...form, time: e.target.value})} className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
-                    {timeSlots.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div><label className="text-xs text-muted-foreground">Notities</label><textarea value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 min-h-[60px]" /></div>
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => { setShowAdd(false); setShowConfirmation(false); }}>
+          <div className="glass-card p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
 
-              {/* Group booking section */}
-              <div className="border-t border-border pt-3">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-medium flex items-center gap-1"><Users className="w-3.5 h-3.5" />Groepsboeking</span>
-                  <Button variant="outline" size="sm" onClick={() => setSubAppts(prev => [...prev, { person_name: '', service_id: '' }])}>
-                    <Plus className="w-3 h-3 mr-1" />Persoon
+            {/* Confirmation view */}
+            {showConfirmation ? (
+              <>
+                <h3 className="text-lg font-semibold mb-4">Groepsboeking bevestigen</h3>
+                <div className="space-y-2.5">
+                  {/* Main person */}
+                  <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 flex items-center gap-3">
+                    <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{customers.find(c => c.id === form.customer_id)?.name || 'Hoofdpersoon'}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {services.find(s => s.id === form.service_id)?.name} · {form.time}
+                      </p>
+                    </div>
+                    <span className="text-xs font-medium">{formatEuro(services.find(s => s.id === form.service_id)?.price || 0)}</span>
+                  </div>
+                  {/* Sub persons */}
+                  {subAppts.map((sub, idx) => {
+                    const svc = services.find(s => s.id === sub.service_id);
+                    const hasWarning = !sub.assigned_employee || !sub.person_name;
+                    return (
+                      <div key={idx} className={cn("p-3 rounded-xl border flex items-center gap-3",
+                        hasWarning ? "bg-warning/5 border-warning/20" : "bg-secondary/30 border-border")}>
+                        {hasWarning ? <AlertCircle className="w-4 h-4 text-warning flex-shrink-0" /> : <CheckCircle2 className="w-4 h-4 text-success flex-shrink-0" />}
+                        <div className="flex-1">
+                          <p className="text-sm font-medium">{sub.person_name || `Persoon ${idx + 2}`}</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            {svc?.name || 'Geen behandeling'} · {sub.assigned_time} · {sub.assigned_employee || 'Niet toegewezen'}
+                            {sub.assignment_mode === 'auto' && <span className="text-primary ml-1">⚡ automatisch</span>}
+                          </p>
+                        </div>
+                        <span className="text-xs font-medium">{formatEuro(svc?.price || 0)}</span>
+                      </div>
+                    );
+                  })}
+                  <div className="p-3 rounded-xl bg-primary/10 border border-primary/20 text-sm font-semibold flex justify-between">
+                    <span>Totaal ({subAppts.length + 1} personen)</span>
+                    <span>{formatEuro(
+                      (services.find(s => s.id === form.service_id)?.price || 0) +
+                      subAppts.reduce((sum, s) => sum + (services.find(sv => sv.id === s.service_id)?.price || 0), 0)
+                    )}</span>
+                  </div>
+                </div>
+                <div className="flex gap-2 mt-4">
+                  <Button variant="outline" className="flex-1" onClick={() => setShowConfirmation(false)}>Terug</Button>
+                  <Button variant="gradient" className="flex-1" onClick={handleAdd}>Bevestigen & Opslaan</Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 className="text-lg font-semibold mb-4">Nieuwe afspraak</h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs text-muted-foreground">Klant *</label>
+                    <select value={form.customer_id} onChange={e => setForm({...form, customer_id: e.target.value})}
+                      className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
+                      <option value="">Selecteer klant</option>
+                      {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Behandeling *</label>
+                    <select value={form.service_id} onChange={e => setForm({...form, service_id: e.target.value})}
+                      className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
+                      <option value="">Selecteer behandeling</option>
+                      {services.filter(s => s.is_active).map(s => <option key={s.id} value={s.id}>{s.name} — {formatEuro(s.price)}</option>)}
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><label className="text-xs text-muted-foreground">Datum *</label><input type="date" value={form.date} onChange={e => setForm({...form, date: e.target.value})} className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" /></div>
+                    <div><label className="text-xs text-muted-foreground">Tijd *</label>
+                      <select value={form.time} onChange={e => setForm({...form, time: e.target.value})} className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
+                        {timeSlots.map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div><label className="text-xs text-muted-foreground">Notities</label><textarea value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 min-h-[60px]" /></div>
+
+                  {/* Group booking section */}
+                  <div className="border-t border-border pt-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-medium flex items-center gap-1"><Users className="w-3.5 h-3.5" />Groepsboeking</span>
+                      <Button variant="outline" size="sm" onClick={addSubAppt}>
+                        <Plus className="w-3 h-3 mr-1" />Persoon
+                      </Button>
+                    </div>
+                    {subAppts.map((sub, idx) => (
+                      <div key={idx} className="p-3 rounded-xl bg-secondary/30 border border-border mb-2 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-muted-foreground">Persoon {idx + 2}</span>
+                          <button onClick={() => setSubAppts(prev => prev.filter((_, i) => i !== idx))} className="p-1 rounded hover:bg-destructive/20">
+                            <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                          </button>
+                        </div>
+                        <input placeholder="Naam" value={sub.person_name}
+                          onChange={e => { const updated = [...subAppts]; updated[idx].person_name = e.target.value; setSubAppts(updated); }}
+                          className="w-full px-3 py-2 rounded-xl bg-background border border-border text-sm" />
+                        <select value={sub.service_id}
+                          onChange={e => { const updated = [...subAppts]; updated[idx].service_id = e.target.value; setSubAppts(updated); }}
+                          className="w-full px-3 py-2 rounded-xl bg-background border border-border text-sm">
+                          <option value="">Behandeling</option>
+                          {services.filter(s => s.is_active).map(s => <option key={s.id} value={s.id}>{s.name} — {formatEuro(s.price)}</option>)}
+                        </select>
+                        {/* Assignment mode */}
+                        <div className="flex gap-2">
+                          <button onClick={() => { const u = [...subAppts]; u[idx].assignment_mode = 'manual'; setSubAppts(u); }}
+                            className={cn("flex-1 px-2 py-1.5 rounded-lg text-xs font-medium border transition-colors",
+                              sub.assignment_mode === 'manual' ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground")}>
+                            Handmatig
+                          </button>
+                          <button onClick={() => { const u = [...subAppts]; u[idx].assignment_mode = 'auto'; setSubAppts(u); }}
+                            className={cn("flex-1 px-2 py-1.5 rounded-lg text-xs font-medium border transition-colors",
+                              sub.assignment_mode === 'auto' ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground")}>
+                            ⚡ Automatisch
+                          </button>
+                        </div>
+                        {sub.assignment_mode === 'manual' && (
+                          <div className="grid grid-cols-2 gap-2">
+                            <select value={sub.assigned_employee}
+                              onChange={e => { const u = [...subAppts]; u[idx].assigned_employee = e.target.value; setSubAppts(u); }}
+                              className="px-3 py-2 rounded-xl bg-background border border-border text-sm">
+                              <option value="">Medewerker</option>
+                              {employees.map(emp => <option key={emp} value={emp}>{emp}</option>)}
+                            </select>
+                            <select value={sub.assigned_time}
+                              onChange={e => { const u = [...subAppts]; u[idx].assigned_time = e.target.value; setSubAppts(u); }}
+                              className="px-3 py-2 rounded-xl bg-background border border-border text-sm">
+                              {timeSlots.map(t => <option key={t} value={t}>{t}</option>)}
+                            </select>
+                          </div>
+                        )}
+                        {sub.assignment_mode === 'auto' && (
+                          <p className="text-[11px] text-muted-foreground">Wordt automatisch geplaatst bij beschikbare medewerker en tijdslot</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex gap-2 mt-4">
+                  <Button variant="outline" className="flex-1" onClick={() => { setShowAdd(false); setShowConfirmation(false); }}>Annuleren</Button>
+                  <Button variant="gradient" className="flex-1" onClick={handlePrepareConfirmation}>
+                    {subAppts.length > 0 ? 'Bekijk plaatsing' : 'Opslaan'}
                   </Button>
                 </div>
-                {subAppts.map((sub, idx) => (
-                  <div key={idx} className="flex gap-2 mb-2">
-                    <input placeholder={`Naam persoon ${idx + 2}`} value={sub.person_name}
-                      onChange={e => { const updated = [...subAppts]; updated[idx].person_name = e.target.value; setSubAppts(updated); }}
-                      className="flex-1 px-3 py-2 rounded-xl bg-secondary/50 border border-border text-sm" />
-                    <select value={sub.service_id}
-                      onChange={e => { const updated = [...subAppts]; updated[idx].service_id = e.target.value; setSubAppts(updated); }}
-                      className="flex-1 px-3 py-2 rounded-xl bg-secondary/50 border border-border text-sm">
-                      <option value="">Behandeling</option>
-                      {services.filter(s => s.is_active).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                    </select>
-                    <button onClick={() => setSubAppts(prev => prev.filter((_, i) => i !== idx))} className="p-2 rounded-lg hover:bg-destructive/20">
-                      <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="flex gap-2 mt-4">
-              <Button variant="outline" className="flex-1" onClick={() => setShowAdd(false)}>Annuleren</Button>
-              <Button variant="gradient" className="flex-1" onClick={handleAdd}>Opslaan</Button>
-            </div>
+              </>
+            )}
           </div>
         </div>
       )}

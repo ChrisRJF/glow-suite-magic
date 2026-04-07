@@ -9,8 +9,8 @@ export function useCrud(table: TableName) {
 
   const insert = async (data: Record<string, any>) => {
     if (!user) { toast.error("Je bent niet ingelogd"); return null; }
-    const { data: result, error } = await supabase
-      .from(table)
+    const { data: result, error } = await (supabase
+      .from(table) as any)
       .insert({ ...data, user_id: user.id })
       .select()
       .single();
@@ -20,8 +20,8 @@ export function useCrud(table: TableName) {
 
   const update = async (id: string, data: Record<string, any>) => {
     if (!user) { toast.error("Je bent niet ingelogd"); return null; }
-    const { data: result, error } = await supabase
-      .from(table)
+    const { data: result, error } = await (supabase
+      .from(table) as any)
       .update(data)
       .eq("id", id)
       .select()
@@ -32,7 +32,7 @@ export function useCrud(table: TableName) {
 
   const remove = async (id: string) => {
     if (!user) { toast.error("Je bent niet ingelogd"); return false; }
-    const { error } = await supabase.from(table).delete().eq("id", id);
+    const { error } = await (supabase.from(table) as any).delete().eq("id", id);
     if (error) { toast.error("Er ging iets mis: " + error.message); return false; }
     return true;
   };

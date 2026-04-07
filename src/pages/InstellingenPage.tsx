@@ -6,7 +6,7 @@ import { useCrud } from "@/hooks/useCrud";
 import {
   User, Building, Bell, Save, CreditCard, Shield, RotateCcw, Loader2,
   Clock, Calendar, Globe, Users, Download, Link2, Plug, CheckCircle2, XCircle,
-  UserCog, AlertTriangle,
+  UserCog, AlertTriangle, Plus, Trash2, Facebook, Instagram, ExternalLink,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
@@ -26,6 +26,8 @@ const defaultHours: OpeningHours = {
   zo: { open: "09:00", close: "17:00", enabled: false },
 };
 
+const dayOrder = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo'];
+
 const dayLabels: Record<string, string> = {
   ma: "Maandag", di: "Dinsdag", wo: "Woensdag", do: "Donderdag",
   vr: "Vrijdag", za: "Zaterdag", zo: "Zondag",
@@ -38,6 +40,7 @@ export default function InstellingenPage() {
   const { data: appointments } = useAppointments();
   const { data: services } = useServices();
   const { insert, update } = useCrud("settings");
+  const { insert: insertRole, remove: removeRole } = useCrud("user_roles");
   const [salonName, setSalonName] = useState("Mijn Salon");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -50,7 +53,6 @@ export default function InstellingenPage() {
   const [skipVip, setSkipVip] = useState(true);
   const [depositNoshow, setDepositNoshow] = useState(true);
   const [resetLoading, setResetLoading] = useState(false);
-  // New settings
   const [openingHours, setOpeningHours] = useState<OpeningHours>(defaultHours);
   const [bufferMinutes, setBufferMinutes] = useState(15);
   const [maxBookings, setMaxBookings] = useState(1);
@@ -59,6 +61,14 @@ export default function InstellingenPage() {
   const [googleCalendar, setGoogleCalendar] = useState(false);
   const [instagramBooking, setInstagramBooking] = useState(false);
   const [activeTab, setActiveTab] = useState("algemeen");
+  // User management
+  const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserRole, setNewUserRole] = useState("medewerker");
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  // Integration states
+  const [facebookEnabled, setFacebookEnabled] = useState(false);
+  const [googleReserve, setGoogleReserve] = useState(false);
+  const [widgetEnabled, setWidgetEnabled] = useState(false);
 
   useEffect(() => {
     if (settings.length > 0) {
@@ -72,7 +82,6 @@ export default function InstellingenPage() {
       setFullPrepayThreshold(Number(s.full_prepay_threshold) || 150);
       setSkipVip(s.skip_prepay_vip ?? true);
       setDepositNoshow(s.deposit_noshow_risk ?? true);
-      // New fields
       if (s.opening_hours) setOpeningHours(s.opening_hours as OpeningHours);
       setBufferMinutes(s.buffer_minutes ?? 15);
       setMaxBookings(s.max_bookings_simultaneous ?? 1);
@@ -83,6 +92,16 @@ export default function InstellingenPage() {
     }
     if (user) setEmail(user.email || '');
   }, [settings, user]);
+
+  // Fetch team members / roles
+  useEffect(() => {
+    if (!user) return;
+    const fetchRoles = async () => {
+      const { data } = await (supabase.from("user_roles") as any).select("*");
+      if (data) setTeamMembers(data);
+    };
+    fetchRoles();
+  }, [user]);
 
   const handleSave = async () => {
     const data: Record<string, any> = {
@@ -132,7 +151,27 @@ export default function InstellingenPage() {
     }
   };
 
-  // Export handlers
+  const handleAddTeamMember = async () => {
+    if (!newUserEmail.trim()) { toast.error("Vul een e-mail in"); return; }
+    // For MVP we store the role tied to current user; in production this would invite a new user
+    const result = await insertRole({ role: newUserRole });
+    if (result) {
+      toast.success(`Rol "${newUserRole}" toegevoegd`);
+      setNewUserEmail("");
+      // Refresh
+      const { data } = await (supabase.from("user_roles") as any).select("*");
+      if (data) setTeamMembers(data);
+    }
+  };
+
+  const handleRemoveTeamMember = async (id: string) => {
+    if (await removeRole(id)) {
+      toast.success("Gebruiker verwijderd");
+      const { data } = await (supabase.from("user_roles") as any).select("*");
+      if (data) setTeamMembers(data);
+    }
+  };
+
   const handleExportCustomers = (format: 'csv' | 'excel') => {
     const headers = ["Naam", "Telefoon", "E-mail", "Totaal besteed", "VIP", "No-shows"];
     const rows = customers.map(c => [
@@ -200,11 +239,21 @@ export default function InstellingenPage() {
   ];
 
   const integrations = [
-    { name: "GlowPay (Mollie)", desc: "Online betalingen en aanbetalingen", enabled: mollieMode !== '', icon: CreditCard },
+    { name: "GlowPay (Mollie)", desc: "Online betalingen en aanbetalingen", enabled: mollieMode !== '', icon: CreditCard, toggle: undefined },
     { name: "Google Calendar", desc: "Synchroniseer je agenda met Google", enabled: googleCalendar, toggle: () => setGoogleCalendar(!googleCalendar), icon: Calendar },
     { name: "WhatsApp", desc: "Stuur berichten en herinneringen", enabled: notifications.whatsapp, toggle: () => setNotifications(p => ({ ...p, whatsapp: !p.whatsapp })), icon: Bell },
     { name: "E-mail", desc: "Bevestigingen en marketing e-mails", enabled: notifications.email, toggle: () => setNotifications(p => ({ ...p, email: !p.email })), icon: Bell },
-    { name: "Instagram Boekingen", desc: "Boekingslink voor Instagram profiel", enabled: instagramBooking, toggle: () => setInstagramBooking(!instagramBooking), icon: Link2 },
+    { name: "Instagram Boekingen", desc: "Boekingslink voor Instagram profiel", enabled: instagramBooking, toggle: () => setInstagramBooking(!instagramBooking), icon: Instagram },
+    { name: "Facebook Boekingen", desc: "Boekingslink voor Facebook pagina", enabled: facebookEnabled, toggle: () => setFacebookEnabled(!facebookEnabled), icon: Facebook },
+    { name: "Google Reserve", desc: "Reserveringen via Google zoekresultaten", enabled: googleReserve, toggle: () => setGoogleReserve(!googleReserve), icon: Globe },
+    { name: "Website Widget", desc: "Boekingswidget voor je website of social media", enabled: widgetEnabled, toggle: () => setWidgetEnabled(!widgetEnabled), icon: ExternalLink },
+  ];
+
+  const roleDescriptions = [
+    { role: "Eigenaar", perms: "Volledige toegang tot alle functies, instellingen en gebruikersbeheer", color: "bg-primary/15 text-primary" },
+    { role: "Admin", perms: "Beheer, rapporten, marketing en klantinzicht — geen gebruikersbeheer", color: "bg-primary/10 text-primary" },
+    { role: "Medewerker", perms: "Alleen eigen agenda, afspraken beheren en klantgegevens bekijken", color: "bg-secondary text-muted-foreground" },
+    { role: "Financieel", perms: "Alleen rapporten, omzet, betalingen en exports bekijken — geen bewerkingen", color: "bg-warning/15 text-warning" },
   ];
 
   return (
@@ -252,31 +301,34 @@ export default function InstellingenPage() {
           </>
         )}
 
-        {/* Agenda Settings */}
+        {/* Agenda Settings - FIXED DAY ORDER */}
         {activeTab === "agenda" && (
           <>
             <div className="glass-card p-6">
               <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><Clock className="w-4 h-4 text-primary" /> Openingstijden</h3>
               <div className="space-y-3">
-                {Object.entries(openingHours).map(([day, hours]) => (
-                  <div key={day} className="flex items-center gap-3 py-2">
-                    <ToggleSwitch value={hours.enabled} onChange={(v) => setOpeningHours(prev => ({ ...prev, [day]: { ...prev[day], enabled: v } }))} />
-                    <span className="text-sm font-medium w-24">{dayLabels[day]}</span>
-                    {hours.enabled ? (
-                      <div className="flex items-center gap-2 flex-1">
-                        <input type="time" value={hours.open}
-                          onChange={e => setOpeningHours(prev => ({ ...prev, [day]: { ...prev[day], open: e.target.value } }))}
-                          className="px-2 py-1.5 rounded-xl bg-secondary/50 border border-border text-sm" />
-                        <span className="text-xs text-muted-foreground">tot</span>
-                        <input type="time" value={hours.close}
-                          onChange={e => setOpeningHours(prev => ({ ...prev, [day]: { ...prev[day], close: e.target.value } }))}
-                          className="px-2 py-1.5 rounded-xl bg-secondary/50 border border-border text-sm" />
-                      </div>
-                    ) : (
-                      <span className="text-sm text-muted-foreground">Gesloten</span>
-                    )}
-                  </div>
-                ))}
+                {dayOrder.map((day) => {
+                  const hours = openingHours[day] || defaultHours[day];
+                  return (
+                    <div key={day} className="flex items-center gap-3 py-2">
+                      <ToggleSwitch value={hours.enabled} onChange={(v) => setOpeningHours(prev => ({ ...prev, [day]: { ...prev[day], enabled: v } }))} />
+                      <span className="text-sm font-medium w-24">{dayLabels[day]}</span>
+                      {hours.enabled ? (
+                        <div className="flex items-center gap-2 flex-1">
+                          <input type="time" value={hours.open}
+                            onChange={e => setOpeningHours(prev => ({ ...prev, [day]: { ...prev[day], open: e.target.value } }))}
+                            className="px-2 py-1.5 rounded-xl bg-secondary/50 border border-border text-sm" />
+                          <span className="text-xs text-muted-foreground">tot</span>
+                          <input type="time" value={hours.close}
+                            onChange={e => setOpeningHours(prev => ({ ...prev, [day]: { ...prev[day], close: e.target.value } }))}
+                            className="px-2 py-1.5 rounded-xl bg-secondary/50 border border-border text-sm" />
+                        </div>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">Gesloten</span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
             <div className="glass-card p-6">
@@ -412,30 +464,32 @@ export default function InstellingenPage() {
           </div>
         )}
 
-        {/* Integrations */}
+        {/* Integrations - Enhanced with widget cards */}
         {activeTab === "integraties" && (
-          <div className="glass-card p-6">
-            <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><Plug className="w-4 h-4 text-primary" /> Integraties</h3>
-            <div className="space-y-3">
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold flex items-center gap-2"><Plug className="w-4 h-4 text-primary" /> Integraties</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {integrations.map((intg, i) => (
-                <div key={i} className="flex items-center justify-between py-3 border-b border-border last:border-0">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${intg.enabled ? 'bg-primary/15' : 'bg-secondary/50'}`}>
-                      <intg.icon className={`w-4 h-4 ${intg.enabled ? 'text-primary' : 'text-muted-foreground'}`} />
+                <div key={i} className="glass-card p-4 flex flex-col gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${intg.enabled ? 'bg-primary/15' : 'bg-secondary/50'}`}>
+                      <intg.icon className={`w-5 h-5 ${intg.enabled ? 'text-primary' : 'text-muted-foreground'}`} />
                     </div>
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium">{intg.name}</p>
                       <p className="text-[11px] text-muted-foreground">{intg.desc}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-between">
                     {intg.enabled ? (
-                      <span className="flex items-center gap-1 text-[11px] text-success font-medium"><CheckCircle2 className="w-3.5 h-3.5" />Actief</span>
+                      <span className="flex items-center gap-1 text-[11px] text-success font-medium"><CheckCircle2 className="w-3.5 h-3.5" />Ingeschakeld</span>
                     ) : (
-                      <span className="flex items-center gap-1 text-[11px] text-muted-foreground"><XCircle className="w-3.5 h-3.5" />Inactief</span>
+                      <span className="flex items-center gap-1 text-[11px] text-muted-foreground"><XCircle className="w-3.5 h-3.5" />Uitgeschakeld</span>
                     )}
                     {intg.toggle && (
-                      <ToggleSwitch value={intg.enabled} onChange={() => intg.toggle?.()} />
+                      <Button variant={intg.enabled ? "outline" : "gradient"} size="sm" onClick={intg.toggle}>
+                        {intg.enabled ? "Uitschakelen" : "Inschakelen"}
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -469,42 +523,70 @@ export default function InstellingenPage() {
           </div>
         )}
 
-        {/* User Roles */}
+        {/* User Roles - Enhanced with add/remove */}
         {activeTab === "rollen" && (
-          <div className="glass-card p-6">
-            <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><UserCog className="w-4 h-4 text-primary" /> Gebruikers & Rollen</h3>
-            <div className="space-y-4">
-              <div className="p-4 rounded-xl bg-secondary/50 border border-border">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-9 h-9 rounded-xl gradient-bg flex items-center justify-center">
-                    <span className="text-xs font-bold text-primary-foreground">{(user?.email?.charAt(0) || 'U').toUpperCase()}</span>
+          <div className="space-y-4">
+            <div className="glass-card p-6">
+              <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><UserCog className="w-4 h-4 text-primary" /> Gebruikers & Rollen</h3>
+              <div className="space-y-4">
+                {/* Current user */}
+                <div className="p-4 rounded-xl bg-secondary/50 border border-border">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl gradient-bg flex items-center justify-center">
+                      <span className="text-xs font-bold text-primary-foreground">{(user?.email?.charAt(0) || 'U').toUpperCase()}</span>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{user?.email?.split('@')[0] || 'Gebruiker'}</p>
+                      <p className="text-[11px] text-muted-foreground">{user?.email}</p>
+                    </div>
+                    <span className="px-2 py-1 rounded-lg bg-primary/15 text-primary text-[11px] font-semibold">Eigenaar</span>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium">{user?.email?.split('@')[0] || 'Gebruiker'}</p>
-                    <p className="text-[11px] text-muted-foreground">{user?.email}</p>
+                </div>
+
+                {/* Team members from DB */}
+                {teamMembers.filter(m => m.user_id !== user?.id).map((member) => (
+                  <div key={member.id} className="p-4 rounded-xl bg-secondary/30 border border-border flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center">
+                      <UserCog className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium capitalize">{member.role}</p>
+                      <p className="text-[11px] text-muted-foreground">Toegevoegd {new Date(member.created_at).toLocaleDateString('nl-NL')}</p>
+                    </div>
+                    <button onClick={() => handleRemoveTeamMember(member.id)} className="p-1.5 rounded-lg hover:bg-destructive/20">
+                      <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                    </button>
                   </div>
-                  <span className="ml-auto px-2 py-1 rounded-lg bg-primary/15 text-primary text-[11px] font-semibold">Eigenaar</span>
+                ))}
+
+                {/* Add new member */}
+                <div className="border-t border-border pt-4">
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Medewerker toevoegen</p>
+                  <div className="flex gap-2">
+                    <input placeholder="E-mail adres" value={newUserEmail} onChange={e => setNewUserEmail(e.target.value)}
+                      className="flex-1 px-3 py-2 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                    <select value={newUserRole} onChange={e => setNewUserRole(e.target.value)}
+                      className="px-3 py-2 rounded-xl bg-secondary/50 border border-border text-sm">
+                      <option value="medewerker">Medewerker</option>
+                      <option value="admin">Admin</option>
+                      <option value="financieel">Financieel</option>
+                    </select>
+                    <Button variant="gradient" size="sm" onClick={handleAddTeamMember}>
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
-              <div className="p-3 rounded-xl bg-primary/5 border border-primary/10">
-                <p className="text-xs text-muted-foreground">
-                  💡 <strong>Rollen:</strong> Eigenaar (volledige toegang), Admin (beheer & rapporten), Medewerker (agenda & klanten).
-                  Nodig medewerkers uit door hun e-mail toe te voegen.
-                </p>
-              </div>
-              <div className="space-y-3">
-                <p className="text-xs text-muted-foreground font-medium">Rollenoverzicht</p>
-                {[
-                  { role: "Eigenaar", perms: "Volledige toegang tot alle functies, instellingen en gebruikersbeheer" },
-                  { role: "Admin", perms: "Beheer, rapporten, marketing en klantinzicht" },
-                  { role: "Medewerker", perms: "Agenda bekijken, afspraken beheren en klantgegevens zien" },
-                ].map((r, i) => (
+            </div>
+
+            {/* Role descriptions */}
+            <div className="glass-card p-6">
+              <p className="text-xs text-muted-foreground font-medium mb-3">Rollenoverzicht</p>
+              <div className="space-y-2.5">
+                {roleDescriptions.map((r, i) => (
                   <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30">
-                    <UserCog className="w-4 h-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-sm font-medium">{r.role}</p>
-                      <p className="text-[11px] text-muted-foreground">{r.perms}</p>
-                    </div>
+                    <span className={`px-2 py-0.5 rounded-lg text-[11px] font-semibold ${r.color}`}>{r.role}</span>
+                    <p className="text-[11px] text-muted-foreground flex-1">{r.perms}</p>
                   </div>
                 ))}
               </div>
