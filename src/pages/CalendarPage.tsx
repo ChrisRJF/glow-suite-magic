@@ -4,7 +4,7 @@ import { useAppointments, useCustomers, useServices } from "@/hooks/useSupabaseD
 import { useCrud } from "@/hooks/useCrud";
 import { formatEuro } from "@/lib/data";
 import { useState, useMemo } from "react";
-import { ChevronLeft, ChevronRight, Plus, Clock, Trash2, Sparkles, Users, AlertCircle, CheckCircle2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Clock, Trash2, Sparkles, Users, AlertCircle, CheckCircle2, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,12 +14,27 @@ type View = 'day' | 'week';
 
 const timeSlots = ['09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00'];
 
+// Demo medewerkers with their capabilities
+const MEDEWERKERS = [
+  { name: 'Bas', role: 'Kapper', services: ['Kinder knippen', 'Heren knippen', 'Heren baard trimmen'] },
+  { name: 'Roos', role: 'Kapster', services: ['Dames knippen', 'Kleuren', 'Knippen + föhnen', 'Full balayage', 'Kinder knippen'] },
+  { name: 'Lisa', role: 'Allround stylist', services: ['Kinder knippen', 'Heren knippen', 'Dames knippen', 'Kleuren', 'Knippen + föhnen', 'Brow treatment', 'Lash lift', 'Manicure'] },
+  { name: 'Emma', role: 'Junior stylist', services: ['Kinder knippen', 'Knippen + föhnen', 'Brow treatment', 'BIAB behandeling', 'Manicure'] },
+];
+
 interface SubApptForm {
   person_name: string;
   service_id: string;
   assignment_mode: 'manual' | 'auto';
   assigned_employee: string;
   assigned_time: string;
+}
+
+interface PlacementOption {
+  label: string;
+  description: string;
+  placements: { person: string; employee: string; time: string; service: string }[];
+  isSimultaneous: boolean;
 }
 
 export default function CalendarPage() {
@@ -34,6 +49,8 @@ export default function CalendarPage() {
   const [form, setForm] = useState({ customer_id: '', service_id: '', date: '', time: '09:00', notes: '' });
   const [subAppts, setSubAppts] = useState<SubApptForm[]>([]);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [placementOptions, setPlacementOptions] = useState<PlacementOption[]>([]);
+  const [selectedOption, setSelectedOption] = useState(0);
 
   const dateStr = currentDate.toISOString().split('T')[0];
 
@@ -72,63 +89,230 @@ export default function CalendarPage() {
     return timeSlots.filter(s => !bookedTimes.has(s)).length;
   }, [dayAppts]);
 
-  // Dummy employees for group booking assignment
-  const employees = ['Bas', 'Roos', 'Lisa', 'Emma'];
+  // Get medewerkers that can do a specific service
+  const getAvailableEmployees = (serviceName: string) => {
+    return MEDEWERKERS.filter(m => m.services.includes(serviceName));
+  };
 
-  // Auto-assign logic for group booking
-  const autoAssign = (subIdx: number): { employee: string; time: string } => {
-    const bookedTimes = new Set(dayAppts.map(a => {
+  // Get booked slots for a specific date (including already-assigned subs)
+  const getBookedSlots = (date: string, excludeSubIdx?: number): Map<string, Set<string>> => {
+    const booked = new Map<string, Set<string>>(); // employee -> set of times
+    // From existing appointments
+    appointments.filter(a => a.appointment_date.startsWith(date)).forEach(a => {
       const t = new Date(a.appointment_date);
-      return `${t.getHours().toString().padStart(2, '0')}:${t.getMinutes().toString().padStart(2, '0')}`;
-    }));
-    // Also consider already assigned subs
-    subAppts.forEach((s, i) => {
-      if (i !== subIdx && s.assigned_time) bookedTimes.add(s.assigned_time);
+      const time = `${t.getHours().toString().padStart(2, '0')}:${t.getMinutes().toString().padStart(2, '0')}`;
+      const emp = a.notes?.match(/Medewerker: (\w+)/)?.[1];
+      if (emp) {
+        if (!booked.has(emp)) booked.set(emp, new Set());
+        booked.get(emp)!.add(time);
+        // Block duration slots
+        const svc = services.find(s => s.id === a.service_id);
+        if (svc) {
+          const durationSlots = Math.ceil(svc.duration_minutes / 30);
+          const startIdx = timeSlots.indexOf(time);
+          for (let i = 1; i < durationSlots && startIdx + i < timeSlots.length; i++) {
+            booked.get(emp)!.add(timeSlots[startIdx + i]);
+          }
+        }
+      }
     });
-    const freeSlot = timeSlots.find(s => !bookedTimes.has(s)) || form.time;
-    // Pick employee not already used at same time
-    const usedEmployees = subAppts.filter((s, i) => i !== subIdx && s.assigned_time === freeSlot).map(s => s.assigned_employee);
-    const freeEmployee = employees.find(e => !usedEmployees.includes(e)) || employees[0];
-    return { employee: freeEmployee, time: freeSlot };
+    // From already-assigned sub-appointments in form
+    subAppts.forEach((s, i) => {
+      if (i !== excludeSubIdx && s.assigned_employee && s.assigned_time) {
+        if (!booked.has(s.assigned_employee)) booked.set(s.assigned_employee, new Set());
+        booked.get(s.assigned_employee)!.add(s.assigned_time);
+      }
+    });
+    return booked;
+  };
+
+  // Smart placement: generate options for group booking
+  const generatePlacementOptions = (): PlacementOption[] => {
+    const mainSvc = services.find(s => s.id === form.service_id);
+    if (!mainSvc) return [];
+
+    const allPersons = [
+      { person: customers.find(c => c.id === form.customer_id)?.name || 'Hoofdpersoon', service_id: form.service_id, service_name: mainSvc.name, assignment_mode: 'manual' as const, assigned_employee: '', assigned_time: form.time },
+      ...subAppts.map(s => ({
+        person: s.person_name || 'Persoon',
+        service_id: s.service_id,
+        service_name: services.find(sv => sv.id === s.service_id)?.name || '',
+        assignment_mode: s.assignment_mode,
+        assigned_employee: s.assigned_employee,
+        assigned_time: s.assigned_time,
+      })),
+    ];
+
+    const booked = getBookedSlots(form.date);
+    const options: PlacementOption[] = [];
+
+    // OPTION 1: Try simultaneous (all at same time)
+    const simultaneousPlacements: { person: string; employee: string; time: string; service: string }[] = [];
+    const targetTime = form.time;
+    const usedEmps = new Set<string>();
+
+    let allSimultaneous = true;
+    for (const p of allPersons) {
+      if (p.assignment_mode === 'manual' && p.assigned_employee) {
+        // Manual: check if employee is free at target time
+        const empBooked = booked.get(p.assigned_employee);
+        if (empBooked && empBooked.has(targetTime)) {
+          allSimultaneous = false;
+          break;
+        }
+        simultaneousPlacements.push({ person: p.person, employee: p.assigned_employee, time: targetTime, service: p.service_name });
+        usedEmps.add(p.assigned_employee);
+      } else {
+        // Auto: find available employee at target time
+        const available = getAvailableEmployees(p.service_name).filter(m =>
+          !usedEmps.has(m.name) && !(booked.get(m.name)?.has(targetTime))
+        );
+        if (available.length === 0) {
+          allSimultaneous = false;
+          break;
+        }
+        simultaneousPlacements.push({ person: p.person, employee: available[0].name, time: targetTime, service: p.service_name });
+        usedEmps.add(available[0].name);
+      }
+    }
+
+    if (allSimultaneous && simultaneousPlacements.length === allPersons.length) {
+      options.push({
+        label: 'Tegelijk',
+        description: 'Alle personen worden tegelijkertijd behandeld',
+        placements: simultaneousPlacements,
+        isSimultaneous: true,
+      });
+    }
+
+    // OPTION 2: Sequential (one after another, minimize wait)
+    const sequentialPlacements: { person: string; employee: string; time: string; service: string }[] = [];
+    const seqBooked = new Map(booked); // copy
+    let currentSlotIdx = timeSlots.indexOf(targetTime);
+    if (currentSlotIdx < 0) currentSlotIdx = 0;
+
+    let allSequential = true;
+    for (const p of allPersons) {
+      const svc = services.find(s => s.id === p.service_id);
+      const durationSlots = svc ? Math.ceil(svc.duration_minutes / 30) : 1;
+      let placed = false;
+
+      // Try from currentSlotIdx onwards
+      for (let si = currentSlotIdx; si < timeSlots.length && !placed; si++) {
+        const tryTime = timeSlots[si];
+
+        if (p.assignment_mode === 'manual' && p.assigned_employee) {
+          const empBooked = seqBooked.get(p.assigned_employee);
+          let canPlace = true;
+          for (let d = 0; d < durationSlots; d++) {
+            if (si + d >= timeSlots.length || empBooked?.has(timeSlots[si + d])) { canPlace = false; break; }
+          }
+          if (canPlace) {
+            sequentialPlacements.push({ person: p.person, employee: p.assigned_employee, time: tryTime, service: p.service_name });
+            if (!seqBooked.has(p.assigned_employee)) seqBooked.set(p.assigned_employee, new Set());
+            for (let d = 0; d < durationSlots; d++) seqBooked.get(p.assigned_employee)!.add(timeSlots[si + d]);
+            placed = true;
+          }
+        } else {
+          // Auto: find any available employee
+          const available = getAvailableEmployees(p.service_name);
+          for (const emp of available) {
+            const empBooked = seqBooked.get(emp.name);
+            let canPlace = true;
+            for (let d = 0; d < durationSlots; d++) {
+              if (si + d >= timeSlots.length || empBooked?.has(timeSlots[si + d])) { canPlace = false; break; }
+            }
+            if (canPlace) {
+              sequentialPlacements.push({ person: p.person, employee: emp.name, time: tryTime, service: p.service_name });
+              if (!seqBooked.has(emp.name)) seqBooked.set(emp.name, new Set());
+              for (let d = 0; d < durationSlots; d++) seqBooked.get(emp.name)!.add(timeSlots[si + d]);
+              placed = true;
+              break;
+            }
+          }
+        }
+      }
+      if (!placed) { allSequential = false; break; }
+    }
+
+    if (allSequential && sequentialPlacements.length === allPersons.length) {
+      const isActuallySequential = new Set(sequentialPlacements.map(p => p.time)).size > 1;
+      if (isActuallySequential || options.length === 0) {
+        options.push({
+          label: isActuallySequential ? 'Na elkaar' : 'Tegelijk',
+          description: isActuallySequential ? 'Personen worden achter elkaar ingepland met minimale wachttijd' : 'Alle personen op hetzelfde moment',
+          placements: sequentialPlacements,
+          isSimultaneous: !isActuallySequential,
+        });
+      }
+    }
+
+    if (options.length === 0) {
+      // No valid placement found
+      toast.error("Niet alle personen tegelijk beschikbaar. Probeer een andere tijd of medewerker.");
+    }
+
+    return options;
   };
 
   const handlePrepareConfirmation = () => {
     if (!form.customer_id || !form.service_id || !form.date || !form.time) { toast.error("Vul alle velden in"); return; }
-    // Auto-assign for subs with auto mode
-    const updatedSubs = subAppts.map((sub, idx) => {
-      if (sub.assignment_mode === 'auto') {
-        const { employee, time } = autoAssign(idx);
-        return { ...sub, assigned_employee: employee, assigned_time: time };
-      }
-      return { ...sub, assigned_time: sub.assigned_time || form.time };
-    });
-    setSubAppts(updatedSubs);
-    if (updatedSubs.length > 0) {
+
+    if (subAppts.length > 0) {
+      // Generate smart placement options
+      const options = generatePlacementOptions();
+      if (options.length === 0) return;
+      setPlacementOptions(options);
+      setSelectedOption(0);
+      // Update subAppts with selected option placements
+      const chosen = options[0];
+      const updatedSubs = subAppts.map((sub, idx) => {
+        const placement = chosen.placements[idx + 1]; // +1 because first is main person
+        if (placement) {
+          return { ...sub, assigned_employee: placement.employee, assigned_time: placement.time };
+        }
+        return sub;
+      });
+      setSubAppts(updatedSubs);
       setShowConfirmation(true);
     } else {
       handleAdd();
     }
   };
 
+  const selectPlacementOption = (optIdx: number) => {
+    setSelectedOption(optIdx);
+    const chosen = placementOptions[optIdx];
+    const updatedSubs = subAppts.map((sub, idx) => {
+      const placement = chosen.placements[idx + 1];
+      if (placement) {
+        return { ...sub, assigned_employee: placement.employee, assigned_time: placement.time };
+      }
+      return sub;
+    });
+    setSubAppts(updatedSubs);
+  };
+
   const handleAdd = async () => {
     if (!form.customer_id || !form.service_id || !form.date || !form.time) { toast.error("Vul alle velden in"); return; }
     const svc = services.find(s => s.id === form.service_id);
+    const mainEmployee = placementOptions.length > 0 ? placementOptions[selectedOption].placements[0]?.employee : '';
     const dt = `${form.date}T${form.time}:00`;
     const result = await insert({
       customer_id: form.customer_id,
       service_id: form.service_id,
       appointment_date: dt,
       price: svc?.price || 0,
-      notes: form.notes,
+      notes: subAppts.length > 0
+        ? `Groepsboeking: ${subAppts.length + 1} personen | Medewerker: ${mainEmployee}`
+        : `Medewerker: ${mainEmployee || 'Niet toegewezen'}`,
       status: 'gepland',
     });
     if (result && subAppts.length > 0 && user) {
-      // Insert sub_appointments
       for (const sub of subAppts) {
         if (sub.person_name && sub.service_id) {
           const subSvc = services.find(s => s.id === sub.service_id);
-          const subTime = sub.assigned_time || form.time;
-          const subDt = `${form.date}T${subTime}:00`;
+          const subDt = `${form.date}T${sub.assigned_time || form.time}:00`;
           await (supabase.from("sub_appointments") as any).insert({
             parent_appointment_id: result.id,
             person_name: sub.person_name,
@@ -137,7 +321,7 @@ export default function CalendarPage() {
             user_id: user.id,
             assigned_employee_id: null,
             assignment_mode: sub.assignment_mode,
-            notes: `Medewerker: ${sub.assigned_employee || 'Niet toegewezen'}`,
+            notes: `Medewerker: ${sub.assigned_employee || 'Niet toegewezen'} | Tijd: ${sub.assigned_time}${sub.assignment_mode === 'auto' ? ' | ⚡ Automatisch geplaatst' : ' | ✋ Handmatig gekozen'}`,
           });
         }
       }
@@ -147,6 +331,7 @@ export default function CalendarPage() {
       setShowAdd(false);
       setShowConfirmation(false);
       setSubAppts([]);
+      setPlacementOptions([]);
       refetch();
     }
   };
@@ -164,12 +349,20 @@ export default function CalendarPage() {
   const openAddModal = (date: string, time: string) => {
     setShowAdd(true);
     setShowConfirmation(false);
+    setPlacementOptions([]);
     setForm({ customer_id: '', service_id: '', date, time, notes: '' });
     setSubAppts([]);
   };
 
   const addSubAppt = () => {
-    setSubAppts(prev => [...prev, { person_name: '', service_id: '', assignment_mode: 'manual', assigned_employee: '', assigned_time: form.time }]);
+    setSubAppts(prev => [...prev, { person_name: '', service_id: '', assignment_mode: 'auto', assigned_employee: '', assigned_time: form.time }]);
+  };
+
+  // Get employees for a specific service by name
+  const getEmployeesForService = (serviceId: string) => {
+    const svc = services.find(s => s.id === serviceId);
+    if (!svc) return MEDEWERKERS;
+    return getAvailableEmployees(svc.name);
   };
 
   return (
@@ -201,43 +394,58 @@ export default function CalendarPage() {
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => { setShowAdd(false); setShowConfirmation(false); }}>
           <div className="glass-card p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
 
-            {/* Confirmation view */}
+            {/* Confirmation view with placement options */}
             {showConfirmation ? (
               <>
                 <h3 className="text-lg font-semibold mb-4">Groepsboeking bevestigen</h3>
-                <div className="space-y-2.5">
-                  {/* Main person */}
-                  <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 flex items-center gap-3">
-                    <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{customers.find(c => c.id === form.customer_id)?.name || 'Hoofdpersoon'}</p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {services.find(s => s.id === form.service_id)?.name} · {form.time}
-                      </p>
-                    </div>
-                    <span className="text-xs font-medium">{formatEuro(services.find(s => s.id === form.service_id)?.price || 0)}</span>
-                  </div>
-                  {/* Sub persons */}
-                  {subAppts.map((sub, idx) => {
-                    const svc = services.find(s => s.id === sub.service_id);
-                    const hasWarning = !sub.assigned_employee || !sub.person_name;
-                    return (
-                      <div key={idx} className={cn("p-3 rounded-xl border flex items-center gap-3",
-                        hasWarning ? "bg-warning/5 border-warning/20" : "bg-secondary/30 border-border")}>
-                        {hasWarning ? <AlertCircle className="w-4 h-4 text-warning flex-shrink-0" /> : <CheckCircle2 className="w-4 h-4 text-success flex-shrink-0" />}
-                        <div className="flex-1">
-                          <p className="text-sm font-medium">{sub.person_name || `Persoon ${idx + 2}`}</p>
-                          <p className="text-[11px] text-muted-foreground">
-                            {svc?.name || 'Geen behandeling'} · {sub.assigned_time} · {sub.assigned_employee || 'Niet toegewezen'}
-                            {sub.assignment_mode === 'auto' && <span className="text-primary ml-1">⚡ automatisch</span>}
-                          </p>
+
+                {/* Placement options */}
+                {placementOptions.length > 1 && (
+                  <div className="mb-4 space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground mb-2">Kies een plaatsingsoptie:</p>
+                    {placementOptions.map((opt, idx) => (
+                      <button key={idx} onClick={() => selectPlacementOption(idx)}
+                        className={cn("w-full text-left p-3 rounded-xl border transition-all",
+                          selectedOption === idx ? "border-primary bg-primary/10" : "border-border hover:bg-secondary/50")}>
+                        <div className="flex items-center gap-2">
+                          {opt.isSimultaneous ? <Users className="w-4 h-4 text-primary" /> : <Clock className="w-4 h-4 text-primary" />}
+                          <div>
+                            <span className="text-sm font-medium">{opt.label}</span>
+                            <p className="text-[11px] text-muted-foreground">{opt.description}</p>
+                          </div>
                         </div>
-                        <span className="text-xs font-medium">{formatEuro(svc?.price || 0)}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <div className="space-y-2.5">
+                  {/* Show placements from selected option */}
+                  {(placementOptions[selectedOption]?.placements || []).map((p, idx) => (
+                    <div key={idx} className={cn("p-3 rounded-xl border flex items-center gap-3",
+                      idx === 0 ? "bg-primary/5 border-primary/10" : "bg-secondary/30 border-border")}>
+                      <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">{p.person}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {p.service} · {p.time} · <span className="font-medium">{p.employee}</span>
+                        </p>
+                        <span className="text-[10px] text-primary">
+                          {idx === 0 ? '✋ Hoofdpersoon' :
+                            subAppts[idx - 1]?.assignment_mode === 'auto' ? '⚡ Automatisch geplaatst' : '✋ Handmatig gekozen'}
+                        </span>
                       </div>
-                    );
-                  })}
+                      <span className="text-xs font-medium">
+                        {formatEuro(idx === 0
+                          ? (services.find(s => s.id === form.service_id)?.price || 0)
+                          : (services.find(s => s.id === subAppts[idx - 1]?.service_id)?.price || 0)
+                        )}
+                      </span>
+                    </div>
+                  ))}
+
                   <div className="p-3 rounded-xl bg-primary/10 border border-primary/20 text-sm font-semibold flex justify-between">
-                    <span>Totaal ({subAppts.length + 1} personen)</span>
+                    <span>Totaal ({(placementOptions[selectedOption]?.placements.length || 0)} personen)</span>
                     <span>{formatEuro(
                       (services.find(s => s.id === form.service_id)?.price || 0) +
                       subAppts.reduce((sum, s) => sum + (services.find(sv => sv.id === s.service_id)?.price || 0), 0)
@@ -287,56 +495,84 @@ export default function CalendarPage() {
                         <Plus className="w-3 h-3 mr-1" />Persoon
                       </Button>
                     </div>
-                    {subAppts.map((sub, idx) => (
-                      <div key={idx} className="p-3 rounded-xl bg-secondary/30 border border-border mb-2 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-medium text-muted-foreground">Persoon {idx + 2}</span>
-                          <button onClick={() => setSubAppts(prev => prev.filter((_, i) => i !== idx))} className="p-1 rounded hover:bg-destructive/20">
-                            <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                          </button>
-                        </div>
-                        <input placeholder="Naam" value={sub.person_name}
-                          onChange={e => { const updated = [...subAppts]; updated[idx].person_name = e.target.value; setSubAppts(updated); }}
-                          className="w-full px-3 py-2 rounded-xl bg-background border border-border text-sm" />
-                        <select value={sub.service_id}
-                          onChange={e => { const updated = [...subAppts]; updated[idx].service_id = e.target.value; setSubAppts(updated); }}
-                          className="w-full px-3 py-2 rounded-xl bg-background border border-border text-sm">
-                          <option value="">Behandeling</option>
-                          {services.filter(s => s.is_active).map(s => <option key={s.id} value={s.id}>{s.name} — {formatEuro(s.price)}</option>)}
-                        </select>
-                        {/* Assignment mode */}
-                        <div className="flex gap-2">
-                          <button onClick={() => { const u = [...subAppts]; u[idx].assignment_mode = 'manual'; setSubAppts(u); }}
-                            className={cn("flex-1 px-2 py-1.5 rounded-lg text-xs font-medium border transition-colors",
-                              sub.assignment_mode === 'manual' ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground")}>
-                            Handmatig
-                          </button>
-                          <button onClick={() => { const u = [...subAppts]; u[idx].assignment_mode = 'auto'; setSubAppts(u); }}
-                            className={cn("flex-1 px-2 py-1.5 rounded-lg text-xs font-medium border transition-colors",
-                              sub.assignment_mode === 'auto' ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground")}>
-                            ⚡ Automatisch
-                          </button>
-                        </div>
-                        {sub.assignment_mode === 'manual' && (
-                          <div className="grid grid-cols-2 gap-2">
-                            <select value={sub.assigned_employee}
-                              onChange={e => { const u = [...subAppts]; u[idx].assigned_employee = e.target.value; setSubAppts(u); }}
-                              className="px-3 py-2 rounded-xl bg-background border border-border text-sm">
-                              <option value="">Medewerker</option>
-                              {employees.map(emp => <option key={emp} value={emp}>{emp}</option>)}
-                            </select>
-                            <select value={sub.assigned_time}
-                              onChange={e => { const u = [...subAppts]; u[idx].assigned_time = e.target.value; setSubAppts(u); }}
-                              className="px-3 py-2 rounded-xl bg-background border border-border text-sm">
-                              {timeSlots.map(t => <option key={t} value={t}>{t}</option>)}
-                            </select>
+                    {subAppts.map((sub, idx) => {
+                      const availableEmps = getEmployeesForService(sub.service_id);
+                      return (
+                        <div key={idx} className="p-3 rounded-xl bg-secondary/30 border border-border mb-2 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-medium text-muted-foreground">Persoon {idx + 2}</span>
+                            <button onClick={() => setSubAppts(prev => prev.filter((_, i) => i !== idx))} className="p-1 rounded hover:bg-destructive/20">
+                              <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                            </button>
                           </div>
-                        )}
-                        {sub.assignment_mode === 'auto' && (
-                          <p className="text-[11px] text-muted-foreground">Wordt automatisch geplaatst bij beschikbare medewerker en tijdslot</p>
-                        )}
+                          <input placeholder="Naam (bijv. Kind 1, Moeder)" value={sub.person_name}
+                            onChange={e => { const updated = [...subAppts]; updated[idx].person_name = e.target.value; setSubAppts(updated); }}
+                            className="w-full px-3 py-2 rounded-xl bg-background border border-border text-sm" />
+                          <select value={sub.service_id}
+                            onChange={e => { const updated = [...subAppts]; updated[idx].service_id = e.target.value; updated[idx].assigned_employee = ''; setSubAppts(updated); }}
+                            className="w-full px-3 py-2 rounded-xl bg-background border border-border text-sm">
+                            <option value="">Behandeling</option>
+                            {services.filter(s => s.is_active).map(s => <option key={s.id} value={s.id}>{s.name} — {formatEuro(s.price)}</option>)}
+                          </select>
+
+                          {/* Assignment mode */}
+                          <div className="flex gap-2">
+                            <button onClick={() => { const u = [...subAppts]; u[idx].assignment_mode = 'manual'; setSubAppts(u); }}
+                              className={cn("flex-1 px-2 py-1.5 rounded-lg text-xs font-medium border transition-colors",
+                                sub.assignment_mode === 'manual' ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground")}>
+                              ✋ Handmatig
+                            </button>
+                            <button onClick={() => { const u = [...subAppts]; u[idx].assignment_mode = 'auto'; u[idx].assigned_employee = ''; setSubAppts(u); }}
+                              className={cn("flex-1 px-2 py-1.5 rounded-lg text-xs font-medium border transition-colors",
+                                sub.assignment_mode === 'auto' ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground")}>
+                              <Zap className="w-3 h-3 inline mr-0.5" />Automatisch
+                            </button>
+                          </div>
+
+                          {sub.assignment_mode === 'manual' && (
+                            <div className="grid grid-cols-2 gap-2">
+                              <select value={sub.assigned_employee}
+                                onChange={e => { const u = [...subAppts]; u[idx].assigned_employee = e.target.value; setSubAppts(u); }}
+                                className="px-3 py-2 rounded-xl bg-background border border-border text-sm">
+                                <option value="">Medewerker</option>
+                                {availableEmps.map(emp => (
+                                  <option key={emp.name} value={emp.name}>{emp.name} ({emp.role})</option>
+                                ))}
+                              </select>
+                              <select value={sub.assigned_time}
+                                onChange={e => { const u = [...subAppts]; u[idx].assigned_time = e.target.value; setSubAppts(u); }}
+                                className="px-3 py-2 rounded-xl bg-background border border-border text-sm">
+                                {timeSlots.map(t => <option key={t} value={t}>{t}</option>)}
+                              </select>
+                            </div>
+                          )}
+
+                          {sub.assignment_mode === 'auto' && sub.service_id && (
+                            <div className="px-2 py-1.5 rounded-lg bg-primary/5 border border-primary/10">
+                              <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                <Zap className="w-3 h-3 text-primary" />
+                                Beschikbare medewerkers: {availableEmps.map(e => e.name).join(', ')}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground mt-0.5">Wordt automatisch bij beste slot geplaatst</p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+
+                    {/* Group total */}
+                    {subAppts.length > 0 && form.service_id && (
+                      <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 text-sm mt-2">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Totaalprijs:</span>
+                          <span className="font-bold">{formatEuro(
+                            (services.find(s => s.id === form.service_id)?.price || 0) +
+                            subAppts.reduce((sum, s) => sum + (services.find(sv => sv.id === s.service_id)?.price || 0), 0)
+                          )}</span>
+                        </div>
+                        <span className="text-[11px] text-muted-foreground">{subAppts.length + 1} personen</span>
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
                 <div className="flex gap-2 mt-4">
@@ -377,6 +613,8 @@ export default function CalendarPage() {
               });
               const svc = apt ? services.find(s => s.id === apt.service_id) : null;
               const cust = apt ? customers.find(c => c.id === apt.customer_id) : null;
+              const isGroupBooking = apt?.notes?.includes('Groepsboeking');
+              const employeeName = apt?.notes?.match(/Medewerker: (\w+)/)?.[1];
               return (
                 <div key={slot} className="flex gap-4 group min-h-[48px]">
                   <span className="w-14 text-xs text-muted-foreground py-3 tabular-nums flex-shrink-0">{slot}</span>
@@ -391,8 +629,11 @@ export default function CalendarPage() {
                               <p className="text-xs text-muted-foreground">{svc?.name || 'Behandeling'}</p>
                               <span className="text-xs text-muted-foreground flex items-center gap-0.5"><Clock className="w-3 h-3" />{svc?.duration_minutes || 30} min</span>
                             </div>
-                            {apt.notes?.startsWith('Groepsboeking:') && (
-                              <span className="text-[10px] text-primary flex items-center gap-0.5 mt-0.5"><Users className="w-3 h-3" />{apt.notes}</span>
+                            {employeeName && (
+                              <span className="text-[10px] text-foreground/70 mt-0.5 block">👤 {employeeName}</span>
+                            )}
+                            {isGroupBooking && (
+                              <span className="text-[10px] text-primary flex items-center gap-0.5 mt-0.5"><Users className="w-3 h-3" />Groepsboeking</span>
                             )}
                           </div>
                           <div className="flex items-center gap-1">
@@ -449,11 +690,13 @@ export default function CalendarPage() {
                         const svc = services.find(s => s.id === apt.service_id);
                         const cust = customers.find(c => c.id === apt.customer_id);
                         const time = new Date(apt.appointment_date).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+                        const emp = apt.notes?.match(/Medewerker: (\w+)/)?.[1];
                         return (
                           <div key={apt.id} className="p-2.5 rounded-xl cursor-pointer transition-all duration-200 hover:scale-[1.02]"
                             style={{ backgroundColor: `${svc?.color || '#7B61FF'}12`, borderLeft: `2px solid ${svc?.color || '#7B61FF'}` }}>
                             <p className="text-xs font-medium truncate">{cust?.name || 'Klant'}</p>
                             <p className="text-[11px] text-muted-foreground">{time} · {svc?.name || ''}</p>
+                            {emp && <p className="text-[10px] text-foreground/60">👤 {emp}</p>}
                           </div>
                         );
                       })}
