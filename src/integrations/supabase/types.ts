@@ -497,6 +497,8 @@ export type Database = {
           duration_minutes: number
           id: string
           is_active: boolean | null
+          is_internal_only: boolean | null
+          is_online_bookable: boolean | null
           name: string
           price: number
           updated_at: string
@@ -510,6 +512,8 @@ export type Database = {
           duration_minutes?: number
           id?: string
           is_active?: boolean | null
+          is_internal_only?: boolean | null
+          is_online_bookable?: boolean | null
           name: string
           price?: number
           updated_at?: string
@@ -523,6 +527,8 @@ export type Database = {
           duration_minutes?: number
           id?: string
           is_active?: boolean | null
+          is_internal_only?: boolean | null
+          is_online_bookable?: boolean | null
           name?: string
           price?: number
           updated_at?: string
@@ -613,6 +619,8 @@ export type Database = {
       }
       sub_appointments: {
         Row: {
+          assigned_employee_id: string | null
+          assignment_mode: string | null
           created_at: string
           id: string
           notes: string | null
@@ -625,6 +633,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          assigned_employee_id?: string | null
+          assignment_mode?: string | null
           created_at?: string
           id?: string
           notes?: string | null
@@ -637,6 +647,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          assigned_employee_id?: string | null
+          assignment_mode?: string | null
           created_at?: string
           id?: string
           notes?: string | null
@@ -700,7 +712,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "eigenaar" | "admin" | "medewerker"
+      app_role: "eigenaar" | "admin" | "medewerker" | "financieel"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -828,7 +840,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["eigenaar", "admin", "medewerker"],
+      app_role: ["eigenaar", "admin", "medewerker", "financieel"],
     },
   },
 } as const
