@@ -74,3 +74,15 @@ export function useSettings() {
 export function useCheckoutItems() {
   return useSupabaseQuery("checkout_items");
 }
+
+export function useWaitlist() {
+  return useSupabaseQuery("waitlist_entries");
+}
+
+export function useGiftCards() {
+  return useSupabaseQuery("gift_cards");
+}
+
+export function usePaymentLinks() {
+  return useSupabaseQuery("payment_links");
+}
