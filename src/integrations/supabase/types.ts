@@ -312,6 +312,112 @@ export type Database = {
           },
         ]
       }
+      gift_cards: {
+        Row: {
+          code: string
+          created_at: string
+          customer_id: string | null
+          customer_name: string | null
+          expires_at: string | null
+          id: string
+          initial_amount: number
+          remaining_amount: number
+          sold_via: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          customer_id?: string | null
+          customer_name?: string | null
+          expires_at?: string | null
+          id?: string
+          initial_amount?: number
+          remaining_amount?: number
+          sold_via?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          customer_id?: string | null
+          customer_name?: string | null
+          expires_at?: string | null
+          id?: string
+          initial_amount?: number
+          remaining_amount?: number
+          sold_via?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gift_cards_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_links: {
+        Row: {
+          amount: number
+          created_at: string
+          customer_id: string | null
+          description: string | null
+          expires_at: string | null
+          id: string
+          link_url: string | null
+          paid_at: string | null
+          status: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          customer_id?: string | null
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          link_url?: string | null
+          paid_at?: string | null
+          status?: string
+          type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          customer_id?: string | null
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          link_url?: string | null
+          paid_at?: string | null
+          status?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_links_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount: number
@@ -697,6 +803,66 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      waitlist_entries: {
+        Row: {
+          created_at: string
+          customer_id: string | null
+          flexibility: string | null
+          id: string
+          notes: string | null
+          preferred_day: string | null
+          preferred_employee: string | null
+          preferred_time: string | null
+          service_id: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id?: string | null
+          flexibility?: string | null
+          id?: string
+          notes?: string | null
+          preferred_day?: string | null
+          preferred_employee?: string | null
+          preferred_time?: string | null
+          service_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string | null
+          flexibility?: string | null
+          id?: string
+          notes?: string | null
+          preferred_day?: string | null
+          preferred_employee?: string | null
+          preferred_time?: string | null
+          service_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "waitlist_entries_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "waitlist_entries_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

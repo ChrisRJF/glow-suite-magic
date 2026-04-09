@@ -1,19 +1,20 @@
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { usePayments } from "@/hooks/usePayments";
-import { useAppointments, useCustomers, useServices, useSettings } from "@/hooks/useSupabaseData";
+import { useAppointments, useCustomers, useServices, useSettings, usePaymentLinks } from "@/hooks/useSupabaseData";
 import { useCrud } from "@/hooks/useCrud";
 import { formatEuro } from "@/lib/data";
 import {
   CreditCard, Euro, AlertTriangle, CheckCircle2, Clock, XCircle,
   Shield, TrendingUp, ArrowRight, RotateCcw, Send, Eye,
-  Wallet, Banknote, Smartphone
+  Wallet, Banknote, Smartphone, QrCode, Link2, Plus, Copy, ExternalLink
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-type TabType = "overzicht" | "betalingen" | "regels";
+type TabType = "overzicht" | "betalingen" | "regels" | "betaallinks";
+
 
 export default function GlowPayPage() {
   const { data: payments, refetch: refetchPayments } = usePayments();
@@ -21,9 +22,13 @@ export default function GlowPayPage() {
   const { data: customers } = useCustomers();
   const { data: services } = useServices();
   const { data: settings } = useSettings();
+  const { data: paymentLinks, refetch: refetchLinks } = usePaymentLinks();
   const { update: updatePayment } = useCrud("payments");
+  const { insert: insertLink, update: updateLink } = useCrud("payment_links");
   const [activeTab, setActiveTab] = useState<TabType>("overzicht");
   const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
+  const [showLinkForm, setShowLinkForm] = useState(false);
+  const [linkForm, setLinkForm] = useState({ amount: "", description: "", customer_id: "", type: "link" });
 
   const s = settings.length > 0 ? settings[0] as any : null;
 
@@ -106,9 +111,55 @@ export default function GlowPayPage() {
     return "💰";
   };
 
+  const handleCreateLink = async () => {
+    const amount = Number(linkForm.amount);
+    if (amount <= 0) { toast.error("Vul een geldig bedrag in"); return; }
+    const linkId = crypto.randomUUID().slice(0, 8);
+    const linkUrl = `https://pay.glowsuite.nl/${linkId}`;
+    await insertLink({
+      amount,
+      description: linkForm.description,
+      customer_id: linkForm.customer_id || null,
+      type: linkForm.type,
+      status: "open",
+      link_url: linkUrl,
+    });
+    toast.success("Betaalverzoek aangemaakt!");
+    setShowLinkForm(false);
+    setLinkForm({ amount: "", description: "", customer_id: "", type: "link" });
+    refetchLinks();
+  };
+
+  const handleCopyLink = (url: string) => {
+    navigator.clipboard.writeText(url);
+    toast.success("Link gekopieerd!");
+  };
+
+  const handleMarkLinkPaid = async (id: string) => {
+    await updateLink(id, { status: "betaald", paid_at: new Date().toISOString() });
+    toast.success("Betaalverzoek gemarkeerd als betaald");
+    refetchLinks();
+  };
+
+  const handleResendLink = (id: string) => {
+    toast.success("Betaalverzoek opnieuw verstuurd (demo)");
+  };
+
+  const getLinkStatusBadge = (status: string) => {
+    const map: Record<string, { label: string; class: string }> = {
+      open: { label: "Open", class: "bg-warning/15 text-warning" },
+      betaald: { label: "Betaald", class: "bg-success/15 text-success" },
+      mislukt: { label: "Mislukt", class: "bg-destructive/15 text-destructive" },
+      verlopen: { label: "Verlopen", class: "bg-muted text-muted-foreground" },
+    };
+    const info = map[status] || map.open;
+    return <span className={cn("px-2 py-0.5 rounded-lg text-[11px] font-medium", info.class)}>{info.label}</span>;
+  };
+
   const tabs: { key: TabType; label: string }[] = [
     { key: "overzicht", label: "Overzicht" },
     { key: "betalingen", label: "Betalingen" },
+    { key: "betaallinks", label: "Betaallinks & QR" },
     { key: "regels", label: "Betaalregels" },
   ];
 
@@ -278,6 +329,135 @@ export default function GlowPayPage() {
             )}
           </div>
         </div>
+      )}
+
+      {activeTab === "betaallinks" && (
+        <>
+          {/* Create link modal */}
+          {showLinkForm && (
+            <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowLinkForm(false)}>
+              <div className="glass-card p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><Link2 className="w-5 h-5 text-primary" /> Nieuw betaalverzoek</h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs text-muted-foreground">Bedrag (€) *</label>
+                    <input type="number" value={linkForm.amount} onChange={e => setLinkForm({ ...linkForm, amount: e.target.value })}
+                      className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Omschrijving</label>
+                    <input value={linkForm.description} onChange={e => setLinkForm({ ...linkForm, description: e.target.value })}
+                      className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="bijv. Aanbetaling knippen" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Klant (optioneel)</label>
+                    <select value={linkForm.customer_id} onChange={e => setLinkForm({ ...linkForm, customer_id: e.target.value })}
+                      className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
+                      <option value="">Geen klant</option>
+                      {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Type</label>
+                    <div className="flex gap-2 mt-1">
+                      {[{ id: "link", label: "Betaallink", icon: Link2 }, { id: "qr", label: "QR-code", icon: QrCode }].map(t => (
+                        <button key={t.id} onClick={() => setLinkForm({ ...linkForm, type: t.id })}
+                          className={cn("flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-all",
+                            linkForm.type === t.id ? "bg-primary/15 border border-primary/30 text-primary" : "bg-secondary/50 border border-transparent text-muted-foreground")}>
+                          <t.icon className="w-4 h-4" /> {t.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-2 mt-4">
+                  <Button variant="outline" className="flex-1" onClick={() => setShowLinkForm(false)}>Annuleren</Button>
+                  <Button variant="gradient" className="flex-1" onClick={handleCreateLink}>Aanmaken</Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-4">
+            {/* Action button */}
+            <div className="flex justify-end">
+              <Button variant="gradient" size="sm" onClick={() => setShowLinkForm(true)}>
+                <Plus className="w-4 h-4" /> Nieuw betaalverzoek
+              </Button>
+            </div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <div className="glass-card p-4">
+                <p className="text-2xl font-bold">{(paymentLinks as any[]).filter(l => l.status === "open").length}</p>
+                <p className="text-xs text-muted-foreground">Open verzoeken</p>
+              </div>
+              <div className="glass-card p-4">
+                <p className="text-2xl font-bold text-success">{(paymentLinks as any[]).filter(l => l.status === "betaald").length}</p>
+                <p className="text-xs text-muted-foreground">Betaald</p>
+              </div>
+              <div className="glass-card p-4">
+                <p className="text-2xl font-bold text-primary">
+                  {formatEuro((paymentLinks as any[]).filter(l => l.status === "betaald").reduce((s: number, l: any) => s + Number(l.amount), 0))}
+                </p>
+                <p className="text-xs text-muted-foreground">Ontvangen via links</p>
+              </div>
+            </div>
+
+            {/* Payment links list */}
+            <div className="glass-card p-6">
+              <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
+                <Link2 className="w-4 h-4 text-primary" /> Betaalverzoeken
+              </h3>
+              <div className="space-y-2">
+                {(paymentLinks as any[]).length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-6">Nog geen betaalverzoeken</p>
+                ) : (paymentLinks as any[]).map((l: any) => (
+                  <div key={l.id} className="p-4 rounded-xl bg-secondary/30 hover:bg-secondary/50 transition-colors">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        {l.type === "qr" ? <QrCode className="w-4 h-4 text-primary" /> : <Link2 className="w-4 h-4 text-primary" />}
+                        <div>
+                          <p className="text-sm font-semibold">{formatEuro(Number(l.amount))}</p>
+                          <p className="text-xs text-muted-foreground">{l.description || "Betaalverzoek"}</p>
+                        </div>
+                      </div>
+                      {getLinkStatusBadge(l.status)}
+                    </div>
+                    {l.customer_id && (
+                      <p className="text-xs text-muted-foreground mb-2">👤 {customers.find(c => c.id === l.customer_id)?.name || "Onbekend"}</p>
+                    )}
+
+                    {/* QR Code visual */}
+                    {l.type === "qr" && l.status === "open" && (
+                      <div className="mb-3 p-4 rounded-xl bg-white flex items-center justify-center">
+                        <div className="w-32 h-32 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjgiIGhlaWdodD0iMTI4Ij48cmVjdCB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIgZmlsbD0id2hpdGUiLz48cmVjdCB4PSI4IiB5PSI4IiB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIGZpbGw9ImJsYWNrIi8+PHJlY3QgeD0iODgiIHk9IjgiIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgZmlsbD0iYmxhY2siLz48cmVjdCB4PSI4IiB5PSI4OCIgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiBmaWxsPSJibGFjayIvPjxyZWN0IHg9IjQ4IiB5PSI0OCIgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiBmaWxsPSJibGFjayIvPjxyZWN0IHg9IjE2IiB5PSIxNiIgd2lkdGg9IjE2IiBoZWlnaHQ9IjE2IiBmaWxsPSJ3aGl0ZSIvPjxyZWN0IHg9Ijk2IiB5PSIxNiIgd2lkdGg9IjE2IiBoZWlnaHQ9IjE2IiBmaWxsPSJ3aGl0ZSIvPjxyZWN0IHg9IjE2IiB5PSI5NiIgd2lkdGg9IjE2IiBoZWlnaHQ9IjE2IiBmaWxsPSJ3aGl0ZSIvPjwvc3ZnPg==')] bg-contain bg-center bg-no-repeat" />
+                      </div>
+                    )}
+
+                    <div className="flex gap-2 flex-wrap">
+                      {l.link_url && (
+                        <Button variant="outline" size="sm" onClick={() => handleCopyLink(l.link_url)}>
+                          <Copy className="w-3.5 h-3.5" /> Kopieer link
+                        </Button>
+                      )}
+                      {l.status === "open" && (
+                        <>
+                          <Button variant="outline" size="sm" onClick={() => handleResendLink(l.id)}>
+                            <Send className="w-3.5 h-3.5" /> Verstuur opnieuw
+                          </Button>
+                          <Button variant="gradient" size="sm" onClick={() => handleMarkLinkPaid(l.id)}>
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Markeer betaald
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </>
       )}
 
       {activeTab === "regels" && (

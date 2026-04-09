@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
     const uid = user.id;
 
     // Clear existing data
-    const tables = ["sub_appointments", "payments", "checkout_items", "feedback_entries", "rebook_actions", "appointments", "campaigns", "discounts", "products", "customers", "services", "automation_rules", "settings"];
+    const tables = ["payment_links", "gift_cards", "waitlist_entries", "sub_appointments", "payments", "checkout_items", "feedback_entries", "rebook_actions", "appointments", "campaigns", "discounts", "products", "customers", "services", "automation_rules", "settings"];
     for (const t of tables) {
       await supabase.from(t).delete().eq("user_id", uid);
     }
@@ -265,6 +265,30 @@ Deno.serve(async (req) => {
     await supabase.from("automation_rules").insert([
       { user_id: uid, trigger_type: "nieuwe_klant", action_type: "stuur_korting", is_active: true, config: { discount_percentage: 15 } },
       { user_id: uid, trigger_type: "no_show_risico", action_type: "stuur_betaalverzoek", is_active: true, config: { require_deposit: true } },
+    ]);
+
+    // Seed gift cards
+    await supabase.from("gift_cards").insert([
+      { user_id: uid, code: "GS-DEMO2024", initial_amount: 75, remaining_amount: 45, customer_name: "Sarah de Vries", status: "actief", sold_via: "salon" },
+      { user_id: uid, code: "GS-XMAS2024", initial_amount: 100, remaining_amount: 100, customer_name: "Mark Jansen", status: "actief", sold_via: "online" },
+      { user_id: uid, code: "GS-BDAY5050", initial_amount: 50, remaining_amount: 0, customer_name: "Lisa Bakker", status: "gebruikt", sold_via: "salon" },
+    ]);
+
+    // Seed waitlist entries using customer/service IDs
+    const custData = await supabase.from("customers").select("id, name").eq("user_id", uid);
+    const svcData = await supabase.from("services").select("id, name").eq("user_id", uid);
+    if (custData.data?.length && svcData.data?.length) {
+      await supabase.from("waitlist_entries").insert([
+        { user_id: uid, customer_id: custData.data[0].id, service_id: svcData.data[0]?.id, preferred_employee: "Bas", preferred_day: "Dinsdag", flexibility: "flexibel", status: "wachtend" },
+        { user_id: uid, customer_id: custData.data[1]?.id || custData.data[0].id, service_id: svcData.data[1]?.id || svcData.data[0].id, preferred_employee: "Roos", preferred_day: "Vrijdag", preferred_time: "14:00", flexibility: "alleen middag", status: "wachtend" },
+      ]);
+    }
+
+    // Seed payment links
+    await supabase.from("payment_links").insert([
+      { user_id: uid, amount: 45, description: "Aanbetaling knippen", status: "open", type: "link", link_url: "https://pay.glowsuite.nl/demo001" },
+      { user_id: uid, amount: 25, description: "Restbetaling kleuren", status: "betaald", type: "qr", link_url: "https://pay.glowsuite.nl/demo002", paid_at: new Date().toISOString() },
+      { user_id: uid, amount: 90, description: "Volledige behandeling", status: "open", type: "qr", link_url: "https://pay.glowsuite.nl/demo003" },
     ]);
 
     await supabase.from("profiles").update({ salon_name: "Studio Nova Amsterdam" }).eq("user_id", uid);
