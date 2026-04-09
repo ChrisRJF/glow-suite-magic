@@ -8,6 +8,7 @@ import {
   MessageCircle, Zap, BarChart3, RefreshCw, Tag, Target,
   Send, AlertTriangle, Star, UserX, Plus, Megaphone, CalendarPlus
 } from "lucide-react";
+import { AutoRevenueEngine } from "@/components/AutoRevenueEngine";
 import { useNavigate } from "react-router-dom";
 import { useMemo } from "react";
 
@@ -99,40 +100,8 @@ export default function DashboardPage() {
         </Button>
       </div>
 
-      {/* AI Omzet Insights */}
-      <div className="glass-card p-6 mb-6 opacity-0 animate-fade-in-up border border-primary/20 relative overflow-hidden" style={{ animationDelay: '50ms' }}>
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 pointer-events-none" />
-        <div className="relative">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-8 h-8 rounded-lg gradient-bg flex items-center justify-center">
-              <Zap className="w-4 h-4 text-primary-foreground" />
-            </div>
-            <h2 className="text-lg font-semibold">AI Inzichten</h2>
-          </div>
-          <div className="space-y-2.5 mb-4">
-            <p className="text-sm flex items-start gap-2">
-              <span className="text-destructive font-semibold">⚡</span>
-              <span>Je mist <span className="font-semibold text-destructive">{formatEuro(Math.max(0, totalSlots - todaysAppts.length) * 65)}</span> omzet vandaag door lege plekken</span>
-            </p>
-            <p className="text-sm flex items-start gap-2">
-              <span className="text-warning font-semibold">👥</span>
-              <span>{inactiveCustomers.length} klanten zijn overdue voor een nieuwe afspraak</span>
-            </p>
-            <p className="text-sm flex items-start gap-2">
-              <span className="text-warning font-semibold">📅</span>
-              <span>Bezettingsgraad vandaag: <span className="font-semibold">{bezetting}%</span></span>
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="gradient" size="sm" onClick={() => navigate('/marketing')}>
-              <MessageCircle className="w-3.5 h-3.5" /> Stuur WhatsApp campagne
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => navigate('/acties')}>
-              <CalendarPlus className="w-3.5 h-3.5" /> Vul agenda automatisch
-            </Button>
-          </div>
-        </div>
-      </div>
+      {/* AI Revenue Engine */}
+      <AutoRevenueEngine />
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
