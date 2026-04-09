@@ -25,7 +25,10 @@ import SupportPage from "./pages/SupportPage";
 import LoginPage from "./pages/LoginPage";
 import NotFound from "./pages/NotFound";
 import AutomatiseringenPage from "./pages/AutomatiseringenPage";
-
+import WachtlijstPage from "./pages/WachtlijstPage";
+import CadeaubonnenPage from "./pages/CadeaubonnenPage";
+import WebshopPage from "./pages/WebshopPage";
+import SocialStudioPage from "./pages/SocialStudioPage";
 const queryClient = new QueryClient();
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -69,6 +72,10 @@ const App = () => (
             <Route path="/rapporten" element={<ProtectedRoute><RapportenPage /></ProtectedRoute>} />
             <Route path="/instellingen" element={<ProtectedRoute><InstellingenPage /></ProtectedRoute>} />
             <Route path="/automatiseringen" element={<ProtectedRoute><AutomatiseringenPage /></ProtectedRoute>} />
+            <Route path="/wachtlijst" element={<ProtectedRoute><WachtlijstPage /></ProtectedRoute>} />
+            <Route path="/cadeaubonnen" element={<ProtectedRoute><CadeaubonnenPage /></ProtectedRoute>} />
+            <Route path="/webshop" element={<ProtectedRoute><WebshopPage /></ProtectedRoute>} />
+            <Route path="/social-studio" element={<ProtectedRoute><SocialStudioPage /></ProtectedRoute>} />
             <Route path="/support" element={<ProtectedRoute><SupportPage /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>

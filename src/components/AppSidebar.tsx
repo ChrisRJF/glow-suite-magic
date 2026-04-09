@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Calendar, Users, Scissors, Menu, X, Globe,
   MessageCircle, CreditCard, TrendingUp, RefreshCw, Megaphone,
   Zap, ShoppingBag, Package, BarChart3, Settings, HelpCircle, LogOut,
-  Sun, Moon, Bot,
+  Sun, Moon, Bot, Clock, Gift, ShoppingCart, Share2,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -38,8 +38,10 @@ const navGroups: NavGroup[] = [
     title: "Groei & Actie",
     items: [
       { label: "Klanten", icon: Users, path: "/klanten" },
+      { label: "Wachtlijst", icon: Clock, path: "/wachtlijst" },
       { label: "Herboekingen", icon: RefreshCw, path: "/herboekingen" },
       { label: "Marketing", icon: Megaphone, path: "/marketing" },
+      { label: "Social Studio", icon: Share2, path: "/social-studio" },
       { label: "Acties", icon: Zap, path: "/acties", accent: true },
       { label: "Automatiseringen", icon: Bot, path: "/automatiseringen" },
     ],
@@ -52,6 +54,8 @@ const navGroups: NavGroup[] = [
       { label: "GlowPay", icon: CreditCard, path: "/glowpay", accent: true },
       { label: "Kassa", icon: ShoppingBag, path: "/kassa" },
       { label: "Producten", icon: Package, path: "/producten" },
+      { label: "Cadeaubonnen", icon: Gift, path: "/cadeaubonnen" },
+      { label: "Webshop", icon: ShoppingCart, path: "/webshop" },
       { label: "Abonnementen", icon: CreditCard, path: "/abonnementen" },
       { label: "Rapporten", icon: BarChart3, path: "/rapporten" },
     ],
