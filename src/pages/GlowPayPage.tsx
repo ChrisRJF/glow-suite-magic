@@ -1,19 +1,20 @@
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { usePayments } from "@/hooks/usePayments";
-import { useAppointments, useCustomers, useServices, useSettings } from "@/hooks/useSupabaseData";
+import { useAppointments, useCustomers, useServices, useSettings, usePaymentLinks } from "@/hooks/useSupabaseData";
 import { useCrud } from "@/hooks/useCrud";
 import { formatEuro } from "@/lib/data";
 import {
   CreditCard, Euro, AlertTriangle, CheckCircle2, Clock, XCircle,
   Shield, TrendingUp, ArrowRight, RotateCcw, Send, Eye,
-  Wallet, Banknote, Smartphone
+  Wallet, Banknote, Smartphone, QrCode, Link2, Plus, Copy, ExternalLink
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-type TabType = "overzicht" | "betalingen" | "regels";
+type TabType = "overzicht" | "betalingen" | "regels" | "betaallinks";
+
 
 export default function GlowPayPage() {
   const { data: payments, refetch: refetchPayments } = usePayments();
@@ -21,9 +22,13 @@ export default function GlowPayPage() {
   const { data: customers } = useCustomers();
   const { data: services } = useServices();
   const { data: settings } = useSettings();
+  const { data: paymentLinks, refetch: refetchLinks } = usePaymentLinks();
   const { update: updatePayment } = useCrud("payments");
+  const { insert: insertLink, update: updateLink } = useCrud("payment_links");
   const [activeTab, setActiveTab] = useState<TabType>("overzicht");
   const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
+  const [showLinkForm, setShowLinkForm] = useState(false);
+  const [linkForm, setLinkForm] = useState({ amount: "", description: "", customer_id: "", type: "link" });
 
   const s = settings.length > 0 ? settings[0] as any : null;
 
@@ -106,9 +111,55 @@ export default function GlowPayPage() {
     return "💰";
   };
 
+  const handleCreateLink = async () => {
+    const amount = Number(linkForm.amount);
+    if (amount <= 0) { toast.error("Vul een geldig bedrag in"); return; }
+    const linkId = crypto.randomUUID().slice(0, 8);
+    const linkUrl = `https://pay.glowsuite.nl/${linkId}`;
+    await insertLink({
+      amount,
+      description: linkForm.description,
+      customer_id: linkForm.customer_id || null,
+      type: linkForm.type,
+      status: "open",
+      link_url: linkUrl,
+    });
+    toast.success("Betaalverzoek aangemaakt!");
+    setShowLinkForm(false);
+    setLinkForm({ amount: "", description: "", customer_id: "", type: "link" });
+    refetchLinks();
+  };
+
+  const handleCopyLink = (url: string) => {
+    navigator.clipboard.writeText(url);
+    toast.success("Link gekopieerd!");
+  };
+
+  const handleMarkLinkPaid = async (id: string) => {
+    await updateLink(id, { status: "betaald", paid_at: new Date().toISOString() });
+    toast.success("Betaalverzoek gemarkeerd als betaald");
+    refetchLinks();
+  };
+
+  const handleResendLink = (id: string) => {
+    toast.success("Betaalverzoek opnieuw verstuurd (demo)");
+  };
+
+  const getLinkStatusBadge = (status: string) => {
+    const map: Record<string, { label: string; class: string }> = {
+      open: { label: "Open", class: "bg-warning/15 text-warning" },
+      betaald: { label: "Betaald", class: "bg-success/15 text-success" },
+      mislukt: { label: "Mislukt", class: "bg-destructive/15 text-destructive" },
+      verlopen: { label: "Verlopen", class: "bg-muted text-muted-foreground" },
+    };
+    const info = map[status] || map.open;
+    return <span className={cn("px-2 py-0.5 rounded-lg text-[11px] font-medium", info.class)}>{info.label}</span>;
+  };
+
   const tabs: { key: TabType; label: string }[] = [
     { key: "overzicht", label: "Overzicht" },
     { key: "betalingen", label: "Betalingen" },
+    { key: "betaallinks", label: "Betaallinks & QR" },
     { key: "regels", label: "Betaalregels" },
   ];
 
