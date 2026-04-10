@@ -222,19 +222,19 @@ export function AutoRevenueEngine() {
           </div>
         </div>
 
-        {/* Live Insights */}
+        {/* Live Insights — action-driven */}
         <div className="space-y-2.5 mb-4">
           <p className="text-sm flex items-start gap-2">
-            <span className="text-destructive font-semibold">⚡</span>
-            <span>Je mist <span className="font-semibold text-destructive">{formatEuro(emptySlots * 65)}</span> omzet vandaag door lege plekken</span>
+            <span className="text-primary font-semibold">⚡</span>
+            <span>GlowSuite kan vandaag <span className="font-semibold text-primary">{formatEuro(emptySlots * 65)}</span> extra omzet genereren</span>
           </p>
           <p className="text-sm flex items-start gap-2">
             <span className="text-warning font-semibold">👥</span>
-            <span>{inactiveCustomers.length} klanten zijn overdue voor een nieuwe afspraak</span>
+            <span>{inactiveCustomers.length} klanten klaar voor een comeback-actie</span>
           </p>
           <p className="text-sm flex items-start gap-2">
-            <span className="text-warning font-semibold">📅</span>
-            <span>Bezettingsgraad vandaag: <span className="font-semibold">{totalSlots > 0 ? Math.round((todaysAppts.length / totalSlots) * 100) : 0}%</span></span>
+            <span className="font-semibold">📅</span>
+            <span>Bezettingsgraad vandaag: <span className="font-semibold">{totalSlots > 0 ? Math.round((todaysAppts.length / totalSlots) * 100) : 0}%</span> — {emptySlots > 0 ? `${emptySlots} plekken te vullen` : 'volledig gevuld!'}</span>
           </p>
         </div>
 
