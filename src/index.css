@@ -62,22 +62,22 @@
 
   .light {
     --background: 240 20% 97%;
-    --foreground: 240 10% 10%;
+    --foreground: 240 10% 8%;
 
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 10%;
+    --card-foreground: 240 10% 8%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 10%;
+    --popover-foreground: 240 10% 8%;
 
     --primary: 255 100% 69%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 240 10% 93%;
-    --secondary-foreground: 240 10% 30%;
+    --secondary-foreground: 240 10% 25%;
 
     --muted: 240 10% 94%;
-    --muted-foreground: 240 5% 46%;
+    --muted-foreground: 240 5% 40%;
 
     --accent: 300 60% 55%;
     --accent-foreground: 0 0% 100%;
@@ -85,17 +85,17 @@
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 240 10% 88%;
-    --input: 240 10% 88%;
+    --border: 240 10% 86%;
+    --input: 240 10% 86%;
     --ring: 255 100% 69%;
 
     --sidebar-background: 240 15% 95%;
-    --sidebar-foreground: 240 5% 40%;
+    --sidebar-foreground: 240 5% 35%;
     --sidebar-primary: 255 100% 69%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 240 10% 90%;
-    --sidebar-accent-foreground: 240 10% 15%;
-    --sidebar-border: 240 10% 90%;
+    --sidebar-accent-foreground: 240 10% 12%;
+    --sidebar-border: 240 10% 88%;
     --sidebar-ring: 255 100% 69%;
 
     --glow-purple: 255 100% 69%;
@@ -148,7 +148,15 @@
   }
 
   .glass-card {
-    @apply bg-card/80 backdrop-blur-xl border border-border/50 rounded-2xl;
+    @apply bg-card/80 backdrop-blur-xl border border-border/50 rounded-2xl shadow-sm;
+  }
+
+  .light .glass-card {
+    @apply shadow-md border-border/60;
+  }
+
+  .light .stat-card:hover {
+    @apply shadow-lg;
   }
 
   .glow-sm {

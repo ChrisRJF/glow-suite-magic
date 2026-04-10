@@ -85,17 +85,46 @@ export default function DashboardPage() {
     { label: "Zonder afspraak", count: withoutNext.length, icon: AlertTriangle, color: "text-warning" },
   ];
 
+  // AI generated revenue from localStorage
+  const aiRevenue = useMemo(() => {
+    try {
+      const log = JSON.parse(localStorage.getItem("glowsuite_action_log") || "[]");
+      return log.reduce((s: number, e: any) => s + (e.revenue || 0), 0);
+    } catch { return 0; }
+  }, []);
+
+  const vrijePlekken = Math.max(0, totalSlots - todaysAppts.length);
+
   return (
     <AppLayout title="Overzicht" subtitle={new Date().toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' }) + " — Hier is je dag in één oogopslag."}>
+      {/* KPI Balk */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6 opacity-0 animate-fade-in-up" style={{ animationDelay: '30ms' }}>
+        {[
+          { label: "Omzet vandaag", value: formatEuro(omzetVandaag), icon: Euro, color: "text-success" },
+          { label: "Afspraken vandaag", value: String(todaysAppts.length), icon: Calendar, color: "text-primary" },
+          { label: "Vrije plekken", value: String(vrijePlekken), icon: Clock, color: vrijePlekken > 3 ? "text-destructive" : "text-warning" },
+          { label: "Bezettingsgraad", value: `${bezetting}%`, icon: BarChart3, color: bezetting > 70 ? "text-success" : "text-warning" },
+          { label: "AI omzet", value: formatEuro(aiRevenue), icon: Sparkles, color: "text-primary" },
+        ].map((kpi, i) => (
+          <div key={kpi.label} className="flex items-center gap-3 p-3 rounded-xl bg-card border border-border/50 shadow-sm">
+            <kpi.icon className={`w-5 h-5 ${kpi.color} flex-shrink-0`} />
+            <div className="min-w-0">
+              <p className="text-lg font-bold tabular-nums leading-tight">{kpi.value}</p>
+              <p className="text-[11px] text-muted-foreground truncate">{kpi.label}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
       {/* Quick Action Bar */}
-      <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-1 opacity-0 animate-fade-in-up">
+      <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-1 opacity-0 animate-fade-in-up" style={{ animationDelay: '60ms' }}>
         <Button variant="gradient" size="sm" className="flex-shrink-0" onClick={() => navigate('/agenda')}>
           <Plus className="w-3.5 h-3.5" /> Nieuwe afspraak
         </Button>
-        <Button variant="outline" size="sm" className="flex-shrink-0" onClick={() => navigate('/marketing')}>
+        <Button variant="outline" size="sm" className="flex-shrink-0 opacity-80" onClick={() => navigate('/marketing')}>
           <Megaphone className="w-3.5 h-3.5" /> Stuur campagne
         </Button>
-        <Button variant="outline" size="sm" className="flex-shrink-0" onClick={() => navigate('/acties')}>
+        <Button variant="outline" size="sm" className="flex-shrink-0 opacity-80" onClick={() => navigate('/acties')}>
           <CalendarPlus className="w-3.5 h-3.5" /> Vul lege plekken
         </Button>
       </div>
