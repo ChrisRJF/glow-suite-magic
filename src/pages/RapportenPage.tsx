@@ -6,6 +6,7 @@ import { formatEuro } from "@/lib/data";
 import { exportCSV, exportExcel, exportPDF } from "@/lib/exportUtils";
 import { BarChart3, Users, TrendingUp, Clock, Download, FileText, FileSpreadsheet, Filter } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -22,7 +23,11 @@ export default function RapportenPage() {
     const d = new Date(); d.setMonth(d.getMonth() - 1); return d.toISOString().split("T")[0];
   });
   const [dateTo, setDateTo] = useState(() => new Date().toISOString().split("T")[0]);
-  const [reportType, setReportType] = useState<ReportType>("omzet");
+  const [searchParams] = useSearchParams();
+  const [reportType, setReportType] = useState<ReportType>(() => {
+    const t = searchParams.get("type");
+    return (t === "omzet" || t === "diensten" || t === "producten" || t === "betalingen" || t === "btw") ? t : "omzet";
+  });
   const [showExport, setShowExport] = useState(false);
 
   const filteredAppts = useMemo(() =>

@@ -67,22 +67,22 @@ export default function DashboardPage() {
   const rebookPct = customers.length > 0 ? Math.round(((customers.length - withoutNext.length) / customers.length) * 100) : 0;
 
   const stats = [
-    { label: "Omzet Vandaag", value: formatEuro(omzetVandaag), change: `${todaysAppts.length} afspr.`, icon: Euro, positive: true, helper: "Verdien meer door lege plekken te vullen" },
-    { label: "Gem. Besteding / Klant", value: formatEuro(avgSpend), change: `${customers.length} klanten`, icon: TrendingUp, positive: true, helper: "Meer herboekingen = meer omzet" },
-    { label: "Bezettingsgraad", value: `${bezetting}%`, change: `${todaysAppts.length}/${totalSlots}`, icon: BarChart3, positive: bezetting > 50, helper: "Automatiseer je marketing in 1 klik" },
-    { label: "Verwachte Omzet Week", value: formatEuro(omzetWeek), change: `${weekAppts.length} afspr.`, icon: Target, positive: true, helper: "Op basis van huidige agenda" },
+    { label: "Omzet Vandaag", value: formatEuro(omzetVandaag), change: `${todaysAppts.length} afspr.`, icon: Euro, positive: true, helper: "Verdien meer door lege plekken te vullen", onClick: () => navigate('/omzet') },
+    { label: "Gem. Besteding / Klant", value: formatEuro(avgSpend), change: `${customers.length} klanten`, icon: TrendingUp, positive: true, helper: "Meer herboekingen = meer omzet", onClick: () => navigate('/klanten') },
+    { label: "Bezettingsgraad", value: `${bezetting}%`, change: `${todaysAppts.length}/${totalSlots}`, icon: BarChart3, positive: bezetting > 50, helper: "Automatiseer je marketing in 1 klik", onClick: () => navigate('/agenda') },
+    { label: "Verwachte Omzet Week", value: formatEuro(omzetWeek), change: `${weekAppts.length} afspr.`, icon: Target, positive: true, helper: "Op basis van huidige agenda", onClick: () => navigate('/rapporten?type=omzet') },
   ];
 
   const revenueOpportunities = [
-    { text: `${Math.max(0, totalSlots - todaysAppts.length)} lege plekken vandaag`, icon: "📉", urgent: todaysAppts.length < totalSlots / 2 },
-    { text: `${inactiveCustomers.length} inactieve klanten (30+ dagen)`, icon: "👥", urgent: inactiveCustomers.length > 5 },
-    { text: `${withoutNext.length} klanten zonder volgende afspraak`, icon: "🔄", urgent: withoutNext.length > 10 },
+    { text: `${Math.max(0, totalSlots - todaysAppts.length)} lege plekken vandaag`, icon: "📉", urgent: todaysAppts.length < totalSlots / 2, onClick: () => navigate('/agenda') },
+    { text: `${inactiveCustomers.length} inactieve klanten (30+ dagen)`, icon: "👥", urgent: inactiveCustomers.length > 5, onClick: () => navigate('/klanten?filter=risico') },
+    { text: `${withoutNext.length} klanten zonder volgende afspraak`, icon: "🔄", urgent: withoutNext.length > 10, onClick: () => navigate('/herboekingen') },
   ];
 
   const customerSegments = [
-    { label: "VIP Klanten", count: customers.filter(c => (Number(c.total_spent) || 0) > 500).length, icon: Star, color: "text-warning" },
-    { label: "Inactief (30+ dagen)", count: inactiveCustomers.length, icon: UserX, color: "text-destructive" },
-    { label: "Zonder afspraak", count: withoutNext.length, icon: AlertTriangle, color: "text-warning" },
+    { label: "VIP Klanten", count: customers.filter(c => (Number(c.total_spent) || 0) > 500).length, icon: Star, color: "text-warning", onClick: () => navigate('/klanten?filter=vip') },
+    { label: "Inactief (30+ dagen)", count: inactiveCustomers.length, icon: UserX, color: "text-destructive", onClick: () => navigate('/klanten?filter=risico') },
+    { label: "Zonder afspraak", count: withoutNext.length, icon: AlertTriangle, color: "text-warning", onClick: () => navigate('/herboekingen') },
   ];
 
   // AI generated revenue from localStorage — re-read on appointment changes
@@ -101,13 +101,13 @@ export default function DashboardPage() {
       {/* KPI Balk */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6 opacity-0 animate-fade-in-up" style={{ animationDelay: '30ms' }}>
         {[
-          { label: "Omzet vandaag", value: formatEuro(omzetVandaag), icon: Euro, color: "text-success" },
-          { label: "Afspraken vandaag", value: String(todaysAppts.length), icon: Calendar, color: "text-primary" },
-          { label: "Vrije plekken", value: String(vrijePlekken), icon: Clock, color: vrijePlekken > 3 ? "text-destructive" : "text-warning" },
-          { label: "Bezettingsgraad", value: `${bezetting}%`, icon: BarChart3, color: bezetting > 70 ? "text-success" : "text-warning" },
-          { label: "AI omzet", value: formatEuro(aiRevenue), icon: Sparkles, color: "text-primary" },
+         { label: "Omzet vandaag", value: formatEuro(omzetVandaag), icon: Euro, color: "text-success", onClick: () => navigate('/rapporten?type=omzet') },
+          { label: "Afspraken vandaag", value: String(todaysAppts.length), icon: Calendar, color: "text-primary", onClick: () => navigate('/agenda') },
+          { label: "Vrije plekken", value: String(vrijePlekken), icon: Clock, color: vrijePlekken > 3 ? "text-destructive" : "text-warning", onClick: () => navigate('/agenda') },
+          { label: "Bezettingsgraad", value: `${bezetting}%`, icon: BarChart3, color: bezetting > 70 ? "text-success" : "text-warning", onClick: () => navigate('/omzet') },
+          { label: "AI omzet", value: formatEuro(aiRevenue), icon: Sparkles, color: "text-primary", onClick: () => { const el = document.getElementById('auto-revenue-engine'); el?.scrollIntoView({ behavior: 'smooth' }); } },
         ].map((kpi, i) => (
-          <div key={kpi.label} className="flex items-center gap-3 p-3 rounded-xl bg-card border border-border/50 shadow-sm">
+         <div key={kpi.label} onClick={() => kpi.onClick?.()} className={`flex items-center gap-3 p-3 rounded-xl bg-card border border-border/50 shadow-sm ${kpi.onClick ? 'cursor-pointer hover:border-primary/30 hover:shadow-md transition-all' : ''}`}>
             <kpi.icon className={`w-5 h-5 ${kpi.color} flex-shrink-0`} />
             <div className="min-w-0">
               <p className="text-lg font-bold tabular-nums leading-tight">{kpi.value}</p>
@@ -136,7 +136,7 @@ export default function DashboardPage() {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {stats.map((stat, i) => (
-          <div key={stat.label} className="stat-card opacity-0 animate-fade-in-up" style={{ animationDelay: `${150 + i * 80}ms` }}>
+          <div key={stat.label} onClick={() => stat.onClick?.()} className={`stat-card opacity-0 animate-fade-in-up ${stat.onClick ? 'cursor-pointer hover:shadow-lg transition-shadow' : ''}`} style={{ animationDelay: `${150 + i * 80}ms` }}>
             <div className="flex items-center justify-between mb-4">
               <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center">
                 <stat.icon className="w-5 h-5 text-muted-foreground" />
@@ -167,7 +167,7 @@ export default function DashboardPage() {
               const cust = customers.find(c => c.id === apt.customer_id);
               const time = new Date(apt.appointment_date).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
               return (
-                <div key={apt.id} className="flex items-center gap-4 p-3.5 rounded-xl bg-secondary/50 hover:bg-secondary transition-colors duration-200 group">
+                <div key={apt.id} onClick={() => navigate('/agenda')} className="flex items-center gap-4 p-3.5 rounded-xl bg-secondary/50 hover:bg-secondary transition-colors duration-200 group cursor-pointer">
                   <div className="w-1 h-10 rounded-full flex-shrink-0" style={{ backgroundColor: svc?.color || '#7B61FF' }} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium">{cust?.name || 'Onbekende klant'}</p>
@@ -227,7 +227,7 @@ export default function DashboardPage() {
           </div>
           <div className="space-y-3">
             {revenueOpportunities.map((item, i) => (
-              <div key={i} className={`p-3 rounded-xl text-sm flex items-start gap-2.5 ${item.urgent ? 'bg-destructive/10 border border-destructive/20' : 'bg-secondary/50'}`}>
+              <div key={i} onClick={() => item.onClick?.()} className={`p-3 rounded-xl text-sm flex items-start gap-2.5 cursor-pointer hover:shadow-sm transition-all ${item.urgent ? 'bg-destructive/10 border border-destructive/20 hover:bg-destructive/15' : 'bg-secondary/50 hover:bg-secondary'}`}>
                 <span className="flex-shrink-0">{item.icon}</span>
                 <span>{item.text}</span>
               </div>
@@ -303,7 +303,7 @@ export default function DashboardPage() {
           </div>
           <div className="space-y-3 mb-4">
             {customerSegments.map((seg, i) => (
-              <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-secondary/50">
+              <div key={i} onClick={() => seg.onClick?.()} className="flex items-center justify-between p-3 rounded-xl bg-secondary/50 cursor-pointer hover:bg-secondary transition-colors">
                 <div className="flex items-center gap-2.5">
                   <seg.icon className={`w-4 h-4 ${seg.color}`} />
                   <span className="text-sm">{seg.label}</span>

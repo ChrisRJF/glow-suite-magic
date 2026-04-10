@@ -9,7 +9,8 @@ import {
   Shield, TrendingUp, ArrowRight, RotateCcw, Send, Eye,
   Wallet, Banknote, Smartphone, QrCode, Link2, Plus, Copy, ExternalLink
 } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -25,7 +26,11 @@ export default function GlowPayPage() {
   const { data: paymentLinks, refetch: refetchLinks } = usePaymentLinks();
   const { update: updatePayment } = useCrud("payments");
   const { insert: insertLink, update: updateLink } = useCrud("payment_links");
-  const [activeTab, setActiveTab] = useState<TabType>("overzicht");
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState<TabType>(() => {
+    const t = searchParams.get("tab");
+    return (t === "betalingen" || t === "regels" || t === "betaallinks") ? t : "overzicht";
+  });
   const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
   const [showLinkForm, setShowLinkForm] = useState(false);
   const [linkForm, setLinkForm] = useState({ amount: "", description: "", customer_id: "", type: "link" });
