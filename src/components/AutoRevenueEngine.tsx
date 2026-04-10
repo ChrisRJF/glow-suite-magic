@@ -344,7 +344,7 @@ export function AutoRevenueEngine() {
   }, [autopilot.enabled, user, customers.length, todayStr]);
 
   return (
-    <div className="glass-card p-6 mb-6 opacity-0 animate-fade-in-up border border-primary/20 relative overflow-hidden" style={{ animationDelay: '50ms' }}>
+    <div id="auto-revenue-engine" className="glass-card p-6 mb-6 opacity-0 animate-fade-in-up border border-primary/20 relative overflow-hidden" style={{ animationDelay: '50ms' }}>
       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 pointer-events-none" />
       <div className="relative">
         {/* Header */}

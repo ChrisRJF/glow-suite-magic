@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { useCustomers, useAppointments, useServices } from "@/hooks/useSupabaseData";
 import { useCrud } from "@/hooks/useCrud";
 import { formatEuro } from "@/lib/data";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Search, Phone, Mail, Calendar, Euro, ArrowRight, X, Plus, Trash2, Pencil, Save, Star, AlertTriangle, UserCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -14,12 +15,16 @@ export default function CustomersPage() {
   const { data: appointments } = useAppointments();
   const { data: services } = useServices();
   const { insert, update, remove } = useCrud("customers");
+  const [searchParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Tables<"customers"> | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ name: '', phone: '', email: '', notes: '' });
-  const [filterLabel, setFilterLabel] = useState<string>("alle");
+  const [filterLabel, setFilterLabel] = useState<string>(() => {
+    const f = searchParams.get("filter");
+    return f || "alle";
+  });
 
   const customerIntel = useMemo(() => {
     return customers.map(c => {
