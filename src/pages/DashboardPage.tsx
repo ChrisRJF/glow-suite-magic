@@ -85,13 +85,14 @@ export default function DashboardPage() {
     { label: "Zonder afspraak", count: withoutNext.length, icon: AlertTriangle, color: "text-warning" },
   ];
 
-  // AI generated revenue from localStorage
+  // AI generated revenue from localStorage — re-read on appointment changes
   const aiRevenue = useMemo(() => {
     try {
       const log = JSON.parse(localStorage.getItem("glowsuite_action_log") || "[]");
       return log.reduce((s: number, e: any) => s + (e.revenue || 0), 0);
     } catch { return 0; }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appointments]);
 
   const vrijePlekken = Math.max(0, totalSlots - todaysAppts.length);
 
