@@ -164,6 +164,42 @@ export default function DashboardPage() {
       {/* AI Revenue Engine */}
       <AutoRevenueEngine />
 
+      {/* ROI Dashboard */}
+      <div className="glass-card p-5 mb-6 border border-success/20 opacity-0 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
+        <div className="flex items-center gap-2 mb-4">
+          <Award className="w-5 h-5 text-success" />
+          <h2 className="text-base font-semibold">GlowSuite ROI</h2>
+          {monthlyGrowthRevenue > 0 && (
+            <span className="ml-auto text-xs bg-success/15 text-success px-2 py-0.5 rounded-md font-medium">
+              +{formatEuro(monthlyGrowthRevenue)} deze maand
+            </span>
+          )}
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="p-3 rounded-xl bg-success/10 cursor-pointer hover:bg-success/15 transition-colors" onClick={() => { const el = document.getElementById('auto-revenue-engine'); el?.scrollIntoView({ behavior: 'smooth' }); }}>
+            <p className="text-lg font-bold text-success tabular-nums">{formatEuro(aiRevenue)}</p>
+            <p className="text-[11px] text-muted-foreground">AI gegenereerde omzet</p>
+          </div>
+          <div className="p-3 rounded-xl bg-primary/10 cursor-pointer hover:bg-primary/15 transition-colors" onClick={() => navigate('/marketing')}>
+            <p className="text-lg font-bold text-primary tabular-nums">{formatEuro(campaignRevenue)}</p>
+            <p className="text-[11px] text-muted-foreground">Omzet uit campagnes</p>
+          </div>
+          <div className="p-3 rounded-xl bg-warning/10 cursor-pointer hover:bg-warning/15 transition-colors" onClick={() => navigate('/klanten?filter=risico')}>
+            <p className="text-lg font-bold text-warning tabular-nums">{recoveredCustomers}</p>
+            <p className="text-[11px] text-muted-foreground">Teruggewonnen klanten</p>
+          </div>
+          <div className="p-3 rounded-xl bg-accent/10 cursor-pointer hover:bg-accent/15 transition-colors" onClick={() => navigate('/agenda')}>
+            <p className="text-lg font-bold text-accent tabular-nums">{autoFilledAppts}</p>
+            <p className="text-[11px] text-muted-foreground">Auto-gevulde afspraken</p>
+          </div>
+        </div>
+        {monthlyGrowthRevenue > 0 && (
+          <p className="text-sm text-success mt-3 font-medium">
+            ✨ GlowSuite heeft deze maand {formatEuro(monthlyGrowthRevenue)} extra omzet gegenereerd
+          </p>
+        )}
+      </div>
+
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {stats.map((stat, i) => (
