@@ -206,6 +206,7 @@ export type Database = {
           email: string | null
           id: string
           is_vip: boolean | null
+          loyalty_points: number | null
           name: string
           no_show_count: number | null
           notes: string | null
@@ -220,6 +221,7 @@ export type Database = {
           email?: string | null
           id?: string
           is_vip?: boolean | null
+          loyalty_points?: number | null
           name: string
           no_show_count?: number | null
           notes?: string | null
@@ -234,6 +236,7 @@ export type Database = {
           email?: string | null
           id?: string
           is_vip?: boolean | null
+          loyalty_points?: number | null
           name?: string
           no_show_count?: number | null
           notes?: string | null
@@ -364,6 +367,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      leads: {
+        Row: {
+          created_at: string
+          email: string | null
+          followed_up_at: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          source: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          followed_up_at?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          source?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          followed_up_at?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          source?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       payment_links: {
         Row: {
