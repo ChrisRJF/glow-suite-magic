@@ -18,6 +18,7 @@ export default function DashboardPage() {
   const { data: appointments } = useAppointments();
   const { data: services } = useServices();
   const { data: campaigns } = useCampaigns();
+  const { data: leads } = useLeads();
   const navigate = useNavigate();
 
   const todayStr = new Date().toISOString().split("T")[0];
