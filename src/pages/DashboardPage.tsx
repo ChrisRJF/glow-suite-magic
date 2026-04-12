@@ -1,12 +1,13 @@
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
-import { useCustomers, useAppointments, useProducts, useCampaigns, useServices } from "@/hooks/useSupabaseData";
+import { useCustomers, useAppointments, useProducts, useCampaigns, useServices, useLeads } from "@/hooks/useSupabaseData";
 import { formatEuro } from "@/lib/data";
 import { aiSuggestions } from "@/lib/data";
 import {
   TrendingUp, Users, Calendar, Euro, Sparkles, ArrowRight, Clock,
   MessageCircle, Zap, BarChart3, RefreshCw, Tag, Target,
-  Send, AlertTriangle, Star, UserX, Plus, Megaphone, CalendarPlus
+  Send, AlertTriangle, Star, UserX, Plus, Megaphone, CalendarPlus,
+  Award, UserPlus
 } from "lucide-react";
 import { AutoRevenueEngine } from "@/components/AutoRevenueEngine";
 import { useNavigate } from "react-router-dom";
