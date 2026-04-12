@@ -98,6 +98,35 @@ export default function DashboardPage() {
 
   const vrijePlekken = Math.max(0, totalSlots - todaysAppts.length);
 
+  // ROI metrics
+  const campaignRevenue = useMemo(() => {
+    const sentCampaigns = campaigns.filter(c => c.status === 'verzonden');
+    return sentCampaigns.reduce((s, c) => s + ((c.sent_count || 0) * 45), 0);
+  }, [campaigns]);
+
+  const recoveredCustomers = useMemo(() => {
+    return inactiveCustomers.filter(c => {
+      const futureAppt = appointments.find(a => a.customer_id === c.id && new Date(a.appointment_date) > new Date() && a.status !== 'geannuleerd');
+      return !!futureAppt;
+    }).length;
+  }, [inactiveCustomers, appointments]);
+
+  const autoFilledAppts = useMemo(() => {
+    return appointments.filter(a => a.notes?.includes('Auto-gevuld')).length;
+  }, [appointments]);
+
+  const monthlyGrowthRevenue = aiRevenue + campaignRevenue;
+
+  // Loyalty metrics
+  const vipCustomers = customers.filter(c => (Number(c.total_spent) || 0) > 500);
+  const almostVip = customers.filter(c => {
+    const spent = Number(c.total_spent) || 0;
+    return spent >= 350 && spent < 500;
+  });
+
+  const leadsConverted = leads.filter(l => l.status === 'klant_geworden').length;
+  const newLeads = leads.filter(l => l.status === 'nieuw').length;
+
   return (
     <AppLayout title="Overzicht" subtitle={new Date().toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' }) + " — Hier is je dag in één oogopslag."}>
       {/* KPI Balk */}
