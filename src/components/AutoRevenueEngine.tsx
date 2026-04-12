@@ -355,11 +355,16 @@ export function AutoRevenueEngine() {
             </div>
             <div>
               <h2 className="text-lg font-semibold">AI Revenue Engine</h2>
-              <p className="text-[11px] text-muted-foreground">Automatische omzet optimalisatie</p>
+              <p className="text-[11px] text-muted-foreground">GlowSuite regelt mijn groei</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">{autopilot.enabled ? "Actief" : "Uit"}</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] text-muted-foreground hidden sm:inline">Autopilot</span>
+              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${autopilot.enabled ? 'bg-success/15 text-success' : 'bg-muted text-muted-foreground'}`}>
+                {autopilot.enabled ? "AAN" : "UIT"}
+              </span>
+            </div>
             <Switch checked={autopilot.enabled} onCheckedChange={toggleAutopilot} />
           </div>
         </div>

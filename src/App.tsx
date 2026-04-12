@@ -29,6 +29,7 @@ import WachtlijstPage from "./pages/WachtlijstPage";
 import CadeaubonnenPage from "./pages/CadeaubonnenPage";
 import WebshopPage from "./pages/WebshopPage";
 import SocialStudioPage from "./pages/SocialStudioPage";
+import LeadsPage from "./pages/LeadsPage";
 const queryClient = new QueryClient();
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -76,6 +77,7 @@ const App = () => (
             <Route path="/cadeaubonnen" element={<ProtectedRoute><CadeaubonnenPage /></ProtectedRoute>} />
             <Route path="/webshop" element={<ProtectedRoute><WebshopPage /></ProtectedRoute>} />
             <Route path="/social-studio" element={<ProtectedRoute><SocialStudioPage /></ProtectedRoute>} />
+            <Route path="/leads" element={<ProtectedRoute><LeadsPage /></ProtectedRoute>} />
             <Route path="/support" element={<ProtectedRoute><SupportPage /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>

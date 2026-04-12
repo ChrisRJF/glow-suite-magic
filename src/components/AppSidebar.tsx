@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Calendar, Users, Scissors, Menu, X, Globe,
   MessageCircle, CreditCard, TrendingUp, RefreshCw, Megaphone,
   Zap, ShoppingBag, Package, BarChart3, Settings, HelpCircle, LogOut,
-  Sun, Moon, Bot, Clock, Gift, ShoppingCart, Share2,
+  Sun, Moon, Bot, Clock, Gift, ShoppingCart, Share2, UserPlus,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -43,6 +43,7 @@ const navGroups: NavGroup[] = [
       { label: "Marketing", icon: Megaphone, path: "/marketing" },
       { label: "Social Studio", icon: Share2, path: "/social-studio" },
       { label: "Acties", icon: Zap, path: "/acties", accent: true },
+      { label: "Leads", icon: UserPlus, path: "/leads" },
       { label: "Automatiseringen", icon: Bot, path: "/automatiseringen" },
     ],
   },

@@ -1,12 +1,13 @@
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
-import { useCustomers, useAppointments, useProducts, useCampaigns, useServices } from "@/hooks/useSupabaseData";
+import { useCustomers, useAppointments, useProducts, useCampaigns, useServices, useLeads } from "@/hooks/useSupabaseData";
 import { formatEuro } from "@/lib/data";
 import { aiSuggestions } from "@/lib/data";
 import {
   TrendingUp, Users, Calendar, Euro, Sparkles, ArrowRight, Clock,
   MessageCircle, Zap, BarChart3, RefreshCw, Tag, Target,
-  Send, AlertTriangle, Star, UserX, Plus, Megaphone, CalendarPlus
+  Send, AlertTriangle, Star, UserX, Plus, Megaphone, CalendarPlus,
+  Award, UserPlus
 } from "lucide-react";
 import { AutoRevenueEngine } from "@/components/AutoRevenueEngine";
 import { useNavigate } from "react-router-dom";
@@ -17,6 +18,7 @@ export default function DashboardPage() {
   const { data: appointments } = useAppointments();
   const { data: services } = useServices();
   const { data: campaigns } = useCampaigns();
+  const { data: leads } = useLeads();
   const navigate = useNavigate();
 
   const todayStr = new Date().toISOString().split("T")[0];
@@ -96,6 +98,35 @@ export default function DashboardPage() {
 
   const vrijePlekken = Math.max(0, totalSlots - todaysAppts.length);
 
+  // ROI metrics
+  const campaignRevenue = useMemo(() => {
+    const sentCampaigns = campaigns.filter(c => c.status === 'verzonden');
+    return sentCampaigns.reduce((s, c) => s + ((c.sent_count || 0) * 45), 0);
+  }, [campaigns]);
+
+  const recoveredCustomers = useMemo(() => {
+    return inactiveCustomers.filter(c => {
+      const futureAppt = appointments.find(a => a.customer_id === c.id && new Date(a.appointment_date) > new Date() && a.status !== 'geannuleerd');
+      return !!futureAppt;
+    }).length;
+  }, [inactiveCustomers, appointments]);
+
+  const autoFilledAppts = useMemo(() => {
+    return appointments.filter(a => a.notes?.includes('Auto-gevuld')).length;
+  }, [appointments]);
+
+  const monthlyGrowthRevenue = aiRevenue + campaignRevenue;
+
+  // Loyalty metrics
+  const vipCustomers = customers.filter(c => (Number(c.total_spent) || 0) > 500);
+  const almostVip = customers.filter(c => {
+    const spent = Number(c.total_spent) || 0;
+    return spent >= 350 && spent < 500;
+  });
+
+  const leadsConverted = leads.filter(l => l.status === 'klant_geworden').length;
+  const newLeads = leads.filter(l => l.status === 'nieuw').length;
+
   return (
     <AppLayout title="Overzicht" subtitle={new Date().toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' }) + " — Hier is je dag in één oogopslag."}>
       {/* KPI Balk */}
@@ -132,6 +163,42 @@ export default function DashboardPage() {
 
       {/* AI Revenue Engine */}
       <AutoRevenueEngine />
+
+      {/* ROI Dashboard */}
+      <div className="glass-card p-5 mb-6 border border-success/20 opacity-0 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
+        <div className="flex items-center gap-2 mb-4">
+          <Award className="w-5 h-5 text-success" />
+          <h2 className="text-base font-semibold">GlowSuite ROI</h2>
+          {monthlyGrowthRevenue > 0 && (
+            <span className="ml-auto text-xs bg-success/15 text-success px-2 py-0.5 rounded-md font-medium">
+              +{formatEuro(monthlyGrowthRevenue)} deze maand
+            </span>
+          )}
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="p-3 rounded-xl bg-success/10 cursor-pointer hover:bg-success/15 transition-colors" onClick={() => { const el = document.getElementById('auto-revenue-engine'); el?.scrollIntoView({ behavior: 'smooth' }); }}>
+            <p className="text-lg font-bold text-success tabular-nums">{formatEuro(aiRevenue)}</p>
+            <p className="text-[11px] text-muted-foreground">AI gegenereerde omzet</p>
+          </div>
+          <div className="p-3 rounded-xl bg-primary/10 cursor-pointer hover:bg-primary/15 transition-colors" onClick={() => navigate('/marketing')}>
+            <p className="text-lg font-bold text-primary tabular-nums">{formatEuro(campaignRevenue)}</p>
+            <p className="text-[11px] text-muted-foreground">Omzet uit campagnes</p>
+          </div>
+          <div className="p-3 rounded-xl bg-warning/10 cursor-pointer hover:bg-warning/15 transition-colors" onClick={() => navigate('/klanten?filter=risico')}>
+            <p className="text-lg font-bold text-warning tabular-nums">{recoveredCustomers}</p>
+            <p className="text-[11px] text-muted-foreground">Teruggewonnen klanten</p>
+          </div>
+          <div className="p-3 rounded-xl bg-accent/10 cursor-pointer hover:bg-accent/15 transition-colors" onClick={() => navigate('/agenda')}>
+            <p className="text-lg font-bold text-accent tabular-nums">{autoFilledAppts}</p>
+            <p className="text-[11px] text-muted-foreground">Auto-gevulde afspraken</p>
+          </div>
+        </div>
+        {monthlyGrowthRevenue > 0 && (
+          <p className="text-sm text-success mt-3 font-medium">
+            ✨ GlowSuite heeft deze maand {formatEuro(monthlyGrowthRevenue)} extra omzet gegenereerd
+          </p>
+        )}
+      </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -316,6 +383,64 @@ export default function DashboardPage() {
             <Button variant="outline" size="sm" onClick={() => navigate('/marketing')}><Star className="w-3.5 h-3.5" /> Campagne naar VIP</Button>
             <Button variant="outline" size="sm" onClick={() => navigate('/herboekingen')}><UserX className="w-3.5 h-3.5" /> Heractiveer inactief</Button>
           </div>
+        </div>
+      </div>
+
+      {/* Fourth Row: Loyalty + Leads */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+        {/* Loyalty */}
+        <div className="glass-card p-6 opacity-0 animate-fade-in-up" style={{ animationDelay: '850ms' }}>
+          <div className="flex items-center gap-2 mb-4">
+            <Award className="w-5 h-5 text-warning" />
+            <h2 className="text-base font-semibold">Loyaliteit & VIP</h2>
+          </div>
+          <div className="space-y-3 mb-4">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-warning/10">
+              <div className="flex items-center gap-2">
+                <Star className="w-4 h-4 text-warning" />
+                <span className="text-sm">VIP klanten</span>
+              </div>
+              <span className="text-sm font-bold tabular-nums">{vipCustomers.length}</span>
+            </div>
+            <div className="flex items-center justify-between p-3 rounded-xl bg-primary/10">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-primary" />
+                <span className="text-sm">Bijna VIP (€350+)</span>
+              </div>
+              <span className="text-sm font-bold tabular-nums">{almostVip.length}</span>
+            </div>
+          </div>
+          {almostVip.length > 0 && (
+            <div className="p-3 rounded-xl bg-accent/10 border border-accent/20 mb-3">
+              <p className="text-xs font-medium">💡 {almostVip.length} klanten zijn bijna VIP</p>
+              <p className="text-[11px] text-muted-foreground">Stuur een speciale aanbieding om ze over de drempel te helpen</p>
+            </div>
+          )}
+          <Button variant="outline" size="sm" className="w-full" onClick={() => navigate('/abonnementen')}>
+            <Award className="w-3.5 h-3.5" /> Bekijk loyaliteitsprogramma
+          </Button>
+        </div>
+
+        {/* Leads */}
+        <div className="glass-card p-6 opacity-0 animate-fade-in-up" style={{ animationDelay: '900ms' }}>
+          <div className="flex items-center gap-2 mb-4">
+            <UserPlus className="w-5 h-5 text-primary" />
+            <h2 className="text-base font-semibold">Lead Capture</h2>
+          </div>
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="p-3 rounded-xl bg-primary/10 text-center">
+              <p className="text-lg font-bold text-primary tabular-nums">{newLeads}</p>
+              <p className="text-[11px] text-muted-foreground">Nieuwe leads</p>
+            </div>
+            <div className="p-3 rounded-xl bg-success/10 text-center">
+              <p className="text-lg font-bold text-success tabular-nums">{leadsConverted}</p>
+              <p className="text-[11px] text-muted-foreground">Klant geworden</p>
+            </div>
+          </div>
+          <Button variant="gradient" size="sm" className="w-full mb-2" onClick={() => navigate('/leads')}>
+            <UserPlus className="w-3.5 h-3.5" /> Bekijk leads
+          </Button>
+          <p className="text-[11px] text-muted-foreground/60 italic text-center">Vang potentiële klanten op en converteer ze</p>
         </div>
       </div>
     </AppLayout>

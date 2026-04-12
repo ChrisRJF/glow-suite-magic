@@ -86,3 +86,7 @@ export function useGiftCards() {
 export function usePaymentLinks() {
   return useSupabaseQuery("payment_links");
 }
+
+export function useLeads() {
+  return useSupabaseQuery("leads");
+}

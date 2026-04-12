@@ -20,26 +20,41 @@ interface AutomationRule {
 const TRIGGERS = [
   { value: "nieuwe_klant", label: "Nieuwe klant", icon: "👤" },
   { value: "afspraak_geboekt", label: "Afspraak geboekt", icon: "📅" },
+  { value: "na_afspraak", label: "Na afspraak (24u)", icon: "✅" },
+  { value: "klant_inactief_4w", label: "Klant 4 weken inactief", icon: "⏰" },
+  { value: "klant_inactief_8w", label: "Klant 8 weken inactief", icon: "😴" },
+  { value: "bijna_vip", label: "Klant bijna VIP", icon: "⭐" },
   { value: "no_show_risico", label: "No-show risico", icon: "⚠️" },
   { value: "lege_plekken", label: "Lege plekken in agenda", icon: "📉" },
   { value: "betaling_mislukt", label: "Betaling mislukt", icon: "❌" },
+  { value: "nieuwe_lead", label: "Nieuwe lead binnengekregen", icon: "🎯" },
 ];
 
 const ACTIONS = [
+  { value: "stuur_welkomst", label: "Stuur welkomstbericht", icon: "👋" },
   { value: "stuur_email", label: "Stuur e-mail (gesimuleerd)", icon: "📧" },
   { value: "stuur_whatsapp", label: "Stuur WhatsApp bericht", icon: "💬" },
+  { value: "vraag_review", label: "Vraag om review", icon: "⭐" },
+  { value: "stuur_comeback", label: "Stuur comeback aanbieding", icon: "💝" },
   { value: "stuur_betaalverzoek", label: "Stuur betaalverzoek", icon: "💳" },
   { value: "activeer_korting", label: "Activeer korting", icon: "🏷️" },
   { value: "markeer_risico", label: "Markeer klant als risico", icon: "🚩" },
   { value: "markeer_vip", label: "Markeer klant als VIP", icon: "⭐" },
+  { value: "stuur_vip_aanbieding", label: "Stuur VIP-exclusieve aanbieding", icon: "👑" },
+  { value: "volg_lead_op", label: "Volg lead automatisch op", icon: "📞" },
 ];
 
 const PRESETS = [
-  { trigger: "nieuwe_klant", action: "activeer_korting", label: "Nieuwe klant → Stuur welkomskorting" },
+  { trigger: "nieuwe_klant", action: "stuur_welkomst", label: "Nieuwe klant → Stuur welkomstbericht" },
+  { trigger: "na_afspraak", action: "vraag_review", label: "Na afspraak → Vraag om review" },
+  { trigger: "klant_inactief_4w", action: "stuur_comeback", label: "4 weken inactief → Stuur comeback aanbieding" },
+  { trigger: "klant_inactief_8w", action: "stuur_whatsapp", label: "8 weken inactief → WhatsApp heractivatie" },
+  { trigger: "bijna_vip", action: "stuur_vip_aanbieding", label: "Bijna VIP → Exclusieve aanbieding" },
   { trigger: "no_show_risico", action: "stuur_betaalverzoek", label: "No-show risico → Verplicht aanbetaling" },
   { trigger: "lege_plekken", action: "activeer_korting", label: "Lege plekken → Activeer last-minute korting" },
   { trigger: "betaling_mislukt", action: "stuur_betaalverzoek", label: "Betaling mislukt → Stuur opnieuw betaalverzoek" },
   { trigger: "afspraak_geboekt", action: "stuur_whatsapp", label: "Afspraak geboekt → Stuur bevestiging via WhatsApp" },
+  { trigger: "nieuwe_lead", action: "volg_lead_op", label: "Nieuwe lead → Automatisch opvolgen" },
 ];
 
 export default function AutomatiseringenPage() {
