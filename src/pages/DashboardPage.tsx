@@ -385,6 +385,64 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Fourth Row: Loyalty + Leads */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+        {/* Loyalty */}
+        <div className="glass-card p-6 opacity-0 animate-fade-in-up" style={{ animationDelay: '850ms' }}>
+          <div className="flex items-center gap-2 mb-4">
+            <Award className="w-5 h-5 text-warning" />
+            <h2 className="text-base font-semibold">Loyaliteit & VIP</h2>
+          </div>
+          <div className="space-y-3 mb-4">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-warning/10">
+              <div className="flex items-center gap-2">
+                <Star className="w-4 h-4 text-warning" />
+                <span className="text-sm">VIP klanten</span>
+              </div>
+              <span className="text-sm font-bold tabular-nums">{vipCustomers.length}</span>
+            </div>
+            <div className="flex items-center justify-between p-3 rounded-xl bg-primary/10">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-primary" />
+                <span className="text-sm">Bijna VIP (€350+)</span>
+              </div>
+              <span className="text-sm font-bold tabular-nums">{almostVip.length}</span>
+            </div>
+          </div>
+          {almostVip.length > 0 && (
+            <div className="p-3 rounded-xl bg-accent/10 border border-accent/20 mb-3">
+              <p className="text-xs font-medium">💡 {almostVip.length} klanten zijn bijna VIP</p>
+              <p className="text-[11px] text-muted-foreground">Stuur een speciale aanbieding om ze over de drempel te helpen</p>
+            </div>
+          )}
+          <Button variant="outline" size="sm" className="w-full" onClick={() => navigate('/abonnementen')}>
+            <Award className="w-3.5 h-3.5" /> Bekijk loyaliteitsprogramma
+          </Button>
+        </div>
+
+        {/* Leads */}
+        <div className="glass-card p-6 opacity-0 animate-fade-in-up" style={{ animationDelay: '900ms' }}>
+          <div className="flex items-center gap-2 mb-4">
+            <UserPlus className="w-5 h-5 text-primary" />
+            <h2 className="text-base font-semibold">Lead Capture</h2>
+          </div>
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="p-3 rounded-xl bg-primary/10 text-center">
+              <p className="text-lg font-bold text-primary tabular-nums">{newLeads}</p>
+              <p className="text-[11px] text-muted-foreground">Nieuwe leads</p>
+            </div>
+            <div className="p-3 rounded-xl bg-success/10 text-center">
+              <p className="text-lg font-bold text-success tabular-nums">{leadsConverted}</p>
+              <p className="text-[11px] text-muted-foreground">Klant geworden</p>
+            </div>
+          </div>
+          <Button variant="gradient" size="sm" className="w-full mb-2" onClick={() => navigate('/leads')}>
+            <UserPlus className="w-3.5 h-3.5" /> Bekijk leads
+          </Button>
+          <p className="text-[11px] text-muted-foreground/60 italic text-center">Vang potentiële klanten op en converteer ze</p>
+        </div>
+      </div>
     </AppLayout>
   );
 }
