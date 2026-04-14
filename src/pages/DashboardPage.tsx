@@ -1,17 +1,18 @@
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
-import { useCustomers, useAppointments, useProducts, useCampaigns, useServices, useLeads } from "@/hooks/useSupabaseData";
+import { useCustomers, useAppointments, useServices, useCampaigns, useLeads } from "@/hooks/useSupabaseData";
 import { formatEuro } from "@/lib/data";
-import { aiSuggestions } from "@/lib/data";
 import {
   TrendingUp, Users, Calendar, Euro, Sparkles, ArrowRight, Clock,
-  MessageCircle, Zap, BarChart3, RefreshCw, Tag, Target,
-  Send, AlertTriangle, Star, UserX, Plus, Megaphone, CalendarPlus,
-  Award, UserPlus
+  Zap, BarChart3, RefreshCw, Target,
+  Send, Star, UserX, Award, UserPlus, ChevronDown
 } from "lucide-react";
 import { AutoRevenueEngine } from "@/components/AutoRevenueEngine";
 import { useNavigate } from "react-router-dom";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
 
 export default function DashboardPage() {
   const { data: customers } = useCustomers();
@@ -20,6 +21,7 @@ export default function DashboardPage() {
   const { data: campaigns } = useCampaigns();
   const { data: leads } = useLeads();
   const navigate = useNavigate();
+  const [showDetails, setShowDetails] = useState(false);
 
   const todayStr = new Date().toISOString().split("T")[0];
   const todaysAppts = useMemo(() =>
@@ -37,20 +39,9 @@ export default function DashboardPage() {
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekEnd.getDate() + 6);
 
-  const weekAppts = useMemo(() =>
-    appointments.filter(a => {
-      const d = new Date(a.appointment_date);
-      return d >= weekStart && d <= weekEnd && a.status !== 'geannuleerd';
-    }),
-    [appointments]
-  );
-  const omzetWeek = weekAppts.reduce((s, a) => s + (Number(a.price) || 0), 0);
-  const avgSpend = customers.length > 0
-    ? customers.reduce((s, c) => s + (Number(c.total_spent) || 0), 0) / customers.length
-    : 0;
-
   const totalSlots = 10;
   const bezetting = totalSlots > 0 ? Math.round((todaysAppts.length / totalSlots) * 100) : 0;
+  const vrijePlekken = Math.max(0, totalSlots - todaysAppts.length);
 
   const inactiveCustomers = customers.filter(c => {
     const last = appointments
@@ -68,26 +59,6 @@ export default function DashboardPage() {
 
   const rebookPct = customers.length > 0 ? Math.round(((customers.length - withoutNext.length) / customers.length) * 100) : 0;
 
-  const stats = [
-    { label: "Omzet Vandaag", value: formatEuro(omzetVandaag), change: `${todaysAppts.length} afspr.`, icon: Euro, positive: true, helper: "Verdien meer door lege plekken te vullen", onClick: () => navigate('/omzet') },
-    { label: "Gem. Besteding / Klant", value: formatEuro(avgSpend), change: `${customers.length} klanten`, icon: TrendingUp, positive: true, helper: "Meer herboekingen = meer omzet", onClick: () => navigate('/klanten') },
-    { label: "Bezettingsgraad", value: `${bezetting}%`, change: `${todaysAppts.length}/${totalSlots}`, icon: BarChart3, positive: bezetting > 50, helper: "Automatiseer je marketing in 1 klik", onClick: () => navigate('/agenda') },
-    { label: "Verwachte Omzet Week", value: formatEuro(omzetWeek), change: `${weekAppts.length} afspr.`, icon: Target, positive: true, helper: "Op basis van huidige agenda", onClick: () => navigate('/rapporten?type=omzet') },
-  ];
-
-  const revenueOpportunities = [
-    { text: `${Math.max(0, totalSlots - todaysAppts.length)} lege plekken — ${formatEuro(Math.max(0, totalSlots - todaysAppts.length) * 65)} omzet gaat verloren`, icon: "📉", urgent: todaysAppts.length < totalSlots / 2, onClick: () => navigate('/agenda') },
-    { text: `${inactiveCustomers.length} inactieve klanten — deze plekken blijven leeg zonder actie`, icon: "👥", urgent: inactiveCustomers.length > 5, onClick: () => navigate('/klanten?filter=risico') },
-    { text: `${withoutNext.length} klanten zonder volgende afspraak`, icon: "🔄", urgent: withoutNext.length > 10, onClick: () => navigate('/herboekingen') },
-  ];
-
-  const customerSegments = [
-    { label: "VIP Klanten", count: customers.filter(c => (Number(c.total_spent) || 0) > 500).length, icon: Star, color: "text-warning", onClick: () => navigate('/klanten?filter=vip') },
-    { label: "Inactief (30+ dagen)", count: inactiveCustomers.length, icon: UserX, color: "text-destructive", onClick: () => navigate('/klanten?filter=risico') },
-    { label: "Zonder afspraak", count: withoutNext.length, icon: AlertTriangle, color: "text-warning", onClick: () => navigate('/herboekingen') },
-  ];
-
-  // AI generated revenue from localStorage — re-read on appointment changes
   const aiRevenue = useMemo(() => {
     try {
       const log = JSON.parse(localStorage.getItem("glowsuite_action_log") || "[]");
@@ -96,9 +67,6 @@ export default function DashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appointments]);
 
-  const vrijePlekken = Math.max(0, totalSlots - todaysAppts.length);
-
-  // ROI metrics
   const campaignRevenue = useMemo(() => {
     const sentCampaigns = campaigns.filter(c => c.status === 'verzonden');
     return sentCampaigns.reduce((s, c) => s + ((c.sent_count || 0) * 45), 0);
@@ -116,41 +84,41 @@ export default function DashboardPage() {
   }, [appointments]);
 
   const monthlyGrowthRevenue = aiRevenue + campaignRevenue;
-
-  // Loyalty metrics
-  const vipCustomers = customers.filter(c => (Number(c.total_spent) || 0) > 500);
-  const almostVip = customers.filter(c => {
-    const spent = Number(c.total_spent) || 0;
-    return spent >= 350 && spent < 500;
-  });
-
-  const leadsConverted = leads.filter(l => l.status === 'klant_geworden').length;
-  const newLeads = leads.filter(l => l.status === 'nieuw').length;
-
   const missedRevenue = vrijePlekken * 65;
 
-  return (
-    <AppLayout title="Overzicht" subtitle={new Date().toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' }) + " — Hier is je dag in één oogopslag."}>
+  const vipCustomers = customers.filter(c => (Number(c.total_spent) || 0) > 500);
+  const newLeads = leads.filter(l => l.status === 'nieuw').length;
+  const leadsConverted = leads.filter(l => l.status === 'klant_geworden').length;
 
-      {/* HERO KPI — Most important number */}
-      <div className="mb-6 opacity-0 animate-fade-in-up" style={{ animationDelay: '10ms' }}>
-        <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/10 via-accent/5 to-success/10 p-5 sm:p-6">
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent pointer-events-none" />
-          <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+  // Employees context for free slots
+  const employeeNames = ["Bas", "Roos", "Kim"];
+  const freeSlotContext = vrijePlekken > 0
+    ? `Vandaag ${vrijePlekken} plekken vrij (${employeeNames.slice(0, Math.min(vrijePlekken, 2)).join(", ")})`
+    : "Agenda vandaag is vol";
+
+  return (
+    <AppLayout title="Overzicht" subtitle={new Date().toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' })}>
+
+      {/* ═══════════ BLOCK 1: KPI's ═══════════ */}
+
+      {/* Hero — AI gegenereerde omzet (dominant) */}
+      <div className="mb-4">
+        <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/10 via-accent/5 to-success/10 p-6 sm:p-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
             <div>
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Vandaag voor jou verdiend</p>
-              <p className="text-3xl sm:text-4xl font-extrabold tracking-tight tabular-nums text-primary">
-                {formatEuro(omzetVandaag + aiRevenue)}
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-2">AI gegenereerde omzet</p>
+              <p className="text-4xl sm:text-5xl font-extrabold tracking-tight tabular-nums text-primary">
+                {formatEuro(aiRevenue)}
               </p>
-              {aiRevenue > 0 && (
-                <p className="text-sm text-success font-medium mt-1 flex items-center gap-1.5">
+              {monthlyGrowthRevenue > 0 && (
+                <p className="text-sm text-success font-medium mt-2 flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5" />
-                  Waarvan {formatEuro(aiRevenue)} automatisch door GlowSuite
+                  {formatEuro(monthlyGrowthRevenue)} totale extra omzet deze maand
                 </p>
               )}
               {aiRevenue === 0 && missedRevenue > 0 && (
-                <p className="text-sm text-warning font-medium mt-1">
-                  Je verliest vandaag {formatEuro(missedRevenue)} aan lege plekken
+                <p className="text-sm text-warning font-medium mt-2">
+                  GlowSuite kan vandaag {formatEuro(missedRevenue)} extra omzet genereren
                 </p>
               )}
             </div>
@@ -158,140 +126,118 @@ export default function DashboardPage() {
               <Button
                 variant="gradient"
                 size="lg"
-                className="font-semibold shadow-lg"
+                className="font-semibold shadow-lg text-base px-6"
                 onClick={() => {
                   const el = document.getElementById('auto-revenue-engine');
                   el?.scrollIntoView({ behavior: 'smooth' });
                 }}
               >
-                <Zap className="w-4 h-4" /> Vul mijn agenda automatisch
+                <Zap className="w-5 h-5" /> Vul mijn agenda automatisch
               </Button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* KPI Balk — Secondary metrics */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6 opacity-0 animate-fade-in-up" style={{ animationDelay: '30ms' }}>
+      {/* Secondary KPI's — compact, smaller */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-10">
         {[
           { label: "Omzet vandaag", value: formatEuro(omzetVandaag), icon: Euro, color: "text-success", onClick: () => navigate('/rapporten?type=omzet') },
-          { label: "Afspraken vandaag", value: String(todaysAppts.length), icon: Calendar, color: "text-primary", onClick: () => navigate('/agenda') },
+          { label: "Afspraken", value: String(todaysAppts.length), icon: Calendar, color: "text-primary", onClick: () => navigate('/agenda') },
           { label: "Vrije plekken", value: String(vrijePlekken), icon: Clock, color: vrijePlekken > 3 ? "text-destructive" : "text-warning", onClick: () => navigate('/agenda') },
-          { label: "Bezettingsgraad", value: `${bezetting}%`, icon: BarChart3, color: bezetting > 70 ? "text-success" : "text-warning", onClick: () => navigate('/omzet') },
+          { label: "Bezetting", value: `${bezetting}%`, icon: BarChart3, color: bezetting > 70 ? "text-success" : "text-warning", onClick: () => navigate('/omzet') },
         ].map((kpi) => (
-         <div key={kpi.label} onClick={() => kpi.onClick?.()} className={`flex items-center gap-3 p-3 rounded-xl bg-card border border-border/50 shadow-sm ${kpi.onClick ? 'cursor-pointer hover:border-primary/30 hover:shadow-md transition-all' : ''}`}>
-            <kpi.icon className={`w-5 h-5 ${kpi.color} flex-shrink-0`} />
+          <div
+            key={kpi.label}
+            onClick={kpi.onClick}
+            className="flex items-center gap-3 p-3 rounded-xl bg-card border border-border/50 shadow-sm cursor-pointer hover:border-primary/30 hover:shadow-md transition-all"
+          >
+            <kpi.icon className={`w-4 h-4 ${kpi.color} flex-shrink-0`} />
             <div className="min-w-0">
-              <p className="text-lg font-bold tabular-nums leading-tight">{kpi.value}</p>
-              <p className="text-[11px] text-muted-foreground truncate">{kpi.label}</p>
+              <p className="text-base font-bold tabular-nums leading-tight">{kpi.value}</p>
+              <p className="text-[10px] text-muted-foreground truncate">{kpi.label}</p>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Quick Action Bar — secondary actions, visually subdued */}
-      <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-1 opacity-0 animate-fade-in-up" style={{ animationDelay: '60ms' }}>
-        <Button variant="outline" size="sm" className="flex-shrink-0" onClick={() => navigate('/agenda')}>
-          <Plus className="w-3.5 h-3.5" /> Nieuwe afspraak
-        </Button>
-        <Button variant="ghost" size="sm" className="flex-shrink-0" onClick={() => navigate('/marketing')}>
-          <Megaphone className="w-3.5 h-3.5" /> Stuur campagne
-        </Button>
-        <Button variant="ghost" size="sm" className="flex-shrink-0" onClick={() => navigate('/acties')}>
-          <CalendarPlus className="w-3.5 h-3.5" /> Vul lege plekken
-        </Button>
+      {/* ═══════════ BLOCK 2: AI / Acties ═══════════ */}
+
+      {/* Context line */}
+      {vrijePlekken > 0 && (
+        <p className="text-sm text-muted-foreground mb-3 flex items-center gap-1.5">
+          <Clock className="w-3.5 h-3.5 text-warning" />
+          {freeSlotContext}
+        </p>
+      )}
+
+      {/* Auto Revenue Engine */}
+      <div className="mb-10">
+        <AutoRevenueEngine />
       </div>
 
-      {/* AI Revenue Engine */}
-      <AutoRevenueEngine />
-
-      {/* ROI Dashboard */}
-      <div className="glass-card p-5 mb-6 border border-success/20 opacity-0 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
-        <div className="flex items-center gap-2 mb-4">
-          <Award className="w-5 h-5 text-success" />
-          <h2 className="text-base font-semibold">GlowSuite ROI</h2>
+      {/* ROI Summary — simplified */}
+      <div className="rounded-2xl border border-success/20 bg-card p-5 mb-10">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Award className="w-5 h-5 text-success" />
+            <h2 className="text-base font-semibold">GlowSuite ROI</h2>
+          </div>
           {monthlyGrowthRevenue > 0 && (
-            <span className="ml-auto text-xs bg-success/15 text-success px-2 py-0.5 rounded-md font-medium">
+            <span className="text-xs bg-success/15 text-success px-2.5 py-1 rounded-lg font-medium">
               +{formatEuro(monthlyGrowthRevenue)} deze maand
             </span>
           )}
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="p-3 rounded-xl bg-success/10 cursor-pointer hover:bg-success/15 transition-colors" onClick={() => { const el = document.getElementById('auto-revenue-engine'); el?.scrollIntoView({ behavior: 'smooth' }); }}>
+          <div className="p-3 rounded-xl bg-success/10 cursor-pointer hover:bg-success/15 transition-colors" onClick={() => { document.getElementById('auto-revenue-engine')?.scrollIntoView({ behavior: 'smooth' }); }}>
             <p className="text-lg font-bold text-success tabular-nums">{formatEuro(aiRevenue)}</p>
-            <p className="text-[11px] text-muted-foreground">AI gegenereerde omzet</p>
+            <p className="text-[10px] text-muted-foreground">AI omzet</p>
           </div>
           <div className="p-3 rounded-xl bg-primary/10 cursor-pointer hover:bg-primary/15 transition-colors" onClick={() => navigate('/marketing')}>
             <p className="text-lg font-bold text-primary tabular-nums">{formatEuro(campaignRevenue)}</p>
-            <p className="text-[11px] text-muted-foreground">Omzet uit campagnes</p>
+            <p className="text-[10px] text-muted-foreground">Campagnes</p>
           </div>
           <div className="p-3 rounded-xl bg-warning/10 cursor-pointer hover:bg-warning/15 transition-colors" onClick={() => navigate('/klanten?filter=risico')}>
             <p className="text-lg font-bold text-warning tabular-nums">{recoveredCustomers}</p>
-            <p className="text-[11px] text-muted-foreground">Teruggewonnen klanten</p>
+            <p className="text-[10px] text-muted-foreground">Teruggewonnen</p>
           </div>
           <div className="p-3 rounded-xl bg-accent/10 cursor-pointer hover:bg-accent/15 transition-colors" onClick={() => navigate('/agenda')}>
             <p className="text-lg font-bold text-accent tabular-nums">{autoFilledAppts}</p>
-            <p className="text-[11px] text-muted-foreground">Auto-gevulde afspraken</p>
+            <p className="text-[10px] text-muted-foreground">Auto-gevuld</p>
           </div>
         </div>
-        {monthlyGrowthRevenue > 0 && (
-          <p className="text-sm text-success mt-3 font-medium">
-            ✨ GlowSuite heeft deze maand {formatEuro(monthlyGrowthRevenue)} extra omzet gegenereerd
-          </p>
-        )}
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {stats.map((stat, i) => (
-          <div key={stat.label} onClick={() => stat.onClick?.()} className={`stat-card opacity-0 animate-fade-in-up ${stat.onClick ? 'cursor-pointer hover:shadow-lg transition-shadow' : ''}`} style={{ animationDelay: `${150 + i * 80}ms` }}>
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center">
-                <stat.icon className="w-5 h-5 text-muted-foreground" />
-              </div>
-              <span className="text-xs font-medium text-success">{stat.change}</span>
-            </div>
-            <p className="text-2xl font-bold tracking-tight tabular-nums">{stat.value}</p>
-            <p className="text-sm text-muted-foreground mt-0.5">{stat.label}</p>
-            <p className="text-[11px] text-muted-foreground/60 mt-1.5 italic">{stat.helper}</p>
-          </div>
-        ))}
-      </div>
+      {/* ═══════════ BLOCK 3: Details / Inzichten ═══════════ */}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        {/* Today's Appointments */}
-        <div className="lg:col-span-2 glass-card p-6 opacity-0 animate-fade-in-up" style={{ animationDelay: '450ms' }}>
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="text-lg font-semibold">Planning Vandaag</h2>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
+        {/* Planning vandaag — main detail */}
+        <div className="lg:col-span-2 glass-card p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-semibold">Planning Vandaag</h2>
             <Button variant="ghost" size="sm" onClick={() => navigate('/agenda')}>
-              Alles Bekijken <ArrowRight className="w-3.5 h-3.5 ml-1" />
+              Bekijken <ArrowRight className="w-3.5 h-3.5 ml-1" />
             </Button>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {todaysAppts.length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-sm text-muted-foreground mb-2">Geen afspraken vandaag</p>
-                <p className="text-xs text-destructive/80 font-medium">Deze plekken blijven leeg zonder actie</p>
+                <p className="text-sm text-muted-foreground mb-1">Geen afspraken vandaag</p>
+                <p className="text-xs text-warning font-medium">Activeer de autopilot om plekken te vullen</p>
               </div>
-            ) : todaysAppts.map((apt) => {
+            ) : todaysAppts.slice(0, 5).map((apt) => {
               const svc = services.find(s => s.id === apt.service_id);
               const cust = customers.find(c => c.id === apt.customer_id);
               const time = new Date(apt.appointment_date).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
               return (
-                <div key={apt.id} onClick={() => navigate('/agenda')} className="flex items-center gap-4 p-3.5 rounded-xl bg-secondary/50 hover:bg-secondary transition-colors duration-200 group cursor-pointer">
-                  <div className="w-1 h-10 rounded-full flex-shrink-0" style={{ backgroundColor: svc?.color || '#7B61FF' }} />
+                <div key={apt.id} onClick={() => navigate('/agenda')} className="flex items-center gap-3 p-3 rounded-xl bg-secondary/50 hover:bg-secondary transition-colors cursor-pointer">
+                  <div className="w-1 h-8 rounded-full flex-shrink-0" style={{ backgroundColor: svc?.color || '#7B61FF' }} />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">{cust?.name || 'Onbekende klant'}</p>
-                    <p className="text-xs text-muted-foreground">{svc?.name || 'Behandeling'}</p>
+                    <p className="text-sm font-medium truncate">{cust?.name || 'Klant'} — {svc?.name || 'Behandeling'}</p>
                   </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="text-sm font-medium tabular-nums">{time}</p>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Clock className="w-3 h-3" />
-                      {svc?.duration_minutes || 30} min
-                    </div>
-                  </div>
-                  <div className={`px-2.5 py-1 rounded-lg text-[11px] font-medium ${
+                  <p className="text-sm font-medium tabular-nums text-muted-foreground">{time}</p>
+                  <div className={`px-2 py-0.5 rounded-md text-[10px] font-medium ${
                     apt.status === 'voltooid' ? 'bg-success/15 text-success' :
                     apt.status === 'geannuleerd' ? 'bg-destructive/15 text-destructive' :
                     'bg-primary/15 text-primary'
@@ -301,191 +247,134 @@ export default function DashboardPage() {
                 </div>
               );
             })}
+            {todaysAppts.length > 5 && (
+              <Button variant="ghost" size="sm" className="w-full text-xs" onClick={() => navigate('/agenda')}>
+                +{todaysAppts.length - 5} meer
+              </Button>
+            )}
           </div>
         </div>
 
-        {/* Omzet Kansen (was AI Suggesties) */}
-        <div className="glass-card p-6 opacity-0 animate-fade-in-up" style={{ animationDelay: '550ms' }}>
-          <div className="flex items-center gap-2 mb-5">
-            <Sparkles className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-semibold">Omzet Kansen</h2>
-          </div>
-          <div className="space-y-3">
-            {aiSuggestions.map((suggestion) => (
-              <div key={suggestion.id} className="p-4 rounded-xl bg-secondary/50 hover:bg-secondary transition-colors duration-200 group">
-                <div className="flex items-start gap-3">
-                  <span className="text-lg flex-shrink-0">{suggestion.icon}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium mb-1">{suggestion.title}</p>
-                    <p className="text-xs text-muted-foreground leading-relaxed">{suggestion.description}</p>
-                    <Button variant="ghost" size="sm" className="mt-2 h-7 px-2.5 text-xs text-primary" onClick={() => navigate('/acties')}>
-                      {suggestion.action} <ArrowRight className="w-3 h-3 ml-1" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Second Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        <div className="glass-card p-6 opacity-0 animate-fade-in-up" style={{ animationDelay: '600ms' }}>
+        {/* Single insight card — simplified */}
+        <div className="glass-card p-6">
           <div className="flex items-center gap-2 mb-4">
             <Target className="w-5 h-5 text-destructive" />
-            <h2 className="text-base font-semibold">Omzet die je mist</h2>
+            <h2 className="text-base font-semibold">Belangrijkste kans</h2>
           </div>
-          <div className="space-y-3">
-            {revenueOpportunities.map((item, i) => (
-              <div key={i} onClick={() => item.onClick?.()} className={`p-3 rounded-xl text-sm flex items-start gap-2.5 cursor-pointer hover:shadow-sm transition-all ${item.urgent ? 'bg-destructive/10 border border-destructive/20 hover:bg-destructive/15' : 'bg-secondary/50 hover:bg-secondary'}`}>
-                <span className="flex-shrink-0">{item.icon}</span>
-                <span>{item.text}</span>
-              </div>
-            ))}
-          </div>
-          <p className="text-[11px] text-destructive/60 mt-3 italic font-medium">GlowSuite kan dit automatisch voor je oplossen</p>
-        </div>
 
-        <div className="glass-card p-6 opacity-0 animate-fade-in-up" style={{ animationDelay: '650ms' }}>
-          <div className="flex items-center gap-2 mb-4">
-            <RefreshCw className="w-5 h-5 text-primary" />
-            <h2 className="text-base font-semibold">Herboekingen</h2>
-          </div>
-          <div className="space-y-4">
-            <div>
-              <div className="flex items-center justify-between text-sm mb-1.5">
-                <span className="text-muted-foreground">Met volgende afspraak</span>
-                <span className="font-semibold text-success">{rebookPct}%</span>
-              </div>
-              <div className="w-full h-2 rounded-full bg-secondary">
-                <div className="h-2 rounded-full bg-success transition-all" style={{ width: `${rebookPct}%` }} />
-              </div>
+          {/* Show the most urgent opportunity */}
+          {vrijePlekken > 0 ? (
+            <div className="p-4 rounded-xl bg-destructive/5 border border-destructive/15 mb-4">
+              <p className="text-sm font-medium mb-1">📉 {vrijePlekken} lege plekken vandaag</p>
+              <p className="text-xs text-muted-foreground">{formatEuro(missedRevenue)} omzet gaat verloren zonder actie</p>
             </div>
-            <div className="p-3 rounded-xl bg-secondary/50 text-sm">
-              <p className="text-muted-foreground">Zonder nieuwe afspraak</p>
-              <p className="text-xl font-bold mt-1">{withoutNext.length} <span className="text-sm font-normal text-muted-foreground">klanten</span></p>
-            </div>
-          </div>
-          <Button variant="outline" size="sm" className="w-full mt-4" onClick={() => navigate('/herboekingen')}>
-            <Send className="w-3.5 h-3.5" /> Stuur herboek voorstel
-          </Button>
-          <p className="text-[11px] text-muted-foreground/60 mt-2 italic text-center">Meer herboekingen = meer omzet</p>
-        </div>
-
-        <div className="glass-card p-6 opacity-0 animate-fade-in-up" style={{ animationDelay: '700ms' }}>
-          <div className="flex items-center gap-2 mb-4">
-            <Tag className="w-5 h-5 text-accent" />
-            <h2 className="text-base font-semibold">Slimme Kortingen</h2>
-          </div>
-          <div className="p-3.5 rounded-xl bg-accent/10 border border-accent/20 mb-4">
-            <p className="text-sm font-medium mb-1">💡 Suggestie</p>
-            <p className="text-xs text-muted-foreground leading-relaxed">Maandag 14:00–17:00 is rustig → geef 15% korting</p>
-          </div>
-          <Button variant="outline" size="sm" className="w-full" onClick={() => navigate('/acties')}>
-            <Zap className="w-3.5 h-3.5" /> Activeer automatische korting
-          </Button>
-        </div>
-      </div>
-
-      {/* Third Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div className="glass-card p-6 opacity-0 animate-fade-in-up" style={{ animationDelay: '750ms' }}>
-          <div className="flex items-center gap-2 mb-4">
-            <MessageCircle className="w-5 h-5 text-success" />
-            <h2 className="text-base font-semibold">WhatsApp Acties</h2>
-          </div>
-          <div className="flex flex-wrap gap-2 mb-4">
-            <Button variant="outline" size="sm" onClick={() => navigate('/whatsapp')}><Send className="w-3.5 h-3.5" /> Stuur herinnering</Button>
-            <Button variant="outline" size="sm" onClick={() => navigate('/marketing')}><Zap className="w-3.5 h-3.5" /> Last-minute deal</Button>
-            <Button variant="outline" size="sm" onClick={() => navigate('/herboekingen')}><RefreshCw className="w-3.5 h-3.5" /> Heractiveer klanten</Button>
-          </div>
-          <div className="p-3.5 rounded-xl bg-secondary/50 border border-border">
-            <p className="text-[11px] text-muted-foreground mb-1.5 uppercase tracking-wider font-medium">Voorbeeld bericht</p>
-            <p className="text-sm leading-relaxed">"Hi Lisa 👋 je bent al 5 weken niet geweest, zin in een afspraak deze week?"</p>
-          </div>
-          <p className="text-[11px] text-muted-foreground/60 mt-3 italic">Automatiseer je marketing in 1 klik</p>
-        </div>
-
-        <div className="glass-card p-6 opacity-0 animate-fade-in-up" style={{ animationDelay: '800ms' }}>
-          <div className="flex items-center gap-2 mb-4">
-            <Users className="w-5 h-5 text-primary" />
-            <h2 className="text-base font-semibold">Klantwaarde</h2>
-          </div>
-          <div className="space-y-3 mb-4">
-            {customerSegments.map((seg, i) => (
-              <div key={i} onClick={() => seg.onClick?.()} className="flex items-center justify-between p-3 rounded-xl bg-secondary/50 cursor-pointer hover:bg-secondary transition-colors">
-                <div className="flex items-center gap-2.5">
-                  <seg.icon className={`w-4 h-4 ${seg.color}`} />
-                  <span className="text-sm">{seg.label}</span>
-                </div>
-                <span className="text-sm font-semibold tabular-nums">{seg.count}</span>
-              </div>
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={() => navigate('/marketing')}><Star className="w-3.5 h-3.5" /> Campagne naar VIP</Button>
-            <Button variant="outline" size="sm" onClick={() => navigate('/herboekingen')}><UserX className="w-3.5 h-3.5" /> Heractiveer inactief</Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Fourth Row: Loyalty + Leads */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-        {/* Loyalty */}
-        <div className="glass-card p-6 opacity-0 animate-fade-in-up" style={{ animationDelay: '850ms' }}>
-          <div className="flex items-center gap-2 mb-4">
-            <Award className="w-5 h-5 text-warning" />
-            <h2 className="text-base font-semibold">Loyaliteit & VIP</h2>
-          </div>
-          <div className="space-y-3 mb-4">
-            <div className="flex items-center justify-between p-3 rounded-xl bg-warning/10">
-              <div className="flex items-center gap-2">
-                <Star className="w-4 h-4 text-warning" />
-                <span className="text-sm">VIP klanten</span>
-              </div>
-              <span className="text-sm font-bold tabular-nums">{vipCustomers.length}</span>
-            </div>
-            <div className="flex items-center justify-between p-3 rounded-xl bg-primary/10">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-primary" />
-                <span className="text-sm">Bijna VIP (€350+)</span>
-              </div>
-              <span className="text-sm font-bold tabular-nums">{almostVip.length}</span>
-            </div>
-          </div>
-          {almostVip.length > 0 && (
-            <div className="p-3 rounded-xl bg-accent/10 border border-accent/20 mb-3">
-              <p className="text-xs font-medium">💡 {almostVip.length} klanten zijn bijna VIP</p>
-              <p className="text-[11px] text-muted-foreground">Stuur een speciale aanbieding om ze over de drempel te helpen</p>
+          ) : (
+            <div className="p-4 rounded-xl bg-success/5 border border-success/15 mb-4">
+              <p className="text-sm font-medium mb-1">✅ Agenda is vol</p>
+              <p className="text-xs text-muted-foreground">Alle plekken zijn gevuld vandaag</p>
             </div>
           )}
-          <Button variant="outline" size="sm" className="w-full" onClick={() => navigate('/abonnementen')}>
-            <Award className="w-3.5 h-3.5" /> Bekijk loyaliteitsprogramma
-          </Button>
-        </div>
 
-        {/* Leads */}
-        <div className="glass-card p-6 opacity-0 animate-fade-in-up" style={{ animationDelay: '900ms' }}>
-          <div className="flex items-center gap-2 mb-4">
-            <UserPlus className="w-5 h-5 text-primary" />
-            <h2 className="text-base font-semibold">Lead Capture</h2>
-          </div>
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            <div className="p-3 rounded-xl bg-primary/10 text-center">
-              <p className="text-lg font-bold text-primary tabular-nums">{newLeads}</p>
-              <p className="text-[11px] text-muted-foreground">Nieuwe leads</p>
+          {/* Herboekingen progress */}
+          <div className="mb-4">
+            <div className="flex items-center justify-between text-sm mb-1.5">
+              <span className="text-muted-foreground text-xs">Herboekingspercentage</span>
+              <span className="font-semibold text-xs">{rebookPct}%</span>
             </div>
-            <div className="p-3 rounded-xl bg-success/10 text-center">
-              <p className="text-lg font-bold text-success tabular-nums">{leadsConverted}</p>
-              <p className="text-[11px] text-muted-foreground">Klant geworden</p>
+            <div className="w-full h-1.5 rounded-full bg-secondary">
+              <div className="h-1.5 rounded-full bg-success transition-all" style={{ width: `${rebookPct}%` }} />
             </div>
+            <p className="text-[10px] text-muted-foreground mt-1">{withoutNext.length} klanten zonder volgende afspraak</p>
           </div>
-          <Button variant="outline" size="sm" className="w-full mb-2" onClick={() => navigate('/leads')}>
-            <UserPlus className="w-3.5 h-3.5" /> Bekijk leads
+
+          <Button variant="outline" size="sm" className="w-full" onClick={() => navigate('/herboekingen')}>
+            <Send className="w-3.5 h-3.5" /> Herboek voorstel sturen
           </Button>
-          <p className="text-[11px] text-muted-foreground/60 italic text-center">Vang potentiële klanten op en converteer ze</p>
         </div>
+      </div>
+
+      {/* Compact details row — toggleable */}
+      <div className="mb-6">
+        <button
+          onClick={() => setShowDetails(!showDetails)}
+          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
+        >
+          <ChevronDown className={`w-4 h-4 transition-transform ${showDetails ? 'rotate-180' : ''}`} />
+          Meer inzichten
+        </button>
+
+        {showDetails && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in-up">
+            {/* Klantwaarde */}
+            <div className="glass-card p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Users className="w-4 h-4 text-primary" />
+                <h3 className="text-sm font-semibold">Klantwaarde</h3>
+              </div>
+              <div className="space-y-2">
+                <div onClick={() => navigate('/klanten?filter=vip')} className="flex items-center justify-between text-sm cursor-pointer hover:text-primary transition-colors">
+                  <span className="flex items-center gap-1.5"><Star className="w-3 h-3 text-warning" /> VIP</span>
+                  <span className="font-semibold tabular-nums">{vipCustomers.length}</span>
+                </div>
+                <div onClick={() => navigate('/klanten?filter=risico')} className="flex items-center justify-between text-sm cursor-pointer hover:text-primary transition-colors">
+                  <span className="flex items-center gap-1.5"><UserX className="w-3 h-3 text-destructive" /> Inactief</span>
+                  <span className="font-semibold tabular-nums">{inactiveCustomers.length}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Leads */}
+            <div className="glass-card p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <UserPlus className="w-4 h-4 text-primary" />
+                <h3 className="text-sm font-semibold">Leads</h3>
+              </div>
+              <div className="space-y-2">
+                <div onClick={() => navigate('/leads')} className="flex items-center justify-between text-sm cursor-pointer hover:text-primary transition-colors">
+                  <span>Nieuw</span>
+                  <span className="font-semibold tabular-nums">{newLeads}</span>
+                </div>
+                <div onClick={() => navigate('/leads')} className="flex items-center justify-between text-sm cursor-pointer hover:text-primary transition-colors">
+                  <span>Geconverteerd</span>
+                  <span className="font-semibold tabular-nums text-success">{leadsConverted}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Snelle acties */}
+            <div className="glass-card p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <RefreshCw className="w-4 h-4 text-primary" />
+                <h3 className="text-sm font-semibold">Acties</h3>
+              </div>
+              <div className="space-y-2">
+                <Button variant="ghost" size="sm" className="w-full justify-start h-7 text-xs" onClick={() => navigate('/whatsapp')}>
+                  <Send className="w-3 h-3" /> WhatsApp herinnering
+                </Button>
+                <Button variant="ghost" size="sm" className="w-full justify-start h-7 text-xs" onClick={() => navigate('/marketing')}>
+                  <TrendingUp className="w-3 h-3" /> Campagne sturen
+                </Button>
+              </div>
+            </div>
+
+            {/* Loyaliteit */}
+            <div className="glass-card p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Award className="w-4 h-4 text-warning" />
+                <h3 className="text-sm font-semibold">Loyaliteit</h3>
+              </div>
+              <div className="space-y-2">
+                <div onClick={() => navigate('/abonnementen')} className="flex items-center justify-between text-sm cursor-pointer hover:text-primary transition-colors">
+                  <span className="flex items-center gap-1.5"><Star className="w-3 h-3 text-warning" /> VIP</span>
+                  <span className="font-semibold tabular-nums">{vipCustomers.length}</span>
+                </div>
+                <Button variant="ghost" size="sm" className="w-full justify-start h-7 text-xs" onClick={() => navigate('/abonnementen')}>
+                  <Award className="w-3 h-3" /> Bekijk programma
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </AppLayout>
   );
