@@ -37,7 +37,7 @@ const navGroups: NavGroup[] = [
   {
     title: "Groei & Actie",
     items: [
-      { label: "Klanten", icon: Users, path: "/klanten" },
+      { label: "Klantwaarde", icon: Users, path: "/klanten" },
       { label: "Wachtlijst", icon: Clock, path: "/wachtlijst" },
       { label: "Herboekingen", icon: RefreshCw, path: "/herboekingen" },
       { label: "Marketing", icon: Megaphone, path: "/marketing" },
@@ -58,7 +58,7 @@ const navGroups: NavGroup[] = [
       { label: "Cadeaubonnen", icon: Gift, path: "/cadeaubonnen" },
       { label: "Webshop", icon: ShoppingCart, path: "/webshop" },
       { label: "Abonnementen", icon: CreditCard, path: "/abonnementen" },
-      { label: "Rapporten", icon: BarChart3, path: "/rapporten" },
+      { label: "Omzet Inzicht", icon: BarChart3, path: "/rapporten" },
     ],
   },
 ];
