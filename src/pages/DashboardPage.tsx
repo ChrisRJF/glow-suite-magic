@@ -76,8 +76,8 @@ export default function DashboardPage() {
   ];
 
   const revenueOpportunities = [
-    { text: `${Math.max(0, totalSlots - todaysAppts.length)} lege plekken vandaag`, icon: "📉", urgent: todaysAppts.length < totalSlots / 2, onClick: () => navigate('/agenda') },
-    { text: `${inactiveCustomers.length} inactieve klanten (30+ dagen)`, icon: "👥", urgent: inactiveCustomers.length > 5, onClick: () => navigate('/klanten?filter=risico') },
+    { text: `${Math.max(0, totalSlots - todaysAppts.length)} lege plekken — ${formatEuro(Math.max(0, totalSlots - todaysAppts.length) * 65)} omzet gaat verloren`, icon: "📉", urgent: todaysAppts.length < totalSlots / 2, onClick: () => navigate('/agenda') },
+    { text: `${inactiveCustomers.length} inactieve klanten — deze plekken blijven leeg zonder actie`, icon: "👥", urgent: inactiveCustomers.length > 5, onClick: () => navigate('/klanten?filter=risico') },
     { text: `${withoutNext.length} klanten zonder volgende afspraak`, icon: "🔄", urgent: withoutNext.length > 10, onClick: () => navigate('/herboekingen') },
   ];
 
@@ -127,17 +127,58 @@ export default function DashboardPage() {
   const leadsConverted = leads.filter(l => l.status === 'klant_geworden').length;
   const newLeads = leads.filter(l => l.status === 'nieuw').length;
 
+  const missedRevenue = vrijePlekken * 65;
+
   return (
     <AppLayout title="Overzicht" subtitle={new Date().toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' }) + " — Hier is je dag in één oogopslag."}>
-      {/* KPI Balk */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6 opacity-0 animate-fade-in-up" style={{ animationDelay: '30ms' }}>
+
+      {/* HERO KPI — Most important number */}
+      <div className="mb-6 opacity-0 animate-fade-in-up" style={{ animationDelay: '10ms' }}>
+        <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/10 via-accent/5 to-success/10 p-5 sm:p-6">
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent pointer-events-none" />
+          <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Vandaag voor jou verdiend</p>
+              <p className="text-3xl sm:text-4xl font-extrabold tracking-tight tabular-nums text-primary">
+                {formatEuro(omzetVandaag + aiRevenue)}
+              </p>
+              {aiRevenue > 0 && (
+                <p className="text-sm text-success font-medium mt-1 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Waarvan {formatEuro(aiRevenue)} automatisch door GlowSuite
+                </p>
+              )}
+              {aiRevenue === 0 && missedRevenue > 0 && (
+                <p className="text-sm text-warning font-medium mt-1">
+                  Je verliest vandaag {formatEuro(missedRevenue)} aan lege plekken
+                </p>
+              )}
+            </div>
+            <div className="flex-shrink-0">
+              <Button
+                variant="gradient"
+                size="lg"
+                className="font-semibold shadow-lg"
+                onClick={() => {
+                  const el = document.getElementById('auto-revenue-engine');
+                  el?.scrollIntoView({ behavior: 'smooth' });
+                }}
+              >
+                <Zap className="w-4 h-4" /> Vul mijn agenda automatisch
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* KPI Balk — Secondary metrics */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6 opacity-0 animate-fade-in-up" style={{ animationDelay: '30ms' }}>
         {[
-         { label: "Omzet vandaag", value: formatEuro(omzetVandaag), icon: Euro, color: "text-success", onClick: () => navigate('/rapporten?type=omzet') },
+          { label: "Omzet vandaag", value: formatEuro(omzetVandaag), icon: Euro, color: "text-success", onClick: () => navigate('/rapporten?type=omzet') },
           { label: "Afspraken vandaag", value: String(todaysAppts.length), icon: Calendar, color: "text-primary", onClick: () => navigate('/agenda') },
           { label: "Vrije plekken", value: String(vrijePlekken), icon: Clock, color: vrijePlekken > 3 ? "text-destructive" : "text-warning", onClick: () => navigate('/agenda') },
           { label: "Bezettingsgraad", value: `${bezetting}%`, icon: BarChart3, color: bezetting > 70 ? "text-success" : "text-warning", onClick: () => navigate('/omzet') },
-          { label: "AI omzet", value: formatEuro(aiRevenue), icon: Sparkles, color: "text-primary", onClick: () => { const el = document.getElementById('auto-revenue-engine'); el?.scrollIntoView({ behavior: 'smooth' }); } },
-        ].map((kpi, i) => (
+        ].map((kpi) => (
          <div key={kpi.label} onClick={() => kpi.onClick?.()} className={`flex items-center gap-3 p-3 rounded-xl bg-card border border-border/50 shadow-sm ${kpi.onClick ? 'cursor-pointer hover:border-primary/30 hover:shadow-md transition-all' : ''}`}>
             <kpi.icon className={`w-5 h-5 ${kpi.color} flex-shrink-0`} />
             <div className="min-w-0">
@@ -148,15 +189,15 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Quick Action Bar */}
+      {/* Quick Action Bar — secondary actions, visually subdued */}
       <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-1 opacity-0 animate-fade-in-up" style={{ animationDelay: '60ms' }}>
-        <Button variant="gradient" size="sm" className="flex-shrink-0" onClick={() => navigate('/agenda')}>
+        <Button variant="outline" size="sm" className="flex-shrink-0" onClick={() => navigate('/agenda')}>
           <Plus className="w-3.5 h-3.5" /> Nieuwe afspraak
         </Button>
-        <Button variant="outline" size="sm" className="flex-shrink-0 opacity-80" onClick={() => navigate('/marketing')}>
+        <Button variant="ghost" size="sm" className="flex-shrink-0" onClick={() => navigate('/marketing')}>
           <Megaphone className="w-3.5 h-3.5" /> Stuur campagne
         </Button>
-        <Button variant="outline" size="sm" className="flex-shrink-0 opacity-80" onClick={() => navigate('/acties')}>
+        <Button variant="ghost" size="sm" className="flex-shrink-0" onClick={() => navigate('/acties')}>
           <CalendarPlus className="w-3.5 h-3.5" /> Vul lege plekken
         </Button>
       </div>
@@ -228,7 +269,10 @@ export default function DashboardPage() {
           </div>
           <div className="space-y-3">
             {todaysAppts.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">Geen afspraken vandaag</p>
+              <div className="text-center py-8">
+                <p className="text-sm text-muted-foreground mb-2">Geen afspraken vandaag</p>
+                <p className="text-xs text-destructive/80 font-medium">Deze plekken blijven leeg zonder actie</p>
+              </div>
             ) : todaysAppts.map((apt) => {
               const svc = services.find(s => s.id === apt.service_id);
               const cust = customers.find(c => c.id === apt.customer_id);
@@ -260,11 +304,11 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* AI Suggestions */}
+        {/* Omzet Kansen (was AI Suggesties) */}
         <div className="glass-card p-6 opacity-0 animate-fade-in-up" style={{ animationDelay: '550ms' }}>
           <div className="flex items-center gap-2 mb-5">
             <Sparkles className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-semibold">AI Suggesties</h2>
+            <h2 className="text-lg font-semibold">Omzet Kansen</h2>
           </div>
           <div className="space-y-3">
             {aiSuggestions.map((suggestion) => (
@@ -290,7 +334,7 @@ export default function DashboardPage() {
         <div className="glass-card p-6 opacity-0 animate-fade-in-up" style={{ animationDelay: '600ms' }}>
           <div className="flex items-center gap-2 mb-4">
             <Target className="w-5 h-5 text-destructive" />
-            <h2 className="text-base font-semibold">Gemiste Omzet Kansen</h2>
+            <h2 className="text-base font-semibold">Omzet die je mist</h2>
           </div>
           <div className="space-y-3">
             {revenueOpportunities.map((item, i) => (
@@ -300,7 +344,7 @@ export default function DashboardPage() {
               </div>
             ))}
           </div>
-          <p className="text-[11px] text-muted-foreground/60 mt-3 italic">Verdien meer door lege plekken te vullen</p>
+          <p className="text-[11px] text-destructive/60 mt-3 italic font-medium">GlowSuite kan dit automatisch voor je oplossen</p>
         </div>
 
         <div className="glass-card p-6 opacity-0 animate-fade-in-up" style={{ animationDelay: '650ms' }}>
@@ -338,14 +382,14 @@ export default function DashboardPage() {
             <p className="text-sm font-medium mb-1">💡 Suggestie</p>
             <p className="text-xs text-muted-foreground leading-relaxed">Maandag 14:00–17:00 is rustig → geef 15% korting</p>
           </div>
-          <Button variant="gradient" size="sm" className="w-full" onClick={() => navigate('/acties')}>
+          <Button variant="outline" size="sm" className="w-full" onClick={() => navigate('/acties')}>
             <Zap className="w-3.5 h-3.5" /> Activeer automatische korting
           </Button>
         </div>
       </div>
 
       {/* Third Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <div className="glass-card p-6 opacity-0 animate-fade-in-up" style={{ animationDelay: '750ms' }}>
           <div className="flex items-center gap-2 mb-4">
             <MessageCircle className="w-5 h-5 text-success" />
@@ -366,7 +410,7 @@ export default function DashboardPage() {
         <div className="glass-card p-6 opacity-0 animate-fade-in-up" style={{ animationDelay: '800ms' }}>
           <div className="flex items-center gap-2 mb-4">
             <Users className="w-5 h-5 text-primary" />
-            <h2 className="text-base font-semibold">Klant Segmentatie</h2>
+            <h2 className="text-base font-semibold">Klantwaarde</h2>
           </div>
           <div className="space-y-3 mb-4">
             {customerSegments.map((seg, i) => (
@@ -437,7 +481,7 @@ export default function DashboardPage() {
               <p className="text-[11px] text-muted-foreground">Klant geworden</p>
             </div>
           </div>
-          <Button variant="gradient" size="sm" className="w-full mb-2" onClick={() => navigate('/leads')}>
+          <Button variant="outline" size="sm" className="w-full mb-2" onClick={() => navigate('/leads')}>
             <UserPlus className="w-3.5 h-3.5" /> Bekijk leads
           </Button>
           <p className="text-[11px] text-muted-foreground/60 italic text-center">Vang potentiële klanten op en converteer ze</p>

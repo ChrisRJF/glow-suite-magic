@@ -354,8 +354,8 @@ export function AutoRevenueEngine() {
               <Zap className="w-4 h-4 text-primary-foreground" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold">AI Revenue Engine</h2>
-              <p className="text-[11px] text-muted-foreground">GlowSuite regelt mijn groei</p>
+              <h2 className="text-lg font-semibold">Omzet Autopilot</h2>
+              <p className="text-[11px] text-muted-foreground">GlowSuite verdient actief geld voor je</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -386,7 +386,7 @@ export function AutoRevenueEngine() {
             <>
               <p className="text-sm flex items-start gap-2">
                 <span className="text-primary font-semibold">⚡</span>
-                <span>GlowSuite kan vandaag <span className="font-semibold text-primary">{formatEuro(emptySlots * 65)}</span> extra omzet genereren</span>
+                <span>GlowSuite kan vandaag <span className="font-semibold text-primary">{formatEuro(emptySlots * 65)}</span> extra omzet voor je genereren</span>
               </p>
               <p className="text-sm flex items-start gap-2">
                 <span className="text-warning font-semibold">👥</span>
