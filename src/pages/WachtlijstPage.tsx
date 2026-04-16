@@ -2,10 +2,11 @@ import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { useWaitlist, useCustomers, useServices } from "@/hooks/useSupabaseData";
 import { useCrud } from "@/hooks/useCrud";
-import { Clock, Plus, UserPlus, CalendarPlus, Send, Trash2, CheckCircle2, X } from "lucide-react";
+import { Clock, Plus, UserPlus, CalendarPlus, Send, Trash2, CheckCircle2, X, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 const MEDEWERKERS = ["Bas", "Roos", "Lisa", "Emma"];
 const FLEX_OPTIONS = ["flexibel", "alleen ochtend", "alleen middag", "specifieke dag"];
@@ -15,27 +16,60 @@ export default function WachtlijstPage() {
   const { data: customers } = useCustomers();
   const { data: services } = useServices();
   const { insert, update, remove } = useCrud("waitlist_entries");
+  const { insert: insertAppt } = useCrud("appointments");
 
   const [showForm, setShowForm] = useState(false);
+  const [addLoading, setAddLoading] = useState(false);
+  const [placingId, setPlacingId] = useState<string | null>(null);
+  const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
   const [form, setForm] = useState({
     customer_id: "", service_id: "", preferred_employee: "",
     preferred_day: "", preferred_time: "", flexibility: "flexibel", notes: "",
   });
 
   const handleAdd = async () => {
+    if (addLoading) return;
     if (!form.customer_id) { toast.error("Kies een klant"); return; }
     if (!form.service_id) { toast.error("Kies een behandeling"); return; }
-    await insert({ ...form, status: "wachtend" });
-    toast.success("Klant toegevoegd aan wachtlijst");
-    setShowForm(false);
-    setForm({ customer_id: "", service_id: "", preferred_employee: "", preferred_day: "", preferred_time: "", flexibility: "flexibel", notes: "" });
-    refetch();
+    setAddLoading(true);
+    try {
+      await insert({ ...form, status: "wachtend" });
+      toast.success("Klant toegevoegd aan wachtlijst");
+      setShowForm(false);
+      setForm({ customer_id: "", service_id: "", preferred_employee: "", preferred_day: "", preferred_time: "", flexibility: "flexibel", notes: "" });
+      refetch();
+    } finally {
+      setAddLoading(false);
+    }
   };
 
-  const handlePlace = async (id: string) => {
-    await update(id, { status: "geplaatst" });
-    toast.success("Klant geplaatst in agenda");
-    refetch();
+  const handlePlace = async (entry: any) => {
+    if (placingId) return;
+    setPlacingId(entry.id);
+    try {
+      const svc = services.find(s => s.id === entry.service_id);
+      // Build appointment date: use preferred_time if set, else 10:00; today + 1 day
+      const date = new Date();
+      date.setDate(date.getDate() + 1);
+      const [hh, mm] = (entry.preferred_time || "10:00").split(":");
+      date.setHours(Number(hh) || 10, Number(mm) || 0, 0, 0);
+      const result = await insertAppt({
+        customer_id: entry.customer_id,
+        service_id: entry.service_id,
+        appointment_date: date.toISOString(),
+        status: "gepland",
+        price: svc?.price || 0,
+        notes: `Geplaatst vanuit wachtlijst${entry.preferred_employee ? ` | Medewerker: ${entry.preferred_employee}` : ""}`,
+      });
+      if (!result) throw new Error("Afspraak aanmaken mislukt");
+      await update(entry.id, { status: "geplaatst" });
+      toast.success("Klant ingepland — bekijk de agenda");
+      refetch();
+    } catch (err: any) {
+      toast.error(err.message || "Plaatsen mislukt");
+    } finally {
+      setPlacingId(null);
+    }
   };
 
   const handleNotify = async (id: string) => {
@@ -126,11 +160,24 @@ export default function WachtlijstPage() {
             </div>
             <div className="flex gap-2 mt-4">
               <Button variant="outline" className="flex-1" onClick={() => setShowForm(false)}>Annuleren</Button>
-              <Button variant="gradient" className="flex-1" onClick={handleAdd}>Toevoegen</Button>
+              <Button variant="gradient" className="flex-1" onClick={handleAdd} disabled={addLoading}>
+                {addLoading && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+                {addLoading ? "Toevoegen..." : "Toevoegen"}
+              </Button>
             </div>
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!confirmRemoveId}
+        onOpenChange={(o) => !o && setConfirmRemoveId(null)}
+        title="Verwijderen van wachtlijst?"
+        description="Deze actie kan niet ongedaan worden gemaakt."
+        confirmLabel="Verwijderen"
+        destructive
+        onConfirm={() => confirmRemoveId && handleRemove(confirmRemoveId)}
+      />
 
       <div className="grid gap-8">
         {/* Stats */}

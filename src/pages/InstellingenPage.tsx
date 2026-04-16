@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { exportCSV, exportExcel } from "@/lib/exportUtils";
 import { formatEuro } from "@/lib/data";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 type OpeningHours = Record<string, { open: string; close: string; enabled: boolean }>;
 
@@ -61,10 +62,16 @@ export default function InstellingenPage() {
   const [googleCalendar, setGoogleCalendar] = useState(false);
   const [instagramBooking, setInstagramBooking] = useState(false);
   const [activeTab, setActiveTab] = useState("algemeen");
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
   // User management
+  const [newUserName, setNewUserName] = useState("");
   const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserPassword, setNewUserPassword] = useState("");
   const [newUserRole, setNewUserRole] = useState("medewerker");
+  const [addUserLoading, setAddUserLoading] = useState(false);
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
   // Integration states
   const [facebookEnabled, setFacebookEnabled] = useState(false);
   const [googleReserve, setGoogleReserve] = useState(false);
@@ -104,32 +111,38 @@ export default function InstellingenPage() {
   }, [user]);
 
   const handleSave = async () => {
-    const data: Record<string, any> = {
-      salon_name: salonName,
-      email_enabled: notifications.email,
-      whatsapp_enabled: notifications.whatsapp,
-      demo_mode: demoMode,
-      mollie_mode: mollieMode,
-      deposit_new_client: depositNewClient,
-      deposit_percentage: depositPct,
-      full_prepay_threshold: fullPrepayThreshold,
-      skip_prepay_vip: skipVip,
-      deposit_noshow_risk: depositNoshow,
-      opening_hours: openingHours,
-      buffer_minutes: bufferMinutes,
-      max_bookings_simultaneous: maxBookings,
-      group_bookings_enabled: groupBookings,
-      auto_block_noshow: autoBlockNoshow,
-      google_calendar_enabled: googleCalendar,
-      instagram_booking_enabled: instagramBooking,
-    };
-    if (settings.length > 0) {
-      await update(settings[0].id, data);
-    } else {
-      await insert(data);
+    if (saveLoading) return;
+    setSaveLoading(true);
+    try {
+      const data: Record<string, any> = {
+        salon_name: salonName,
+        email_enabled: notifications.email,
+        whatsapp_enabled: notifications.whatsapp,
+        demo_mode: demoMode,
+        mollie_mode: mollieMode,
+        deposit_new_client: depositNewClient,
+        deposit_percentage: depositPct,
+        full_prepay_threshold: fullPrepayThreshold,
+        skip_prepay_vip: skipVip,
+        deposit_noshow_risk: depositNoshow,
+        opening_hours: openingHours,
+        buffer_minutes: bufferMinutes,
+        max_bookings_simultaneous: maxBookings,
+        group_bookings_enabled: groupBookings,
+        auto_block_noshow: autoBlockNoshow,
+        google_calendar_enabled: googleCalendar,
+        instagram_booking_enabled: instagramBooking,
+      };
+      if (settings.length > 0) {
+        await update(settings[0].id, data);
+      } else {
+        await insert(data);
+      }
+      toast.success("Instellingen opgeslagen!");
+      refetch();
+    } finally {
+      setSaveLoading(false);
     }
-    toast.success("Instellingen opgeslagen!");
-    refetch();
   };
 
   const handleDemoReset = async () => {
@@ -152,25 +165,39 @@ export default function InstellingenPage() {
   };
 
   const handleAddTeamMember = async () => {
+    if (addUserLoading) return;
+    if (!newUserName.trim()) { toast.error("Vul een naam in"); return; }
     if (!newUserEmail.trim()) { toast.error("Vul een e-mail in"); return; }
-    // For MVP we store the role tied to current user; in production this would invite a new user
-    const result = await insertRole({ role: newUserRole });
-    if (result) {
-      toast.success(`Rol "${newUserRole}" toegevoegd`);
-      setNewUserEmail("");
-      // Refresh
-      const { data } = await (supabase.from("user_roles") as any).select("*");
-      if (data) setTeamMembers(data);
+    if (newUserPassword.length < 8) { toast.error("Tijdelijk wachtwoord moet minimaal 8 tekens zijn"); return; }
+    setAddUserLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const { data, error } = await supabase.functions.invoke("create-user", {
+        body: { name: newUserName.trim(), email: newUserEmail.trim(), password: newUserPassword, role: newUserRole },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (error || (data as any)?.error) {
+        throw new Error((data as any)?.error || error?.message || "Aanmaken mislukt");
+      }
+      toast.success(`Gebruiker ${newUserName} aangemaakt`);
+      setNewUserName(""); setNewUserEmail(""); setNewUserPassword(""); setNewUserRole("medewerker");
+      const { data: rolesData } = await (supabase.from("user_roles") as any).select("*");
+      if (rolesData) setTeamMembers(rolesData);
+    } catch (err: any) {
+      toast.error(err.message || "Aanmaken mislukt");
+    } finally {
+      setAddUserLoading(false);
     }
   };
 
   const handleRemoveTeamMember = async (id: string) => {
     if (await removeRole(id)) {
-      toast.success("Gebruiker verwijderd");
+      toast.success("Toegang ingetrokken");
       const { data } = await (supabase.from("user_roles") as any).select("*");
       if (data) setTeamMembers(data);
     }
   };
+
 
   const handleExportCustomers = (format: 'csv' | 'excel') => {
     const headers = ["Naam", "Telefoon", "E-mail", "Totaal besteed", "VIP", "No-shows"];
@@ -558,21 +585,29 @@ export default function InstellingenPage() {
                 ))}
               </div>
 
-              {/* Add new member */}
+              {/* Add new member - direct create */}
               <div className="border-t border-border/60 mt-6 pt-6">
-                <p className="text-xs font-medium text-muted-foreground mb-3">Medewerker toevoegen</p>
-                <div className="flex flex-wrap gap-2">
-                  <input placeholder="E-mail adres" value={newUserEmail} onChange={e => setNewUserEmail(e.target.value)}
-                    className="flex-1 min-w-[180px] px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
-                  <select value={newUserRole} onChange={e => setNewUserRole(e.target.value)}
-                    className="px-3 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm">
-                    <option value="medewerker">Medewerker</option>
-                    <option value="admin">Admin</option>
-                    <option value="financieel">Financieel</option>
-                  </select>
-                  <Button variant="gradient" size="sm" onClick={handleAddTeamMember}>
-                    <Plus className="w-4 h-4" />
-                  </Button>
+                <p className="text-xs font-medium text-muted-foreground mb-3">Gebruiker aanmaken</p>
+                <div className="grid gap-2">
+                  <input placeholder="Naam" value={newUserName} onChange={e => setNewUserName(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                  <input placeholder="E-mail adres" type="email" value={newUserEmail} onChange={e => setNewUserEmail(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                  <input placeholder="Tijdelijk wachtwoord (min. 8 tekens)" type="text" value={newUserPassword} onChange={e => setNewUserPassword(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                  <div className="flex gap-2">
+                    <select value={newUserRole} onChange={e => setNewUserRole(e.target.value)}
+                      className="flex-1 px-3 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm">
+                      <option value="medewerker">Medewerker</option>
+                      <option value="admin">Admin</option>
+                      <option value="financieel">Financieel</option>
+                    </select>
+                    <Button variant="gradient" size="sm" onClick={handleAddTeamMember} disabled={addUserLoading}>
+                      {addUserLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                      <span className="ml-1">Aanmaken</span>
+                    </Button>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">De nieuwe gebruiker kan direct inloggen met dit wachtwoord en kan dit zelf wijzigen via "Wachtwoord vergeten".</p>
                 </div>
               </div>
             </div>
@@ -601,7 +636,7 @@ export default function InstellingenPage() {
                 <div><span className="text-sm">Demo modus actief</span><p className="text-[11px] text-muted-foreground">Simuleer betalingen zonder echte transacties</p></div>
                 <ToggleSwitch value={demoMode} onChange={setDemoMode} />
               </div>
-              <Button variant="outline" size="sm" className="w-full" onClick={handleDemoReset} disabled={resetLoading}>
+              <Button variant="outline" size="sm" className="w-full" onClick={() => setConfirmReset(true)} disabled={resetLoading}>
                 {resetLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RotateCcw className="w-4 h-4 mr-2" />}
                 {resetLoading ? "Laden..." : "Demo opnieuw laden"}
               </Button>
@@ -611,9 +646,22 @@ export default function InstellingenPage() {
         )}
 
         <div className="pt-2">
-          <Button onClick={handleSave} className="w-full" size="lg"><Save className="w-4 h-4 mr-2" /> Opslaan</Button>
+          <Button onClick={handleSave} className="w-full" size="lg" disabled={saveLoading}>
+            {saveLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+            {saveLoading ? "Opslaan..." : "Opslaan"}
+          </Button>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmReset}
+        onOpenChange={setConfirmReset}
+        title="Demo data opnieuw laden?"
+        description="Dit verwijdert ALLE huidige data van dit account (klanten, afspraken, betalingen, etc.) en vervangt het door de standaard demo data. Deze actie kan niet ongedaan worden gemaakt. Gebruik dit alleen op een demo-account."
+        confirmLabel="Ja, reset demo"
+        destructive
+        onConfirm={handleDemoReset}
+      />
     </AppLayout>
   );
 }

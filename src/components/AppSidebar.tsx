@@ -9,6 +9,7 @@ import {
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useUserRole, canAccessRoute } from "@/hooks/useUserRole";
 import logoFull from "@/assets/logo-full.png";
 import logoIcon from "@/assets/logo-icon.png";
 
@@ -73,6 +74,17 @@ export function AppSidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { roles, isOwner } = useUserRole();
+
+  // Filter nav items by role permissions
+  const visibleGroups = navGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => canAccessRoute(item.path, roles)),
+    }))
+    .filter((group) => group.items.length > 0);
+
+  const visibleBottom = bottomItems.filter((item) => canAccessRoute(item.path, roles));
 
   return (
     <>
@@ -109,7 +121,7 @@ export function AppSidebar() {
         </div>
 
         <nav className="flex-1 px-3 py-2">
-          {navGroups.map((group) => (
+          {visibleGroups.map((group) => (
             <div key={group.title} className="mb-4">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-semibold px-3 mb-1.5">
                 {group.title}
@@ -155,7 +167,22 @@ export function AppSidebar() {
         </nav>
 
         <div className="px-3 pb-2 border-t border-border pt-2">
-          {bottomItems.map((item) => {
+          {isOwner && (
+            <Link
+              to="/launch-status"
+              onClick={() => setMobileOpen(false)}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all",
+                location.pathname === "/launch-status"
+                  ? "bg-primary/15 text-primary font-medium"
+                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+              )}
+            >
+              <Settings className="w-[18px] h-[18px]" />
+              <span>Launch Status</span>
+            </Link>
+          )}
+          {visibleBottom.map((item) => {
             const isActive = location.pathname === item.path;
             return (
               <Link

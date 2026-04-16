@@ -11,15 +11,22 @@ export default function LoginPage() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setLoading(true);
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { error } = await supabase.auth.signUp({
+          email, password,
+          options: { emailRedirectTo: `${window.location.origin}/` },
+        });
         if (error) throw error;
-        toast.success("Account aangemaakt! Controleer je e-mail.");
+        toast.success("Account aangemaakt! Je kunt nu inloggen.");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
@@ -32,26 +39,41 @@ export default function LoginPage() {
     }
   };
 
+  const handleForgot = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (forgotLoading) return;
+    if (!forgotEmail.trim()) { toast.error("Vul je e-mailadres in"); return; }
+    setForgotLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail.trim(), {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      toast.success("Reset-link verstuurd. Check je e-mail.");
+      setForgotOpen(false);
+      setForgotEmail("");
+    } catch (err: any) {
+      toast.error(err.message || "Versturen mislukt");
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
   const handleDemoLogin = async () => {
+    if (demoLoading) return;
     setDemoLoading(true);
     try {
       const demoEmail = "demo@glowsuite.nl";
       const demoPassword = "demo123456";
 
-      // Try to sign in first
       let { error } = await supabase.auth.signInWithPassword({ email: demoEmail, password: demoPassword });
-      
       if (error) {
-        // If user doesn't exist, sign up
         const { error: signUpError } = await supabase.auth.signUp({ email: demoEmail, password: demoPassword });
         if (signUpError) throw signUpError;
-        
-        // Sign in after signup
         const { error: signInError } = await supabase.auth.signInWithPassword({ email: demoEmail, password: demoPassword });
         if (signInError) throw signInError;
       }
 
-      // Seed demo data
       toast.loading("Demo omgeving laden...");
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
@@ -77,55 +99,67 @@ export default function LoginPage() {
           <p className="text-sm text-muted-foreground">Salon business system</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="glass-card p-6 space-y-4">
-          <h2 className="text-lg font-semibold text-center">
-            {isSignUp ? "Account aanmaken" : "Inloggen"}
-          </h2>
-          <div>
-            <label className="text-xs text-muted-foreground">E-mail</label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-              placeholder="jouw@email.nl"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground">Wachtwoord</label>
-            <input
-              type="password"
-              required
-              minLength={6}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-              placeholder="••••••••"
-            />
-          </div>
-          <Button type="submit" variant="gradient" className="w-full" disabled={loading}>
-            {loading ? "Even geduld..." : isSignUp ? "Registreren" : "Inloggen"}
-          </Button>
-          <p className="text-xs text-center text-muted-foreground">
-            {isSignUp ? "Al een account?" : "Nog geen account?"}{" "}
-            <button type="button" onClick={() => setIsSignUp(!isSignUp)} className="text-primary hover:underline">
-              {isSignUp ? "Inloggen" : "Registreren"}
+        {forgotOpen ? (
+          <form onSubmit={handleForgot} className="glass-card p-6 space-y-4">
+            <h2 className="text-lg font-semibold text-center">Wachtwoord vergeten</h2>
+            <p className="text-xs text-muted-foreground text-center">
+              We sturen je een link om je wachtwoord opnieuw in te stellen.
+            </p>
+            <div>
+              <label className="text-xs text-muted-foreground">E-mail</label>
+              <input type="email" required value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)}
+                className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                placeholder="jouw@email.nl" />
+            </div>
+            <Button type="submit" variant="gradient" className="w-full" disabled={forgotLoading}>
+              {forgotLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {forgotLoading ? "Versturen..." : "Reset-link versturen"}
+            </Button>
+            <button type="button" onClick={() => setForgotOpen(false)} className="text-xs text-primary hover:underline w-full text-center">
+              Terug naar inloggen
             </button>
-          </p>
-        </form>
+          </form>
+        ) : (
+          <form onSubmit={handleSubmit} className="glass-card p-6 space-y-4">
+            <h2 className="text-lg font-semibold text-center">
+              {isSignUp ? "Account aanmaken" : "Inloggen"}
+            </h2>
+            <div>
+              <label className="text-xs text-muted-foreground">E-mail</label>
+              <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
+                className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                placeholder="jouw@email.nl" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">Wachtwoord</label>
+              <input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)}
+                className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                placeholder="••••••••" />
+            </div>
+            <Button type="submit" variant="gradient" className="w-full" disabled={loading}>
+              {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {loading ? "Even geduld..." : isSignUp ? "Registreren" : "Inloggen"}
+            </Button>
+            {!isSignUp && (
+              <button type="button" onClick={() => setForgotOpen(true)} className="text-xs text-primary hover:underline w-full text-center">
+                Wachtwoord vergeten?
+              </button>
+            )}
+            <p className="text-xs text-center text-muted-foreground">
+              {isSignUp ? "Al een account?" : "Nog geen account?"}{" "}
+              <button type="button" onClick={() => setIsSignUp(!isSignUp)} className="text-primary hover:underline">
+                {isSignUp ? "Inloggen" : "Registreren"}
+              </button>
+            </p>
+          </form>
+        )}
 
         <div className="mt-4">
           <div className="relative mb-4">
             <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
             <div className="relative flex justify-center"><span className="bg-background px-3 text-xs text-muted-foreground">of</span></div>
           </div>
-          <Button
-            variant="outline"
-            className="w-full border-primary/30 hover:bg-primary/5"
-            onClick={handleDemoLogin}
-            disabled={demoLoading}
-          >
+          <Button variant="outline" className="w-full border-primary/30 hover:bg-primary/5" onClick={handleDemoLogin} disabled={demoLoading}>
             {demoLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
             {demoLoading ? "Demo laden..." : "Bekijk demo"}
           </Button>
