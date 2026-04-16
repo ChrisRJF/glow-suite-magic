@@ -198,45 +198,6 @@ export default function InstellingenPage() {
     }
   };
 
-  const handleDemoReset = async () => {
-    setResetLoading(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const { error } = await supabase.functions.invoke("seed-demo-data", {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        });
-        if (error) throw error;
-        toast.success("Demo data opnieuw geladen!");
-        refetch();
-      }
-    } catch (err: any) {
-      toast.error(err.message || "Demo resetten mislukt");
-    } finally {
-      setResetLoading(false);
-    }
-  };
-
-  const handleAddTeamMember = async () => {
-    if (!newUserEmail.trim()) { toast.error("Vul een e-mail in"); return; }
-    // For MVP we store the role tied to current user; in production this would invite a new user
-    const result = await insertRole({ role: newUserRole });
-    if (result) {
-      toast.success(`Rol "${newUserRole}" toegevoegd`);
-      setNewUserEmail("");
-      // Refresh
-      const { data } = await (supabase.from("user_roles") as any).select("*");
-      if (data) setTeamMembers(data);
-    }
-  };
-
-  const handleRemoveTeamMember = async (id: string) => {
-    if (await removeRole(id)) {
-      toast.success("Gebruiker verwijderd");
-      const { data } = await (supabase.from("user_roles") as any).select("*");
-      if (data) setTeamMembers(data);
-    }
-  };
 
   const handleExportCustomers = (format: 'csv' | 'excel') => {
     const headers = ["Naam", "Telefoon", "E-mail", "Totaal besteed", "VIP", "No-shows"];
