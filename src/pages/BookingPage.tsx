@@ -388,7 +388,7 @@ export default function BookingPage() {
           amount: paymentDecision.amount,
           payment_type: paymentDecision.type,
           method: selectedMethod,
-          is_demo: true,
+          is_demo: isDemoMode,
         },
       });
 
