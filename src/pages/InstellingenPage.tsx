@@ -585,21 +585,29 @@ export default function InstellingenPage() {
                 ))}
               </div>
 
-              {/* Add new member */}
+              {/* Add new member - direct create */}
               <div className="border-t border-border/60 mt-6 pt-6">
-                <p className="text-xs font-medium text-muted-foreground mb-3">Medewerker toevoegen</p>
-                <div className="flex flex-wrap gap-2">
-                  <input placeholder="E-mail adres" value={newUserEmail} onChange={e => setNewUserEmail(e.target.value)}
-                    className="flex-1 min-w-[180px] px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
-                  <select value={newUserRole} onChange={e => setNewUserRole(e.target.value)}
-                    className="px-3 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm">
-                    <option value="medewerker">Medewerker</option>
-                    <option value="admin">Admin</option>
-                    <option value="financieel">Financieel</option>
-                  </select>
-                  <Button variant="gradient" size="sm" onClick={handleAddTeamMember}>
-                    <Plus className="w-4 h-4" />
-                  </Button>
+                <p className="text-xs font-medium text-muted-foreground mb-3">Gebruiker aanmaken</p>
+                <div className="grid gap-2">
+                  <input placeholder="Naam" value={newUserName} onChange={e => setNewUserName(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                  <input placeholder="E-mail adres" type="email" value={newUserEmail} onChange={e => setNewUserEmail(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                  <input placeholder="Tijdelijk wachtwoord (min. 8 tekens)" type="text" value={newUserPassword} onChange={e => setNewUserPassword(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                  <div className="flex gap-2">
+                    <select value={newUserRole} onChange={e => setNewUserRole(e.target.value)}
+                      className="flex-1 px-3 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm">
+                      <option value="medewerker">Medewerker</option>
+                      <option value="admin">Admin</option>
+                      <option value="financieel">Financieel</option>
+                    </select>
+                    <Button variant="gradient" size="sm" onClick={handleAddTeamMember} disabled={addUserLoading}>
+                      {addUserLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                      <span className="ml-1">Aanmaken</span>
+                    </Button>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">De nieuwe gebruiker kan direct inloggen met dit wachtwoord en kan dit zelf wijzigen via "Wachtwoord vergeten".</p>
                 </div>
               </div>
             </div>
@@ -628,7 +636,7 @@ export default function InstellingenPage() {
                 <div><span className="text-sm">Demo modus actief</span><p className="text-[11px] text-muted-foreground">Simuleer betalingen zonder echte transacties</p></div>
                 <ToggleSwitch value={demoMode} onChange={setDemoMode} />
               </div>
-              <Button variant="outline" size="sm" className="w-full" onClick={handleDemoReset} disabled={resetLoading}>
+              <Button variant="outline" size="sm" className="w-full" onClick={() => setConfirmReset(true)} disabled={resetLoading}>
                 {resetLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RotateCcw className="w-4 h-4 mr-2" />}
                 {resetLoading ? "Laden..." : "Demo opnieuw laden"}
               </Button>
@@ -638,9 +646,22 @@ export default function InstellingenPage() {
         )}
 
         <div className="pt-2">
-          <Button onClick={handleSave} className="w-full" size="lg"><Save className="w-4 h-4 mr-2" /> Opslaan</Button>
+          <Button onClick={handleSave} className="w-full" size="lg" disabled={saveLoading}>
+            {saveLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+            {saveLoading ? "Opslaan..." : "Opslaan"}
+          </Button>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmReset}
+        onOpenChange={setConfirmReset}
+        title="Demo data opnieuw laden?"
+        description="Dit verwijdert ALLE huidige data van dit account (klanten, afspraken, betalingen, etc.) en vervangt het door de standaard demo data. Deze actie kan niet ongedaan worden gemaakt. Gebruik dit alleen op een demo-account."
+        confirmLabel="Ja, reset demo"
+        destructive
+        onConfirm={handleDemoReset}
+      />
     </AppLayout>
   );
 }
