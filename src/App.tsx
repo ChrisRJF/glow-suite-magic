@@ -57,6 +57,7 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
+            <LeadAutomationRunner />
             <Routes>
               <Route path="/login" element={<AuthRoute><LoginPage /></AuthRoute>} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
