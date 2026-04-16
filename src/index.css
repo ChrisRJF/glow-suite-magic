@@ -193,6 +193,28 @@
     @apply bg-primary/10 text-primary;
   }
 
+  /* Global spacing rhythm — applied across all pages */
+  .section-stack > * + * {
+    margin-top: 2rem;
+  }
+
+  .kpi-value {
+    @apply text-3xl lg:text-4xl font-bold tracking-tight leading-none;
+  }
+
+  .kpi-label {
+    @apply text-xs uppercase tracking-wide text-muted-foreground mt-2;
+  }
+
+  .list-row {
+    @apply flex items-center gap-3 px-4 py-3 rounded-lg;
+  }
+
+  /* Light mode — slightly more breathing room */
+  .light .stat-card {
+    @apply p-7;
+  }
+
   .page-enter {
     animation: pageEnter 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
