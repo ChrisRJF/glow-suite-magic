@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Search, Plus, UserPlus, UserCheck, Phone, Mail, X, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 const STATUS_OPTIONS = [
   { value: "nieuw", label: "Nieuw", color: "bg-primary/15 text-primary" },
@@ -19,6 +20,7 @@ export default function LeadsPage() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("alle");
   const [showAdd, setShowAdd] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", phone: "", email: "", source: "handmatig", notes: "" });
 
   const filtered = leads.filter(l => {
@@ -56,6 +58,16 @@ export default function LeadsPage() {
   return (
     <AppLayout title="Leads" subtitle="Potentiële klanten die nog niet geboekt hebben"
       actions={<Button variant="gradient" size="sm" onClick={() => setShowAdd(true)}><Plus className="w-4 h-4" /> Nieuwe lead</Button>}>
+
+      <ConfirmDialog
+        open={!!confirmDeleteId}
+        onOpenChange={(o) => !o && setConfirmDeleteId(null)}
+        title="Lead verwijderen?"
+        description="Deze lead wordt permanent verwijderd."
+        confirmLabel="Verwijderen"
+        destructive
+        onConfirm={() => confirmDeleteId && handleDelete(confirmDeleteId)}
+      />
 
       {showAdd && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowAdd(false)}>
@@ -144,7 +156,7 @@ export default function LeadsPage() {
                   <UserCheck className="w-3.5 h-3.5" /> Klant geworden
                 </Button>
               )}
-              <button onClick={() => handleDelete(lead.id)} className="p-1.5 rounded-lg hover:bg-destructive/20 text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
+              <button onClick={() => setConfirmDeleteId(lead.id)} className="p-1.5 rounded-lg hover:bg-destructive/20 text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>

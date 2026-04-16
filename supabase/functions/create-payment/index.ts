@@ -1,9 +1,19 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { z } from "https://esm.sh/zod@3.23.8";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+const BodySchema = z.object({
+  appointment_id: z.string().uuid().optional().nullable(),
+  customer_id: z.string().uuid().optional().nullable(),
+  amount: z.number().positive().max(100000),
+  payment_type: z.enum(["deposit", "full", "remainder"]).optional().default("deposit"),
+  method: z.enum(["ideal", "bancontact", "creditcard", "applepay", "paypal"]).optional().default("ideal"),
+  is_demo: z.boolean().optional(),
+});
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -14,7 +24,7 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const authHeader = req.headers.get("Authorization");
-    
+
     const supabase = createClient(supabaseUrl, supabaseKey, {
       global: { headers: { Authorization: authHeader || "" } },
     });
@@ -27,15 +37,28 @@ Deno.serve(async (req) => {
       });
     }
 
-    const body = await req.json();
-    const { appointment_id, customer_id, amount, payment_type, method, is_demo } = body;
-
-    if (!amount || amount <= 0) {
-      return new Response(JSON.stringify({ error: "Ongeldig bedrag" }), {
+    let rawBody: unknown;
+    try {
+      rawBody = await req.json();
+    } catch {
+      return new Response(JSON.stringify({ error: "Ongeldige JSON" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const parsed = BodySchema.safeParse(rawBody);
+    if (!parsed.success) {
+      return new Response(JSON.stringify({
+        error: "Ongeldige invoer",
+        details: parsed.error.flatten().fieldErrors,
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { appointment_id, customer_id, amount, payment_type, method, is_demo } = parsed.data;
 
     // Check if demo mode
     const { data: settings } = await supabase
@@ -47,7 +70,6 @@ Deno.serve(async (req) => {
     const demoMode = is_demo || settings?.demo_mode || false;
 
     if (demoMode) {
-      // Simulate Mollie payment in demo mode
       const demoStatuses = ["paid", "failed", "cancelled"];
       const randomStatus = demoStatuses[Math.floor(Math.random() * 10) < 7 ? 0 : Math.floor(Math.random() * 2) + 1];
 
@@ -60,9 +82,9 @@ Deno.serve(async (req) => {
           mollie_payment_id: `demo_${crypto.randomUUID().slice(0, 8)}`,
           amount,
           currency: "EUR",
-          payment_type: payment_type || "deposit",
+          payment_type,
           status: randomStatus,
-          method: method || "ideal",
+          method,
           is_demo: true,
         })
         .select()
@@ -75,7 +97,6 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Update appointment payment status
       if (appointment_id) {
         const paymentStatus = randomStatus === "paid" ? "betaald" : randomStatus === "failed" ? "mislukt" : "geannuleerd";
         await supabase.from("appointments").update({
@@ -99,21 +120,18 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Production: would call Mollie API here
-    // For now, create a pending payment record
     const mollieApiKey = Deno.env.get("MOLLIE_API_KEY");
-    
+
     if (!mollieApiKey) {
-      return new Response(JSON.stringify({ 
+      return new Response(JSON.stringify({
         error: "Mollie API key niet geconfigureerd. Gebruik demo modus.",
-        requiresSetup: true 
+        requiresSetup: true
       }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Create Mollie payment
     const mollieResponse = await fetch("https://api.mollie.com/v2/payments", {
       method: "POST",
       headers: {
@@ -124,7 +142,7 @@ Deno.serve(async (req) => {
         amount: { currency: "EUR", value: amount.toFixed(2) },
         description: `GlowSuite ${payment_type === "deposit" ? "Aanbetaling" : "Betaling"}`,
         redirectUrl: `${req.headers.get("origin") || supabaseUrl}/boeken?status=complete`,
-        method: method === "ideal" ? "ideal" : method === "bancontact" ? "bancontact" : method === "creditcard" ? "creditcard" : method === "applepay" ? "applepay" : undefined,
+        method,
       }),
     });
 
@@ -146,9 +164,9 @@ Deno.serve(async (req) => {
         mollie_payment_id: mollieData.id,
         amount,
         currency: "EUR",
-        payment_type: payment_type || "deposit",
+        payment_type,
         status: "pending",
-        method: method || "ideal",
+        method,
         is_demo: false,
       })
       .select()
@@ -170,7 +188,7 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: (error as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

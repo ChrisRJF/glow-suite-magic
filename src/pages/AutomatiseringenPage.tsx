@@ -7,6 +7,7 @@ import { Zap, Plus, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 interface AutomationRule {
   id: string;
@@ -62,6 +63,7 @@ export default function AutomatiseringenPage() {
   const [rules, setRules] = useState<AutomationRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [form, setForm] = useState({ trigger_type: TRIGGERS[0].value, action_type: ACTIONS[0].value });
 
   const fetchRules = useCallback(async () => {
@@ -116,6 +118,16 @@ export default function AutomatiseringenPage() {
   return (
     <AppLayout title="Automatiseringen" subtitle="IF → THEN regels voor je salon"
       actions={<Button variant="gradient" size="sm" onClick={() => setShowAdd(true)}><Plus className="w-4 h-4" /> Nieuwe regel</Button>}>
+
+      <ConfirmDialog
+        open={!!confirmDeleteId}
+        onOpenChange={(o) => !o && setConfirmDeleteId(null)}
+        title="Automatisering verwijderen?"
+        description="Deze regel wordt permanent verwijderd."
+        confirmLabel="Verwijderen"
+        destructive
+        onConfirm={async () => { if (confirmDeleteId) await deleteRule(confirmDeleteId); }}
+      />
 
       {showAdd && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowAdd(false)}>
@@ -189,7 +201,7 @@ export default function AutomatiseringenPage() {
                   <button onClick={() => toggleRule(rule)} className="p-1.5 rounded-lg hover:bg-secondary">
                     {rule.is_active ? <ToggleRight className="w-5 h-5 text-success" /> : <ToggleLeft className="w-5 h-5 text-muted-foreground" />}
                   </button>
-                  <button onClick={() => deleteRule(rule.id)} className="p-1.5 rounded-lg hover:bg-destructive/20">
+                  <button onClick={() => setConfirmDeleteId(rule.id)} className="p-1.5 rounded-lg hover:bg-destructive/20">
                     <Trash2 className="w-3.5 h-3.5 text-destructive" />
                   </button>
                 </div>

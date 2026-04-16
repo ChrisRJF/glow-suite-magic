@@ -220,13 +220,13 @@ export default function WachtlijstPage() {
                   <span className="bg-secondary px-2 py-1 rounded-md text-[11px] text-muted-foreground">🔄 {w.flexibility}</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button variant="gradient" size="sm" onClick={() => handlePlace(w.id)}>
-                    <CalendarPlus className="w-3.5 h-3.5" /> Plaats in agenda
+                  <Button variant="gradient" size="sm" onClick={() => handlePlace(w)} disabled={placingId === w.id}>
+                    {placingId === w.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CalendarPlus className="w-3.5 h-3.5" />} Plaats in agenda
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => handleNotify(w.id)}>
                     <Send className="w-3.5 h-3.5" /> Stuur bericht
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => handleRemove(w.id)} aria-label="Verwijderen">
+                  <Button variant="ghost" size="sm" onClick={() => setConfirmRemoveId(w.id)} aria-label="Verwijderen">
                     <Trash2 className="w-3.5 h-3.5 text-destructive" />
                   </Button>
                 </div>

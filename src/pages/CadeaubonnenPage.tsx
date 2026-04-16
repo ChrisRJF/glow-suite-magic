@@ -15,10 +15,18 @@ function generateCode(): string {
   return code;
 }
 
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { Trash2 } from "lucide-react";
+
 export default function CadeaubonnenPage() {
   const { data: giftCards, refetch } = useGiftCards();
   const { data: customers } = useCustomers();
-  const { insert, update } = useCrud("gift_cards");
+  const { insert, update, remove } = useCrud("gift_cards");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  const handleDeleteCard = async (id: string) => {
+    if (await remove(id)) { toast.success("Cadeaubon verwijderd"); refetch(); }
+  };
 
   const [showCreate, setShowCreate] = useState(false);
   const [showRedeem, setShowRedeem] = useState(false);
@@ -211,11 +219,24 @@ export default function CadeaubonnenPage() {
                   <p className="text-sm font-semibold tabular-nums">{formatEuro(Number(g.remaining_amount))} <span className="text-muted-foreground font-normal">/ {formatEuro(Number(g.initial_amount))}</span></p>
                   {statusBadge(g.status)}
                 </div>
+                <button onClick={() => setConfirmDeleteId(g.id)} className="p-1.5 rounded-lg hover:bg-destructive/20 flex-shrink-0" aria-label="Verwijderen">
+                  <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                </button>
               </div>
             ))}
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!confirmDeleteId}
+        onOpenChange={(o) => !o && setConfirmDeleteId(null)}
+        title="Cadeaubon verwijderen?"
+        description="Deze cadeaubon wordt permanent verwijderd."
+        confirmLabel="Verwijderen"
+        destructive
+        onConfirm={() => confirmDeleteId && handleDeleteCard(confirmDeleteId)}
+      />
     </AppLayout>
   );
 }
