@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { RoleProtectedRoute } from "@/components/RoleProtectedRoute";
 import DashboardPage from "./pages/DashboardPage";
 import CalendarPage from "./pages/CalendarPage";
 import CustomersPage from "./pages/CustomersPage";
@@ -23,6 +24,8 @@ import RapportenPage from "./pages/RapportenPage";
 import InstellingenPage from "./pages/InstellingenPage";
 import SupportPage from "./pages/SupportPage";
 import LoginPage from "./pages/LoginPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
+import LaunchStatusPage from "./pages/LaunchStatusPage";
 import NotFound from "./pages/NotFound";
 import AutomatiseringenPage from "./pages/AutomatiseringenPage";
 import WachtlijstPage from "./pages/WachtlijstPage";
@@ -30,14 +33,8 @@ import CadeaubonnenPage from "./pages/CadeaubonnenPage";
 import WebshopPage from "./pages/WebshopPage";
 import SocialStudioPage from "./pages/SocialStudioPage";
 import LeadsPage from "./pages/LeadsPage";
-const queryClient = new QueryClient();
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
-  if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-pulse text-muted-foreground">Laden...</div></div>;
-  if (!user) return <Navigate to="/login" replace />;
-  return <>{children}</>;
-}
+const queryClient = new QueryClient();
 
 function AuthRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -48,43 +45,45 @@ function AuthRoute({ children }: { children: React.ReactNode }) {
 
 const App = () => (
   <ThemeProvider>
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/login" element={<AuthRoute><LoginPage /></AuthRoute>} />
-            <Route path="/boeken" element={<BookingPage />} />
-            <Route path="/" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
-            <Route path="/agenda" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
-            <Route path="/klanten" element={<ProtectedRoute><CustomersPage /></ProtectedRoute>} />
-            <Route path="/behandelingen" element={<ProtectedRoute><ServicesPage /></ProtectedRoute>} />
-            <Route path="/whatsapp" element={<ProtectedRoute><WhatsAppPage /></ProtectedRoute>} />
-            <Route path="/abonnementen" element={<ProtectedRoute><MembershipsPage /></ProtectedRoute>} />
-            <Route path="/omzet" element={<ProtectedRoute><OmzetPage /></ProtectedRoute>} />
-            <Route path="/herboekingen" element={<ProtectedRoute><HerboekingenPage /></ProtectedRoute>} />
-            <Route path="/marketing" element={<ProtectedRoute><MarketingPage /></ProtectedRoute>} />
-            <Route path="/acties" element={<ProtectedRoute><ActiesPage /></ProtectedRoute>} />
-            <Route path="/glowpay" element={<ProtectedRoute><GlowPayPage /></ProtectedRoute>} />
-            <Route path="/kassa" element={<ProtectedRoute><KassaPage /></ProtectedRoute>} />
-            <Route path="/producten" element={<ProtectedRoute><ProductenPage /></ProtectedRoute>} />
-            <Route path="/rapporten" element={<ProtectedRoute><RapportenPage /></ProtectedRoute>} />
-            <Route path="/instellingen" element={<ProtectedRoute><InstellingenPage /></ProtectedRoute>} />
-            <Route path="/automatiseringen" element={<ProtectedRoute><AutomatiseringenPage /></ProtectedRoute>} />
-            <Route path="/wachtlijst" element={<ProtectedRoute><WachtlijstPage /></ProtectedRoute>} />
-            <Route path="/cadeaubonnen" element={<ProtectedRoute><CadeaubonnenPage /></ProtectedRoute>} />
-            <Route path="/webshop" element={<ProtectedRoute><WebshopPage /></ProtectedRoute>} />
-            <Route path="/social-studio" element={<ProtectedRoute><SocialStudioPage /></ProtectedRoute>} />
-            <Route path="/leads" element={<ProtectedRoute><LeadsPage /></ProtectedRoute>} />
-            <Route path="/support" element={<ProtectedRoute><SupportPage /></ProtectedRoute>} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
-  </QueryClientProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/login" element={<AuthRoute><LoginPage /></AuthRoute>} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
+              <Route path="/boeken" element={<BookingPage />} />
+              <Route path="/" element={<RoleProtectedRoute><DashboardPage /></RoleProtectedRoute>} />
+              <Route path="/agenda" element={<RoleProtectedRoute><CalendarPage /></RoleProtectedRoute>} />
+              <Route path="/klanten" element={<RoleProtectedRoute><CustomersPage /></RoleProtectedRoute>} />
+              <Route path="/behandelingen" element={<RoleProtectedRoute><ServicesPage /></RoleProtectedRoute>} />
+              <Route path="/whatsapp" element={<RoleProtectedRoute><WhatsAppPage /></RoleProtectedRoute>} />
+              <Route path="/abonnementen" element={<RoleProtectedRoute><MembershipsPage /></RoleProtectedRoute>} />
+              <Route path="/omzet" element={<RoleProtectedRoute><OmzetPage /></RoleProtectedRoute>} />
+              <Route path="/herboekingen" element={<RoleProtectedRoute><HerboekingenPage /></RoleProtectedRoute>} />
+              <Route path="/marketing" element={<RoleProtectedRoute><MarketingPage /></RoleProtectedRoute>} />
+              <Route path="/acties" element={<RoleProtectedRoute><ActiesPage /></RoleProtectedRoute>} />
+              <Route path="/glowpay" element={<RoleProtectedRoute><GlowPayPage /></RoleProtectedRoute>} />
+              <Route path="/kassa" element={<RoleProtectedRoute><KassaPage /></RoleProtectedRoute>} />
+              <Route path="/producten" element={<RoleProtectedRoute><ProductenPage /></RoleProtectedRoute>} />
+              <Route path="/rapporten" element={<RoleProtectedRoute><RapportenPage /></RoleProtectedRoute>} />
+              <Route path="/instellingen" element={<RoleProtectedRoute><InstellingenPage /></RoleProtectedRoute>} />
+              <Route path="/automatiseringen" element={<RoleProtectedRoute><AutomatiseringenPage /></RoleProtectedRoute>} />
+              <Route path="/wachtlijst" element={<RoleProtectedRoute><WachtlijstPage /></RoleProtectedRoute>} />
+              <Route path="/cadeaubonnen" element={<RoleProtectedRoute><CadeaubonnenPage /></RoleProtectedRoute>} />
+              <Route path="/webshop" element={<RoleProtectedRoute><WebshopPage /></RoleProtectedRoute>} />
+              <Route path="/social-studio" element={<RoleProtectedRoute><SocialStudioPage /></RoleProtectedRoute>} />
+              <Route path="/leads" element={<RoleProtectedRoute><LeadsPage /></RoleProtectedRoute>} />
+              <Route path="/support" element={<RoleProtectedRoute><SupportPage /></RoleProtectedRoute>} />
+              <Route path="/launch-status" element={<RoleProtectedRoute allow={["eigenaar"]}><LaunchStatusPage /></RoleProtectedRoute>} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
+    </QueryClientProvider>
   </ThemeProvider>
 );
 
