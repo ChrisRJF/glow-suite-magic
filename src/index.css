@@ -210,8 +210,47 @@
     @apply flex items-center gap-3 px-4 py-3 rounded-lg;
   }
 
+  /* Consistent form spacing across settings/forms */
+  .form-field {
+    @apply flex flex-col gap-1.5;
+  }
+
+  .form-field > label {
+    @apply text-xs font-medium text-muted-foreground;
+  }
+
+  .form-input {
+    @apply w-full px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30;
+  }
+
+  .form-stack > * + * {
+    margin-top: 1rem;
+  }
+
+  /* Settings card — consistent inner padding & title rhythm */
+  .settings-card {
+    @apply glass-card p-6;
+  }
+
+  .settings-card-title {
+    @apply text-sm font-semibold mb-5 flex items-center gap-2;
+  }
+
+  /* Consistent list item rhythm (waitlist, users, etc.) */
+  .item-row {
+    @apply p-4 rounded-xl bg-secondary/30 hover:bg-secondary/50 transition-colors;
+  }
+
+  .item-row + .item-row {
+    margin-top: 0.75rem;
+  }
+
   /* Light mode — slightly more breathing room */
   .light .stat-card {
+    @apply p-7;
+  }
+
+  .light .settings-card {
     @apply p-7;
   }
 

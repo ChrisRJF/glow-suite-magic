@@ -132,54 +132,54 @@ export default function WachtlijstPage() {
         </div>
       )}
 
-      <div className="grid gap-6">
+      <div className="grid gap-8">
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-          <div className="glass-card p-4">
-            <p className="text-2xl font-bold text-warning">{wachtend.length}</p>
-            <p className="text-xs text-muted-foreground">Wachtend</p>
+          <div className="glass-card p-5">
+            <p className="text-3xl font-bold text-warning leading-none">{wachtend.length}</p>
+            <p className="text-xs text-muted-foreground mt-2">Wachtend</p>
           </div>
-          <div className="glass-card p-4">
-            <p className="text-2xl font-bold text-success">{geplaatst.length}</p>
-            <p className="text-xs text-muted-foreground">Geplaatst</p>
+          <div className="glass-card p-5">
+            <p className="text-3xl font-bold text-success leading-none">{geplaatst.length}</p>
+            <p className="text-xs text-muted-foreground mt-2">Geplaatst</p>
           </div>
-          <div className="glass-card p-4">
-            <p className="text-2xl font-bold">{waitlist.length}</p>
-            <p className="text-xs text-muted-foreground">Totaal</p>
+          <div className="glass-card p-5">
+            <p className="text-3xl font-bold leading-none">{waitlist.length}</p>
+            <p className="text-xs text-muted-foreground mt-2">Totaal</p>
           </div>
         </div>
 
         {/* Active waitlist */}
         <div className="glass-card p-6">
-          <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
+          <h3 className="text-sm font-semibold mb-5 flex items-center gap-2">
             <Clock className="w-4 h-4 text-primary" /> Actieve wachtlijst
           </h3>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {wachtend.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">Geen klanten op de wachtlijst</p>
+              <p className="text-sm text-muted-foreground text-center py-8">Geen klanten op de wachtlijst</p>
             ) : wachtend.map((w: any) => (
               <div key={w.id} className="p-4 rounded-xl bg-secondary/30 hover:bg-secondary/50 transition-colors">
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <p className="text-sm font-semibold">{getCustomerName(w.customer_id)}</p>
-                    <p className="text-xs text-muted-foreground">{getServiceName(w.service_id)}</p>
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold truncate">{getCustomerName(w.customer_id)}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate">{getServiceName(w.service_id)}</p>
                   </div>
-                  {statusBadge(w.status)}
+                  <div className="flex-shrink-0">{statusBadge(w.status)}</div>
                 </div>
-                <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground mb-3">
-                  {w.preferred_employee && <span className="bg-secondary px-2 py-0.5 rounded-md">👤 {w.preferred_employee}</span>}
-                  {w.preferred_day && <span className="bg-secondary px-2 py-0.5 rounded-md">📅 {w.preferred_day}</span>}
-                  {w.preferred_time && <span className="bg-secondary px-2 py-0.5 rounded-md">🕐 {w.preferred_time}</span>}
-                  <span className="bg-secondary px-2 py-0.5 rounded-md">🔄 {w.flexibility}</span>
+                <div className="flex flex-wrap gap-1.5 mb-4">
+                  {w.preferred_employee && <span className="bg-secondary px-2 py-1 rounded-md text-[11px] text-muted-foreground">👤 {w.preferred_employee}</span>}
+                  {w.preferred_day && <span className="bg-secondary px-2 py-1 rounded-md text-[11px] text-muted-foreground">📅 {w.preferred_day}</span>}
+                  {w.preferred_time && <span className="bg-secondary px-2 py-1 rounded-md text-[11px] text-muted-foreground">🕐 {w.preferred_time}</span>}
+                  <span className="bg-secondary px-2 py-1 rounded-md text-[11px] text-muted-foreground">🔄 {w.flexibility}</span>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button variant="gradient" size="sm" onClick={() => handlePlace(w.id)}>
                     <CalendarPlus className="w-3.5 h-3.5" /> Plaats in agenda
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => handleNotify(w.id)}>
                     <Send className="w-3.5 h-3.5" /> Stuur bericht
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => handleRemove(w.id)}>
+                  <Button variant="ghost" size="sm" onClick={() => handleRemove(w.id)} aria-label="Verwijderen">
                     <Trash2 className="w-3.5 h-3.5 text-destructive" />
                   </Button>
                 </div>
@@ -191,17 +191,17 @@ export default function WachtlijstPage() {
         {/* Placed */}
         {geplaatst.length > 0 && (
           <div className="glass-card p-6">
-            <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
+            <h3 className="text-sm font-semibold mb-5 flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-success" /> Recent geplaatst
             </h3>
-            <div className="space-y-2">
+            <div className="space-y-3">
               {geplaatst.map((w: any) => (
-                <div key={w.id} className="flex items-center justify-between p-3 rounded-xl bg-success/5">
-                  <div>
-                    <p className="text-sm font-medium">{getCustomerName(w.customer_id)}</p>
-                    <p className="text-xs text-muted-foreground">{getServiceName(w.service_id)}</p>
+                <div key={w.id} className="flex items-center justify-between gap-3 p-4 rounded-xl bg-success/5">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{getCustomerName(w.customer_id)}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate">{getServiceName(w.service_id)}</p>
                   </div>
-                  {statusBadge(w.status)}
+                  <div className="flex-shrink-0">{statusBadge(w.status)}</div>
                 </div>
               ))}
             </div>

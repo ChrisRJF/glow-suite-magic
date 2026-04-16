@@ -165,16 +165,16 @@ export default function RapportenPage() {
           )}
         </div>
       }>
-      <div className="grid gap-6">
+      <div className="grid gap-8">
         {/* Filters */}
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-4 p-4 rounded-xl bg-secondary/20 border border-border/50">
           <div className="flex items-center gap-2">
             <Filter className="w-4 h-4 text-muted-foreground" />
             <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-              className="px-3 py-1.5 rounded-lg bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+              className="px-3 py-2 rounded-lg bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
             <span className="text-xs text-muted-foreground">t/m</span>
             <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-              className="px-3 py-1.5 rounded-lg bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+              className="px-3 py-2 rounded-lg bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
           </div>
           <div className="flex gap-1 bg-secondary/50 p-1 rounded-xl">
             {reportTabs.map(tab => (
@@ -192,19 +192,19 @@ export default function RapportenPage() {
           {stats.map((s) => (
             <div key={s.label} className="stat-card">
               <div className="flex items-center justify-between"><s.icon className="w-4 h-4 text-primary" /><span className="text-xs text-success font-medium">{s.trend}</span></div>
-              <p className="text-2xl font-bold mt-2">{s.value}</p>
-              <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
+              <p className="text-2xl font-bold mt-3 leading-none">{s.value}</p>
+              <p className="text-xs text-muted-foreground mt-2">{s.label}</p>
             </div>
           ))}
         </div>
 
         {/* Monthly Chart */}
         <div className="glass-card p-6">
-          <h3 className="text-sm font-semibold mb-4">Maandelijkse omzet</h3>
-          <div className="flex items-end gap-4 h-32">
+          <h3 className="text-sm font-semibold mb-5">Maandelijkse omzet</h3>
+          <div className="flex items-end gap-4 h-36 pt-2">
             {monthlyData.map((m) => (
-              <div key={m.month} className="flex-1 flex flex-col items-center gap-1">
-                <span className="text-[10px] text-muted-foreground">{formatEuro(m.revenue)}</span>
+              <div key={m.month} className="flex-1 flex flex-col items-center gap-2">
+                <span className="text-[10px] text-muted-foreground font-medium">{formatEuro(m.revenue)}</span>
                 <div className="w-full rounded-t-lg bg-gradient-to-t from-primary/80 to-accent/60 transition-all" style={{ height: `${(m.revenue / maxRevenue) * 100}%`, minHeight: '4px' }} />
                 <span className="text-xs text-muted-foreground">{m.month}</span>
               </div>
@@ -215,14 +215,14 @@ export default function RapportenPage() {
         {/* Report-specific content */}
         {reportType === "omzet" && (
           <div className="glass-card p-6">
-            <h3 className="text-sm font-semibold mb-4">Top behandelingen</h3>
+            <h3 className="text-sm font-semibold mb-5">Top behandelingen</h3>
             <div className="space-y-3">
-              {topServices.length === 0 ? <p className="text-sm text-muted-foreground text-center py-4">Nog geen data</p> :
+              {topServices.length === 0 ? <p className="text-sm text-muted-foreground text-center py-6">Nog geen data</p> :
               topServices.map((s, i) => (
-                <div key={s.name} className="flex items-center gap-4">
-                  <span className="text-sm font-bold text-muted-foreground w-6">#{i + 1}</span>
-                  <div className="flex-1"><p className="text-sm font-medium">{s.name}</p><p className="text-xs text-muted-foreground">{s.bookings} boekingen</p></div>
-                  <span className="text-sm font-semibold">{formatEuro(s.revenue)}</span>
+                <div key={s.name} className="flex items-center gap-4 p-3 rounded-xl bg-secondary/20">
+                  <span className="text-sm font-bold text-muted-foreground w-6 text-center">#{i + 1}</span>
+                  <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate">{s.name}</p><p className="text-xs text-muted-foreground mt-0.5">{s.bookings} boekingen</p></div>
+                  <span className="text-sm font-semibold flex-shrink-0">{formatEuro(s.revenue)}</span>
                 </div>
               ))}
             </div>
@@ -231,16 +231,16 @@ export default function RapportenPage() {
 
         {reportType === "betalingen" && (
           <div className="glass-card p-6">
-            <h3 className="text-sm font-semibold mb-4">Betalingsoverzicht</h3>
-            <div className="space-y-2">
-              {payments.length === 0 ? <p className="text-sm text-muted-foreground text-center py-4">Geen betalingen</p> :
+            <h3 className="text-sm font-semibold mb-5">Betalingsoverzicht</h3>
+            <div className="space-y-3">
+              {payments.length === 0 ? <p className="text-sm text-muted-foreground text-center py-6">Geen betalingen</p> :
               payments.slice(0, 10).map(p => (
-                <div key={p.id} className="flex items-center justify-between p-3 rounded-xl bg-secondary/30">
-                  <div>
-                    <p className="text-sm font-medium">{customers.find(c => c.id === p.customer_id)?.name || "Onbekend"}</p>
-                    <p className="text-xs text-muted-foreground">{new Date(p.created_at).toLocaleDateString("nl-NL")} · {p.method || "—"}</p>
+                <div key={p.id} className="flex items-center justify-between gap-3 p-4 rounded-xl bg-secondary/30">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{customers.find(c => c.id === p.customer_id)?.name || "Onbekend"}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{new Date(p.created_at).toLocaleDateString("nl-NL")} · {p.method || "—"}</p>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right flex-shrink-0">
                     <p className="text-sm font-semibold">{formatEuro(Number(p.amount))}</p>
                     <span className={cn("text-[11px] font-medium", p.status === "paid" ? "text-success" : p.status === "failed" ? "text-destructive" : "text-warning")}>{p.status}</span>
                   </div>
@@ -252,17 +252,17 @@ export default function RapportenPage() {
 
         {reportType === "btw" && (
           <div className="glass-card p-6">
-            <h3 className="text-sm font-semibold mb-4">BTW Overzicht</h3>
+            <h3 className="text-sm font-semibold mb-5">BTW Overzicht</h3>
             <div className="space-y-3">
-              <div className="flex justify-between p-3 rounded-xl bg-secondary/30">
+              <div className="flex justify-between items-center p-4 rounded-xl bg-secondary/30">
                 <span className="text-sm">Omzet incl. BTW</span>
                 <span className="text-sm font-semibold">{formatEuro(totalRevenue)}</span>
               </div>
-              <div className="flex justify-between p-3 rounded-xl bg-secondary/30">
+              <div className="flex justify-between items-center p-4 rounded-xl bg-secondary/30">
                 <span className="text-sm">Omzet excl. BTW</span>
                 <span className="text-sm font-semibold">{formatEuro(totalRevenue / 1.21)}</span>
               </div>
-              <div className="flex justify-between p-3 rounded-xl bg-primary/10 border border-primary/20">
+              <div className="flex justify-between items-center p-4 rounded-xl bg-primary/10 border border-primary/20">
                 <span className="text-sm font-medium">BTW 21%</span>
                 <span className="text-sm font-bold text-primary">{formatEuro(totalRevenue * 0.21 / 1.21)}</span>
               </div>
@@ -272,15 +272,15 @@ export default function RapportenPage() {
 
         {reportType === "producten" && (
           <div className="glass-card p-6">
-            <h3 className="text-sm font-semibold mb-4">Productoverzicht</h3>
-            <div className="space-y-2">
+            <h3 className="text-sm font-semibold mb-5">Productoverzicht</h3>
+            <div className="space-y-3">
               {products.map(p => (
-                <div key={p.id} className="flex items-center justify-between p-3 rounded-xl bg-secondary/30">
-                  <div>
-                    <p className="text-sm font-medium">{p.name}</p>
-                    <p className="text-xs text-muted-foreground">{p.category || "—"}</p>
+                <div key={p.id} className="flex items-center justify-between gap-3 p-4 rounded-xl bg-secondary/30">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{p.name}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{p.category || "—"}</p>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right flex-shrink-0">
                     <p className="text-sm font-semibold">{formatEuro(p.price)}</p>
                     <span className={cn("text-[11px]", (p.stock || 0) < 5 ? "text-destructive font-medium" : "text-muted-foreground")}>
                       Voorraad: {p.stock || 0}
@@ -294,21 +294,21 @@ export default function RapportenPage() {
 
         {reportType === "diensten" && (
           <div className="glass-card p-6">
-            <h3 className="text-sm font-semibold mb-4">Alle diensten</h3>
-            <div className="space-y-2">
+            <h3 className="text-sm font-semibold mb-5">Alle diensten</h3>
+            <div className="space-y-3">
               {services.map(s => {
                 const bookings = filteredAppts.filter(a => a.service_id === s.id).length;
                 const rev = filteredAppts.filter(a => a.service_id === s.id).reduce((sum, a) => sum + (Number(a.price) || 0), 0);
                 return (
-                  <div key={s.id} className="flex items-center justify-between p-3 rounded-xl bg-secondary/30">
-                    <div className="flex items-center gap-3">
-                      <div className="w-2 h-8 rounded-full" style={{ backgroundColor: s.color || "#7B61FF" }} />
-                      <div>
-                        <p className="text-sm font-medium">{s.name}</p>
-                        <p className="text-xs text-muted-foreground">{bookings} boekingen</p>
+                  <div key={s.id} className="flex items-center justify-between gap-3 p-4 rounded-xl bg-secondary/30">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-2 h-10 rounded-full flex-shrink-0" style={{ backgroundColor: s.color || "#7B61FF" }} />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{s.name}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{bookings} boekingen</p>
                       </div>
                     </div>
-                    <span className="text-sm font-semibold">{formatEuro(rev)}</span>
+                    <span className="text-sm font-semibold flex-shrink-0">{formatEuro(rev)}</span>
                   </div>
                 );
               })}

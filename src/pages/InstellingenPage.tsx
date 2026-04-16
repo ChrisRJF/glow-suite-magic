@@ -259,10 +259,10 @@ export default function InstellingenPage() {
   return (
     <AppLayout title="Instellingen" subtitle="Account en saloninstellingen">
       {/* Tabs */}
-      <div className="flex gap-1 overflow-x-auto pb-2 mb-6 -mx-1 px-1">
+      <div className="flex gap-2 overflow-x-auto pb-3 mb-8 -mx-1 px-1 border-b border-border/50">
         {tabs.map(t => (
           <button key={t.id} onClick={() => setActiveTab(t.id)}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium whitespace-nowrap transition-all ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all ${
               activeTab === t.id ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
             }`}>
             <t.icon className="w-3.5 h-3.5" />{t.label}
@@ -270,7 +270,7 @@ export default function InstellingenPage() {
         ))}
       </div>
 
-      <div className="grid gap-6 max-w-2xl">
+      <div className="grid gap-8 max-w-2xl">
         {/* Algemeen */}
         {activeTab === "algemeen" && (
           <>
@@ -525,68 +525,66 @@ export default function InstellingenPage() {
 
         {/* User Roles - Enhanced with add/remove */}
         {activeTab === "rollen" && (
-          <div className="space-y-4">
+          <div className="space-y-8">
             <div className="glass-card p-6">
-              <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><UserCog className="w-4 h-4 text-primary" /> Gebruikers & Rollen</h3>
-              <div className="space-y-4">
+              <h3 className="text-sm font-semibold mb-5 flex items-center gap-2"><UserCog className="w-4 h-4 text-primary" /> Gebruikers</h3>
+              <div className="space-y-3">
                 {/* Current user */}
-                <div className="p-4 rounded-xl bg-secondary/50 border border-border">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl gradient-bg flex items-center justify-center">
-                      <span className="text-xs font-bold text-primary-foreground">{(user?.email?.charAt(0) || 'U').toUpperCase()}</span>
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{user?.email?.split('@')[0] || 'Gebruiker'}</p>
-                      <p className="text-[11px] text-muted-foreground">{user?.email}</p>
-                    </div>
-                    <span className="px-2 py-1 rounded-lg bg-primary/15 text-primary text-[11px] font-semibold">Eigenaar</span>
+                <div className="flex items-center gap-4 p-4 rounded-xl bg-secondary/50 border border-border">
+                  <div className="w-10 h-10 rounded-xl gradient-bg flex items-center justify-center flex-shrink-0">
+                    <span className="text-xs font-bold text-primary-foreground">{(user?.email?.charAt(0) || 'U').toUpperCase()}</span>
                   </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{user?.email?.split('@')[0] || 'Gebruiker'}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">{user?.email}</p>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-lg bg-primary/15 text-primary text-[11px] font-semibold flex-shrink-0">Eigenaar</span>
                 </div>
 
                 {/* Team members from DB */}
                 {teamMembers.filter(m => m.user_id !== user?.id).map((member) => (
-                  <div key={member.id} className="p-4 rounded-xl bg-secondary/30 border border-border flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center">
+                  <div key={member.id} className="flex items-center gap-4 p-4 rounded-xl bg-secondary/30 border border-border">
+                    <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center flex-shrink-0">
                       <UserCog className="w-4 h-4 text-muted-foreground" />
                     </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium capitalize">{member.role}</p>
-                      <p className="text-[11px] text-muted-foreground">Toegevoegd {new Date(member.created_at).toLocaleDateString('nl-NL')}</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium capitalize truncate">{member.role}</p>
+                      <p className="text-[11px] text-muted-foreground truncate">Toegevoegd {new Date(member.created_at).toLocaleDateString('nl-NL')}</p>
                     </div>
-                    <button onClick={() => handleRemoveTeamMember(member.id)} className="p-1.5 rounded-lg hover:bg-destructive/20">
+                    <button onClick={() => handleRemoveTeamMember(member.id)} className="p-2 rounded-lg hover:bg-destructive/20 transition-colors flex-shrink-0" aria-label="Verwijderen">
                       <Trash2 className="w-3.5 h-3.5 text-destructive" />
                     </button>
                   </div>
                 ))}
+              </div>
 
-                {/* Add new member */}
-                <div className="border-t border-border pt-4">
-                  <p className="text-xs font-medium text-muted-foreground mb-2">Medewerker toevoegen</p>
-                  <div className="flex gap-2">
-                    <input placeholder="E-mail adres" value={newUserEmail} onChange={e => setNewUserEmail(e.target.value)}
-                      className="flex-1 px-3 py-2 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
-                    <select value={newUserRole} onChange={e => setNewUserRole(e.target.value)}
-                      className="px-3 py-2 rounded-xl bg-secondary/50 border border-border text-sm">
-                      <option value="medewerker">Medewerker</option>
-                      <option value="admin">Admin</option>
-                      <option value="financieel">Financieel</option>
-                    </select>
-                    <Button variant="gradient" size="sm" onClick={handleAddTeamMember}>
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                  </div>
+              {/* Add new member */}
+              <div className="border-t border-border/60 mt-6 pt-6">
+                <p className="text-xs font-medium text-muted-foreground mb-3">Medewerker toevoegen</p>
+                <div className="flex flex-wrap gap-2">
+                  <input placeholder="E-mail adres" value={newUserEmail} onChange={e => setNewUserEmail(e.target.value)}
+                    className="flex-1 min-w-[180px] px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                  <select value={newUserRole} onChange={e => setNewUserRole(e.target.value)}
+                    className="px-3 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm">
+                    <option value="medewerker">Medewerker</option>
+                    <option value="admin">Admin</option>
+                    <option value="financieel">Financieel</option>
+                  </select>
+                  <Button variant="gradient" size="sm" onClick={handleAddTeamMember}>
+                    <Plus className="w-4 h-4" />
+                  </Button>
                 </div>
               </div>
             </div>
 
             {/* Role descriptions */}
             <div className="glass-card p-6">
-              <p className="text-xs text-muted-foreground font-medium mb-3">Rollenoverzicht</p>
-              <div className="space-y-2.5">
+              <h3 className="text-sm font-semibold mb-5 flex items-center gap-2"><Shield className="w-4 h-4 text-primary" /> Rollenoverzicht</h3>
+              <div className="space-y-3">
                 {roleDescriptions.map((r, i) => (
-                  <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30">
-                    <span className={`px-2 py-0.5 rounded-lg text-[11px] font-semibold ${r.color}`}>{r.role}</span>
-                    <p className="text-[11px] text-muted-foreground flex-1">{r.perms}</p>
+                  <div key={i} className="flex items-start gap-4 p-4 rounded-xl bg-secondary/30">
+                    <span className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold flex-shrink-0 ${r.color}`}>{r.role}</span>
+                    <p className="text-xs text-muted-foreground flex-1 leading-relaxed">{r.perms}</p>
                   </div>
                 ))}
               </div>
@@ -612,7 +610,9 @@ export default function InstellingenPage() {
           </div>
         )}
 
-        <Button onClick={handleSave} className="w-full" size="lg"><Save className="w-4 h-4 mr-2" /> Opslaan</Button>
+        <div className="pt-2">
+          <Button onClick={handleSave} className="w-full" size="lg"><Save className="w-4 h-4 mr-2" /> Opslaan</Button>
+        </div>
       </div>
     </AppLayout>
   );
