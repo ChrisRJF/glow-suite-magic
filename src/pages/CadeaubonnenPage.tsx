@@ -15,10 +15,18 @@ function generateCode(): string {
   return code;
 }
 
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { Trash2 } from "lucide-react";
+
 export default function CadeaubonnenPage() {
   const { data: giftCards, refetch } = useGiftCards();
   const { data: customers } = useCustomers();
-  const { insert, update } = useCrud("gift_cards");
+  const { insert, update, remove } = useCrud("gift_cards");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  const handleDeleteCard = async (id: string) => {
+    if (await remove(id)) { toast.success("Cadeaubon verwijderd"); refetch(); }
+  };
 
   const [showCreate, setShowCreate] = useState(false);
   const [showRedeem, setShowRedeem] = useState(false);

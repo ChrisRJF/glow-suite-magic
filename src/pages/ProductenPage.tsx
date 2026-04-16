@@ -6,6 +6,7 @@ import { formatEuro } from "@/lib/data";
 import { Package, Search, Plus, Pencil, Trash2, AlertTriangle } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 export default function ProductenPage() {
   const { data: products, loading, refetch } = useProducts();
@@ -13,6 +14,7 @@ export default function ProductenPage() {
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: '', category: '', price: 0, stock: 0, description: '', is_active: true });
 
   const filtered = products.filter((p) =>
@@ -44,6 +46,16 @@ export default function ProductenPage() {
   return (
     <AppLayout title="Producten" subtitle="Productoverzicht en voorraad"
       actions={<Button variant="gradient" size="sm" onClick={() => { close(); setShowForm(true); }}><Plus className="w-4 h-4" /> Nieuw product</Button>}>
+
+      <ConfirmDialog
+        open={!!confirmDeleteId}
+        onOpenChange={(o) => !o && setConfirmDeleteId(null)}
+        title="Product verwijderen?"
+        description="Dit product wordt permanent verwijderd."
+        confirmLabel="Verwijderen"
+        destructive
+        onConfirm={() => confirmDeleteId && handleDelete(confirmDeleteId)}
+      />
 
       {showForm && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={close}>
@@ -120,7 +132,7 @@ export default function ProductenPage() {
                   <td className="p-4 text-right">
                     <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button onClick={() => openEdit(p)} className="p-1.5 rounded-lg hover:bg-secondary"><Pencil className="w-3.5 h-3.5 text-muted-foreground" /></button>
-                      <button onClick={() => handleDelete(p.id)} className="p-1.5 rounded-lg hover:bg-destructive/20"><Trash2 className="w-3.5 h-3.5 text-destructive" /></button>
+                      <button onClick={() => setConfirmDeleteId(p.id)} className="p-1.5 rounded-lg hover:bg-destructive/20"><Trash2 className="w-3.5 h-3.5 text-destructive" /></button>
                     </div>
                   </td>
                 </tr>

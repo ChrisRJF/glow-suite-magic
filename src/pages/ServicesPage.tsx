@@ -6,12 +6,14 @@ import { formatEuro } from "@/lib/data";
 import { Plus, Clock, Euro, Pencil, Trash2, Globe, Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 export default function ServicesPage() {
   const { data: services, loading, refetch } = useServices();
   const { insert, update, remove } = useCrud("services");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: '', duration_minutes: 30, price: 0, category: '', color: '#7B61FF', description: '',
     is_active: true, is_online_bookable: true, is_internal_only: false,
@@ -52,6 +54,16 @@ export default function ServicesPage() {
   return (
     <AppLayout title="Behandelingen" subtitle="Beheer je behandelmenu."
       actions={<Button variant="gradient" size="sm" onClick={() => { close(); setShowForm(true); }}><Plus className="w-4 h-4" /> Behandeling Toevoegen</Button>}>
+
+      <ConfirmDialog
+        open={!!confirmDeleteId}
+        onOpenChange={(o) => !o && setConfirmDeleteId(null)}
+        title="Behandeling verwijderen?"
+        description="Deze behandeling wordt permanent verwijderd."
+        confirmLabel="Verwijderen"
+        destructive
+        onConfirm={() => confirmDeleteId && handleDelete(confirmDeleteId)}
+      />
 
       {showForm && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={close}>
@@ -107,7 +119,7 @@ export default function ServicesPage() {
                        <div className="w-2.5 h-2.5 rounded-full mt-1.5" style={{ backgroundColor: service.color || '#7B61FF' }} />
                        <div className="flex gap-1">
                          <button onClick={() => openEdit(service)} className="p-1.5 rounded-lg hover:bg-secondary opacity-0 group-hover:opacity-100 transition-opacity"><Pencil className="w-3.5 h-3.5 text-muted-foreground" /></button>
-                         <button onClick={() => handleDelete(service.id)} className="p-1.5 rounded-lg hover:bg-destructive/20 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="w-3.5 h-3.5 text-destructive" /></button>
+                         <button onClick={() => setConfirmDeleteId(service.id)} className="p-1.5 rounded-lg hover:bg-destructive/20 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="w-3.5 h-3.5 text-destructive" /></button>
                        </div>
                      </div>
                      <h4 className="text-sm font-semibold mb-3">{service.name}</h4>
