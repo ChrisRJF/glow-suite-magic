@@ -7,6 +7,7 @@ import { usePaymentRules } from "@/hooks/usePaymentRules";
 import { useServices, useSettings } from "@/hooks/useSupabaseData";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { queueLeadIntent } from "@/hooks/useLeadAutomation";
 
 const availableSlots = ["09:00", "10:00", "11:30", "13:00", "14:30", "16:00", "17:00"];
 const paymentMethods = [
@@ -121,6 +122,35 @@ export default function BookingPage() {
       )
     );
   }, [bookingServices, selectedService]);
+
+  // Auto-capture abandoned booking intents
+  useEffect(() => {
+    if (step >= 3 && (name.trim() || phone.trim())) {
+      const svc = bookingServices.find((s) => s.id === selectedService);
+      queueLeadIntent({
+        name: name.trim() || undefined,
+        phone: phone.trim() || undefined,
+        service: svc?.name,
+        intent_time: selectedTime || undefined,
+      });
+    }
+  }, [step, name, phone, selectedService, selectedTime, bookingServices]);
+
+  useEffect(() => {
+    const handler = () => {
+      if (step >= 2 && (name.trim() || phone.trim()) && !paymentResult) {
+        const svc = bookingServices.find((s) => s.id === selectedService);
+        queueLeadIntent({
+          name: name.trim() || undefined,
+          phone: phone.trim() || undefined,
+          service: svc?.name,
+          intent_time: selectedTime || undefined,
+        });
+      }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [step, name, phone, selectedService, selectedTime, paymentResult, bookingServices]);
 
   const service = bookingServices.find((item) => item.id === selectedService);
 

@@ -33,6 +33,7 @@ import CadeaubonnenPage from "./pages/CadeaubonnenPage";
 import WebshopPage from "./pages/WebshopPage";
 import SocialStudioPage from "./pages/SocialStudioPage";
 import LeadsPage from "./pages/LeadsPage";
+import { useLeadAutomation } from "@/hooks/useLeadAutomation";
 
 const queryClient = new QueryClient();
 
@@ -43,6 +44,11 @@ function AuthRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function LeadAutomationRunner() {
+  useLeadAutomation();
+  return null;
+}
+
 const App = () => (
   <ThemeProvider>
     <QueryClientProvider client={queryClient}>
@@ -51,6 +57,7 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
+            <LeadAutomationRunner />
             <Routes>
               <Route path="/login" element={<AuthRoute><LoginPage /></AuthRoute>} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
