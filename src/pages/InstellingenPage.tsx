@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { exportCSV, exportExcel } from "@/lib/exportUtils";
 import { formatEuro } from "@/lib/data";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 type OpeningHours = Record<string, { open: string; close: string; enabled: boolean }>;
 
@@ -61,10 +62,16 @@ export default function InstellingenPage() {
   const [googleCalendar, setGoogleCalendar] = useState(false);
   const [instagramBooking, setInstagramBooking] = useState(false);
   const [activeTab, setActiveTab] = useState("algemeen");
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
   // User management
+  const [newUserName, setNewUserName] = useState("");
   const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserPassword, setNewUserPassword] = useState("");
   const [newUserRole, setNewUserRole] = useState("medewerker");
+  const [addUserLoading, setAddUserLoading] = useState(false);
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
   // Integration states
   const [facebookEnabled, setFacebookEnabled] = useState(false);
   const [googleReserve, setGoogleReserve] = useState(false);
@@ -104,32 +111,91 @@ export default function InstellingenPage() {
   }, [user]);
 
   const handleSave = async () => {
-    const data: Record<string, any> = {
-      salon_name: salonName,
-      email_enabled: notifications.email,
-      whatsapp_enabled: notifications.whatsapp,
-      demo_mode: demoMode,
-      mollie_mode: mollieMode,
-      deposit_new_client: depositNewClient,
-      deposit_percentage: depositPct,
-      full_prepay_threshold: fullPrepayThreshold,
-      skip_prepay_vip: skipVip,
-      deposit_noshow_risk: depositNoshow,
-      opening_hours: openingHours,
-      buffer_minutes: bufferMinutes,
-      max_bookings_simultaneous: maxBookings,
-      group_bookings_enabled: groupBookings,
-      auto_block_noshow: autoBlockNoshow,
-      google_calendar_enabled: googleCalendar,
-      instagram_booking_enabled: instagramBooking,
-    };
-    if (settings.length > 0) {
-      await update(settings[0].id, data);
-    } else {
-      await insert(data);
+    if (saveLoading) return;
+    setSaveLoading(true);
+    try {
+      const data: Record<string, any> = {
+        salon_name: salonName,
+        email_enabled: notifications.email,
+        whatsapp_enabled: notifications.whatsapp,
+        demo_mode: demoMode,
+        mollie_mode: mollieMode,
+        deposit_new_client: depositNewClient,
+        deposit_percentage: depositPct,
+        full_prepay_threshold: fullPrepayThreshold,
+        skip_prepay_vip: skipVip,
+        deposit_noshow_risk: depositNoshow,
+        opening_hours: openingHours,
+        buffer_minutes: bufferMinutes,
+        max_bookings_simultaneous: maxBookings,
+        group_bookings_enabled: groupBookings,
+        auto_block_noshow: autoBlockNoshow,
+        google_calendar_enabled: googleCalendar,
+        instagram_booking_enabled: instagramBooking,
+      };
+      if (settings.length > 0) {
+        await update(settings[0].id, data);
+      } else {
+        await insert(data);
+      }
+      toast.success("Instellingen opgeslagen!");
+      refetch();
+    } finally {
+      setSaveLoading(false);
     }
-    toast.success("Instellingen opgeslagen!");
-    refetch();
+  };
+
+  const handleDemoReset = async () => {
+    setResetLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { error } = await supabase.functions.invoke("seed-demo-data", {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (error) throw error;
+        toast.success("Demo data opnieuw geladen!");
+        refetch();
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Demo resetten mislukt");
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const handleAddTeamMember = async () => {
+    if (addUserLoading) return;
+    if (!newUserName.trim()) { toast.error("Vul een naam in"); return; }
+    if (!newUserEmail.trim()) { toast.error("Vul een e-mail in"); return; }
+    if (newUserPassword.length < 8) { toast.error("Tijdelijk wachtwoord moet minimaal 8 tekens zijn"); return; }
+    setAddUserLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const { data, error } = await supabase.functions.invoke("create-user", {
+        body: { name: newUserName.trim(), email: newUserEmail.trim(), password: newUserPassword, role: newUserRole },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (error || (data as any)?.error) {
+        throw new Error((data as any)?.error || error?.message || "Aanmaken mislukt");
+      }
+      toast.success(`Gebruiker ${newUserName} aangemaakt`);
+      setNewUserName(""); setNewUserEmail(""); setNewUserPassword(""); setNewUserRole("medewerker");
+      const { data: rolesData } = await (supabase.from("user_roles") as any).select("*");
+      if (rolesData) setTeamMembers(rolesData);
+    } catch (err: any) {
+      toast.error(err.message || "Aanmaken mislukt");
+    } finally {
+      setAddUserLoading(false);
+    }
+  };
+
+  const handleRemoveTeamMember = async (id: string) => {
+    if (await removeRole(id)) {
+      toast.success("Toegang ingetrokken");
+      const { data } = await (supabase.from("user_roles") as any).select("*");
+      if (data) setTeamMembers(data);
+    }
   };
 
   const handleDemoReset = async () => {
