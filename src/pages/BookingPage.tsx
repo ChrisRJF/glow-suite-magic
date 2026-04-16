@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Check, Clock, ArrowLeft, ArrowRight, Calendar, User, CreditCard, Loader2, Plus, Trash2, Users, Zap, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePaymentRules } from "@/hooks/usePaymentRules";
-import { useServices } from "@/hooks/useSupabaseData";
+import { useServices, useSettings } from "@/hooks/useSupabaseData";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -66,6 +66,9 @@ interface PlacementOption {
 
 export default function BookingPage() {
   const { data: liveServices } = useServices();
+  const { data: liveSettings } = useSettings();
+  const settingsRow = liveSettings[0] as any | undefined;
+  const isDemoMode = Boolean(settingsRow?.demo_mode);
   const [step, setStep] = useState(1);
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
@@ -122,12 +125,12 @@ export default function BookingPage() {
   const service = bookingServices.find((item) => item.id === selectedService);
 
   const rules = usePaymentRules({
-    deposit_new_client: true,
-    deposit_percentage: 50,
-    full_prepay_threshold: 150,
-    skip_prepay_vip: false,
-    deposit_noshow_risk: true,
-    demo_mode: true,
+    deposit_new_client: settingsRow?.deposit_new_client ?? true,
+    deposit_percentage: settingsRow?.deposit_percentage ?? 50,
+    full_prepay_threshold: Number(settingsRow?.full_prepay_threshold) || 150,
+    skip_prepay_vip: settingsRow?.skip_prepay_vip ?? false,
+    deposit_noshow_risk: settingsRow?.deposit_noshow_risk ?? true,
+    demo_mode: isDemoMode,
   });
 
   const totalPrice = useMemo(() => {
