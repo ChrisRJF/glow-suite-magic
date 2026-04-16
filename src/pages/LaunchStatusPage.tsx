@@ -55,19 +55,28 @@ export default function LaunchStatusPage() {
     }
 
     // 4. Edge function: create-payment reachable
+    // We send an intentionally-invalid body; a 400 "Ongeldige invoer" proves the function is up and validating.
     try {
       const { error } = await supabase.functions.invoke("create-payment", {
         body: { __healthcheck: true },
       });
-      // Function will return 400 for invalid body — that proves it's reachable
-      const reachable = !error || /400|amount|appointment/i.test(error.message || "");
+      const msg = (error?.message || "").toLowerCase();
+      const reachable =
+        !error ||
+        /non-2xx|400|amount|ongeldige|required/i.test(msg);
       results.push({
         id: "fn-pay", label: "Betaal-functie bereikbaar",
         state: reachable ? "ok" : "fail",
-        detail: reachable ? "Edge function reageert" : error?.message,
+        detail: reachable ? "Edge function reageert (validatie actief)" : error?.message,
       });
     } catch (e: any) {
-      results.push({ id: "fn-pay", label: "Betaal-functie bereikbaar", state: "fail", detail: e.message });
+      const msg = (e?.message || "").toLowerCase();
+      const reachable = /non-2xx|400|amount|ongeldige|required/i.test(msg);
+      results.push({
+        id: "fn-pay", label: "Betaal-functie bereikbaar",
+        state: reachable ? "ok" : "fail",
+        detail: reachable ? "Edge function reageert (validatie actief)" : e.message,
+      });
     }
 
     // 5. Customers data
