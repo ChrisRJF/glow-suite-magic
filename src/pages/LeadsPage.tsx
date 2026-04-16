@@ -11,7 +11,9 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 const STATUS_OPTIONS = [
   { value: "nieuw", label: "Nieuw", color: "bg-primary/15 text-primary" },
   { value: "opgevolgd", label: "Opgevolgd", color: "bg-warning/15 text-warning" },
+  { value: "geboekt", label: "Geboekt", color: "bg-success/15 text-success" },
   { value: "klant_geworden", label: "Klant geworden", color: "bg-success/15 text-success" },
+  { value: "verloren", label: "Verloren", color: "bg-muted text-muted-foreground" },
 ];
 
 export default function LeadsPage() {
