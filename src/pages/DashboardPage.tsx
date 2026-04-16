@@ -340,6 +340,14 @@ export default function DashboardPage() {
                   <span>Geconverteerd</span>
                   <span className="font-semibold tabular-nums text-success">{leadsConverted}</span>
                 </div>
+                <div onClick={() => navigate('/leads')} className="flex items-center justify-between text-sm cursor-pointer hover:text-primary transition-colors">
+                  <span>Conversie</span>
+                  <span className="font-semibold tabular-nums">{leadsConversionPct}%</span>
+                </div>
+                <div onClick={() => navigate('/leads')} className="flex items-center justify-between text-sm cursor-pointer hover:text-primary transition-colors">
+                  <span>Omzet</span>
+                  <span className="font-semibold tabular-nums text-success">{formatEuro(leadsRevenue)}</span>
+                </div>
               </div>
             </div>
 
