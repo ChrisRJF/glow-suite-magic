@@ -33,6 +33,7 @@ import CadeaubonnenPage from "./pages/CadeaubonnenPage";
 import WebshopPage from "./pages/WebshopPage";
 import SocialStudioPage from "./pages/SocialStudioPage";
 import LeadsPage from "./pages/LeadsPage";
+import { useLeadAutomation } from "@/hooks/useLeadAutomation";
 
 const queryClient = new QueryClient();
 
@@ -41,6 +42,11 @@ function AuthRoute({ children }: { children: React.ReactNode }) {
   if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-pulse text-muted-foreground">Laden...</div></div>;
   if (user) return <Navigate to="/" replace />;
   return <>{children}</>;
+}
+
+function LeadAutomationRunner() {
+  useLeadAutomation();
+  return null;
 }
 
 const App = () => (
