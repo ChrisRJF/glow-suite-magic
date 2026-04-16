@@ -88,7 +88,9 @@ export default function DashboardPage() {
 
   const vipCustomers = customers.filter(c => (Number(c.total_spent) || 0) > 500);
   const newLeads = leads.filter(l => l.status === 'nieuw').length;
-  const leadsConverted = leads.filter(l => l.status === 'klant_geworden').length;
+  const leadsConverted = leads.filter(l => l.status === 'klant_geworden' || l.status === 'geboekt').length;
+  const leadsConversionPct = leads.length > 0 ? Math.round((leadsConverted / leads.length) * 100) : 0;
+  const leadsRevenue = leadsConverted * 65;
 
   // Employees context for free slots
   const employeeNames = ["Bas", "Roos", "Kim"];
