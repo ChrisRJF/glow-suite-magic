@@ -123,6 +123,35 @@ export default function BookingPage() {
     );
   }, [bookingServices, selectedService]);
 
+  // Auto-capture abandoned booking intents
+  useEffect(() => {
+    if (step >= 3 && (name.trim() || phone.trim())) {
+      const svc = bookingServices.find((s) => s.id === selectedService);
+      queueLeadIntent({
+        name: name.trim() || undefined,
+        phone: phone.trim() || undefined,
+        service: svc?.name,
+        intent_time: selectedTime || undefined,
+      });
+    }
+  }, [step, name, phone, selectedService, selectedTime, bookingServices]);
+
+  useEffect(() => {
+    const handler = () => {
+      if (step >= 2 && (name.trim() || phone.trim()) && !paymentResult) {
+        const svc = bookingServices.find((s) => s.id === selectedService);
+        queueLeadIntent({
+          name: name.trim() || undefined,
+          phone: phone.trim() || undefined,
+          service: svc?.name,
+          intent_time: selectedTime || undefined,
+        });
+      }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [step, name, phone, selectedService, selectedTime, paymentResult, bookingServices]);
+
   const service = bookingServices.find((item) => item.id === selectedService);
 
   const rules = usePaymentRules({
