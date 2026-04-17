@@ -86,6 +86,16 @@ export default function BookingPage() {
   const [placementOptions, setPlacementOptions] = useState<PlacementOption[]>([]);
   const [selectedPlacementIndex, setSelectedPlacementIndex] = useState(0);
 
+  // White-label embed mode: detect ?embed=1 in URL and load salon branding
+  const isEmbed = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("embed") === "1";
+  const [branding, setBranding] = useState<WhiteLabelBranding>(() => getBranding());
+  useEffect(() => {
+    if (isEmbed) applyBrandingToDocument(branding);
+    const handler = () => setBranding(getBranding());
+    window.addEventListener("whitelabel:updated", handler);
+    return () => window.removeEventListener("whitelabel:updated", handler);
+  }, [isEmbed, branding]);
+
   const bookingServices = useMemo<BookingServiceOption[]>(() => {
     if (liveServices.length > 0) {
       return liveServices
