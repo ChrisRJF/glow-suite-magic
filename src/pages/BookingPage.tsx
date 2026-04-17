@@ -8,6 +8,7 @@ import { useServices, useSettings } from "@/hooks/useSupabaseData";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { queueLeadIntent } from "@/hooks/useLeadAutomation";
+import { getBranding, applyBrandingToDocument, type WhiteLabelBranding } from "@/lib/whitelabel";
 
 const availableSlots = ["09:00", "10:00", "11:30", "13:00", "14:30", "16:00", "17:00"];
 const paymentMethods = [
@@ -84,6 +85,16 @@ export default function BookingPage() {
   const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
   const [placementOptions, setPlacementOptions] = useState<PlacementOption[]>([]);
   const [selectedPlacementIndex, setSelectedPlacementIndex] = useState(0);
+
+  // White-label embed mode: detect ?embed=1 in URL and load salon branding
+  const isEmbed = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("embed") === "1";
+  const [branding, setBranding] = useState<WhiteLabelBranding>(() => getBranding());
+  useEffect(() => {
+    if (isEmbed) applyBrandingToDocument(branding);
+    const handler = () => setBranding(getBranding());
+    window.addEventListener("whitelabel:updated", handler);
+    return () => window.removeEventListener("whitelabel:updated", handler);
+  }, [isEmbed, branding]);
 
   const bookingServices = useMemo<BookingServiceOption[]>(() => {
     if (liveServices.length > 0) {
@@ -542,17 +553,34 @@ export default function BookingPage() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header className="border-b border-border p-5">
-        <div className="max-w-2xl mx-auto flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl gradient-bg flex items-center justify-center">
-            <span className="text-sm font-bold text-primary-foreground">GS</span>
+      {!isEmbed && (
+        <header className="border-b border-border p-5">
+          <div className="max-w-2xl mx-auto flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl gradient-bg flex items-center justify-center">
+              <span className="text-sm font-bold text-primary-foreground">GS</span>
+            </div>
+            <div>
+              <h1 className="text-base font-bold tracking-tight">{branding.salon_name || "Glow Studio"}</h1>
+              <p className="text-[11px] text-muted-foreground">Online Afspraak Maken</p>
+            </div>
           </div>
+        </header>
+      )}
+      {isEmbed && branding.show_logo && (
+        <header className="p-4 flex items-center gap-3 max-w-2xl mx-auto w-full">
+          {branding.logo_url ? (
+            <img src={branding.logo_url} alt={branding.salon_name} className="w-10 h-10 rounded-xl object-cover" />
+          ) : (
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: branding.primary_color }}>
+              <span className="text-sm font-bold text-white">{branding.salon_name.charAt(0)}</span>
+            </div>
+          )}
           <div>
-            <h1 className="text-base font-bold tracking-tight">Glow Studio</h1>
-            <p className="text-[11px] text-muted-foreground">Online Afspraak Maken</p>
+            <h1 className="text-base font-bold tracking-tight">{branding.salon_name}</h1>
+            <p className="text-[11px] text-muted-foreground">Maak een afspraak</p>
           </div>
-        </div>
-      </header>
+        </header>
+      )}
 
       <div className="flex-1 max-w-2xl mx-auto w-full p-6">
         <div className="flex items-center gap-2 mb-8">
@@ -933,6 +961,11 @@ export default function BookingPage() {
           </div>
         )}
       </div>
+      {isEmbed && !branding.hide_glowsuite_branding && (
+        <footer className="text-center py-3 text-[10px] text-muted-foreground/60">
+          Powered by GlowSuite
+        </footer>
+      )}
     </div>
   );
 }

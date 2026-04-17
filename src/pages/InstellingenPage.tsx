@@ -15,6 +15,7 @@ import { exportCSV, exportExcel } from "@/lib/exportUtils";
 import { formatEuro } from "@/lib/data";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { getMessageSettings, saveMessageSettings, type MessageSettings } from "@/lib/messaging";
+import { WhiteLabelEmbedCard } from "@/components/WhiteLabelEmbedCard";
 
 type OpeningHours = Record<string, { open: string; close: string; enabled: boolean }>;
 
@@ -411,6 +412,9 @@ export default function InstellingenPage() {
 
         {/* Messaging automation settings (WhatsApp + SMS) */}
         {activeTab === "boekingen" && <MessagingSettingsCard />}
+
+        {/* White-label embed for salon websites */}
+        {activeTab === "boekingen" && <WhiteLabelEmbedCard />}
 
         {/* Payment Settings */}
         {activeTab === "betaling" && (
