@@ -68,9 +68,14 @@ export default function DashboardPage() {
   }, [appointments]);
 
   const campaignRevenue = useMemo(() => {
-    const sentCampaigns = campaigns.filter(c => c.status === 'verzonden');
-    return sentCampaigns.reduce((s, c) => s + ((c.sent_count || 0) * 45), 0);
+    const successful = campaigns.filter(c => c.status === 'verzonden' || c.status === 'geboekt');
+    return successful.reduce((s, c) => s + ((c.sent_count || 0) * 45), 0);
   }, [campaigns]);
+
+  const messagesSent = useMemo(() =>
+    campaigns.filter(c => (c.type === 'whatsapp' || c.type === 'sms') && c.status && c.status !== 'concept').length,
+    [campaigns]
+  );
 
   const recoveredCustomers = useMemo(() => {
     return inactiveCustomers.filter(c => {
