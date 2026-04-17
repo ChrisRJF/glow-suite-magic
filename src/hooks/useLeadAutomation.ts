@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { sendMessage, getMessageSettings, MESSAGE_AUDIT_KEYS } from "@/lib/messaging";
 
 const PENDING_KEY = "glowsuite_pending_leads";
 const LAST_RUN_KEY = "glowsuite_lead_automation_last_run";
@@ -106,36 +107,33 @@ export function useLeadAutomation() {
         if (!leads) return;
         const now = Date.now();
 
+        const msgSettings = getMessageSettings();
         for (const lead of leads) {
           const created = new Date(lead.created_at).getTime();
           const ageHours = (now - created) / (1000 * 60 * 60);
           const notes = lead.notes || "";
+          const recipient = { name: lead.name, phone: lead.phone, email: lead.email };
 
-          // Step 1: 1h reminder
-          if (ageHours >= 1 && !notes.includes("[AUTO-1H]")) {
+          const trySend = async (type: "lead_reminder" | "lead_booklink" | "lead_incentive", label: string) => {
+            const auditKey = MESSAGE_AUDIT_KEYS[type];
+            if (notes.includes(auditKey)) return;
+            let stamp = `${auditKey} ${new Date().toLocaleString("nl-NL")}`;
+            if (msgSettings.abandonedFollowupEnabled) {
+              const res = await sendMessage({ userId: user.id, type, recipient, leadId: lead.id });
+              stamp += res.ok ? ` ${label} verstuurd` : ` ${label} (${res.reason})`;
+            } else {
+              stamp += ` ${label} (automation uit)`;
+            }
             await supabase.from("leads").update({
-              notes: `${notes}\n[AUTO-1H ${new Date().toLocaleString("nl-NL")}] Herinnering verstuurd`.trim(),
+              notes: `${notes}\n${stamp}`.trim(),
               followed_up_at: new Date().toISOString(),
               status: "opgevolgd",
             }).eq("id", lead.id);
-          }
-          // Step 2: 24h booking link
-          else if (ageHours >= 24 && !notes.includes("[AUTO-24H]")) {
-            await supabase.from("leads").update({
-              notes: `${notes}\n[AUTO-24H ${new Date().toLocaleString("nl-NL")}] Boekingslink verstuurd`.trim(),
-              followed_up_at: new Date().toISOString(),
-              status: "opgevolgd",
-            }).eq("id", lead.id);
-          }
-          // Step 3: 3-day discount
-          else if (ageHours >= 72 && !notes.includes("[AUTO-3D]")) {
-            await supabase.from("leads").update({
-              notes: `${notes}\n[AUTO-3D ${new Date().toLocaleString("nl-NL")}] 10% korting aangeboden`.trim(),
-              followed_up_at: new Date().toISOString(),
-              status: "opgevolgd",
-            }).eq("id", lead.id);
-          }
-          // Mark stale (>14 days, still no booking) as verloren
+          };
+
+          if (ageHours >= 1 && ageHours < 24) await trySend("lead_reminder", "Herinnering");
+          else if (ageHours >= 24 && ageHours < 72) await trySend("lead_booklink", "Boekingslink");
+          else if (ageHours >= 72 && ageHours < 14 * 24 && msgSettings.incentiveEnabled) await trySend("lead_incentive", "10% korting");
           else if (ageHours >= 14 * 24 && lead.status !== "geboekt" && !notes.includes("[AUTO-LOST]")) {
             await supabase.from("leads").update({
               notes: `${notes}\n[AUTO-LOST] Geen reactie na 14 dagen`.trim(),
