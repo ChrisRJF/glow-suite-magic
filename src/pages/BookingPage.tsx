@@ -961,6 +961,11 @@ export default function BookingPage() {
           </div>
         )}
       </div>
+      {isEmbed && !branding.hide_glowsuite_branding && (
+        <footer className="text-center py-3 text-[10px] text-muted-foreground/60">
+          Powered by GlowSuite
+        </footer>
+      )}
     </div>
   );
 }
