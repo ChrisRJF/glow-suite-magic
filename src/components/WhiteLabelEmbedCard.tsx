@@ -1,17 +1,46 @@
-import { useEffect, useState } from "react";
-import { Globe, Copy, Check, Eye, Palette } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Globe, Copy, Check, Eye, Palette, Upload, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { getBranding, saveBranding, type WhiteLabelBranding } from "@/lib/whitelabel";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function WhiteLabelEmbedCard() {
+  const { user } = useAuth();
   const [branding, setBranding] = useState<WhiteLabelBranding>(() => getBranding());
   const [copied, setCopied] = useState(false);
   const [previewKey, setPreviewKey] = useState(0);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     saveBranding(branding);
   }, [branding]);
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    if (file.size > 2 * 1024 * 1024) { toast.error("Logo mag maximaal 2 MB zijn"); return; }
+    if (!file.type.startsWith("image/")) { toast.error("Alleen afbeeldingen toegestaan"); return; }
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop() || "png";
+      const path = `${user.id}/logo-${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("salon-logos").upload(path, file, { cacheControl: "3600", upsert: true });
+      if (error) throw error;
+      const { data } = supabase.storage.from("salon-logos").getPublicUrl(path);
+      setBranding((b) => ({ ...b, logo_url: data.publicUrl }));
+      toast.success("Logo geüpload");
+    } catch (err: any) {
+      toast.error(err?.message || "Upload mislukt");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const removeLogo = () => setBranding((b) => ({ ...b, logo_url: "" }));
 
   const update = (patch: Partial<WhiteLabelBranding>) => setBranding((b) => ({ ...b, ...patch }));
 
@@ -54,13 +83,34 @@ export function WhiteLabelEmbedCard() {
         </div>
 
         <div>
-          <label className="text-xs text-muted-foreground">Logo URL</label>
-          <input
-            placeholder="https://..."
-            value={branding.logo_url}
-            onChange={(e) => update({ logo_url: e.target.value })}
-            className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-          />
+          <label className="text-xs text-muted-foreground">Salonlogo</label>
+          <input ref={fileInputRef} type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
+          {branding.logo_url ? (
+            <div className="mt-1 flex items-center gap-3 p-3 rounded-xl bg-secondary/50 border border-border">
+              <img src={branding.logo_url} alt="Salonlogo" className="w-14 h-14 rounded-lg object-cover bg-background" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium truncate">Logo geüpload</p>
+                <p className="text-[10px] text-muted-foreground truncate">{branding.logo_url.split("/").pop()}</p>
+              </div>
+              <Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+                {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Vervang"}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={removeLogo} disabled={uploading}>
+                <X className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="mt-1 w-full p-4 rounded-xl border-2 border-dashed border-border hover:border-primary/50 hover:bg-secondary/30 transition-colors flex flex-col items-center gap-2 text-muted-foreground"
+            >
+              {uploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Upload className="w-5 h-5" />}
+              <span className="text-xs font-medium">{uploading ? "Uploaden..." : "Klik om logo te uploaden"}</span>
+              <span className="text-[10px]">PNG, JPG of SVG · max 2 MB</span>
+            </button>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-3">
