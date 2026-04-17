@@ -180,11 +180,18 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Seed campaigns
+    // Seed campaigns + simulated message log (WhatsApp + SMS)
+    const now = Date.now();
+    const ago = (h: number) => new Date(now - h * 3600 * 1000).toISOString();
     await supabase.from("campaigns").insert([
       { user_id: uid, title: "Zomer actie 20% korting", type: "whatsapp", status: "verzonden", audience: "Alle klanten", sent_count: 45, message: "Geniet van 20% korting op alle behandelingen deze zomer! 🌞" },
       { user_id: uid, title: "Last-minute plekken vullen", type: "whatsapp", status: "concept", audience: "Inactieve klanten", sent_count: 0, message: "We hebben deze week nog plekken vrij, boek nu met 15% korting!" },
       { user_id: uid, title: "Nieuwsbrief juni", type: "email", status: "verzonden", audience: "VIP klanten", sent_count: 28, message: "Ontdek onze nieuwe behandelingen en producten!" },
+      { user_id: uid, title: "[WHATSAPP] Lead herinnering (1u)", type: "whatsapp", status: "afgeleverd", audience: "+31612345678", sent_count: 1, message: "Hi Sophie, je was bezig met het boeken van Knipbeurt. Boek hier eenvoudig verder: https://glowsuite.nl/boeken", created_at: ago(2) } as any,
+      { user_id: uid, title: "[SMS] Lead boeklink (24u)", type: "sms", status: "geklikt", audience: "+31698765432", sent_count: 1, message: "Hi Lisa, gisteren ben je gestart met een boeking. Boek nu: https://glowsuite.nl/boeken", created_at: ago(26) } as any,
+      { user_id: uid, title: "[WHATSAPP] Lead incentive (3d)", type: "whatsapp", status: "geboekt", audience: "+31611112222", sent_count: 1, message: "Speciaal voor jou Emma: 10% korting bij vandaag boeken. https://glowsuite.nl/boeken", created_at: ago(74) } as any,
+      { user_id: uid, title: "[SMS] Betaalherinnering", type: "sms", status: "afgeleverd", audience: "+31633334444", sent_count: 1, message: "Hi Noor, je betaling staat nog open. Betaal hier: https://glowsuite.nl/betalen", created_at: ago(5) } as any,
+      { user_id: uid, title: "[WHATSAPP] Lege plek vullen", type: "whatsapp", status: "geopend", audience: "+31655556666", sent_count: 1, message: "Hi Julia, morgen is er nog plek voor Highlights. Claim deze plek: https://glowsuite.nl/boeken", created_at: ago(8) } as any,
     ]);
 
     // Seed discounts
