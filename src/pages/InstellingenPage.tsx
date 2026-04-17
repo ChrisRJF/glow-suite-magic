@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { exportCSV, exportExcel } from "@/lib/exportUtils";
 import { formatEuro } from "@/lib/data";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { getMessageSettings, saveMessageSettings, type MessageSettings } from "@/lib/messaging";
 
 type OpeningHours = Record<string, { open: string; close: string; enabled: boolean }>;
 
@@ -407,6 +408,9 @@ export default function InstellingenPage() {
             </div>
           </div>
         )}
+
+        {/* Messaging automation settings (WhatsApp + SMS) */}
+        {activeTab === "boekingen" && <MessagingSettingsCard />}
 
         {/* Payment Settings */}
         {activeTab === "betaling" && (
