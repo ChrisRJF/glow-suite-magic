@@ -201,9 +201,9 @@ export default function DashboardPage() {
             <p className="text-lg font-bold text-success tabular-nums">{formatEuro(aiRevenue)}</p>
             <p className="text-[10px] text-muted-foreground">AI omzet</p>
           </div>
-          <div className="p-3 rounded-xl bg-primary/10 cursor-pointer hover:bg-primary/15 transition-colors" onClick={() => navigate('/marketing')}>
+          <div className="p-3 rounded-xl bg-primary/10 cursor-pointer hover:bg-primary/15 transition-colors" onClick={() => navigate('/whatsapp')}>
             <p className="text-lg font-bold text-primary tabular-nums">{formatEuro(campaignRevenue)}</p>
-            <p className="text-[10px] text-muted-foreground">Campagnes</p>
+            <p className="text-[10px] text-muted-foreground">Campagnes · {messagesSent} berichten</p>
           </div>
           <div className="p-3 rounded-xl bg-warning/10 cursor-pointer hover:bg-warning/15 transition-colors" onClick={() => navigate('/klanten?filter=risico')}>
             <p className="text-lg font-bold text-warning tabular-nums">{recoveredCustomers}</p>
