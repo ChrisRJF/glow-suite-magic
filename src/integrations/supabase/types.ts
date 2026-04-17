@@ -713,6 +713,7 @@ export type Database = {
           updated_at: string
           user_id: string
           whatsapp_enabled: boolean | null
+          whitelabel_branding: Json | null
         }
         Insert: {
           auto_block_noshow?: number | null
@@ -739,6 +740,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           whatsapp_enabled?: boolean | null
+          whitelabel_branding?: Json | null
         }
         Update: {
           auto_block_noshow?: number | null
@@ -765,6 +767,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           whatsapp_enabled?: boolean | null
+          whitelabel_branding?: Json | null
         }
         Relationships: []
       }
