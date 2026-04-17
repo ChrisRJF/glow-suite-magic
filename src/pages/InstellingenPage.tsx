@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { exportCSV, exportExcel } from "@/lib/exportUtils";
 import { formatEuro } from "@/lib/data";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { getMessageSettings, saveMessageSettings, type MessageSettings } from "@/lib/messaging";
 
 type OpeningHours = Record<string, { open: string; close: string; enabled: boolean }>;
 
@@ -408,6 +409,9 @@ export default function InstellingenPage() {
           </div>
         )}
 
+        {/* Messaging automation settings (WhatsApp + SMS) */}
+        {activeTab === "boekingen" && <MessagingSettingsCard />}
+
         {/* Payment Settings */}
         {activeTab === "betaling" && (
           <div className="glass-card p-6">
@@ -665,3 +669,54 @@ export default function InstellingenPage() {
     </AppLayout>
   );
 }
+
+function MessagingSettingsCard() {
+  const [s, setS] = useState<MessageSettings>(getMessageSettings());
+  const upd = (patch: Partial<MessageSettings>) => {
+    const next = { ...s, ...patch };
+    setS(next);
+    saveMessageSettings(next);
+  };
+  return (
+    <div className="glass-card p-6 mt-4">
+      <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><Bell className="w-4 h-4 text-primary" /> Berichtautomatisering</h3>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between py-2">
+          <div><span className="text-sm">WhatsApp automatisering</span><p className="text-[11px] text-muted-foreground">Verstuur automatische WhatsApp berichten</p></div>
+          <button onClick={() => upd({ whatsappEnabled: !s.whatsappEnabled })} className={`w-11 h-6 rounded-full relative transition-colors ${s.whatsappEnabled ? 'bg-primary' : 'bg-secondary'}`}>
+            <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${s.whatsappEnabled ? 'translate-x-[22px]' : 'translate-x-1'}`} />
+          </button>
+        </div>
+        <div className="flex items-center justify-between py-2">
+          <div><span className="text-sm">SMS automatisering</span><p className="text-[11px] text-muted-foreground">Verstuur automatische SMS-berichten</p></div>
+          <button onClick={() => upd({ smsEnabled: !s.smsEnabled })} className={`w-11 h-6 rounded-full relative transition-colors ${s.smsEnabled ? 'bg-primary' : 'bg-secondary'}`}>
+            <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${s.smsEnabled ? 'translate-x-[22px]' : 'translate-x-1'}`} />
+          </button>
+        </div>
+        <div className="flex items-center justify-between py-2">
+          <div><span className="text-sm">Voorkeurskanaal</span><p className="text-[11px] text-muted-foreground">Wat als beide actief zijn</p></div>
+          <select value={s.preferredChannel} onChange={e => upd({ preferredChannel: e.target.value as 'whatsapp' | 'sms' })} className="px-3 py-1.5 rounded-xl bg-secondary/50 border border-border text-sm">
+            <option value="whatsapp">WhatsApp</option><option value="sms">SMS</option>
+          </select>
+        </div>
+        <div className="flex items-center justify-between py-2">
+          <div><span className="text-sm">Max berichten per dag</span><p className="text-[11px] text-muted-foreground">Limiet om spam te voorkomen</p></div>
+          <input type="number" min={1} max={1000} value={s.maxPerDay} onChange={e => upd({ maxPerDay: Number(e.target.value) })} className="w-20 px-2 py-1.5 rounded-xl bg-secondary/50 border border-border text-sm text-right" />
+        </div>
+        <div className="flex items-center justify-between py-2">
+          <div><span className="text-sm">Afgebroken boeking opvolgen</span><p className="text-[11px] text-muted-foreground">Stuur reminders na 1u/24u</p></div>
+          <button onClick={() => upd({ abandonedFollowupEnabled: !s.abandonedFollowupEnabled })} className={`w-11 h-6 rounded-full relative transition-colors ${s.abandonedFollowupEnabled ? 'bg-primary' : 'bg-secondary'}`}>
+            <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${s.abandonedFollowupEnabled ? 'translate-x-[22px]' : 'translate-x-1'}`} />
+          </button>
+        </div>
+        <div className="flex items-center justify-between py-2">
+          <div><span className="text-sm">Kortingsbericht (3 dagen)</span><p className="text-[11px] text-muted-foreground">Stuur 10% korting bij koude lead</p></div>
+          <button onClick={() => upd({ incentiveEnabled: !s.incentiveEnabled })} className={`w-11 h-6 rounded-full relative transition-colors ${s.incentiveEnabled ? 'bg-primary' : 'bg-secondary'}`}>
+            <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${s.incentiveEnabled ? 'translate-x-[22px]' : 'translate-x-1'}`} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
