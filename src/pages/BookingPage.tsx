@@ -553,17 +553,34 @@ export default function BookingPage() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header className="border-b border-border p-5">
-        <div className="max-w-2xl mx-auto flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl gradient-bg flex items-center justify-center">
-            <span className="text-sm font-bold text-primary-foreground">GS</span>
+      {!isEmbed && (
+        <header className="border-b border-border p-5">
+          <div className="max-w-2xl mx-auto flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl gradient-bg flex items-center justify-center">
+              <span className="text-sm font-bold text-primary-foreground">GS</span>
+            </div>
+            <div>
+              <h1 className="text-base font-bold tracking-tight">{branding.salon_name || "Glow Studio"}</h1>
+              <p className="text-[11px] text-muted-foreground">Online Afspraak Maken</p>
+            </div>
           </div>
+        </header>
+      )}
+      {isEmbed && branding.show_logo && (
+        <header className="p-4 flex items-center gap-3 max-w-2xl mx-auto w-full">
+          {branding.logo_url ? (
+            <img src={branding.logo_url} alt={branding.salon_name} className="w-10 h-10 rounded-xl object-cover" />
+          ) : (
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: branding.primary_color }}>
+              <span className="text-sm font-bold text-white">{branding.salon_name.charAt(0)}</span>
+            </div>
+          )}
           <div>
-            <h1 className="text-base font-bold tracking-tight">Glow Studio</h1>
-            <p className="text-[11px] text-muted-foreground">Online Afspraak Maken</p>
+            <h1 className="text-base font-bold tracking-tight">{branding.salon_name}</h1>
+            <p className="text-[11px] text-muted-foreground">Maak een afspraak</p>
           </div>
-        </div>
-      </header>
+        </header>
+      )}
 
       <div className="flex-1 max-w-2xl mx-auto w-full p-6">
         <div className="flex items-center gap-2 mb-8">
