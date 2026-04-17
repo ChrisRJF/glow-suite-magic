@@ -8,7 +8,7 @@ import { useServices, useSettings } from "@/hooks/useSupabaseData";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { queueLeadIntent } from "@/hooks/useLeadAutomation";
-import { getBranding, applyBrandingToDocument, type WhiteLabelBranding } from "@/lib/whitelabel";
+import { getBranding, fetchBranding, applyBrandingToDocument, type WhiteLabelBranding } from "@/lib/whitelabel";
 
 const availableSlots = ["09:00", "10:00", "11:30", "13:00", "14:30", "16:00", "17:00"];
 const paymentMethods = [
@@ -91,6 +91,11 @@ export default function BookingPage() {
   const [branding, setBranding] = useState<WhiteLabelBranding>(() => getBranding());
   useEffect(() => {
     if (isEmbed) applyBrandingToDocument(branding);
+    // Sync from DB so embed reflects salon's saved branding across devices
+    fetchBranding().then((remote) => {
+      setBranding(remote);
+      if (isEmbed) applyBrandingToDocument(remote);
+    });
     const handler = () => setBranding(getBranding());
     window.addEventListener("whitelabel:updated", handler);
     return () => window.removeEventListener("whitelabel:updated", handler);

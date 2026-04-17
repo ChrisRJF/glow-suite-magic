@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Globe, Copy, Check, Eye, Palette, Upload, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { getBranding, saveBranding, type WhiteLabelBranding } from "@/lib/whitelabel";
+import { getBranding, fetchBranding, saveBranding, type WhiteLabelBranding } from "@/lib/whitelabel";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -12,10 +12,22 @@ export function WhiteLabelEmbedCard() {
   const [copied, setCopied] = useState(false);
   const [previewKey, setPreviewKey] = useState(0);
   const [uploading, setUploading] = useState(false);
+  const hydrated = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Hydrate from DB on mount
   useEffect(() => {
-    saveBranding(branding);
+    fetchBranding().then((remote) => {
+      setBranding(remote);
+      hydrated.current = true;
+    });
+  }, []);
+
+  // Save (debounced) when branding changes after hydration
+  useEffect(() => {
+    if (!hydrated.current) return;
+    const t = setTimeout(() => { saveBranding(branding); }, 400);
+    return () => clearTimeout(t);
   }, [branding]);
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
