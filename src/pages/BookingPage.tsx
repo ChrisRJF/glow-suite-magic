@@ -1082,6 +1082,45 @@ export default function BookingPage() {
 
             <div className="space-y-4">
               <div>
+                <label className="text-sm font-medium mb-1.5 block">E-mail</label>
+                <div className="relative">
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <input
+                    type="email"
+                    placeholder="jouw@email.nl"
+                    value={email}
+                    onChange={(e) => { setEmail(e.target.value); if (e.target.value) trackEvent("email_filled"); }}
+                    className="w-full h-11 pl-10 pr-10 rounded-xl bg-secondary border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  />
+                  {emailLookupLoading && <Loader2 className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground animate-spin" />}
+                </div>
+                {recognizedCustomer && (
+                  <p className="text-[11px] text-primary mt-1.5 flex items-center gap-1">
+                    <Sparkles className="w-3 h-3" /> Welkom terug{recognizedCustomer.name ? `, ${recognizedCustomer.name.split(" ")[0]}` : ""}! Je gegevens zijn ingevuld.
+                  </p>
+                )}
+              </div>
+
+              {recentAppointments.length > 0 && (
+                <div className="p-3 rounded-xl bg-primary/5 border border-primary/15 space-y-2">
+                  <p className="text-xs font-semibold flex items-center gap-1"><RotateCcw className="w-3 h-3" /> Boek opnieuw</p>
+                  {recentAppointments.slice(0, 2).map((appt) => (
+                    <button
+                      key={appt.id}
+                      onClick={() => handleQuickRebook(appt.service_id)}
+                      className="w-full flex items-center justify-between text-left p-2 rounded-lg bg-background border border-border hover:border-primary transition-colors"
+                    >
+                      <div>
+                        <p className="text-sm font-medium">{appt.service_name || "Behandeling"}</p>
+                        <p className="text-[10px] text-muted-foreground">Vorige: {new Date(appt.appointment_date).toLocaleDateString("nl-NL")}</p>
+                      </div>
+                      <ArrowRight className="w-3.5 h-3.5 text-primary" />
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div>
                 <label className="text-sm font-medium mb-1.5 block">Naam</label>
                 <div className="relative">
                   <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
