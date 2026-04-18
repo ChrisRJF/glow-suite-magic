@@ -1162,32 +1162,63 @@ export default function BookingPage() {
                     </button>
                   ))}
                 </div>
+                <p className="text-[11px] text-muted-foreground mt-2 flex items-center gap-1">
+                  <Lock className="w-3 h-3" /> Veilig afrekenen via GlowPay · SSL versleuteld
+                </p>
               </div>
             )}
 
-            {paymentResult && (
-              <div className={cn("mt-6 p-4 rounded-xl text-sm text-center", paymentResult.status === "success" ? "bg-success/10 border border-success/20 text-success" : "bg-destructive/10 border border-destructive/20 text-destructive")}>
+            {paymentResult && paymentResult.status === "success" && (
+              <div className="mt-6 p-5 rounded-2xl bg-success/10 border border-success/20 text-center">
+                <div className="w-12 h-12 rounded-full bg-success/20 flex items-center justify-center mx-auto mb-3">
+                  <Check className="w-6 h-6 text-success" />
+                </div>
+                <p className="font-semibold text-success text-base">Afspraak bevestigd!</p>
+                <p className="text-xs text-muted-foreground mt-1">Je ontvangt een bevestiging per e-mail.</p>
+
+                <div className="mt-4 grid gap-1.5 text-left text-sm bg-background/60 rounded-xl p-3">
+                  <div className="flex justify-between"><span className="text-muted-foreground">Behandeling</span><span className="font-medium">{service?.name}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Datum</span><span className="font-medium">Di 22 mrt</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Tijd</span><span className="font-medium">{selectedTime}</span></div>
+                  {selectedPlacements[0]?.employee && (
+                    <div className="flex justify-between"><span className="text-muted-foreground">Medewerker</span><span className="font-medium">{selectedPlacements[0].employee}</span></div>
+                  )}
+                  {paymentDecision?.required && (
+                    <div className="flex justify-between"><span className="text-muted-foreground">Betaling</span><span className="font-medium text-success">Voldaan · {formatEuro(paymentDecision.amount)}</span></div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 mt-4">
+                  <Button variant="outline" size="sm" onClick={downloadIcs}><CalendarPlus className="w-3.5 h-3.5 mr-1" />Toevoegen aan agenda</Button>
+                  <Button variant="outline" size="sm" onClick={shareAppointment}><Share2 className="w-3.5 h-3.5 mr-1" />Delen</Button>
+                </div>
+              </div>
+            )}
+
+            {paymentResult && paymentResult.status !== "success" && (
+              <div className="mt-6 p-4 rounded-xl text-sm text-center bg-destructive/10 border border-destructive/20 text-destructive">
                 <p className="font-semibold">{paymentResult.message}</p>
-                {paymentResult.status === "success" && <p className="text-xs mt-1 text-muted-foreground">Je ontvangt een bevestiging per e-mail.</p>}
+                <p className="text-xs mt-1 text-muted-foreground">Probeer het opnieuw of kies een andere betaalmethode.</p>
               </div>
             )}
 
             {!paymentResult && (
-              <Button variant="gradient" className="w-full mt-6" disabled={!name || !phone || paymentLoading} onClick={handleConfirm}>
-                {paymentLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" /> Betaling verwerken...
-                  </>
-                ) : paymentDecision?.required ? (
-                  <>
-                    <CreditCard className="w-4 h-4" /> Betaal {formatEuro(paymentDecision.amount)}
-                  </>
-                ) : (
-                  <>
-                    <Check className="w-4 h-4" /> Afspraak Bevestigen
-                  </>
+              <div className="mt-6 sm:static fixed bottom-0 left-0 right-0 sm:bg-transparent bg-background/95 sm:border-0 border-t border-border sm:p-0 p-4 sm:shadow-none shadow-lg z-40">
+                <Button variant="gradient" className="w-full" disabled={!name || !phone || !email || paymentLoading} onClick={handleConfirm}>
+                  {paymentLoading ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Betaling verwerken...</>
+                  ) : paymentDecision?.required ? (
+                    <><CreditCard className="w-4 h-4" /> Betaal {formatEuro(paymentDecision.amount)} & bevestig</>
+                  ) : (
+                    <><Check className="w-4 h-4" /> Bevestig afspraak</>
+                  )}
+                </Button>
+                {paymentDecision?.required && (
+                  <p className="text-[10px] text-center text-muted-foreground mt-2 hidden sm:block">
+                    Aanbetaling vereist om je plek te bevestigen
+                  </p>
                 )}
-              </Button>
+              </div>
             )}
 
             {paymentResult && (
