@@ -117,30 +117,6 @@ export default function DashboardPage() {
 
       {/* ═══════════ BLOCK 1: KPI's ═══════════ */}
 
-      {/* Hero — AI gegenereerde omzet (dominant) */}
-      <div className="mb-4">
-        <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/10 via-accent/5 to-success/10 p-6 sm:p-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
-            <div>
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-2">AI gegenereerde omzet</p>
-              <p className="text-4xl sm:text-5xl font-extrabold tracking-tight tabular-nums text-primary">
-                {formatEuro(aiRevenue)}
-              </p>
-              {monthlyGrowthRevenue > 0 && (
-                <p className="text-sm text-success font-medium mt-2 flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  {formatEuro(monthlyGrowthRevenue)} totale extra omzet deze maand
-                </p>
-              )}
-              {aiRevenue === 0 && missedRevenue > 0 && (
-                <p className="text-sm text-warning font-medium mt-2">
-                  GlowSuite kan vandaag {formatEuro(missedRevenue)} extra omzet genereren
-                </p>
-              )}
-            </div>
-            <div className="flex-shrink-0">
-      {/* ═══════════ BLOCK 1: KPI's ═══════════ */}
-
       {/* Hero — Omzet kans vandaag (of Verdiend door Autopilot) */}
       <div className="mb-4">
         <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/10 via-accent/5 to-success/10 p-6 sm:p-8">
