@@ -61,6 +61,11 @@ export function WhiteLabelEmbedCard() {
 
   const buttonCode = `<a href="${embedUrl.replace("?embed=1", "")}" target="_blank" rel="noopener" style="display:inline-block;padding:12px 24px;background:${branding.primary_color};color:#fff;border-radius:${branding.button_radius}px;text-decoration:none;font-weight:600;">Boek nu</a>`;
 
+  const widgetOrigin = window.location.origin;
+  const widgetScript = `<script src="${widgetOrigin}/widget.js" data-salon="${user?.id ?? "salon-id"}" data-color="${branding.primary_color}" data-label="Boek nu" async></` + `script>`;
+  const widgetInline = `<div data-glowsuite-booking data-height="800"></div>\n<script src="${widgetOrigin}/widget.js" data-salon="${user?.id ?? "salon-id"}" async></` + `script>`;
+  const widgetTrigger = `<button data-glowsuite-trigger style="padding:12px 24px;background:${branding.primary_color};color:#fff;border:0;border-radius:${branding.button_radius}px;font-weight:600;cursor:pointer;">Boek nu</button>\n<script src="${widgetOrigin}/widget.js" data-salon="${user?.id ?? "salon-id"}" async></` + `script>`;
+
   const copy = async (text: string, label: string) => {
     await navigator.clipboard.writeText(text);
     setCopied(true);
@@ -248,6 +253,49 @@ export function WhiteLabelEmbedCard() {
           >
             <Copy className="w-3.5 h-3.5" />
           </Button>
+        </div>
+      </div>
+
+      {/* Booking widget script */}
+      <div className="space-y-3 pt-3 border-t border-border">
+        <div>
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Booking widget (script)</h4>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            Voegt automatisch een zwevende "Boek nu" knop toe rechtsonder. Bij klik opent een popup met de boekingsflow.
+          </p>
+        </div>
+
+        <div className="relative">
+          <pre className="text-[11px] bg-secondary/50 border border-border rounded-xl p-3 overflow-x-auto font-mono whitespace-pre-wrap break-all">
+            {widgetScript}
+          </pre>
+          <Button size="sm" variant="outline" className="absolute top-2 right-2" onClick={() => copy(widgetScript, "Widget-script")}>
+            <Copy className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+
+        <div>
+          <p className="text-[11px] text-muted-foreground mb-1">Inline embed (binnen een container):</p>
+          <div className="relative">
+            <pre className="text-[11px] bg-secondary/50 border border-border rounded-xl p-3 overflow-x-auto font-mono whitespace-pre-wrap break-all">
+              {widgetInline}
+            </pre>
+            <Button size="sm" variant="outline" className="absolute top-2 right-2" onClick={() => copy(widgetInline, "Inline embed-code")}>
+              <Copy className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        </div>
+
+        <div>
+          <p className="text-[11px] text-muted-foreground mb-1">Eigen "Boek nu" knop (opent popup):</p>
+          <div className="relative">
+            <pre className="text-[11px] bg-secondary/50 border border-border rounded-xl p-3 overflow-x-auto font-mono whitespace-pre-wrap break-all">
+              {widgetTrigger}
+            </pre>
+            <Button size="sm" variant="outline" className="absolute top-2 right-2" onClick={() => copy(widgetTrigger, "Trigger-code")}>
+              <Copy className="w-3.5 h-3.5" />
+            </Button>
+          </div>
         </div>
       </div>
 
