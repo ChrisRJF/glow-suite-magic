@@ -23,6 +23,15 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const [showDetails, setShowDetails] = useState(false);
 
+  // Read autopilot state (default ON for new users)
+  const autopilotEnabled = useMemo(() => {
+    try {
+      const raw = localStorage.getItem("glowsuite_autopilot");
+      if (raw) return !!JSON.parse(raw).enabled;
+    } catch {}
+    return true;
+  }, []);
+
   const todayStr = new Date().toISOString().split("T")[0];
   const todaysAppts = useMemo(() =>
     appointments.filter((a) => a.appointment_date?.startsWith(todayStr)),
