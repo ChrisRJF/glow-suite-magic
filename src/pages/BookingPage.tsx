@@ -719,7 +719,7 @@ export default function BookingPage() {
             </div>
             <div>
               <h1 className="text-base font-bold tracking-tight">{branding.salon_name || "Glow Studio"}</h1>
-              <p className="text-[11px] text-muted-foreground">Online Afspraak Maken</p>
+              <p className="text-[11px] text-muted-foreground">Boek je afspraak · Direct bevestigd</p>
             </div>
           </div>
         </header>
@@ -735,29 +735,41 @@ export default function BookingPage() {
           )}
           <div>
             <h1 className="text-base font-bold tracking-tight">{branding.salon_name}</h1>
-            <p className="text-[11px] text-muted-foreground">Maak een afspraak</p>
+            <p className="text-[11px] text-muted-foreground">Boek je afspraak · Direct bevestigd</p>
           </div>
         </header>
       )}
 
-      <div className="flex-1 max-w-2xl mx-auto w-full p-6">
+      <div className="flex-1 max-w-2xl mx-auto w-full p-6 pb-28 sm:pb-6">
+        {/* Progress: 4 steps (Behandeling → Tijd → Gegevens → Bevestiging) */}
+        <div className="mb-3 flex items-center justify-between">
+          <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+            Stap {paymentResult ? 4 : Math.min(step, 3)} van 4
+          </span>
+          <span className="text-[11px] text-muted-foreground hidden sm:block">
+            {paymentResult ? "Bevestiging" : step === 1 ? "Behandeling" : step === 2 ? "Tijd" : "Gegevens"}
+          </span>
+        </div>
         <div className="flex items-center gap-2 mb-8">
-          {[1, 2, 3].map((s) => (
-            <div key={s} className="flex items-center gap-2 flex-1">
-              <div
-                className={cn(
-                  "w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-colors",
-                  step >= s ? "gradient-bg text-primary-foreground" : "bg-secondary text-muted-foreground"
-                )}
-              >
-                {step > s ? <Check className="w-4 h-4" /> : s}
+          {[1, 2, 3, 4].map((s) => {
+            const currentStep = paymentResult ? 4 : step;
+            return (
+              <div key={s} className="flex items-center gap-2 flex-1">
+                <div
+                  className={cn(
+                    "w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-colors",
+                    currentStep >= s ? "gradient-bg text-primary-foreground" : "bg-secondary text-muted-foreground"
+                  )}
+                >
+                  {currentStep > s ? <Check className="w-4 h-4" /> : s}
+                </div>
+                <span className={cn("text-xs font-medium hidden sm:block", currentStep >= s ? "text-foreground" : "text-muted-foreground")}>
+                  {s === 1 ? "Behandeling" : s === 2 ? "Tijd" : s === 3 ? "Gegevens" : "Bevestiging"}
+                </span>
+                {s < 4 && <div className={cn("flex-1 h-px", currentStep > s ? "bg-primary" : "bg-border")} />}
               </div>
-              <span className={cn("text-xs font-medium hidden sm:block", step >= s ? "text-foreground" : "text-muted-foreground")}>
-                {s === 1 ? "Behandeling" : s === 2 ? "Tijd" : "Gegevens"}
-              </span>
-              {s < 3 && <div className={cn("flex-1 h-px", step > s ? "bg-primary" : "bg-border")} />}
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {step === 1 && (
