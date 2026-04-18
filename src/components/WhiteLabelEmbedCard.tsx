@@ -61,6 +61,11 @@ export function WhiteLabelEmbedCard() {
 
   const buttonCode = `<a href="${embedUrl.replace("?embed=1", "")}" target="_blank" rel="noopener" style="display:inline-block;padding:12px 24px;background:${branding.primary_color};color:#fff;border-radius:${branding.button_radius}px;text-decoration:none;font-weight:600;">Boek nu</a>`;
 
+  const widgetOrigin = window.location.origin;
+  const widgetScript = `<script src="${widgetOrigin}/widget.js" data-salon="${user?.id ?? "salon-id"}" data-color="${branding.primary_color}" data-label="Boek nu" async></` + `script>`;
+  const widgetInline = `<div data-glowsuite-booking data-height="800"></div>\n<script src="${widgetOrigin}/widget.js" data-salon="${user?.id ?? "salon-id"}" async></` + `script>`;
+  const widgetTrigger = `<button data-glowsuite-trigger style="padding:12px 24px;background:${branding.primary_color};color:#fff;border:0;border-radius:${branding.button_radius}px;font-weight:600;cursor:pointer;">Boek nu</button>\n<script src="${widgetOrigin}/widget.js" data-salon="${user?.id ?? "salon-id"}" async></` + `script>`;
+
   const copy = async (text: string, label: string) => {
     await navigator.clipboard.writeText(text);
     setCopied(true);
