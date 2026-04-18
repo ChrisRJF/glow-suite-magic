@@ -533,6 +533,7 @@ export default function BookingPage() {
   };
 
   const handleConfirm = async () => {
+    trackEvent("booking_attempt", { service: selectedService, time: selectedTime, total: totalPrice });
     if (!paymentDecision?.required) {
       toast.success("Afspraak bevestigd! ✅");
       setPaymentResult({
@@ -541,6 +542,8 @@ export default function BookingPage() {
           ? `Groepsboeking bevestigd! ${groupMembers.length + 1} personen ingepland.`
           : "Afspraak bevestigd! Geen betaling vereist.",
       });
+      try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
+      trackEvent("booking_completed", { paid: false });
       return;
     }
 
@@ -561,17 +564,22 @@ export default function BookingPage() {
         if (data.payment?.status === "paid") {
           setPaymentResult({ status: "success", message: data.message });
           toast.success(data.message);
+          try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
+          trackEvent("booking_completed", { paid: true, demo: true });
         } else {
           setPaymentResult({ status: "failed", message: data.message });
           toast.error(data.message);
+          trackEvent("payment_failed", { demo: true });
         }
       } else if (data?.checkoutUrl) {
+        trackEvent("payment_redirect");
         window.location.href = data.checkoutUrl;
       }
     } catch (err: any) {
       const msg = err?.message || "Betaling mislukt";
       setPaymentResult({ status: "failed", message: msg });
       toast.error(msg);
+      trackEvent("payment_failed", { error: msg });
     } finally {
       setPaymentLoading(false);
     }
@@ -581,6 +589,7 @@ export default function BookingPage() {
     setStep(1);
     setPaymentResult(null);
     setName("");
+    setEmail("");
     setPhone("");
     setSelectedService(null);
     setSelectedTime(null);
@@ -588,7 +597,34 @@ export default function BookingPage() {
     setMainAssignmentMode("auto");
     setMainAssignedEmployee("");
     setGroupMembers([]);
+    setRecognizedCustomer(null);
+    setRecentAppointments([]);
     resetPlacementOptions();
+    try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
+  };
+
+  // Add-to-calendar (.ics) generator for confirmation
+  const downloadIcs = () => {
+    if (!service || !selectedTime) return;
+    const [h, m] = selectedTime.split(":").map(Number);
+    const start = new Date(); start.setHours(h, m, 0, 0);
+    const end = new Date(start.getTime() + (service.duration || 30) * 60000);
+    const fmt = (d: Date) => d.toISOString().replace(/[-:]|\.\d{3}/g, "");
+    const ics = `BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nUID:${Date.now()}@glowsuite\nDTSTAMP:${fmt(new Date())}\nDTSTART:${fmt(start)}\nDTEND:${fmt(end)}\nSUMMARY:${service.name} — ${branding.salon_name}\nDESCRIPTION:Afspraak bij ${branding.salon_name}\nEND:VEVENT\nEND:VCALENDAR`;
+    const blob = new Blob([ics], { type: "text/calendar" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = "afspraak.ics"; a.click();
+    URL.revokeObjectURL(url);
+    trackEvent("calendar_added");
+  };
+
+  const shareAppointment = async () => {
+    const text = `Mijn afspraak bij ${branding.salon_name}: ${service?.name} om ${selectedTime}`;
+    try {
+      if (navigator.share) await navigator.share({ title: branding.salon_name, text });
+      else { await navigator.clipboard.writeText(text); toast.success("Gekopieerd"); }
+      trackEvent("appointment_shared");
+    } catch {}
   };
 
   const renderAssignmentCard = ({
