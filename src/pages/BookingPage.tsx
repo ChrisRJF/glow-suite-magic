@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { services as fallbackServices, formatEuro } from "@/lib/data";
 import { Button } from "@/components/ui/button";
-import { Check, Clock, ArrowLeft, ArrowRight, Calendar, User, CreditCard, Loader2, Plus, Trash2, Users, Zap, AlertCircle } from "lucide-react";
+import { Check, Clock, ArrowLeft, ArrowRight, Calendar, User, CreditCard, Loader2, Plus, Trash2, Users, Zap, AlertCircle, Mail, Shield, Sparkles, RotateCcw, Share2, CalendarPlus, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePaymentRules } from "@/hooks/usePaymentRules";
 import { useServices, useSettings } from "@/hooks/useSupabaseData";
@@ -9,6 +9,26 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { queueLeadIntent } from "@/hooks/useLeadAutomation";
 import { getBranding, fetchBranding, applyBrandingToDocument, type WhiteLabelBranding } from "@/lib/whitelabel";
+
+// Lightweight conversion tracking — sends events to host page via postMessage
+function trackEvent(event: string, data?: Record<string, any>) {
+  try {
+    const payload = { type: "glowsuite:track", event, data, ts: Date.now() };
+    if (typeof window !== "undefined") {
+      window.parent?.postMessage(payload, "*");
+      // Also log for debugging
+      console.debug("[GlowSuite Track]", event, data);
+    }
+  } catch {}
+}
+
+const SLOT_LABELS: Record<string, { label: string; tone: "primary" | "success" | "muted" }> = {
+  "09:00": { label: "Eerst beschikbaar", tone: "primary" },
+  "10:00": { label: "Vandaag nog plek", tone: "success" },
+  "14:30": { label: "Populaire tijd", tone: "muted" },
+};
+
+const STORAGE_KEY = "glowsuite:booking-progress";
 
 const availableSlots = ["09:00", "10:00", "11:30", "13:00", "14:30", "16:00", "17:00"];
 const paymentMethods = [
