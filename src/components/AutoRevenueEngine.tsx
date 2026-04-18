@@ -38,8 +38,7 @@ function getAutopilotState() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) return JSON.parse(raw);
   } catch {}
-  // Default ON for new users
-  return { enabled: true, maxDiscount: 15, maxMessagesPerDay: 10 };
+  return { enabled: false, maxDiscount: 15, maxMessagesPerDay: 10 };
 }
 
 function saveAutopilotState(state: any) {
