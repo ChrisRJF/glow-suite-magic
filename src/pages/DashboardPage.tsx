@@ -236,26 +236,6 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="p-3 rounded-xl bg-success/10 cursor-pointer hover:bg-success/15 transition-colors" onClick={() => { document.getElementById('auto-revenue-engine')?.scrollIntoView({ behavior: 'smooth' }); }}>
-            <p className="text-lg font-bold text-success tabular-nums">{formatEuro(aiRevenue)}</p>
-            <p className="text-[10px] text-muted-foreground">AI omzet</p>
-          </div>
-          <div className="p-3 rounded-xl bg-primary/10 cursor-pointer hover:bg-primary/15 transition-colors" onClick={() => navigate('/whatsapp')}>
-            <p className="text-lg font-bold text-primary tabular-nums">{formatEuro(campaignRevenue)}</p>
-            <p className="text-[10px] text-muted-foreground">Campagnes · {messagesSent} berichten</p>
-          </div>
-          <div className="p-3 rounded-xl bg-warning/10 cursor-pointer hover:bg-warning/15 transition-colors" onClick={() => navigate('/klanten?filter=risico')}>
-            <p className="text-lg font-bold text-warning tabular-nums">{recoveredCustomers}</p>
-            <p className="text-[10px] text-muted-foreground">Teruggewonnen</p>
-          </div>
-          <div className="p-3 rounded-xl bg-accent/10 cursor-pointer hover:bg-accent/15 transition-colors" onClick={() => navigate('/agenda')}>
-            <p className="text-lg font-bold text-accent tabular-nums">{autoFilledAppts}</p>
-            <p className="text-[10px] text-muted-foreground">Auto-gevuld</p>
-          </div>
-        </div>
-      </div>
 
       {/* ═══════════ BLOCK 3: Details / Inzichten ═══════════ */}
 
