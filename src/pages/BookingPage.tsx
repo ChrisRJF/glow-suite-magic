@@ -95,7 +95,11 @@ export default function BookingPage() {
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [emailLookupLoading, setEmailLookupLoading] = useState(false);
+  const [recognizedCustomer, setRecognizedCustomer] = useState<{ name?: string; phone?: string } | null>(null);
+  const [recentAppointments, setRecentAppointments] = useState<Array<{ id: string; service_id: string | null; appointment_date: string; service_name?: string }>>([]);
   const [selectedMethod, setSelectedMethod] = useState("ideal");
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentResult, setPaymentResult] = useState<{ status: string; message: string } | null>(null);
