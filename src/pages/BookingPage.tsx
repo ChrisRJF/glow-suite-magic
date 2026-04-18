@@ -910,21 +910,34 @@ export default function BookingPage() {
             </p>
 
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-              {availableSlots.map((slot) => (
-                <button
-                  key={slot}
-                  onClick={() => {
-                    resetPlacementOptions();
-                    setSelectedTime(slot);
-                  }}
-                  className={cn(
-                    "p-3 rounded-xl text-sm font-medium tabular-nums border transition-all duration-200",
-                    selectedTime === slot ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-secondary/60"
-                  )}
-                >
-                  {slot}
-                </button>
-              ))}
+              {availableSlots.map((slot) => {
+                const meta = SLOT_LABELS[slot];
+                const isSelected = selectedTime === slot;
+                return (
+                  <button
+                    key={slot}
+                    onClick={() => {
+                      resetPlacementOptions();
+                      setSelectedTime(slot);
+                      trackEvent("slot_selected", { slot });
+                    }}
+                    className={cn(
+                      "relative p-3 rounded-xl text-sm font-medium tabular-nums border transition-all duration-200 flex flex-col items-center gap-1",
+                      isSelected ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-secondary/60"
+                    )}
+                  >
+                    <span>{slot}</span>
+                    {meta && (
+                      <span className={cn(
+                        "text-[9px] font-semibold leading-tight px-1.5 py-0.5 rounded-full",
+                        meta.tone === "primary" && "bg-primary/15 text-primary",
+                        meta.tone === "success" && "bg-success/15 text-success",
+                        meta.tone === "muted" && "bg-secondary text-muted-foreground",
+                      )}>{meta.label}</span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
 
             {isGroupBooking && selectedService && selectedTime && (
