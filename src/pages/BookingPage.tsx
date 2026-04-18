@@ -165,32 +165,125 @@ export default function BookingPage() {
 
   // Auto-capture abandoned booking intents
   useEffect(() => {
-    if (step >= 3 && (name.trim() || phone.trim())) {
+    if (step >= 3 && (name.trim() || phone.trim() || email.trim())) {
       const svc = bookingServices.find((s) => s.id === selectedService);
       queueLeadIntent({
         name: name.trim() || undefined,
         phone: phone.trim() || undefined,
+        email: email.trim() || undefined,
         service: svc?.name,
         intent_time: selectedTime || undefined,
       });
     }
-  }, [step, name, phone, selectedService, selectedTime, bookingServices]);
+  }, [step, name, phone, email, selectedService, selectedTime, bookingServices]);
 
   useEffect(() => {
     const handler = () => {
-      if (step >= 2 && (name.trim() || phone.trim()) && !paymentResult) {
+      if (step >= 2 && (name.trim() || phone.trim() || email.trim()) && !paymentResult) {
         const svc = bookingServices.find((s) => s.id === selectedService);
         queueLeadIntent({
           name: name.trim() || undefined,
           phone: phone.trim() || undefined,
+          email: email.trim() || undefined,
           service: svc?.name,
           intent_time: selectedTime || undefined,
         });
+        trackEvent("booking_abandoned", { step, hasService: !!selectedService, hasTime: !!selectedTime });
       }
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
-  }, [step, name, phone, selectedService, selectedTime, paymentResult, bookingServices]);
+  }, [step, name, phone, email, selectedService, selectedTime, paymentResult, bookingServices]);
+
+  // Persist progress in session so user doesn't lose it on accidental close
+  useEffect(() => {
+    try {
+      const snap = { step, selectedService, selectedTime, name, email, phone, isGroupBooking };
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(snap));
+    } catch {}
+  }, [step, selectedService, selectedTime, name, email, phone, isGroupBooking]);
+
+  // Restore progress + emit widget_opened on mount
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const snap = JSON.parse(raw);
+        if (snap.selectedService) setSelectedService(snap.selectedService);
+        if (snap.selectedTime) setSelectedTime(snap.selectedTime);
+        if (snap.name) setName(snap.name);
+        if (snap.email) setEmail(snap.email);
+        if (snap.phone) setPhone(snap.phone);
+        if (snap.isGroupBooking) setIsGroupBooking(snap.isGroupBooking);
+      }
+    } catch {}
+    trackEvent("widget_opened");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Track step changes for funnel insights
+  useEffect(() => {
+    if (step === 1) trackEvent("step_service");
+    if (step === 2) trackEvent("step_time", { service: selectedService });
+    if (step === 3) trackEvent("step_details", { service: selectedService, time: selectedTime });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
+
+  // Email-first smart lookup
+  const lookupCustomerByEmail = useCallback(async (rawEmail: string) => {
+    const value = rawEmail.trim().toLowerCase();
+    if (!value || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      setRecognizedCustomer(null);
+      setRecentAppointments([]);
+      return;
+    }
+    setEmailLookupLoading(true);
+    try {
+      const { data: customers } = await supabase
+        .from("customers")
+        .select("id, name, phone, email")
+        .ilike("email", value)
+        .limit(1);
+      const customer = customers?.[0];
+      if (!customer) {
+        setRecognizedCustomer(null);
+        setRecentAppointments([]);
+        return;
+      }
+      setRecognizedCustomer({ name: customer.name, phone: customer.phone || "" });
+      setName((current) => current || customer.name || "");
+      setPhone((current) => current || customer.phone || "");
+      const { data: appts } = await supabase
+        .from("appointments")
+        .select("id, service_id, appointment_date")
+        .eq("customer_id", customer.id)
+        .order("appointment_date", { ascending: false })
+        .limit(3);
+      const enriched = (appts || []).map((appt) => ({
+        ...appt,
+        service_name: bookingServices.find((s) => s.id === appt.service_id)?.name,
+      }));
+      setRecentAppointments(enriched);
+      trackEvent("email_recognized", { hasRecent: enriched.length > 0 });
+    } catch (err) {
+      console.warn("Customer lookup failed", err);
+    } finally {
+      setEmailLookupLoading(false);
+    }
+  }, [bookingServices]);
+
+  useEffect(() => {
+    const t = setTimeout(() => { if (email) lookupCustomerByEmail(email); }, 600);
+    return () => clearTimeout(t);
+  }, [email, lookupCustomerByEmail]);
+
+  // Quick rebook: select previous service and skip to time selection
+  const handleQuickRebook = (serviceId: string | null) => {
+    if (!serviceId) return;
+    setSelectedService(serviceId);
+    setStep(2);
+    trackEvent("quick_rebook", { service: serviceId });
+  };
 
   const service = bookingServices.find((item) => item.id === selectedService);
 
