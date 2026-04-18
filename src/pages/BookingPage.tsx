@@ -774,7 +774,22 @@ export default function BookingPage() {
 
         {step === 1 && (
           <div className="space-y-3 opacity-0 animate-fade-in-up" style={{ animationDelay: "100ms" }}>
-            <h2 className="text-xl font-bold mb-2">Kies een behandeling</h2>
+            <div className="mb-2">
+              <h2 className="text-xl font-bold">Kies je behandeling</h2>
+              <p className="text-xs text-muted-foreground mt-1">Binnen 1 minuut geboekt · Geen account nodig</p>
+            </div>
+
+            <div className="flex flex-wrap gap-2 mb-3">
+              <span className="text-[10px] inline-flex items-center gap-1 px-2 py-1 rounded-full bg-secondary/60 text-muted-foreground">
+                <Check className="w-3 h-3 text-primary" /> Direct bevestigd
+              </span>
+              <span className="text-[10px] inline-flex items-center gap-1 px-2 py-1 rounded-full bg-secondary/60 text-muted-foreground">
+                <Shield className="w-3 h-3 text-primary" /> Veilig betalen
+              </span>
+              <span className="text-[10px] inline-flex items-center gap-1 px-2 py-1 rounded-full bg-secondary/60 text-muted-foreground">
+                <Sparkles className="w-3 h-3 text-primary" /> Geen account nodig
+              </span>
+            </div>
 
             <button
               onClick={() => {
