@@ -139,20 +139,63 @@ export default function DashboardPage() {
               )}
             </div>
             <div className="flex-shrink-0">
-              <Button
-                variant="gradient"
-                size="lg"
-                className="font-semibold shadow-lg text-base px-6"
-                onClick={() => {
-                  const el = document.getElementById('auto-revenue-engine');
-                  el?.scrollIntoView({ behavior: 'smooth' });
-                }}
-              >
-                <Zap className="w-5 h-5" /> Vul mijn agenda automatisch
-              </Button>
+      {/* ═══════════ BLOCK 1: KPI's ═══════════ */}
+
+      {/* Hero — Omzet kans vandaag (of Verdiend door Autopilot) */}
+      <div className="mb-4">
+        <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/10 via-accent/5 to-success/10 p-6 sm:p-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
+            <div>
+              {autopilotEnabled ? (
+                <>
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-2">
+                    Verdiend door Autopilot vandaag
+                  </p>
+                  <p className="text-4xl sm:text-5xl font-extrabold tracking-tight tabular-nums text-primary">
+                    {formatEuro(aiRevenue)}
+                  </p>
+                  <p className="text-sm text-success font-medium mt-2 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    {formatEuro(missedRevenue * 22)} extra mogelijk deze maand met Autopilot
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-2">
+                    Omzet kans vandaag
+                  </p>
+                  <p className="text-4xl sm:text-5xl font-extrabold tracking-tight tabular-nums text-primary">
+                    {formatEuro(missedRevenue)}
+                  </p>
+                  <p className="text-sm text-success font-medium mt-2 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    {formatEuro(missedRevenue * 22)} extra mogelijk deze maand met Autopilot
+                  </p>
+                </>
+              )}
             </div>
+            {!autopilotEnabled && (
+              <div className="flex-shrink-0">
+                <Button
+                  variant="gradient"
+                  size="lg"
+                  className="font-semibold shadow-lg text-base px-6"
+                  onClick={() => {
+                    const el = document.getElementById('auto-revenue-engine');
+                    el?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                >
+                  <Zap className="w-5 h-5" /> Zet Autopilot aan →
+                </Button>
+              </div>
+            )}
           </div>
         </div>
+      </div>
+
+      {/* Auto Revenue Engine — moved above stats */}
+      <div className="mb-6">
+        <AutoRevenueEngine />
       </div>
 
       {/* Secondary KPI's — compact, smaller */}
@@ -187,23 +230,36 @@ export default function DashboardPage() {
         </p>
       )}
 
-      {/* Auto Revenue Engine */}
-      <div className="mb-10">
-        <AutoRevenueEngine />
-      </div>
-
-      {/* ROI Summary — simplified */}
+      {/* ROI Summary — one prominent sentence + secondary stats */}
       <div className="rounded-2xl border border-success/20 bg-card p-5 mb-10">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Award className="w-5 h-5 text-success" />
-            <h2 className="text-base font-semibold">GlowSuite ROI</h2>
+        <div className="flex items-center gap-2 mb-3">
+          <Award className="w-5 h-5 text-success" />
+          <h2 className="text-base font-semibold">GlowSuite ROI</h2>
+        </div>
+        <p className="text-lg sm:text-xl font-semibold leading-snug mb-4">
+          GlowSuite heeft je deze maand{" "}
+          <span className="text-success font-bold tabular-nums">{formatEuro(monthlyGrowthRevenue)}</span>{" "}
+          extra opgeleverd
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div className="p-2.5 rounded-lg bg-success/10 cursor-pointer hover:bg-success/15 transition-colors" onClick={() => { document.getElementById('auto-revenue-engine')?.scrollIntoView({ behavior: 'smooth' }); }}>
+            <p className="text-sm font-bold text-success tabular-nums">{formatEuro(aiRevenue)}</p>
+            <p className="text-[10px] text-muted-foreground">AI omzet</p>
           </div>
-          {monthlyGrowthRevenue > 0 && (
-            <span className="text-xs bg-success/15 text-success px-2.5 py-1 rounded-lg font-medium">
-              +{formatEuro(monthlyGrowthRevenue)} deze maand
-            </span>
-          )}
+          <div className="p-2.5 rounded-lg bg-primary/10 cursor-pointer hover:bg-primary/15 transition-colors" onClick={() => navigate('/whatsapp')}>
+            <p className="text-sm font-bold text-primary tabular-nums">{formatEuro(campaignRevenue)}</p>
+            <p className="text-[10px] text-muted-foreground">Campagnes</p>
+          </div>
+          <div className="p-2.5 rounded-lg bg-warning/10 cursor-pointer hover:bg-warning/15 transition-colors" onClick={() => navigate('/klanten?filter=risico')}>
+            <p className="text-sm font-bold text-warning tabular-nums">{recoveredCustomers}</p>
+            <p className="text-[10px] text-muted-foreground">Teruggewonnen</p>
+          </div>
+          <div className="p-2.5 rounded-lg bg-accent/10 cursor-pointer hover:bg-accent/15 transition-colors" onClick={() => navigate('/agenda')}>
+            <p className="text-sm font-bold text-accent tabular-nums">{autoFilledAppts}</p>
+            <p className="text-[10px] text-muted-foreground">Auto-gevuld</p>
+          </div>
+        </div>
+      </div>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="p-3 rounded-xl bg-success/10 cursor-pointer hover:bg-success/15 transition-colors" onClick={() => { document.getElementById('auto-revenue-engine')?.scrollIntoView({ behavior: 'smooth' }); }}>
