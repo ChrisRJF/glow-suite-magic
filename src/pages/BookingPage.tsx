@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { services as fallbackServices, formatEuro } from "@/lib/data";
 import { Button } from "@/components/ui/button";
-import { Check, Clock, ArrowLeft, ArrowRight, Calendar, User, CreditCard, Loader2, Plus, Trash2, Users, Zap, AlertCircle } from "lucide-react";
+import { Check, Clock, ArrowLeft, ArrowRight, Calendar, User, CreditCard, Loader2, Plus, Trash2, Users, Zap, AlertCircle, Mail, Shield, Sparkles, RotateCcw, Share2, CalendarPlus, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePaymentRules } from "@/hooks/usePaymentRules";
 import { useServices, useSettings } from "@/hooks/useSupabaseData";
@@ -9,6 +9,26 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { queueLeadIntent } from "@/hooks/useLeadAutomation";
 import { getBranding, fetchBranding, applyBrandingToDocument, type WhiteLabelBranding } from "@/lib/whitelabel";
+
+// Lightweight conversion tracking — sends events to host page via postMessage
+function trackEvent(event: string, data?: Record<string, any>) {
+  try {
+    const payload = { type: "glowsuite:track", event, data, ts: Date.now() };
+    if (typeof window !== "undefined") {
+      window.parent?.postMessage(payload, "*");
+      // Also log for debugging
+      console.debug("[GlowSuite Track]", event, data);
+    }
+  } catch {}
+}
+
+const SLOT_LABELS: Record<string, { label: string; tone: "primary" | "success" | "muted" }> = {
+  "09:00": { label: "Eerst beschikbaar", tone: "primary" },
+  "10:00": { label: "Vandaag nog plek", tone: "success" },
+  "14:30": { label: "Populaire tijd", tone: "muted" },
+};
+
+const STORAGE_KEY = "glowsuite:booking-progress";
 
 const availableSlots = ["09:00", "10:00", "11:30", "13:00", "14:30", "16:00", "17:00"];
 const paymentMethods = [
@@ -75,7 +95,11 @@ export default function BookingPage() {
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [emailLookupLoading, setEmailLookupLoading] = useState(false);
+  const [recognizedCustomer, setRecognizedCustomer] = useState<{ name?: string; phone?: string } | null>(null);
+  const [recentAppointments, setRecentAppointments] = useState<Array<{ id: string; service_id: string | null; appointment_date: string; service_name?: string }>>([]);
   const [selectedMethod, setSelectedMethod] = useState("ideal");
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentResult, setPaymentResult] = useState<{ status: string; message: string } | null>(null);
@@ -141,32 +165,125 @@ export default function BookingPage() {
 
   // Auto-capture abandoned booking intents
   useEffect(() => {
-    if (step >= 3 && (name.trim() || phone.trim())) {
+    if (step >= 3 && (name.trim() || phone.trim() || email.trim())) {
       const svc = bookingServices.find((s) => s.id === selectedService);
       queueLeadIntent({
         name: name.trim() || undefined,
         phone: phone.trim() || undefined,
+        email: email.trim() || undefined,
         service: svc?.name,
         intent_time: selectedTime || undefined,
       });
     }
-  }, [step, name, phone, selectedService, selectedTime, bookingServices]);
+  }, [step, name, phone, email, selectedService, selectedTime, bookingServices]);
 
   useEffect(() => {
     const handler = () => {
-      if (step >= 2 && (name.trim() || phone.trim()) && !paymentResult) {
+      if (step >= 2 && (name.trim() || phone.trim() || email.trim()) && !paymentResult) {
         const svc = bookingServices.find((s) => s.id === selectedService);
         queueLeadIntent({
           name: name.trim() || undefined,
           phone: phone.trim() || undefined,
+          email: email.trim() || undefined,
           service: svc?.name,
           intent_time: selectedTime || undefined,
         });
+        trackEvent("booking_abandoned", { step, hasService: !!selectedService, hasTime: !!selectedTime });
       }
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
-  }, [step, name, phone, selectedService, selectedTime, paymentResult, bookingServices]);
+  }, [step, name, phone, email, selectedService, selectedTime, paymentResult, bookingServices]);
+
+  // Persist progress in session so user doesn't lose it on accidental close
+  useEffect(() => {
+    try {
+      const snap = { step, selectedService, selectedTime, name, email, phone, isGroupBooking };
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(snap));
+    } catch {}
+  }, [step, selectedService, selectedTime, name, email, phone, isGroupBooking]);
+
+  // Restore progress + emit widget_opened on mount
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const snap = JSON.parse(raw);
+        if (snap.selectedService) setSelectedService(snap.selectedService);
+        if (snap.selectedTime) setSelectedTime(snap.selectedTime);
+        if (snap.name) setName(snap.name);
+        if (snap.email) setEmail(snap.email);
+        if (snap.phone) setPhone(snap.phone);
+        if (snap.isGroupBooking) setIsGroupBooking(snap.isGroupBooking);
+      }
+    } catch {}
+    trackEvent("widget_opened");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Track step changes for funnel insights
+  useEffect(() => {
+    if (step === 1) trackEvent("step_service");
+    if (step === 2) trackEvent("step_time", { service: selectedService });
+    if (step === 3) trackEvent("step_details", { service: selectedService, time: selectedTime });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
+
+  // Email-first smart lookup
+  const lookupCustomerByEmail = useCallback(async (rawEmail: string) => {
+    const value = rawEmail.trim().toLowerCase();
+    if (!value || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      setRecognizedCustomer(null);
+      setRecentAppointments([]);
+      return;
+    }
+    setEmailLookupLoading(true);
+    try {
+      const { data: customers } = await supabase
+        .from("customers")
+        .select("id, name, phone, email")
+        .ilike("email", value)
+        .limit(1);
+      const customer = customers?.[0];
+      if (!customer) {
+        setRecognizedCustomer(null);
+        setRecentAppointments([]);
+        return;
+      }
+      setRecognizedCustomer({ name: customer.name, phone: customer.phone || "" });
+      setName((current) => current || customer.name || "");
+      setPhone((current) => current || customer.phone || "");
+      const { data: appts } = await supabase
+        .from("appointments")
+        .select("id, service_id, appointment_date")
+        .eq("customer_id", customer.id)
+        .order("appointment_date", { ascending: false })
+        .limit(3);
+      const enriched = (appts || []).map((appt) => ({
+        ...appt,
+        service_name: bookingServices.find((s) => s.id === appt.service_id)?.name,
+      }));
+      setRecentAppointments(enriched);
+      trackEvent("email_recognized", { hasRecent: enriched.length > 0 });
+    } catch (err) {
+      console.warn("Customer lookup failed", err);
+    } finally {
+      setEmailLookupLoading(false);
+    }
+  }, [bookingServices]);
+
+  useEffect(() => {
+    const t = setTimeout(() => { if (email) lookupCustomerByEmail(email); }, 600);
+    return () => clearTimeout(t);
+  }, [email, lookupCustomerByEmail]);
+
+  // Quick rebook: select previous service and skip to time selection
+  const handleQuickRebook = (serviceId: string | null) => {
+    if (!serviceId) return;
+    setSelectedService(serviceId);
+    setStep(2);
+    trackEvent("quick_rebook", { service: serviceId });
+  };
 
   const service = bookingServices.find((item) => item.id === selectedService);
 
@@ -416,6 +533,7 @@ export default function BookingPage() {
   };
 
   const handleConfirm = async () => {
+    trackEvent("booking_attempt", { service: selectedService, time: selectedTime, total: totalPrice });
     if (!paymentDecision?.required) {
       toast.success("Afspraak bevestigd! ✅");
       setPaymentResult({
@@ -424,6 +542,8 @@ export default function BookingPage() {
           ? `Groepsboeking bevestigd! ${groupMembers.length + 1} personen ingepland.`
           : "Afspraak bevestigd! Geen betaling vereist.",
       });
+      try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
+      trackEvent("booking_completed", { paid: false });
       return;
     }
 
@@ -444,17 +564,22 @@ export default function BookingPage() {
         if (data.payment?.status === "paid") {
           setPaymentResult({ status: "success", message: data.message });
           toast.success(data.message);
+          try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
+          trackEvent("booking_completed", { paid: true, demo: true });
         } else {
           setPaymentResult({ status: "failed", message: data.message });
           toast.error(data.message);
+          trackEvent("payment_failed", { demo: true });
         }
       } else if (data?.checkoutUrl) {
+        trackEvent("payment_redirect");
         window.location.href = data.checkoutUrl;
       }
     } catch (err: any) {
       const msg = err?.message || "Betaling mislukt";
       setPaymentResult({ status: "failed", message: msg });
       toast.error(msg);
+      trackEvent("payment_failed", { error: msg });
     } finally {
       setPaymentLoading(false);
     }
@@ -464,6 +589,7 @@ export default function BookingPage() {
     setStep(1);
     setPaymentResult(null);
     setName("");
+    setEmail("");
     setPhone("");
     setSelectedService(null);
     setSelectedTime(null);
@@ -471,7 +597,34 @@ export default function BookingPage() {
     setMainAssignmentMode("auto");
     setMainAssignedEmployee("");
     setGroupMembers([]);
+    setRecognizedCustomer(null);
+    setRecentAppointments([]);
     resetPlacementOptions();
+    try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
+  };
+
+  // Add-to-calendar (.ics) generator for confirmation
+  const downloadIcs = () => {
+    if (!service || !selectedTime) return;
+    const [h, m] = selectedTime.split(":").map(Number);
+    const start = new Date(); start.setHours(h, m, 0, 0);
+    const end = new Date(start.getTime() + (service.duration || 30) * 60000);
+    const fmt = (d: Date) => d.toISOString().replace(/[-:]|\.\d{3}/g, "");
+    const ics = `BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nUID:${Date.now()}@glowsuite\nDTSTAMP:${fmt(new Date())}\nDTSTART:${fmt(start)}\nDTEND:${fmt(end)}\nSUMMARY:${service.name} — ${branding.salon_name}\nDESCRIPTION:Afspraak bij ${branding.salon_name}\nEND:VEVENT\nEND:VCALENDAR`;
+    const blob = new Blob([ics], { type: "text/calendar" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = "afspraak.ics"; a.click();
+    URL.revokeObjectURL(url);
+    trackEvent("calendar_added");
+  };
+
+  const shareAppointment = async () => {
+    const text = `Mijn afspraak bij ${branding.salon_name}: ${service?.name} om ${selectedTime}`;
+    try {
+      if (navigator.share) await navigator.share({ title: branding.salon_name, text });
+      else { await navigator.clipboard.writeText(text); toast.success("Gekopieerd"); }
+      trackEvent("appointment_shared");
+    } catch {}
   };
 
   const renderAssignmentCard = ({
@@ -566,7 +719,7 @@ export default function BookingPage() {
             </div>
             <div>
               <h1 className="text-base font-bold tracking-tight">{branding.salon_name || "Glow Studio"}</h1>
-              <p className="text-[11px] text-muted-foreground">Online Afspraak Maken</p>
+              <p className="text-[11px] text-muted-foreground">Boek je afspraak · Direct bevestigd</p>
             </div>
           </div>
         </header>
@@ -582,34 +735,61 @@ export default function BookingPage() {
           )}
           <div>
             <h1 className="text-base font-bold tracking-tight">{branding.salon_name}</h1>
-            <p className="text-[11px] text-muted-foreground">Maak een afspraak</p>
+            <p className="text-[11px] text-muted-foreground">Boek je afspraak · Direct bevestigd</p>
           </div>
         </header>
       )}
 
-      <div className="flex-1 max-w-2xl mx-auto w-full p-6">
+      <div className="flex-1 max-w-2xl mx-auto w-full p-6 pb-28 sm:pb-6">
+        {/* Progress: 4 steps (Behandeling → Tijd → Gegevens → Bevestiging) */}
+        <div className="mb-3 flex items-center justify-between">
+          <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+            Stap {paymentResult ? 4 : Math.min(step, 3)} van 4
+          </span>
+          <span className="text-[11px] text-muted-foreground hidden sm:block">
+            {paymentResult ? "Bevestiging" : step === 1 ? "Behandeling" : step === 2 ? "Tijd" : "Gegevens"}
+          </span>
+        </div>
         <div className="flex items-center gap-2 mb-8">
-          {[1, 2, 3].map((s) => (
-            <div key={s} className="flex items-center gap-2 flex-1">
-              <div
-                className={cn(
-                  "w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-colors",
-                  step >= s ? "gradient-bg text-primary-foreground" : "bg-secondary text-muted-foreground"
-                )}
-              >
-                {step > s ? <Check className="w-4 h-4" /> : s}
+          {[1, 2, 3, 4].map((s) => {
+            const currentStep = paymentResult ? 4 : step;
+            return (
+              <div key={s} className="flex items-center gap-2 flex-1">
+                <div
+                  className={cn(
+                    "w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-colors",
+                    currentStep >= s ? "gradient-bg text-primary-foreground" : "bg-secondary text-muted-foreground"
+                  )}
+                >
+                  {currentStep > s ? <Check className="w-4 h-4" /> : s}
+                </div>
+                <span className={cn("text-xs font-medium hidden sm:block", currentStep >= s ? "text-foreground" : "text-muted-foreground")}>
+                  {s === 1 ? "Behandeling" : s === 2 ? "Tijd" : s === 3 ? "Gegevens" : "Bevestiging"}
+                </span>
+                {s < 4 && <div className={cn("flex-1 h-px", currentStep > s ? "bg-primary" : "bg-border")} />}
               </div>
-              <span className={cn("text-xs font-medium hidden sm:block", step >= s ? "text-foreground" : "text-muted-foreground")}>
-                {s === 1 ? "Behandeling" : s === 2 ? "Tijd" : "Gegevens"}
-              </span>
-              {s < 3 && <div className={cn("flex-1 h-px", step > s ? "bg-primary" : "bg-border")} />}
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {step === 1 && (
           <div className="space-y-3 opacity-0 animate-fade-in-up" style={{ animationDelay: "100ms" }}>
-            <h2 className="text-xl font-bold mb-2">Kies een behandeling</h2>
+            <div className="mb-2">
+              <h2 className="text-xl font-bold">Kies je behandeling</h2>
+              <p className="text-xs text-muted-foreground mt-1">Binnen 1 minuut geboekt · Geen account nodig</p>
+            </div>
+
+            <div className="flex flex-wrap gap-2 mb-3">
+              <span className="text-[10px] inline-flex items-center gap-1 px-2 py-1 rounded-full bg-secondary/60 text-muted-foreground">
+                <Check className="w-3 h-3 text-primary" /> Direct bevestigd
+              </span>
+              <span className="text-[10px] inline-flex items-center gap-1 px-2 py-1 rounded-full bg-secondary/60 text-muted-foreground">
+                <Shield className="w-3 h-3 text-primary" /> Veilig betalen
+              </span>
+              <span className="text-[10px] inline-flex items-center gap-1 px-2 py-1 rounded-full bg-secondary/60 text-muted-foreground">
+                <Sparkles className="w-3 h-3 text-primary" /> Geen account nodig
+              </span>
+            </div>
 
             <button
               onClick={() => {
@@ -730,21 +910,34 @@ export default function BookingPage() {
             </p>
 
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-              {availableSlots.map((slot) => (
-                <button
-                  key={slot}
-                  onClick={() => {
-                    resetPlacementOptions();
-                    setSelectedTime(slot);
-                  }}
-                  className={cn(
-                    "p-3 rounded-xl text-sm font-medium tabular-nums border transition-all duration-200",
-                    selectedTime === slot ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-secondary/60"
-                  )}
-                >
-                  {slot}
-                </button>
-              ))}
+              {availableSlots.map((slot) => {
+                const meta = SLOT_LABELS[slot];
+                const isSelected = selectedTime === slot;
+                return (
+                  <button
+                    key={slot}
+                    onClick={() => {
+                      resetPlacementOptions();
+                      setSelectedTime(slot);
+                      trackEvent("slot_selected", { slot });
+                    }}
+                    className={cn(
+                      "relative p-3 rounded-xl text-sm font-medium tabular-nums border transition-all duration-200 flex flex-col items-center gap-1",
+                      isSelected ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-secondary/60"
+                    )}
+                  >
+                    <span>{slot}</span>
+                    {meta && (
+                      <span className={cn(
+                        "text-[9px] font-semibold leading-tight px-1.5 py-0.5 rounded-full",
+                        meta.tone === "primary" && "bg-primary/15 text-primary",
+                        meta.tone === "success" && "bg-success/15 text-success",
+                        meta.tone === "muted" && "bg-secondary text-muted-foreground",
+                      )}>{meta.label}</span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
 
             {isGroupBooking && selectedService && selectedTime && (
@@ -889,6 +1082,45 @@ export default function BookingPage() {
 
             <div className="space-y-4">
               <div>
+                <label className="text-sm font-medium mb-1.5 block">E-mail</label>
+                <div className="relative">
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <input
+                    type="email"
+                    placeholder="jouw@email.nl"
+                    value={email}
+                    onChange={(e) => { setEmail(e.target.value); if (e.target.value) trackEvent("email_filled"); }}
+                    className="w-full h-11 pl-10 pr-10 rounded-xl bg-secondary border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  />
+                  {emailLookupLoading && <Loader2 className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground animate-spin" />}
+                </div>
+                {recognizedCustomer && (
+                  <p className="text-[11px] text-primary mt-1.5 flex items-center gap-1">
+                    <Sparkles className="w-3 h-3" /> Welkom terug{recognizedCustomer.name ? `, ${recognizedCustomer.name.split(" ")[0]}` : ""}! Je gegevens zijn ingevuld.
+                  </p>
+                )}
+              </div>
+
+              {recentAppointments.length > 0 && (
+                <div className="p-3 rounded-xl bg-primary/5 border border-primary/15 space-y-2">
+                  <p className="text-xs font-semibold flex items-center gap-1"><RotateCcw className="w-3 h-3" /> Boek opnieuw</p>
+                  {recentAppointments.slice(0, 2).map((appt) => (
+                    <button
+                      key={appt.id}
+                      onClick={() => handleQuickRebook(appt.service_id)}
+                      className="w-full flex items-center justify-between text-left p-2 rounded-lg bg-background border border-border hover:border-primary transition-colors"
+                    >
+                      <div>
+                        <p className="text-sm font-medium">{appt.service_name || "Behandeling"}</p>
+                        <p className="text-[10px] text-muted-foreground">Vorige: {new Date(appt.appointment_date).toLocaleDateString("nl-NL")}</p>
+                      </div>
+                      <ArrowRight className="w-3.5 h-3.5 text-primary" />
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div>
                 <label className="text-sm font-medium mb-1.5 block">Naam</label>
                 <div className="relative">
                   <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -930,32 +1162,63 @@ export default function BookingPage() {
                     </button>
                   ))}
                 </div>
+                <p className="text-[11px] text-muted-foreground mt-2 flex items-center gap-1">
+                  <Lock className="w-3 h-3" /> Veilig afrekenen via GlowPay · SSL versleuteld
+                </p>
               </div>
             )}
 
-            {paymentResult && (
-              <div className={cn("mt-6 p-4 rounded-xl text-sm text-center", paymentResult.status === "success" ? "bg-success/10 border border-success/20 text-success" : "bg-destructive/10 border border-destructive/20 text-destructive")}>
+            {paymentResult && paymentResult.status === "success" && (
+              <div className="mt-6 p-5 rounded-2xl bg-success/10 border border-success/20 text-center">
+                <div className="w-12 h-12 rounded-full bg-success/20 flex items-center justify-center mx-auto mb-3">
+                  <Check className="w-6 h-6 text-success" />
+                </div>
+                <p className="font-semibold text-success text-base">Afspraak bevestigd!</p>
+                <p className="text-xs text-muted-foreground mt-1">Je ontvangt een bevestiging per e-mail.</p>
+
+                <div className="mt-4 grid gap-1.5 text-left text-sm bg-background/60 rounded-xl p-3">
+                  <div className="flex justify-between"><span className="text-muted-foreground">Behandeling</span><span className="font-medium">{service?.name}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Datum</span><span className="font-medium">Di 22 mrt</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Tijd</span><span className="font-medium">{selectedTime}</span></div>
+                  {selectedPlacements[0]?.employee && (
+                    <div className="flex justify-between"><span className="text-muted-foreground">Medewerker</span><span className="font-medium">{selectedPlacements[0].employee}</span></div>
+                  )}
+                  {paymentDecision?.required && (
+                    <div className="flex justify-between"><span className="text-muted-foreground">Betaling</span><span className="font-medium text-success">Voldaan · {formatEuro(paymentDecision.amount)}</span></div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 mt-4">
+                  <Button variant="outline" size="sm" onClick={downloadIcs}><CalendarPlus className="w-3.5 h-3.5 mr-1" />Toevoegen aan agenda</Button>
+                  <Button variant="outline" size="sm" onClick={shareAppointment}><Share2 className="w-3.5 h-3.5 mr-1" />Delen</Button>
+                </div>
+              </div>
+            )}
+
+            {paymentResult && paymentResult.status !== "success" && (
+              <div className="mt-6 p-4 rounded-xl text-sm text-center bg-destructive/10 border border-destructive/20 text-destructive">
                 <p className="font-semibold">{paymentResult.message}</p>
-                {paymentResult.status === "success" && <p className="text-xs mt-1 text-muted-foreground">Je ontvangt een bevestiging per e-mail.</p>}
+                <p className="text-xs mt-1 text-muted-foreground">Probeer het opnieuw of kies een andere betaalmethode.</p>
               </div>
             )}
 
             {!paymentResult && (
-              <Button variant="gradient" className="w-full mt-6" disabled={!name || !phone || paymentLoading} onClick={handleConfirm}>
-                {paymentLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" /> Betaling verwerken...
-                  </>
-                ) : paymentDecision?.required ? (
-                  <>
-                    <CreditCard className="w-4 h-4" /> Betaal {formatEuro(paymentDecision.amount)}
-                  </>
-                ) : (
-                  <>
-                    <Check className="w-4 h-4" /> Afspraak Bevestigen
-                  </>
+              <div className="mt-6 sm:static fixed bottom-0 left-0 right-0 sm:bg-transparent bg-background/95 sm:border-0 border-t border-border sm:p-0 p-4 sm:shadow-none shadow-lg z-40">
+                <Button variant="gradient" className="w-full" disabled={!name || !phone || !email || paymentLoading} onClick={handleConfirm}>
+                  {paymentLoading ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Betaling verwerken...</>
+                  ) : paymentDecision?.required ? (
+                    <><CreditCard className="w-4 h-4" /> Betaal {formatEuro(paymentDecision.amount)} & bevestig</>
+                  ) : (
+                    <><Check className="w-4 h-4" /> Bevestig afspraak</>
+                  )}
+                </Button>
+                {paymentDecision?.required && (
+                  <p className="text-[10px] text-center text-muted-foreground mt-2 hidden sm:block">
+                    Aanbetaling vereist om je plek te bevestigen
+                  </p>
                 )}
-              </Button>
+              </div>
             )}
 
             {paymentResult && (
