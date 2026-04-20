@@ -44,6 +44,7 @@ export function useUserRole() {
 // Map of which roles may access each route path (prefix match)
 export const ROUTE_PERMISSIONS: Record<string, AppRole[]> = {
   "/": ["eigenaar", "admin", "medewerker", "financieel"],
+  "/eigenaar": ["eigenaar", "admin"],
   "/agenda": ["eigenaar", "admin", "medewerker"],
   "/klanten": ["eigenaar", "admin", "medewerker"],
   "/wachtlijst": ["eigenaar", "admin", "medewerker"],
