@@ -6,7 +6,7 @@ import { useCrud } from "@/hooks/useCrud";
 import {
   User, Building, Bell, Save, CreditCard, Shield, RotateCcw, Loader2,
   Clock, Calendar, Globe, Users, Download, Link2, Plug, CheckCircle2, XCircle,
-  UserCog, AlertTriangle, Plus, Trash2, Facebook, Instagram, ExternalLink,
+  UserCog, AlertTriangle, Plus, Trash2, Facebook, Instagram, ExternalLink, Sparkles, PlayCircle,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
@@ -16,6 +16,7 @@ import { formatEuro } from "@/lib/data";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { getMessageSettings, saveMessageSettings, type MessageSettings } from "@/lib/messaging";
 import { WhiteLabelEmbedCard } from "@/components/WhiteLabelEmbedCard";
+import { OnboardingWizard } from "@/components/OnboardingWizard";
 
 type OpeningHours = Record<string, { open: string; close: string; enabled: boolean }>;
 
