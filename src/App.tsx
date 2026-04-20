@@ -33,7 +33,10 @@ import CadeaubonnenPage from "./pages/CadeaubonnenPage";
 import WebshopPage from "./pages/WebshopPage";
 import SocialStudioPage from "./pages/SocialStudioPage";
 import LeadsPage from "./pages/LeadsPage";
+import EigenaarPage from "./pages/EigenaarPage";
 import { useLeadAutomation } from "@/hooks/useLeadAutomation";
+import { OnboardingGate } from "@/components/OnboardingGate";
+import { GuidedTour } from "@/components/GuidedTour";
 
 const queryClient = new QueryClient();
 
@@ -58,6 +61,8 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <LeadAutomationRunner />
+            <OnboardingGate />
+            <GuidedTour />
             <Routes>
               <Route path="/login" element={<AuthRoute><LoginPage /></AuthRoute>} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
@@ -83,6 +88,7 @@ const App = () => (
               <Route path="/webshop" element={<RoleProtectedRoute><WebshopPage /></RoleProtectedRoute>} />
               <Route path="/social-studio" element={<RoleProtectedRoute><SocialStudioPage /></RoleProtectedRoute>} />
               <Route path="/leads" element={<RoleProtectedRoute><LeadsPage /></RoleProtectedRoute>} />
+              <Route path="/eigenaar" element={<RoleProtectedRoute allow={["eigenaar","admin"]}><EigenaarPage /></RoleProtectedRoute>} />
               <Route path="/support" element={<RoleProtectedRoute><SupportPage /></RoleProtectedRoute>} />
               <Route path="/launch-status" element={<RoleProtectedRoute allow={["eigenaar"]}><LaunchStatusPage /></RoleProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
