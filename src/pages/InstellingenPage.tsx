@@ -6,7 +6,7 @@ import { useCrud } from "@/hooks/useCrud";
 import {
   User, Building, Bell, Save, CreditCard, Shield, RotateCcw, Loader2,
   Clock, Calendar, Globe, Users, Download, Link2, Plug, CheckCircle2, XCircle,
-  UserCog, AlertTriangle, Plus, Trash2, Facebook, Instagram, ExternalLink,
+  UserCog, AlertTriangle, Plus, Trash2, Facebook, Instagram, ExternalLink, Sparkles, PlayCircle,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
@@ -16,6 +16,7 @@ import { formatEuro } from "@/lib/data";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { getMessageSettings, saveMessageSettings, type MessageSettings } from "@/lib/messaging";
 import { WhiteLabelEmbedCard } from "@/components/WhiteLabelEmbedCard";
+import { OnboardingWizard } from "@/components/OnboardingWizard";
 
 type OpeningHours = Record<string, { open: string; close: string; enabled: boolean }>;
 
@@ -303,6 +304,7 @@ export default function InstellingenPage() {
         {/* Algemeen */}
         {activeTab === "algemeen" && (
           <>
+            <SnelleSetupCard />
             <div className="glass-card p-6">
               <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><Building className="w-4 h-4 text-primary" /> Salon</h3>
               <div className="space-y-4">
@@ -720,6 +722,32 @@ function MessagingSettingsCard() {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function SnelleSetupCard() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="glass-card p-6">
+      <div className="flex items-start gap-4">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center flex-shrink-0">
+          <Sparkles className="w-5 h-5 text-primary-foreground" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-sm font-semibold mb-1">Snelle setup</h3>
+          <p className="text-xs text-muted-foreground mb-3">Configureer je salon in 1 minuut met aanbevolen behandelingen per type.</p>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="gradient" onClick={() => setOpen(true)}>
+              <Sparkles className="w-3.5 h-3.5" /> Start setup wizard
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => window.dispatchEvent(new CustomEvent("glowsuite:start-tour"))}>
+              <PlayCircle className="w-3.5 h-3.5" /> Bekijk rondleiding
+            </Button>
+          </div>
+        </div>
+      </div>
+      <OnboardingWizard open={open} onOpenChange={setOpen} />
     </div>
   );
 }

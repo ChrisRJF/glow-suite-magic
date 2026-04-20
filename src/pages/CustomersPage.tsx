@@ -9,6 +9,7 @@ import { Search, Phone, Mail, Calendar, Euro, ArrowRight, X, Plus, Trash2, Penci
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { CustomerValueIntel } from "@/components/CustomerValueIntel";
 import type { Tables } from "@/integrations/supabase/types";
 
 export default function CustomersPage() {
@@ -186,26 +187,9 @@ export default function CustomersPage() {
                   <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/50"><Phone className="w-4 h-4 text-muted-foreground" /><span className="text-sm">{selectedCustomer.phone || '—'}</span></div>
                   <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/50"><Mail className="w-4 h-4 text-muted-foreground" /><span className="text-sm">{selectedCustomer.email || '—'}</span></div>
                 </div>
-                {/* Intelligence Stats */}
-                <div className="grid grid-cols-2 gap-3 mb-6">
-                  <div className="p-3 rounded-xl bg-secondary/50 text-center">
-                    <Euro className="w-4 h-4 text-muted-foreground mx-auto mb-1" />
-                    <p className="text-lg font-bold tabular-nums">{formatEuro(Number(selectedCustomer.total_spent) || 0)}</p>
-                    <p className="text-[11px] text-muted-foreground">Lifetime Value</p>
-                  </div>
-                  <div className="p-3 rounded-xl bg-secondary/50 text-center">
-                    <Calendar className="w-4 h-4 text-muted-foreground mx-auto mb-1" />
-                    <p className="text-lg font-bold tabular-nums">{selectedIntel.custAppts.length}</p>
-                    <p className="text-[11px] text-muted-foreground">Afspraken</p>
-                  </div>
-                  <div className="p-3 rounded-xl bg-secondary/50 text-center">
-                    <p className="text-lg font-bold tabular-nums">{formatEuro(selectedIntel.avgSpend)}</p>
-                    <p className="text-[11px] text-muted-foreground">Gem. besteding</p>
-                  </div>
-                  <div className="p-3 rounded-xl bg-secondary/50 text-center">
-                    <p className="text-lg font-bold tabular-nums">{selectedIntel.daysSinceLast < 999 ? `${selectedIntel.daysSinceLast}d` : "—"}</p>
-                    <p className="text-[11px] text-muted-foreground">Laatste bezoek</p>
-                  </div>
+                {/* Customer Value Intelligence */}
+                <div className="mb-6">
+                  <CustomerValueIntel customer={selectedCustomer} appointments={appointments} services={services} />
                 </div>
                 {/* No-show score */}
                 {((selectedCustomer.no_show_count || 0) > 0 || (selectedCustomer.cancellation_count || 0) > 0) && (

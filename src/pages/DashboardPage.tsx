@@ -8,6 +8,7 @@ import {
   Send, Star, UserX, Award, UserPlus, ChevronDown
 } from "lucide-react";
 import { AutoRevenueEngine } from "@/components/AutoRevenueEngine";
+import { DailyCoach } from "@/components/DailyCoach";
 import { useNavigate } from "react-router-dom";
 import { useMemo, useState } from "react";
 import {
@@ -106,6 +107,9 @@ export default function DashboardPage() {
   return (
     <AppLayout title="Overzicht" subtitle={new Date().toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' })}>
 
+      {/* ═══════════ BLOCK 0: Daily Coach ═══════════ */}
+      <DailyCoach />
+
       {/* ═══════════ BLOCK 1: KPI's ═══════════ */}
 
       {/* Hero — AI gegenereerde omzet (dominant) */}
@@ -179,7 +183,7 @@ export default function DashboardPage() {
       )}
 
       {/* Auto Revenue Engine */}
-      <div className="mb-10">
+      <div className="mb-10" data-tour="auto-revenue">
         <AutoRevenueEngine />
       </div>
 

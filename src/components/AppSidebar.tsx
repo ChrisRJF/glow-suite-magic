@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Calendar, Users, Scissors, Menu, X, Globe,
   MessageCircle, CreditCard, TrendingUp, RefreshCw, Megaphone,
   Zap, ShoppingBag, Package, BarChart3, Settings, HelpCircle, LogOut,
-  Sun, Moon, Bot, Clock, Gift, ShoppingCart, Share2, UserPlus,
+  Sun, Moon, Bot, Clock, Gift, ShoppingCart, Share2, UserPlus, Crown,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -31,6 +31,7 @@ const navGroups: NavGroup[] = [
     title: "Hoofdmenu",
     items: [
       { label: "Overzicht", icon: LayoutDashboard, path: "/" },
+      { label: "Eigenaar", icon: Crown, path: "/eigenaar", accent: true },
       { label: "Omzet", icon: TrendingUp, path: "/omzet" },
       { label: "Agenda", icon: Calendar, path: "/agenda" },
     ],
@@ -129,10 +130,12 @@ export function AppSidebar() {
               <div className="flex flex-col gap-0.5">
                 {group.items.map((item) => {
                   const isActive = location.pathname === item.path;
+                  const tourAttr = item.path === "/eigenaar" ? "owner-mode" : undefined;
                   return (
                     <Link
                       key={item.path}
                       to={item.path}
+                      data-tour={tourAttr}
                       onClick={() => setMobileOpen(false)}
                       className={cn(
                         "nav-item flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all",
