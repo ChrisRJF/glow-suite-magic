@@ -304,6 +304,7 @@ export default function InstellingenPage() {
         {/* Algemeen */}
         {activeTab === "algemeen" && (
           <>
+            <SnelleSetupCard />
             <div className="glass-card p-6">
               <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><Building className="w-4 h-4 text-primary" /> Salon</h3>
               <div className="space-y-4">
