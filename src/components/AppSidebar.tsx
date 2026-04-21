@@ -1,12 +1,12 @@
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import {
-  LayoutDashboard, Calendar, Users, Scissors, Menu, X, Globe,
+  LayoutDashboard, Calendar, Users, Scissors, X, Globe,
   MessageCircle, CreditCard, TrendingUp, RefreshCw, Megaphone,
   Zap, ShoppingBag, Package, BarChart3, Settings, HelpCircle, LogOut,
   Sun, Moon, Bot, Clock, Gift, ShoppingCart, Share2, UserPlus, Crown,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useUserRole, canAccessRoute } from "@/hooks/useUserRole";
@@ -92,17 +92,15 @@ export function AppSidebar() {
 
   const visibleBottom = bottomItems.filter((item) => canAccessRoute(item.path, roles));
 
+  // Listen for open events from the mobile topbar
+  useEffect(() => {
+    const open = () => setMobileOpen(true);
+    window.addEventListener("glowsuite:open-sidebar", open);
+    return () => window.removeEventListener("glowsuite:open-sidebar", open);
+  }, []);
+
   return (
     <>
-      <button
-        onClick={() => setMobileOpen(true)}
-        aria-label="Menu openen"
-        className="fixed top-3 left-3 z-50 lg:hidden p-2.5 rounded-xl bg-card/95 backdrop-blur border border-border shadow-md"
-        style={{ top: "max(0.75rem, env(safe-area-inset-top))", left: "max(0.75rem, env(safe-area-inset-left))" }}
-      >
-        <Menu className="w-5 h-5" />
-      </button>
-
       {mobileOpen && (
         <div
           className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 lg:hidden"
