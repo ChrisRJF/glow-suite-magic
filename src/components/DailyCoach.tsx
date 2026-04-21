@@ -141,7 +141,7 @@ export function DailyCoach() {
       });
     }
 
-    return list.slice(0, 5);
+    return list.slice(0, 2);
   }, [customers, appointments, services, leads]);
 
   const handleClick = (route: string) => {
@@ -168,38 +168,46 @@ export function DailyCoach() {
   };
 
   return (
-    <section data-tour="daily-coach" className="mb-6">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-            <Target className="w-4 h-4 text-primary-foreground" />
-          </div>
-          <h2 className="text-base font-semibold">Vandaag prioriteit</h2>
-          <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-primary/10 text-primary font-medium">{actions.length}</span>
+    <section data-tour="daily-coach">
+      <div className="flex items-end justify-between mb-4">
+        <div>
+          <h2 className="text-section-title flex items-center gap-2">
+            <span className="inline-flex w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-accent items-center justify-center">
+              <Target className="w-4 h-4 text-primary-foreground" />
+            </span>
+            Vandaag prioriteit
+          </h2>
+          <p className="text-meta mt-1">Slimme acties met de hoogste impact</p>
         </div>
-        <span className="text-xs text-muted-foreground hidden sm:inline">Slimme acties op basis van je salon</span>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-        {actions.map((a) => (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+        {actions.map((a, idx) => (
           <button
             key={a.id}
             onClick={() => handleClick(a.route)}
-            className={`group text-left p-4 rounded-2xl border transition-all ${toneStyles[a.tone]}`}
+            className={`group text-left p-5 rounded-2xl border transition-all hover:-translate-y-0.5 ${toneStyles[a.tone]}`}
+            style={{ boxShadow: "var(--shadow-sm)" }}
           >
-            <div className="flex items-start gap-3 mb-3">
-              <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${iconTone[a.tone]}`}>
-                <a.icon className="w-4 h-4" />
+            <div className="flex items-start gap-3 mb-4">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${iconTone[a.tone]}`}>
+                <a.icon className="w-5 h-5" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold leading-tight mb-1">{a.title}</p>
-                <p className="text-xs text-muted-foreground line-clamp-2">{a.reason}</p>
+                <p className="text-card-title leading-tight mb-1">{a.title}</p>
+                <p className="text-meta line-clamp-2">{a.reason}</p>
               </div>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold tabular-nums">{a.impact}</span>
-              <span className="text-xs font-medium text-primary inline-flex items-center gap-1 group-hover:gap-2 transition-all">
-                {a.cta} <ArrowRight className="w-3 h-3" />
-              </span>
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-sm font-bold tabular-nums text-success">{a.impact}</span>
+              {idx === 0 ? (
+                <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold group-hover:gap-2 transition-all">
+                  {a.cta} <ArrowRight className="w-3 h-3" />
+                </span>
+              ) : (
+                <span className="text-xs font-semibold text-primary inline-flex items-center gap-1 group-hover:gap-2 transition-all">
+                  {a.cta} <ArrowRight className="w-3 h-3" />
+                </span>
+              )}
             </div>
           </button>
         ))}
