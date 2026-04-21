@@ -152,21 +152,21 @@ export default function DashboardPage() {
                   <div
                     key={apt.id}
                     onClick={() => navigate("/agenda")}
-                    className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-secondary/40 transition-colors cursor-pointer"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-secondary/50 active:scale-[0.99] transition-all cursor-pointer group"
                   >
-                    <div className="w-1 h-9 rounded-full flex-shrink-0" style={{ backgroundColor: svc?.color || "hsl(var(--primary))" }} />
-                    <div className="w-14 text-sm font-semibold tabular-nums text-muted-foreground">{time}</div>
+                    <div className="w-[3px] h-8 rounded-full flex-shrink-0" style={{ backgroundColor: svc?.color || "hsl(var(--primary))" }} />
+                    <div className="w-12 text-[13px] font-semibold tabular-nums text-foreground">{time}</div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold truncate">{cust?.name || "Klant"}</p>
-                      <p className="text-xs text-muted-foreground truncate">{svc?.name || "Behandeling"}</p>
+                      <p className="text-[14px] font-semibold truncate leading-tight">{cust?.name || "Klant"}</p>
+                      <p className="text-[12px] text-muted-foreground truncate mt-0.5">{svc?.name || "Behandeling"}</p>
                     </div>
                     <div
-                      className={`px-2 py-0.5 rounded-md text-[10px] font-semibold ${
+                      className={`px-2 py-0.5 rounded-md text-[10px] font-semibold capitalize ${
                         apt.status === "voltooid"
                           ? "bg-success/15 text-success"
                           : apt.status === "geannuleerd"
                             ? "bg-destructive/15 text-destructive"
-                            : "bg-primary/15 text-primary"
+                            : "bg-primary/12 text-primary"
                       }`}
                     >
                       {apt.status}
@@ -200,63 +200,70 @@ export default function DashboardPage() {
           {/* Omzet vandaag — hero KPI */}
           <button
             onClick={() => navigate("/rapporten?type=omzet")}
-            className="text-left p-5 rounded-2xl border border-border/70 bg-card hover:border-primary/30 transition-all sm:col-span-2 lg:col-span-2 group"
+            className="text-left p-4 sm:p-5 rounded-2xl border border-border/70 bg-card hover:border-primary/30 hover:-translate-y-0.5 transition-all sm:col-span-2 lg:col-span-2 group"
             style={{ boxShadow: "var(--shadow-sm)" }}
           >
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2 mb-2.5">
               <Euro className="w-4 h-4 text-success" />
               <span className="text-eyebrow">Omzet vandaag</span>
             </div>
             <p className="text-metric text-foreground">
               <AnimatedCounter value={omzetVandaag} format={(n) => formatEuro(n)} />
             </p>
-            <p className="text-meta mt-2.5">
-              {todaysAppts.length} afspraken · {bezetting}% bezetting
+            <p className="text-meta mt-2">
+              {todaysAppts.length} {todaysAppts.length === 1 ? "afspraak" : "afspraken"} · {bezetting}% bezetting
+              {bezetting < 60 && bezetting > 0 ? " · ruimte voor groei" : ""}
             </p>
           </button>
 
           {/* Vrije plekken */}
           <button
             onClick={() => navigate("/agenda")}
-            className="text-left p-5 rounded-2xl border border-border/70 bg-card hover:border-warning/30 transition-all"
+            className="text-left p-4 sm:p-5 rounded-2xl border border-border/70 bg-card hover:border-warning/30 hover:-translate-y-0.5 transition-all"
             style={{ boxShadow: "var(--shadow-sm)" }}
           >
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2 mb-2.5">
               <Clock className={`w-4 h-4 ${vrijePlekken > 3 ? "text-destructive" : "text-warning"}`} />
               <span className="text-eyebrow">Vrije plekken</span>
             </div>
             <p className="text-metric-sm">
               <AnimatedCounter value={vrijePlekken} />
-            </p>
-            <p className="text-meta mt-2.5">
-              {vrijePlekken > 0 ? (
-                <>
-                  <span className="text-warning font-semibold">{formatEuro(missedRevenue)}</span> open omzet
-                  {freeSlotWindow ? ` ${freeSlotWindow}` : ""}
-                </>
-              ) : (
-                "Agenda is vol"
+              {vrijePlekken > 0 && (
+                <span className="ml-2 text-sm font-semibold text-warning align-middle">
+                  +{formatEuro(missedRevenue)} kans
+                </span>
               )}
+            </p>
+            <p className="text-meta mt-2">
+              {vrijePlekken > 0
+                ? freeSlotWindow
+                  ? `Kans ${freeSlotWindow}`
+                  : "Open omzet vandaag"
+                : "Agenda is vol — sterk werk"}
             </p>
           </button>
 
           {/* No-show risico morgen */}
           <button
             onClick={() => navigate("/whatsapp")}
-            className="text-left p-5 rounded-2xl border border-border/70 bg-card hover:border-destructive/30 transition-all"
+            className="text-left p-4 sm:p-5 rounded-2xl border border-border/70 bg-card hover:border-destructive/30 hover:-translate-y-0.5 transition-all"
             style={{ boxShadow: "var(--shadow-sm)" }}
           >
-            <div className="flex items-center gap-2 mb-3">
-              <AlertTriangle className={`w-4 h-4 ${noShowRiskTomorrow > 0 ? "text-destructive" : "text-muted-foreground"}`} />
+            <div className="flex items-center gap-2 mb-2.5">
+              <AlertTriangle className={`w-4 h-4 ${noShowRiskTomorrow > 0 ? "text-destructive" : "text-success"}`} />
               <span className="text-eyebrow">No-show risico</span>
             </div>
             <p className="text-metric-sm">
-              <AnimatedCounter value={noShowRiskTomorrow} />
+              {noShowRiskTomorrow > 0 ? (
+                <AnimatedCounter value={noShowRiskTomorrow} />
+              ) : (
+                <span className="text-success">0</span>
+              )}
             </p>
-            <p className="text-meta mt-2.5">
+            <p className="text-meta mt-2">
               {noShowRiskTomorrow > 0
-                ? "Stuur extra herinnering voor morgen"
-                : "Geen risico's morgen"}
+                ? `Stuur extra herinnering voor morgen`
+                : "Perfecte planning voor morgen"}
             </p>
           </button>
         </div>
