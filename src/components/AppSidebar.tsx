@@ -31,22 +31,29 @@ const navGroups: NavGroup[] = [
     title: "Hoofdmenu",
     items: [
       { label: "Overzicht", icon: LayoutDashboard, path: "/" },
-      { label: "Eigenaar", icon: Crown, path: "/eigenaar", accent: true },
-      { label: "Omzet", icon: TrendingUp, path: "/omzet" },
       { label: "Agenda", icon: Calendar, path: "/agenda" },
+      { label: "Klanten", icon: Users, path: "/klanten" },
+      { label: "Omzet", icon: TrendingUp, path: "/omzet" },
     ],
   },
   {
-    title: "Groei & Actie",
+    title: "Groei",
     items: [
-      { label: "Klantwaarde", icon: Users, path: "/klanten" },
-      { label: "Wachtlijst", icon: Clock, path: "/wachtlijst" },
-      { label: "Herboekingen", icon: RefreshCw, path: "/herboekingen" },
+      { label: "Autopilot", icon: Zap, path: "/acties", accent: true },
       { label: "Marketing", icon: Megaphone, path: "/marketing" },
       { label: "Social Studio", icon: Share2, path: "/social-studio" },
-      { label: "Acties", icon: Zap, path: "/acties", accent: true },
       { label: "Leads", icon: UserPlus, path: "/leads" },
+      { label: "Wachtlijst", icon: Clock, path: "/wachtlijst" },
+      { label: "Herboekingen", icon: RefreshCw, path: "/herboekingen" },
       { label: "Automatiseringen", icon: Bot, path: "/automatiseringen" },
+    ],
+  },
+  {
+    title: "Management",
+    items: [
+      { label: "Eigenaar", icon: Crown, path: "/eigenaar", accent: true },
+      { label: "Rapporten", icon: BarChart3, path: "/rapporten" },
+      { label: "GlowPay", icon: CreditCard, path: "/glowpay", accent: true },
     ],
   },
   {
@@ -54,13 +61,11 @@ const navGroups: NavGroup[] = [
     items: [
       { label: "Behandelingen", icon: Scissors, path: "/behandelingen" },
       { label: "Online Boeken", icon: Globe, path: "/boeken" },
-      { label: "GlowPay", icon: CreditCard, path: "/glowpay", accent: true },
       { label: "Kassa", icon: ShoppingBag, path: "/kassa" },
       { label: "Producten", icon: Package, path: "/producten" },
       { label: "Cadeaubonnen", icon: Gift, path: "/cadeaubonnen" },
       { label: "Webshop", icon: ShoppingCart, path: "/webshop" },
       { label: "Abonnementen", icon: CreditCard, path: "/abonnementen" },
-      { label: "Omzet Inzicht", icon: BarChart3, path: "/rapporten" },
     ],
   },
 ];
