@@ -11,17 +11,17 @@ interface AppLayoutProps {
 
 export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps) {
   return (
-    <div className="flex min-h-screen w-full">
+    <div className="flex min-h-screen w-full bg-background">
       <AppSidebar />
-      <main className="flex-1 min-w-0 lg:pl-0 pl-0">
-        <div className="p-6 lg:p-10 max-w-[1400px] mx-auto space-y-8">
+      <main className="flex-1 min-w-0">
+        <div className="px-4 sm:px-6 lg:px-10 py-6 lg:py-10 max-w-[1400px] mx-auto space-y-8 safe-bottom">
           {/* Page header */}
-          <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pt-10 lg:pt-0">
-            <div className="page-enter space-y-2">
-              <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-balance">{title}</h1>
-              {subtitle && <p className="text-muted-foreground text-sm leading-relaxed">{subtitle}</p>}
+          <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pt-12 lg:pt-0">
+            <div className="page-enter space-y-1.5 min-w-0">
+              <h1 className="text-page-title text-balance">{title}</h1>
+              {subtitle && <p className="text-meta leading-relaxed">{subtitle}</p>}
             </div>
-            <div className="flex items-center gap-3 page-enter stagger-1">
+            <div className="flex items-center gap-3 page-enter stagger-1 flex-shrink-0">
               {actions}
               <img
                 src={logoIcon}

@@ -285,6 +285,41 @@
   .text-balance {
     text-wrap: balance;
   }
+
+  /* ─── Premium typography scale ─── */
+  .text-page-title {
+    @apply text-[28px] sm:text-[32px] font-bold tracking-tight leading-tight;
+  }
+  .text-section-title {
+    @apply text-[20px] sm:text-[22px] font-semibold tracking-tight leading-snug;
+  }
+  .text-card-title {
+    @apply text-[17px] sm:text-[18px] font-semibold tracking-tight;
+  }
+  .text-metric {
+    @apply text-[30px] sm:text-[36px] font-bold tracking-tight tabular-nums leading-none;
+  }
+  .text-metric-sm {
+    @apply text-[22px] sm:text-[26px] font-bold tracking-tight tabular-nums leading-none;
+  }
+  .text-meta {
+    @apply text-[12px] sm:text-[13px] font-medium text-muted-foreground;
+  }
+  .text-eyebrow {
+    @apply text-[11px] uppercase tracking-[0.08em] font-semibold text-muted-foreground;
+  }
+
+  /* Mobile safe-area padding */
+  .safe-x {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+  .safe-top {
+    padding-top: max(1rem, env(safe-area-inset-top));
+  }
+  .safe-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
 }
 
 @keyframes pageEnter {
