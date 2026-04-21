@@ -96,7 +96,9 @@ export function AppSidebar() {
     <>
       <button
         onClick={() => setMobileOpen(true)}
-        className="fixed top-4 left-4 z-50 lg:hidden p-2 rounded-xl bg-card border border-border"
+        aria-label="Menu openen"
+        className="fixed top-3 left-3 z-50 lg:hidden p-2.5 rounded-xl bg-card/95 backdrop-blur border border-border shadow-md"
+        style={{ top: "max(0.75rem, env(safe-area-inset-top))", left: "max(0.75rem, env(safe-area-inset-left))" }}
       >
         <Menu className="w-5 h-5" />
       </button>
@@ -110,26 +112,27 @@ export function AppSidebar() {
 
       <aside
         className={cn(
-          "fixed lg:sticky top-0 left-0 z-50 h-screen w-[260px] flex flex-col bg-card/50 backdrop-blur-xl border-r border-border transition-transform duration-300 overflow-y-auto",
+          "fixed lg:sticky top-0 left-0 z-50 h-screen w-[260px] flex flex-col bg-card/60 backdrop-blur-xl border-r border-border transition-transform duration-300 overflow-y-auto",
           mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >
         <button
           onClick={() => setMobileOpen(false)}
-          className="absolute top-4 right-4 lg:hidden p-1 rounded-lg hover:bg-secondary"
+          aria-label="Menu sluiten"
+          className="absolute top-4 right-4 lg:hidden p-1.5 rounded-lg hover:bg-secondary"
         >
           <X className="w-5 h-5" />
         </button>
 
-        <div className="p-5 pb-2">
-          <img src={logoFull} alt="GlowSuite" className="hidden lg:block h-10 w-auto object-contain" />
-          <img src={logoIcon} alt="GlowSuite" className="lg:hidden h-10 w-10 rounded-xl object-contain" />
+        <div className="px-5 pt-6 pb-3">
+          <img src={logoFull} alt="GlowSuite" className="hidden lg:block h-9 w-auto object-contain" />
+          <img src={logoIcon} alt="GlowSuite" className="lg:hidden h-9 w-9 rounded-xl object-contain" />
         </div>
 
         <nav className="flex-1 px-3 py-2">
           {visibleGroups.map((group) => (
-            <div key={group.title} className="mb-4">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-semibold px-3 mb-1.5">
+            <div key={group.title} className="mb-5">
+              <p className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground/60 font-semibold px-3 mb-2">
                 {group.title}
               </p>
               <div className="flex flex-col gap-0.5">
@@ -143,13 +146,16 @@ export function AppSidebar() {
                       data-tour={tourAttr}
                       onClick={() => setMobileOpen(false)}
                       className={cn(
-                        "nav-item flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all",
+                        "relative flex items-center gap-3 px-3 py-2 rounded-xl text-[14px] transition-all duration-150",
                         isActive
-                          ? "bg-primary/15 text-primary font-medium"
-                          : "text-muted-foreground hover:text-foreground hover:bg-secondary/50",
-                        item.accent && !isActive && "text-primary/80"
+                          ? "bg-primary/12 text-primary font-semibold"
+                          : "text-muted-foreground hover:text-foreground hover:bg-secondary/60",
+                        item.accent && !isActive && "text-primary/85"
                       )}
                     >
+                      {isActive && (
+                        <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-primary" />
+                      )}
                       <item.icon className="w-[18px] h-[18px] shrink-0" />
                       <span className="flex-1">{item.label}</span>
                       {item.badge && (
