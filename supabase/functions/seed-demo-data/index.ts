@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (settingsError) throw settingsError;
-    const isKnownDemoAccount = user.email === "demo@glowsuite.nl" || Boolean(currentSettings?.is_demo || currentSettings?.demo_mode);
+    const isKnownDemoAccount = user.email === "demo@glowsuite.nl";
     if (!isKnownDemoAccount) {
       return new Response(JSON.stringify({ error: "Deze actie is alleen beschikbaar in demo modus." }), {
         status: 403,
@@ -315,6 +315,10 @@ Deno.serve(async (req) => {
       { user_id: uid, amount: 25, description: "Restbetaling kleuren", status: "betaald", type: "qr", link_url: "https://pay.glowsuite.nl/demo002", paid_at: new Date().toISOString() },
       { user_id: uid, amount: 90, description: "Volledige behandeling", status: "open", type: "qr", link_url: "https://pay.glowsuite.nl/demo003" },
     ]);
+
+    for (const t of tables.filter((table) => table !== "settings")) {
+      await supabase.from(t).update({ is_demo: true }).eq("user_id", uid);
+    }
 
     await supabase.from("profiles").update({ salon_name: "Studio Nova Amsterdam" }).eq("user_id", uid);
 
