@@ -156,7 +156,7 @@ export default function InstellingenPage() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        const { error } = await supabase.functions.invoke("seed-demo-data", {
+        const { data, error } = await supabase.functions.invoke("seed-demo-data", {
           headers: { Authorization: `Bearer ${session.access_token}` },
         });
         if (error || (data as any)?.error) throw new Error((data as any)?.error || error?.message || "Demo omgeving kon niet opnieuw geladen worden.");
