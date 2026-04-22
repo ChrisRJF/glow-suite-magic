@@ -646,14 +646,24 @@ export default function InstellingenPage() {
             <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><Shield className="w-4 h-4 text-primary" /> Demo modus</h3>
             <div className="space-y-4">
               <div className="flex items-center justify-between py-2">
-                <div><span className="text-sm">Demo modus actief</span><p className="text-[11px] text-muted-foreground">Simuleer betalingen zonder echte transacties</p></div>
-                <ToggleSwitch value={demoMode} onChange={setDemoMode} />
+                <div><span className="text-sm">Demo omgeving</span><p className="text-[11px] text-muted-foreground">Alleen demo-accounts kunnen fake data en betalingen gebruiken</p></div>
+                <span className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold ${demoMode ? "bg-primary/15 text-primary" : "bg-secondary text-muted-foreground"}`}>
+                  {demoMode ? "Actief" : "Live account"}
+                </span>
               </div>
-              <Button variant="outline" size="sm" className="w-full" onClick={() => setConfirmReset(true)} disabled={resetLoading}>
-                {resetLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RotateCcw className="w-4 h-4 mr-2" />}
-                {resetLoading ? "Laden..." : "Demo opnieuw laden"}
-              </Button>
-              <p className="text-[11px] text-muted-foreground/60 text-center">Herstelt alle demo data naar de originele staat</p>
+              {demoMode ? (
+                <>
+                  <Button variant="outline" size="sm" className="w-full" onClick={() => setConfirmReset(true)} disabled={resetLoading}>
+                    {resetLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RotateCcw className="w-4 h-4 mr-2" />}
+                    {resetLoading ? "Laden..." : "Demo opnieuw laden"}
+                  </Button>
+                  <p className="text-[11px] text-muted-foreground/60 text-center">Reset alleen geïsoleerde demo data, nooit live data</p>
+                </>
+              ) : (
+                <div className="p-3 rounded-xl bg-secondary/50 border border-border text-xs text-muted-foreground">
+                  Demo reset, fake data imports en demo betalingen zijn geblokkeerd voor live accounts.
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -669,9 +679,10 @@ export default function InstellingenPage() {
       <ConfirmDialog
         open={confirmReset}
         onOpenChange={setConfirmReset}
-        title="Demo data opnieuw laden?"
-        description="Dit verwijdert ALLE huidige data van dit account (klanten, afspraken, betalingen, etc.) en vervangt het door de standaard demo data. Deze actie kan niet ongedaan worden gemaakt. Gebruik dit alleen op een demo-account."
+        title="Je staat op het punt demo data opnieuw te laden."
+        description="Dit reset alleen de geïsoleerde demo omgeving en raakt geen live salondata, echte klanten of echte betalingen."
         confirmLabel="Ja, reset demo"
+        confirmationText="RESET DEMO"
         destructive
         onConfirm={handleDemoReset}
       />
