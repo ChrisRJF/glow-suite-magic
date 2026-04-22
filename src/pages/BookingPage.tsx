@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
+import { useParams } from "react-router-dom";
 import { services as fallbackServices, formatEuro } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { Check, Clock, ArrowLeft, ArrowRight, Calendar, User, CreditCard, Loader2, Plus, Trash2, Users, Zap, AlertCircle, Mail, Shield, Sparkles, RotateCcw, Share2, CalendarPlus, Lock } from "lucide-react";
@@ -9,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { queueLeadIntent } from "@/hooks/useLeadAutomation";
 import { getBranding, fetchBranding, applyBrandingToDocument, type WhiteLabelBranding } from "@/lib/whitelabel";
+import { callPublicBooking, nextBookingDate, type PublicBookingData } from "@/lib/publicBooking";
 
 // Lightweight conversion tracking — sends events to host page via postMessage
 function trackEvent(event: string, data?: Record<string, any>) {
@@ -87,10 +89,15 @@ interface PlacementOption {
 }
 
 export default function BookingPage() {
+  const { salonSlug } = useParams();
+  const isPublicBooking = Boolean(salonSlug);
   const { data: liveServices } = useServices();
   const { data: liveSettings } = useSettings();
   const settingsRow = liveSettings[0] as any | undefined;
-  const isDemoMode = Boolean(settingsRow?.demo_mode);
+  const [publicData, setPublicData] = useState<PublicBookingData | null>(null);
+  const [publicLoading, setPublicLoading] = useState(isPublicBooking);
+  const [publicError, setPublicError] = useState<string | null>(null);
+  const isDemoMode = Boolean(publicData?.salon.demo_mode ?? settingsRow?.demo_mode);
   const [step, setStep] = useState(1);
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
@@ -103,12 +110,39 @@ export default function BookingPage() {
   const [selectedMethod, setSelectedMethod] = useState("ideal");
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentResult, setPaymentResult] = useState<{ status: string; message: string } | null>(null);
+  const [confirmation, setConfirmation] = useState<any>(null);
   const [isGroupBooking, setIsGroupBooking] = useState(false);
   const [mainAssignmentMode, setMainAssignmentMode] = useState<AssignmentMode>("auto");
   const [mainAssignedEmployee, setMainAssignedEmployee] = useState("");
   const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
   const [placementOptions, setPlacementOptions] = useState<PlacementOption[]>([]);
   const [selectedPlacementIndex, setSelectedPlacementIndex] = useState(0);
+
+  useEffect(() => {
+    if (!salonSlug) return;
+    let cancelled = false;
+    setPublicLoading(true);
+    setPublicError(null);
+    callPublicBooking<PublicBookingData>({ action: "get_salon", slug: salonSlug })
+      .then((data) => {
+        if (cancelled) return;
+        setPublicData(data);
+        setBranding((current) => ({
+          ...current,
+          salon_name: data.salon.name,
+          logo_url: data.salon.logo_url || current.logo_url,
+          primary_color: data.salon.primary_color || current.primary_color,
+          secondary_color: data.salon.secondary_color || current.secondary_color,
+        }));
+      })
+      .catch((error) => {
+        if (!cancelled) setPublicError(error.message || "Deze boekingspagina bestaat niet.");
+      })
+      .finally(() => {
+        if (!cancelled) setPublicLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [salonSlug]);
 
   // White-label embed mode: detect ?embed=1 in URL and load salon branding
   const isEmbed = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("embed") === "1";
@@ -126,7 +160,8 @@ export default function BookingPage() {
   }, [isEmbed, branding]);
 
   const bookingServices = useMemo<BookingServiceOption[]>(() => {
-    if (liveServices.length > 0) {
+    if (publicData) return publicData.services;
+    if (!isPublicBooking && liveServices.length > 0) {
       return liveServices
         .filter((service) => service.is_active && service.is_online_bookable && !service.is_internal_only)
         .map((service) => ({
@@ -139,6 +174,7 @@ export default function BookingPage() {
         }));
     }
 
+    if (isPublicBooking) return [];
     return fallbackServices.map((service) => ({
       id: service.id,
       name: service.name,
@@ -147,7 +183,7 @@ export default function BookingPage() {
       color: service.color,
       description: null,
     }));
-  }, [liveServices]);
+  }, [isPublicBooking, liveServices, publicData]);
 
   useEffect(() => {
     if (selectedService && !bookingServices.some((service) => service.id === selectedService)) {
@@ -239,6 +275,28 @@ export default function BookingPage() {
     }
     setEmailLookupLoading(true);
     try {
+      if (isPublicBooking && salonSlug) {
+        const result = await callPublicBooking<{ customer: { name?: string; phone?: string } | null; recentAppointments: Array<{ id: string; service_id: string | null; appointment_date: string }> }>({
+          action: "lookup_customer",
+          slug: salonSlug,
+          email: value,
+        });
+        const customer = result.customer;
+        if (!customer) {
+          setRecognizedCustomer(null);
+          setRecentAppointments([]);
+          return;
+        }
+        setRecognizedCustomer({ name: customer.name, phone: customer.phone || "" });
+        setName((current) => current || customer.name || "");
+        setPhone((current) => current || customer.phone || "");
+        setRecentAppointments((result.recentAppointments || []).map((appt) => ({
+          ...appt,
+          service_name: bookingServices.find((s) => s.id === appt.service_id)?.name,
+        })));
+        trackEvent("email_recognized", { public: true, hasRecent: (result.recentAppointments || []).length > 0 });
+        return;
+      }
       const { data: customers } = await supabase
         .from("customers")
         .select("id, name, phone, email")
@@ -270,7 +328,7 @@ export default function BookingPage() {
     } finally {
       setEmailLookupLoading(false);
     }
-  }, [bookingServices]);
+  }, [bookingServices, isPublicBooking, salonSlug]);
 
   useEffect(() => {
     const t = setTimeout(() => { if (email) lookupCustomerByEmail(email); }, 600);
@@ -288,11 +346,11 @@ export default function BookingPage() {
   const service = bookingServices.find((item) => item.id === selectedService);
 
   const rules = usePaymentRules({
-    deposit_new_client: settingsRow?.deposit_new_client ?? true,
-    deposit_percentage: settingsRow?.deposit_percentage ?? 50,
-    full_prepay_threshold: Number(settingsRow?.full_prepay_threshold) || 150,
-    skip_prepay_vip: settingsRow?.skip_prepay_vip ?? false,
-    deposit_noshow_risk: settingsRow?.deposit_noshow_risk ?? true,
+    deposit_new_client: publicData?.salon.booking_rules.deposit_new_client ?? settingsRow?.deposit_new_client ?? true,
+    deposit_percentage: publicData?.salon.booking_rules.deposit_percentage ?? settingsRow?.deposit_percentage ?? 50,
+    full_prepay_threshold: publicData?.salon.booking_rules.full_prepay_threshold ?? (Number(settingsRow?.full_prepay_threshold) || 150),
+    skip_prepay_vip: publicData?.salon.booking_rules.skip_prepay_vip ?? settingsRow?.skip_prepay_vip ?? false,
+    deposit_noshow_risk: publicData?.salon.booking_rules.deposit_noshow_risk ?? settingsRow?.deposit_noshow_risk ?? true,
     demo_mode: isDemoMode,
   });
 
@@ -534,6 +592,63 @@ export default function BookingPage() {
 
   const handleConfirm = async () => {
     trackEvent("booking_attempt", { service: selectedService, time: selectedTime, total: totalPrice });
+    if (!service || !selectedService || !selectedTime) {
+      toast.error("Kies eerst een behandeling en tijdstip.");
+      return;
+    }
+
+    if (isPublicBooking && salonSlug) {
+      setPaymentLoading(true);
+      try {
+        const groupPayload = isGroupBooking
+          ? groupMembers.map((member) => {
+              const placement = selectedPlacements.find((item) => item.id === member.id);
+              return {
+                name: member.name,
+                service_id: member.serviceId,
+                time: placement?.time || selectedTime,
+                employee: placement?.employee || member.assignedEmployee || null,
+              };
+            })
+          : [];
+
+        const result = await callPublicBooking<any>({
+          action: "create_booking",
+          slug: salonSlug,
+          customer: { name, email, phone, privacy_consent: true, marketing_consent: false },
+          date: nextBookingDate(),
+          time: selectedPlacements[0]?.time || selectedTime,
+          service_id: selectedService,
+          employee: selectedPlacements[0]?.employee || mainAssignedEmployee || null,
+          group_members: groupPayload,
+          payment: { required: Boolean(paymentDecision?.required), amount: paymentDecision?.amount || 0, type: paymentDecision?.type || "deposit", method: selectedMethod },
+          notes: "",
+        });
+
+        setConfirmation(result.confirmation);
+        if (result.checkoutUrl) {
+          trackEvent("payment_redirect", { appointment_id: result.appointment?.id });
+          window.location.href = result.checkoutUrl;
+          return;
+        }
+
+        const message = result.paymentInitError || (paymentDecision?.required ? "Afspraak opgeslagen. Betaling staat in afwachting." : "Afspraak bevestigd! Geen betaling vereist.");
+        setPaymentResult({ status: result.paymentInitError ? "failed" : "success", message });
+        toast[result.paymentInitError ? "error" : "success"](message);
+        try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
+        trackEvent("booking_completed", { paid: !paymentDecision?.required, public: true });
+      } catch (err: any) {
+        const msg = err?.message || "Boeking kon niet worden opgeslagen.";
+        if (err?.code === "slot_unavailable") setStep(2);
+        setPaymentResult({ status: "failed", message: msg });
+        toast.error(msg);
+        trackEvent("booking_failed", { error: msg });
+      } finally {
+        setPaymentLoading(false);
+      }
+      return;
+    }
+
     if (!paymentDecision?.required) {
       toast.success("Afspraak bevestigd! ✅");
       setPaymentResult({
@@ -709,6 +824,33 @@ export default function BookingPage() {
     );
   };
 
+  if (publicLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <div className="w-full max-w-md space-y-4">
+          <div className="h-10 w-40 rounded-xl bg-secondary animate-pulse" />
+          <div className="h-24 rounded-2xl bg-secondary animate-pulse" />
+          <div className="h-24 rounded-2xl bg-secondary animate-pulse" />
+          <p className="text-sm text-muted-foreground">Boekingspagina laden...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (publicError || (isPublicBooking && !publicData)) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <div className="max-w-md text-center space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-secondary flex items-center justify-center mx-auto">
+            <AlertCircle className="w-6 h-6 text-muted-foreground" />
+          </div>
+          <h1 className="text-xl font-bold">Deze boekingspagina bestaat niet.</h1>
+          <p className="text-sm text-muted-foreground">Controleer de link of neem contact op met de salon.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {!isEmbed && (
@@ -718,7 +860,7 @@ export default function BookingPage() {
               <span className="text-sm font-bold text-primary-foreground">GS</span>
             </div>
             <div>
-              <h1 className="text-base font-bold tracking-tight">{branding.salon_name || "Glow Studio"}</h1>
+              <h1 className="text-base font-bold tracking-tight">{publicData?.salon.name || branding.salon_name || "Glow Studio"}</h1>
               <p className="text-[11px] text-muted-foreground">Boek je afspraak · Direct bevestigd</p>
             </div>
           </div>
@@ -1177,14 +1319,18 @@ export default function BookingPage() {
                 <p className="text-xs text-muted-foreground mt-1">Je ontvangt een bevestiging per e-mail.</p>
 
                 <div className="mt-4 grid gap-1.5 text-left text-sm bg-background/60 rounded-xl p-3">
-                  <div className="flex justify-between"><span className="text-muted-foreground">Behandeling</span><span className="font-medium">{service?.name}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Datum</span><span className="font-medium">Di 22 mrt</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Tijd</span><span className="font-medium">{selectedTime}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Salon</span><span className="font-medium">{confirmation?.salon_name || publicData?.salon.name || branding.salon_name}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Behandeling</span><span className="font-medium">{confirmation?.service_name || service?.name}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Datum</span><span className="font-medium">{confirmation?.date ? new Date(`${confirmation.date}T00:00:00`).toLocaleDateString("nl-NL", { weekday: "short", day: "numeric", month: "short" }) : "Di 22 mrt"}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Tijd</span><span className="font-medium">{confirmation?.time || selectedTime}</span></div>
                   {selectedPlacements[0]?.employee && (
                     <div className="flex justify-between"><span className="text-muted-foreground">Medewerker</span><span className="font-medium">{selectedPlacements[0].employee}</span></div>
                   )}
+                  {confirmation?.reference && (
+                    <div className="flex justify-between"><span className="text-muted-foreground">Referentie</span><span className="font-medium tabular-nums">{confirmation.reference}</span></div>
+                  )}
                   {paymentDecision?.required && (
-                    <div className="flex justify-between"><span className="text-muted-foreground">Betaling</span><span className="font-medium text-success">Voldaan · {formatEuro(paymentDecision.amount)}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Betaling</span><span className="font-medium text-success">{confirmation?.payment_status === "paid" ? "Voldaan" : "In afwachting"} · {formatEuro(paymentDecision.amount)}</span></div>
                   )}
                 </div>
 

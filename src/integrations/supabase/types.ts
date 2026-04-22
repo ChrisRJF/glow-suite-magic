@@ -18,15 +18,23 @@ export type Database = {
         Row: {
           amount_paid: number | null
           appointment_date: string
+          booking_group_id: string | null
+          booking_reference: string | null
+          booking_token: string | null
           created_at: string
           customer_id: string | null
           deposit_amount: number | null
+          employee_id: string | null
+          end_time: string | null
           id: string
           notes: string | null
           payment_required: boolean | null
           payment_status: string | null
+          payment_type: string | null
           price: number | null
           service_id: string | null
+          source: string | null
+          start_time: string | null
           status: string
           updated_at: string
           user_id: string
@@ -34,15 +42,23 @@ export type Database = {
         Insert: {
           amount_paid?: number | null
           appointment_date: string
+          booking_group_id?: string | null
+          booking_reference?: string | null
+          booking_token?: string | null
           created_at?: string
           customer_id?: string | null
           deposit_amount?: number | null
+          employee_id?: string | null
+          end_time?: string | null
           id?: string
           notes?: string | null
           payment_required?: boolean | null
           payment_status?: string | null
+          payment_type?: string | null
           price?: number | null
           service_id?: string | null
+          source?: string | null
+          start_time?: string | null
           status?: string
           updated_at?: string
           user_id: string
@@ -50,15 +66,23 @@ export type Database = {
         Update: {
           amount_paid?: number | null
           appointment_date?: string
+          booking_group_id?: string | null
+          booking_reference?: string | null
+          booking_token?: string | null
           created_at?: string
           customer_id?: string | null
           deposit_amount?: number | null
+          employee_id?: string | null
+          end_time?: string | null
           id?: string
           notes?: string | null
           payment_required?: boolean | null
           payment_status?: string | null
+          payment_type?: string | null
           price?: number | null
           service_id?: string | null
+          source?: string | null
+          start_time?: string | null
           status?: string
           updated_at?: string
           user_id?: string
@@ -207,10 +231,12 @@ export type Database = {
           id: string
           is_vip: boolean | null
           loyalty_points: number | null
+          marketing_consent: boolean | null
           name: string
           no_show_count: number | null
           notes: string | null
           phone: string | null
+          privacy_consent: boolean | null
           total_spent: number | null
           updated_at: string
           user_id: string
@@ -222,10 +248,12 @@ export type Database = {
           id?: string
           is_vip?: boolean | null
           loyalty_points?: number | null
+          marketing_consent?: boolean | null
           name: string
           no_show_count?: number | null
           notes?: string | null
           phone?: string | null
+          privacy_consent?: boolean | null
           total_spent?: number | null
           updated_at?: string
           user_id: string
@@ -237,10 +265,12 @@ export type Database = {
           id?: string
           is_vip?: boolean | null
           loyalty_points?: number | null
+          marketing_consent?: boolean | null
           name?: string
           no_show_count?: number | null
           notes?: string | null
           phone?: string | null
+          privacy_consent?: boolean | null
           total_spent?: number | null
           updated_at?: string
           user_id?: string
@@ -691,6 +721,7 @@ export type Database = {
         Row: {
           auto_block_noshow: number | null
           buffer_minutes: number | null
+          cancellation_notice: string | null
           created_at: string
           currency: string | null
           demo_mode: boolean | null
@@ -707,7 +738,10 @@ export type Database = {
           max_bookings_simultaneous: number | null
           mollie_mode: string | null
           opening_hours: Json | null
+          public_employees_enabled: boolean | null
+          public_slug: string | null
           salon_name: string | null
+          show_prices_online: boolean | null
           skip_prepay_vip: boolean | null
           timezone: string | null
           updated_at: string
@@ -718,6 +752,7 @@ export type Database = {
         Insert: {
           auto_block_noshow?: number | null
           buffer_minutes?: number | null
+          cancellation_notice?: string | null
           created_at?: string
           currency?: string | null
           demo_mode?: boolean | null
@@ -734,7 +769,10 @@ export type Database = {
           max_bookings_simultaneous?: number | null
           mollie_mode?: string | null
           opening_hours?: Json | null
+          public_employees_enabled?: boolean | null
+          public_slug?: string | null
           salon_name?: string | null
+          show_prices_online?: boolean | null
           skip_prepay_vip?: boolean | null
           timezone?: string | null
           updated_at?: string
@@ -745,6 +783,7 @@ export type Database = {
         Update: {
           auto_block_noshow?: number | null
           buffer_minutes?: number | null
+          cancellation_notice?: string | null
           created_at?: string
           currency?: string | null
           demo_mode?: boolean | null
@@ -761,7 +800,10 @@ export type Database = {
           max_bookings_simultaneous?: number | null
           mollie_mode?: string | null
           opening_hours?: Json | null
+          public_employees_enabled?: boolean | null
+          public_slug?: string | null
           salon_name?: string | null
+          show_prices_online?: boolean | null
           skip_prepay_vip?: boolean | null
           timezone?: string | null
           updated_at?: string
