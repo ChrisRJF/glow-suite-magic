@@ -77,9 +77,10 @@ export default function LoginPage() {
       toast.loading("Demo omgeving laden...");
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        await supabase.functions.invoke("seed-demo-data", {
+        const { data, error: seedError } = await supabase.functions.invoke("seed-demo-data", {
           headers: { Authorization: `Bearer ${session.access_token}` },
         });
+        if (seedError || data?.error) throw new Error(data?.error || seedError?.message || "Demo omgeving kon niet opnieuw geladen worden.");
       }
       toast.dismiss();
       toast.success("Welkom bij de GlowSuite demo!");
