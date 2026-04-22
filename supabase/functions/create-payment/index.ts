@@ -58,16 +58,16 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { appointment_id, customer_id, amount, payment_type, method, is_demo } = parsed.data;
+    const { appointment_id, customer_id, amount, payment_type, method } = parsed.data;
 
     // Check if demo mode
     const { data: settings } = await supabase
       .from("settings")
-      .select("demo_mode, mollie_mode")
+      .select("demo_mode, is_demo, mollie_mode")
       .eq("user_id", user.id)
       .maybeSingle();
 
-    const demoMode = is_demo || settings?.demo_mode || false;
+    const demoMode = Boolean(settings?.is_demo || settings?.demo_mode);
 
     if (demoMode) {
       const demoStatuses = ["paid", "failed", "cancelled"];
