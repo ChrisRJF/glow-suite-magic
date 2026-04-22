@@ -348,7 +348,7 @@ export default function BookingPage() {
   const rules = usePaymentRules({
     deposit_new_client: publicData?.salon.booking_rules.deposit_new_client ?? settingsRow?.deposit_new_client ?? true,
     deposit_percentage: publicData?.salon.booking_rules.deposit_percentage ?? settingsRow?.deposit_percentage ?? 50,
-    full_prepay_threshold: publicData?.salon.booking_rules.full_prepay_threshold ?? Number(settingsRow?.full_prepay_threshold) || 150,
+    full_prepay_threshold: publicData?.salon.booking_rules.full_prepay_threshold ?? (Number(settingsRow?.full_prepay_threshold) || 150),
     skip_prepay_vip: publicData?.salon.booking_rules.skip_prepay_vip ?? settingsRow?.skip_prepay_vip ?? false,
     deposit_noshow_risk: publicData?.salon.booking_rules.deposit_noshow_risk ?? settingsRow?.deposit_noshow_risk ?? true,
     demo_mode: isDemoMode,
@@ -592,6 +592,63 @@ export default function BookingPage() {
 
   const handleConfirm = async () => {
     trackEvent("booking_attempt", { service: selectedService, time: selectedTime, total: totalPrice });
+    if (!service || !selectedService || !selectedTime) {
+      toast.error("Kies eerst een behandeling en tijdstip.");
+      return;
+    }
+
+    if (isPublicBooking && salonSlug) {
+      setPaymentLoading(true);
+      try {
+        const groupPayload = isGroupBooking
+          ? groupMembers.map((member) => {
+              const placement = selectedPlacements.find((item) => item.id === member.id);
+              return {
+                name: member.name,
+                service_id: member.serviceId,
+                time: placement?.time || selectedTime,
+                employee: placement?.employee || member.assignedEmployee || null,
+              };
+            })
+          : [];
+
+        const result = await callPublicBooking<any>({
+          action: "create_booking",
+          slug: salonSlug,
+          customer: { name, email, phone, privacy_consent: true, marketing_consent: false },
+          date: nextBookingDate(),
+          time: selectedPlacements[0]?.time || selectedTime,
+          service_id: selectedService,
+          employee: selectedPlacements[0]?.employee || mainAssignedEmployee || null,
+          group_members: groupPayload,
+          payment: { required: Boolean(paymentDecision?.required), amount: paymentDecision?.amount || 0, type: paymentDecision?.type || "deposit", method: selectedMethod },
+          notes: "",
+        });
+
+        setConfirmation(result.confirmation);
+        if (result.checkoutUrl) {
+          trackEvent("payment_redirect", { appointment_id: result.appointment?.id });
+          window.location.href = result.checkoutUrl;
+          return;
+        }
+
+        const message = result.paymentInitError || (paymentDecision?.required ? "Afspraak opgeslagen. Betaling staat in afwachting." : "Afspraak bevestigd! Geen betaling vereist.");
+        setPaymentResult({ status: result.paymentInitError ? "failed" : "success", message });
+        toast[result.paymentInitError ? "error" : "success"](message);
+        try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
+        trackEvent("booking_completed", { paid: !paymentDecision?.required, public: true });
+      } catch (err: any) {
+        const msg = err?.message || "Boeking kon niet worden opgeslagen.";
+        if (err?.code === "slot_unavailable") setStep(2);
+        setPaymentResult({ status: "failed", message: msg });
+        toast.error(msg);
+        trackEvent("booking_failed", { error: msg });
+      } finally {
+        setPaymentLoading(false);
+      }
+      return;
+    }
+
     if (!paymentDecision?.required) {
       toast.success("Afspraak bevestigd! ✅");
       setPaymentResult({
