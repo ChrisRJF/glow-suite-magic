@@ -27,6 +27,7 @@ export type Database = {
           employee_id: string | null
           end_time: string | null
           id: string
+          is_demo: boolean
           notes: string | null
           payment_required: boolean | null
           payment_status: string | null
@@ -51,6 +52,7 @@ export type Database = {
           employee_id?: string | null
           end_time?: string | null
           id?: string
+          is_demo?: boolean
           notes?: string | null
           payment_required?: boolean | null
           payment_status?: string | null
@@ -75,6 +77,7 @@ export type Database = {
           employee_id?: string | null
           end_time?: string | null
           id?: string
+          is_demo?: boolean
           notes?: string | null
           payment_required?: boolean | null
           payment_status?: string | null
@@ -111,6 +114,7 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean | null
+          is_demo: boolean
           last_triggered_at: string | null
           trigger_type: string
           updated_at: string
@@ -122,6 +126,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean | null
+          is_demo?: boolean
           last_triggered_at?: string | null
           trigger_type: string
           updated_at?: string
@@ -133,6 +138,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean | null
+          is_demo?: boolean
           last_triggered_at?: string | null
           trigger_type?: string
           updated_at?: string
@@ -145,6 +151,7 @@ export type Database = {
           audience: string | null
           created_at: string
           id: string
+          is_demo: boolean
           message: string | null
           sent_count: number | null
           status: string | null
@@ -157,6 +164,7 @@ export type Database = {
           audience?: string | null
           created_at?: string
           id?: string
+          is_demo?: boolean
           message?: string | null
           sent_count?: number | null
           status?: string | null
@@ -169,6 +177,7 @@ export type Database = {
           audience?: string | null
           created_at?: string
           id?: string
+          is_demo?: boolean
           message?: string | null
           sent_count?: number | null
           status?: string | null
@@ -184,6 +193,7 @@ export type Database = {
           created_at: string
           customer_id: string | null
           id: string
+          is_demo: boolean
           item_id: string | null
           item_type: string | null
           price: number | null
@@ -195,6 +205,7 @@ export type Database = {
           created_at?: string
           customer_id?: string | null
           id?: string
+          is_demo?: boolean
           item_id?: string | null
           item_type?: string | null
           price?: number | null
@@ -206,6 +217,7 @@ export type Database = {
           created_at?: string
           customer_id?: string | null
           id?: string
+          is_demo?: boolean
           item_id?: string | null
           item_type?: string | null
           price?: number | null
@@ -229,6 +241,7 @@ export type Database = {
           created_at: string
           email: string | null
           id: string
+          is_demo: boolean
           is_vip: boolean | null
           loyalty_points: number | null
           marketing_consent: boolean | null
@@ -246,6 +259,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          is_demo?: boolean
           is_vip?: boolean | null
           loyalty_points?: number | null
           marketing_consent?: boolean | null
@@ -263,6 +277,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          is_demo?: boolean
           is_vip?: boolean | null
           loyalty_points?: number | null
           marketing_consent?: boolean | null
@@ -282,6 +297,7 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean | null
+          is_demo: boolean
           title: string
           type: string | null
           updated_at: string
@@ -292,6 +308,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean | null
+          is_demo?: boolean
           title: string
           type?: string | null
           updated_at?: string
@@ -302,6 +319,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean | null
+          is_demo?: boolean
           title?: string
           type?: string | null
           updated_at?: string
@@ -316,6 +334,7 @@ export type Database = {
           created_at: string
           customer_id: string | null
           id: string
+          is_demo: boolean
           rating: number
           user_id: string
         }
@@ -324,6 +343,7 @@ export type Database = {
           created_at?: string
           customer_id?: string | null
           id?: string
+          is_demo?: boolean
           rating?: number
           user_id: string
         }
@@ -332,6 +352,7 @@ export type Database = {
           created_at?: string
           customer_id?: string | null
           id?: string
+          is_demo?: boolean
           rating?: number
           user_id?: string
         }
@@ -354,6 +375,7 @@ export type Database = {
           expires_at: string | null
           id: string
           initial_amount: number
+          is_demo: boolean
           remaining_amount: number
           sold_via: string | null
           status: string
@@ -368,6 +390,7 @@ export type Database = {
           expires_at?: string | null
           id?: string
           initial_amount?: number
+          is_demo?: boolean
           remaining_amount?: number
           sold_via?: string | null
           status?: string
@@ -382,6 +405,7 @@ export type Database = {
           expires_at?: string | null
           id?: string
           initial_amount?: number
+          is_demo?: boolean
           remaining_amount?: number
           sold_via?: string | null
           status?: string
@@ -404,6 +428,7 @@ export type Database = {
           email: string | null
           followed_up_at: string | null
           id: string
+          is_demo: boolean
           name: string
           notes: string | null
           phone: string | null
@@ -417,6 +442,7 @@ export type Database = {
           email?: string | null
           followed_up_at?: string | null
           id?: string
+          is_demo?: boolean
           name: string
           notes?: string | null
           phone?: string | null
@@ -430,6 +456,7 @@ export type Database = {
           email?: string | null
           followed_up_at?: string | null
           id?: string
+          is_demo?: boolean
           name?: string
           notes?: string | null
           phone?: string | null
@@ -448,6 +475,7 @@ export type Database = {
           description: string | null
           expires_at: string | null
           id: string
+          is_demo: boolean
           link_url: string | null
           paid_at: string | null
           status: string
@@ -462,6 +490,7 @@ export type Database = {
           description?: string | null
           expires_at?: string | null
           id?: string
+          is_demo?: boolean
           link_url?: string | null
           paid_at?: string | null
           status?: string
@@ -476,6 +505,7 @@ export type Database = {
           description?: string | null
           expires_at?: string | null
           id?: string
+          is_demo?: boolean
           link_url?: string | null
           paid_at?: string | null
           status?: string
@@ -584,6 +614,7 @@ export type Database = {
           description: string | null
           id: string
           is_active: boolean | null
+          is_demo: boolean
           name: string
           price: number
           stock: number | null
@@ -596,6 +627,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean | null
+          is_demo?: boolean
           name: string
           price?: number
           stock?: number | null
@@ -608,6 +640,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean | null
+          is_demo?: boolean
           name?: string
           price?: number
           stock?: number | null
@@ -648,6 +681,7 @@ export type Database = {
           created_at: string
           customer_id: string | null
           id: string
+          is_demo: boolean
           status: string | null
           suggested_date: string | null
           user_id: string
@@ -656,6 +690,7 @@ export type Database = {
           created_at?: string
           customer_id?: string | null
           id?: string
+          is_demo?: boolean
           status?: string | null
           suggested_date?: string | null
           user_id: string
@@ -664,6 +699,7 @@ export type Database = {
           created_at?: string
           customer_id?: string | null
           id?: string
+          is_demo?: boolean
           status?: string | null
           suggested_date?: string | null
           user_id?: string
@@ -687,6 +723,7 @@ export type Database = {
           duration_minutes: number
           id: string
           is_active: boolean | null
+          is_demo: boolean
           is_internal_only: boolean | null
           is_online_bookable: boolean | null
           name: string
@@ -702,6 +739,7 @@ export type Database = {
           duration_minutes?: number
           id?: string
           is_active?: boolean | null
+          is_demo?: boolean
           is_internal_only?: boolean | null
           is_online_bookable?: boolean | null
           name: string
@@ -717,6 +755,7 @@ export type Database = {
           duration_minutes?: number
           id?: string
           is_active?: boolean | null
+          is_demo?: boolean
           is_internal_only?: boolean | null
           is_online_bookable?: boolean | null
           name?: string
@@ -743,6 +782,7 @@ export type Database = {
           group_bookings_enabled: boolean | null
           id: string
           instagram_booking_enabled: boolean | null
+          is_demo: boolean
           language: string | null
           max_bookings_simultaneous: number | null
           mollie_mode: string | null
@@ -774,6 +814,7 @@ export type Database = {
           group_bookings_enabled?: boolean | null
           id?: string
           instagram_booking_enabled?: boolean | null
+          is_demo?: boolean
           language?: string | null
           max_bookings_simultaneous?: number | null
           mollie_mode?: string | null
@@ -805,6 +846,7 @@ export type Database = {
           group_bookings_enabled?: boolean | null
           id?: string
           instagram_booking_enabled?: boolean | null
+          is_demo?: boolean
           language?: string | null
           max_bookings_simultaneous?: number | null
           mollie_mode?: string | null
@@ -828,6 +870,7 @@ export type Database = {
           assignment_mode: string | null
           created_at: string
           id: string
+          is_demo: boolean
           notes: string | null
           parent_appointment_id: string
           person_name: string
@@ -842,6 +885,7 @@ export type Database = {
           assignment_mode?: string | null
           created_at?: string
           id?: string
+          is_demo?: boolean
           notes?: string | null
           parent_appointment_id: string
           person_name: string
@@ -856,6 +900,7 @@ export type Database = {
           assignment_mode?: string | null
           created_at?: string
           id?: string
+          is_demo?: boolean
           notes?: string | null
           parent_appointment_id?: string
           person_name?: string
@@ -909,6 +954,7 @@ export type Database = {
           customer_id: string | null
           flexibility: string | null
           id: string
+          is_demo: boolean
           notes: string | null
           preferred_day: string | null
           preferred_employee: string | null
@@ -923,6 +969,7 @@ export type Database = {
           customer_id?: string | null
           flexibility?: string | null
           id?: string
+          is_demo?: boolean
           notes?: string | null
           preferred_day?: string | null
           preferred_employee?: string | null
@@ -937,6 +984,7 @@ export type Database = {
           customer_id?: string | null
           flexibility?: string | null
           id?: string
+          is_demo?: boolean
           notes?: string | null
           preferred_day?: string | null
           preferred_employee?: string | null
@@ -968,11 +1016,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      current_account_is_demo: { Args: never; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      prevent_live_demo_reset: { Args: { _user_id: string }; Returns: boolean }
+      user_row_matches_active_mode: {
+        Args: { _row_is_demo: boolean; _row_user_id: string }
         Returns: boolean
       }
     }
