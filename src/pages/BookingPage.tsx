@@ -824,6 +824,33 @@ export default function BookingPage() {
     );
   };
 
+  if (publicLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <div className="w-full max-w-md space-y-4">
+          <div className="h-10 w-40 rounded-xl bg-secondary animate-pulse" />
+          <div className="h-24 rounded-2xl bg-secondary animate-pulse" />
+          <div className="h-24 rounded-2xl bg-secondary animate-pulse" />
+          <p className="text-sm text-muted-foreground">Boekingspagina laden...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (publicError || (isPublicBooking && !publicData)) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <div className="max-w-md text-center space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-secondary flex items-center justify-center mx-auto">
+            <AlertCircle className="w-6 h-6 text-muted-foreground" />
+          </div>
+          <h1 className="text-xl font-bold">Deze boekingspagina bestaat niet.</h1>
+          <p className="text-sm text-muted-foreground">Controleer de link of neem contact op met de salon.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {!isEmbed && (
@@ -833,7 +860,7 @@ export default function BookingPage() {
               <span className="text-sm font-bold text-primary-foreground">GS</span>
             </div>
             <div>
-              <h1 className="text-base font-bold tracking-tight">{branding.salon_name || "Glow Studio"}</h1>
+              <h1 className="text-base font-bold tracking-tight">{publicData?.salon.name || branding.salon_name || "Glow Studio"}</h1>
               <p className="text-[11px] text-muted-foreground">Boek je afspraak · Direct bevestigd</p>
             </div>
           </div>
