@@ -9,8 +9,10 @@ import {
 import { AutoRevenueEngine } from "@/components/AutoRevenueEngine";
 import { DailyCoach } from "@/components/DailyCoach";
 import { AnimatedCounter } from "@/components/AnimatedCounter";
+import { useDemoMode } from "@/hooks/useDemoMode";
+import { actionLogKey, clearLegacyDemoLocalState } from "@/lib/demoIsolation";
 import { useNavigate } from "react-router-dom";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export default function DashboardPage() {
   const { data: customers } = useCustomers();
@@ -18,8 +20,13 @@ export default function DashboardPage() {
   const { data: services } = useServices();
   const { data: campaigns } = useCampaigns();
   const { data: leads } = useLeads();
+  const { demoMode } = useDemoMode();
   const navigate = useNavigate();
   const [showDetails, setShowDetails] = useState(false);
+
+  useEffect(() => {
+    clearLegacyDemoLocalState();
+  }, []);
 
   const todayStr = new Date().toISOString().split("T")[0];
   const todaysAppts = useMemo(
@@ -65,13 +72,12 @@ export default function DashboardPage() {
 
   const aiRevenue = useMemo(() => {
     try {
-      const log = JSON.parse(localStorage.getItem("glowsuite_action_log") || "[]");
+      const log = JSON.parse(localStorage.getItem(actionLogKey(demoMode)) || "[]");
       return log.reduce((s: number, e: any) => s + (e.revenue || 0), 0);
     } catch {
       return 0;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appointments]);
+  }, [appointments, demoMode]);
 
   const campaignRevenue = useMemo(() => {
     const successful = campaigns.filter((c) => c.status === "verzonden" || c.status === "geboekt");
