@@ -11,6 +11,8 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useCustomers, useAppointments, useCampaigns, useServices } from "@/hooks/useSupabaseData";
 import { useCrud } from "@/hooks/useCrud";
+import { useDemoMode } from "@/hooks/useDemoMode";
+import { actionLogKey, autopilotLastRunKey, autopilotStateKey, clearLegacyDemoLocalState, demoStateKey } from "@/lib/demoIsolation";
 import { formatEuro } from "@/lib/data";
 import { toast } from "sonner";
 
@@ -30,40 +32,38 @@ interface DemoState {
   addedAppointmentIds: string[];
 }
 
-const STORAGE_KEY = "glowsuite_autopilot";
-const DEMO_STATE_KEY = "glowsuite_demo_state";
-
-function getAutopilotState() {
+function getAutopilotState(demoMode: boolean) {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(autopilotStateKey(demoMode));
     if (raw) return JSON.parse(raw);
   } catch {}
   return { enabled: false, maxDiscount: 15, maxMessagesPerDay: 10 };
 }
 
-function saveAutopilotState(state: any) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+function saveAutopilotState(state: any, demoMode: boolean) {
+  localStorage.setItem(autopilotStateKey(demoMode), JSON.stringify(state));
 }
 
 function getDemoState(): DemoState {
   try {
-    const raw = localStorage.getItem(DEMO_STATE_KEY);
+    const raw = localStorage.getItem(demoStateKey());
     if (raw) return JSON.parse(raw);
   } catch {}
   return { hasRun: false, addedAppointments: 0, addedRevenue: 0, addedAppointmentIds: [] };
 }
 
 function saveDemoState(state: DemoState) {
-  localStorage.setItem(DEMO_STATE_KEY, JSON.stringify(state));
+  localStorage.setItem(demoStateKey(), JSON.stringify(state));
   // Also persist to action log for KPI
   try {
-    const log = JSON.parse(localStorage.getItem("glowsuite_action_log") || "[]");
+    const key = actionLogKey(true);
+    const log = JSON.parse(localStorage.getItem(key) || "[]");
     // Remove old demo entries
     const filtered = log.filter((e: any) => e.type !== "demo");
     if (state.addedRevenue > 0) {
       filtered.push({ type: "demo", revenue: state.addedRevenue, timestamp: new Date().toISOString() });
     }
-    localStorage.setItem("glowsuite_action_log", JSON.stringify(filtered));
+    localStorage.setItem(key, JSON.stringify(filtered));
   } catch {}
 }
 
