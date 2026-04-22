@@ -11,6 +11,8 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useCustomers, useAppointments, useCampaigns, useServices } from "@/hooks/useSupabaseData";
 import { useCrud } from "@/hooks/useCrud";
+import { useDemoMode } from "@/hooks/useDemoMode";
+import { actionLogKey, autopilotLastRunKey, autopilotStateKey, clearLegacyDemoLocalState, demoStateKey } from "@/lib/demoIsolation";
 import { formatEuro } from "@/lib/data";
 import { toast } from "sonner";
 
@@ -30,40 +32,38 @@ interface DemoState {
   addedAppointmentIds: string[];
 }
 
-const STORAGE_KEY = "glowsuite_autopilot";
-const DEMO_STATE_KEY = "glowsuite_demo_state";
-
-function getAutopilotState() {
+function getAutopilotState(demoMode: boolean) {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(autopilotStateKey(demoMode));
     if (raw) return JSON.parse(raw);
   } catch {}
   return { enabled: false, maxDiscount: 15, maxMessagesPerDay: 10 };
 }
 
-function saveAutopilotState(state: any) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+function saveAutopilotState(state: any, demoMode: boolean) {
+  localStorage.setItem(autopilotStateKey(demoMode), JSON.stringify(state));
 }
 
 function getDemoState(): DemoState {
   try {
-    const raw = localStorage.getItem(DEMO_STATE_KEY);
+    const raw = localStorage.getItem(demoStateKey());
     if (raw) return JSON.parse(raw);
   } catch {}
   return { hasRun: false, addedAppointments: 0, addedRevenue: 0, addedAppointmentIds: [] };
 }
 
 function saveDemoState(state: DemoState) {
-  localStorage.setItem(DEMO_STATE_KEY, JSON.stringify(state));
+  localStorage.setItem(demoStateKey(), JSON.stringify(state));
   // Also persist to action log for KPI
   try {
-    const log = JSON.parse(localStorage.getItem("glowsuite_action_log") || "[]");
+    const key = actionLogKey(true);
+    const log = JSON.parse(localStorage.getItem(key) || "[]");
     // Remove old demo entries
     const filtered = log.filter((e: any) => e.type !== "demo");
     if (state.addedRevenue > 0) {
       filtered.push({ type: "demo", revenue: state.addedRevenue, timestamp: new Date().toISOString() });
     }
-    localStorage.setItem("glowsuite_action_log", JSON.stringify(filtered));
+    localStorage.setItem(key, JSON.stringify(filtered));
   } catch {}
 }
 
@@ -88,6 +88,7 @@ const DEMO_STEPS: DemoStep[] = [
 
 export function AutoRevenueEngine() {
   const { user } = useAuth();
+  const { demoMode } = useDemoMode();
   const { data: customers } = useCustomers();
   const { data: appointments, refetch: refetchAppointments } = useAppointments();
   const { data: campaigns, refetch: refetchCampaigns } = useCampaigns();
@@ -98,7 +99,7 @@ export function AutoRevenueEngine() {
   const { insert: insertAppointment } = useCrud("appointments");
   const { remove: removeAppointment } = useCrud("appointments");
 
-  const [autopilot, setAutopilot] = useState(getAutopilotState);
+  const [autopilot, setAutopilot] = useState(() => getAutopilotState(demoMode));
   const [actionLog, setActionLog] = useState<ActionLogEntry[]>([]);
   const [showLog, setShowLog] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -110,6 +111,11 @@ export function AutoRevenueEngine() {
   const [currentStep, setCurrentStep] = useState(-1);
   const [demoProgress, setDemoProgress] = useState(0);
   const [demoComplete, setDemoComplete] = useState(false);
+
+  useEffect(() => {
+    clearLegacyDemoLocalState();
+    setAutopilot(getAutopilotState(demoMode));
+  }, [demoMode]);
 
   const todayStr = new Date().toISOString().split("T")[0];
   const totalSlots = 10;
@@ -145,14 +151,14 @@ export function AutoRevenueEngine() {
   const toggleAutopilot = (enabled: boolean) => {
     const next = { ...autopilot, enabled };
     setAutopilot(next);
-    saveAutopilotState(next);
+    saveAutopilotState(next, demoMode);
     toast.success(enabled ? "Autopilot ingeschakeld ✨" : "Autopilot uitgeschakeld");
   };
 
   const updateSetting = (key: string, value: number) => {
     const next = { ...autopilot, [key]: value };
     setAutopilot(next);
-    saveAutopilotState(next);
+    saveAutopilotState(next, demoMode);
   };
 
   const addLog = (entry: Omit<ActionLogEntry, "id" | "timestamp">) => {
@@ -166,6 +172,10 @@ export function AutoRevenueEngine() {
   // === DEMO FLOW ===
   const runDemoSequence = useCallback(async () => {
     if (!user || demoRunning) return;
+    if (!demoMode) {
+      toast.error("Deze actie is alleen beschikbaar in demo modus.");
+      return;
+    }
     setDemoRunning(true);
     setDemoComplete(false);
     setCurrentStep(-1);
@@ -259,10 +269,14 @@ export function AutoRevenueEngine() {
     toast.success(`${formatEuro(addedRev)} extra omzet gegenereerd! 🎉`, {
       description: `${bookingsToAdd.length} afspraken automatisch ingepland`,
     });
-  }, [user, demoRunning, emptySlots, customers, services, insertAppointment, insertCampaign, refetchAppointments, refetchCampaigns]);
+  }, [user, demoRunning, demoMode, emptySlots, customers, services, insertAppointment, insertCampaign, refetchAppointments, refetchCampaigns]);
 
   // === RESET DEMO ===
   const resetDemo = useCallback(async () => {
+    if (!demoMode) {
+      toast.error("Deze actie is alleen beschikbaar in demo modus.");
+      return;
+    }
     // Remove created appointments
     for (const id of demoState.addedAppointmentIds) {
       await removeAppointment(id);
@@ -278,7 +292,7 @@ export function AutoRevenueEngine() {
 
     await refetchAppointments();
     toast.success("Demo is gereset 🔄");
-  }, [demoState.addedAppointmentIds, removeAppointment, refetchAppointments]);
+  }, [demoMode, demoState.addedAppointmentIds, removeAppointment, refetchAppointments]);
 
   // === AUTOPILOT ===
   const runAutopilot = useCallback(async () => {
@@ -334,14 +348,15 @@ export function AutoRevenueEngine() {
   // Auto-run when enabled
   useEffect(() => {
     if (autopilot.enabled && user && !running && customers.length > 0) {
-      const lastRun = localStorage.getItem("glowsuite_autopilot_lastrun");
+      const lastRunKey = autopilotLastRunKey(demoMode);
+      const lastRun = localStorage.getItem(lastRunKey);
       if (!lastRun || lastRun !== todayStr) {
-        localStorage.setItem("glowsuite_autopilot_lastrun", todayStr);
+        localStorage.setItem(lastRunKey, todayStr);
         const timer = setTimeout(() => runAutopilot(), 2000);
         return () => clearTimeout(timer);
       }
     }
-  }, [autopilot.enabled, user, customers.length, todayStr]);
+  }, [autopilot.enabled, user, customers.length, todayStr, demoMode, runAutopilot]);
 
   return (
     <div id="auto-revenue-engine" className="glass-card p-6 mb-6 opacity-0 animate-fade-in-up border border-primary/20 relative overflow-hidden" style={{ animationDelay: '50ms' }}>

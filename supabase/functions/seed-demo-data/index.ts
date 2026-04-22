@@ -30,10 +30,27 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, serviceRoleKey);
     const uid = user.id;
 
-    // Clear existing data
+    const { data: currentSettings, error: settingsError } = await supabase
+      .from("settings")
+      .select("is_demo, demo_mode")
+      .eq("user_id", uid)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (settingsError) throw settingsError;
+    const isKnownDemoAccount = user.email === "demo@glowsuite.nl";
+    if (!isKnownDemoAccount) {
+      return new Response(JSON.stringify({ error: "Deze actie is alleen beschikbaar in demo modus." }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Clear existing demo data only
     const tables = ["payment_links", "gift_cards", "waitlist_entries", "sub_appointments", "payments", "checkout_items", "feedback_entries", "rebook_actions", "appointments", "campaigns", "discounts", "products", "customers", "services", "automation_rules", "settings"];
     for (const t of tables) {
-      await supabase.from(t).delete().eq("user_id", uid);
+      await supabase.from(t).delete().eq("user_id", uid).eq("is_demo", true);
     }
 
     // Seed settings with opening hours and group bookings enabled
@@ -41,6 +58,7 @@ Deno.serve(async (req) => {
       user_id: uid,
       salon_name: "Studio Nova Amsterdam",
       demo_mode: true,
+      is_demo: true,
       mollie_mode: "test",
       deposit_new_client: true,
       deposit_percentage: 50,
@@ -297,6 +315,10 @@ Deno.serve(async (req) => {
       { user_id: uid, amount: 25, description: "Restbetaling kleuren", status: "betaald", type: "qr", link_url: "https://pay.glowsuite.nl/demo002", paid_at: new Date().toISOString() },
       { user_id: uid, amount: 90, description: "Volledige behandeling", status: "open", type: "qr", link_url: "https://pay.glowsuite.nl/demo003" },
     ]);
+
+    for (const t of tables.filter((table) => table !== "settings")) {
+      await supabase.from(t).update({ is_demo: true }).eq("user_id", uid);
+    }
 
     await supabase.from("profiles").update({ salon_name: "Studio Nova Amsterdam" }).eq("user_id", uid);
 

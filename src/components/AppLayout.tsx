@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { AppSidebar } from "./AppSidebar";
 import { MobileTopbar } from "./MobileTopbar";
 import logoIcon from "@/assets/logo-icon.png";
+import { useDemoMode } from "@/hooks/useDemoMode";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -11,6 +12,8 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps) {
+  const { demoMode } = useDemoMode();
+
   return (
     <div className="flex min-h-screen w-full bg-background">
       <AppSidebar />
@@ -23,7 +26,14 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
           {/* Page header — desktop shows full title; mobile relies on sticky topbar */}
           <header className="hidden lg:flex flex-col sm:flex-row sm:items-end justify-between gap-4">
             <div className="page-enter space-y-1.5 min-w-0">
-              <h1 className="text-page-title text-balance">{title}</h1>
+              <div className="flex items-center gap-3">
+                <h1 className="text-page-title text-balance">{title}</h1>
+                {demoMode && (
+                  <span className="inline-flex items-center rounded-lg bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary border border-primary/15">
+                    Demo omgeving
+                  </span>
+                )}
+              </div>
               {subtitle && <p className="text-meta leading-relaxed">{subtitle}</p>}
             </div>
             <div className="flex items-center gap-3 page-enter stagger-1 flex-shrink-0">
@@ -38,8 +48,11 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
 
           {/* Mobile subtitle + actions row (title is in topbar) */}
           <div className="lg:hidden flex items-center justify-between gap-3 page-enter">
-            {subtitle ? (
-              <p className="text-meta leading-relaxed truncate">{subtitle}</p>
+            {subtitle || demoMode ? (
+              <div className="min-w-0 flex items-center gap-2">
+                {subtitle && <p className="text-meta leading-relaxed truncate">{subtitle}</p>}
+                {demoMode && <span className="shrink-0 rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary border border-primary/15">Demo</span>}
+              </div>
             ) : (
               <span />
             )}

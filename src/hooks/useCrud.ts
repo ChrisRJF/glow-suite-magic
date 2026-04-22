@@ -1,17 +1,22 @@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { useDemoMode } from "@/hooks/useDemoMode";
 
 type TableName = keyof import("@/integrations/supabase/types").Database["public"]["Tables"];
 
 export function useCrud(table: TableName) {
   const { user } = useAuth();
+  const { demoMode } = useDemoMode();
 
   const insert = async (data: Record<string, any>) => {
     if (!user) { toast.error("Je bent niet ingelogd"); return null; }
+    const scopedData = table === "profiles" || table === "user_roles"
+      ? data
+      : { ...data, is_demo: demoMode };
     const { data: result, error } = await (supabase
       .from(table) as any)
-      .insert({ ...data, user_id: user.id })
+      .insert({ ...scopedData, user_id: user.id })
       .select()
       .single();
     if (error) { toast.error("Er ging iets mis: " + error.message); return null; }
