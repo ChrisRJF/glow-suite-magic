@@ -1319,14 +1319,18 @@ export default function BookingPage() {
                 <p className="text-xs text-muted-foreground mt-1">Je ontvangt een bevestiging per e-mail.</p>
 
                 <div className="mt-4 grid gap-1.5 text-left text-sm bg-background/60 rounded-xl p-3">
-                  <div className="flex justify-between"><span className="text-muted-foreground">Behandeling</span><span className="font-medium">{service?.name}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Datum</span><span className="font-medium">Di 22 mrt</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Tijd</span><span className="font-medium">{selectedTime}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Salon</span><span className="font-medium">{confirmation?.salon_name || publicData?.salon.name || branding.salon_name}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Behandeling</span><span className="font-medium">{confirmation?.service_name || service?.name}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Datum</span><span className="font-medium">{confirmation?.date ? new Date(`${confirmation.date}T00:00:00`).toLocaleDateString("nl-NL", { weekday: "short", day: "numeric", month: "short" }) : "Di 22 mrt"}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Tijd</span><span className="font-medium">{confirmation?.time || selectedTime}</span></div>
                   {selectedPlacements[0]?.employee && (
                     <div className="flex justify-between"><span className="text-muted-foreground">Medewerker</span><span className="font-medium">{selectedPlacements[0].employee}</span></div>
                   )}
+                  {confirmation?.reference && (
+                    <div className="flex justify-between"><span className="text-muted-foreground">Referentie</span><span className="font-medium tabular-nums">{confirmation.reference}</span></div>
+                  )}
                   {paymentDecision?.required && (
-                    <div className="flex justify-between"><span className="text-muted-foreground">Betaling</span><span className="font-medium text-success">Voldaan · {formatEuro(paymentDecision.amount)}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Betaling</span><span className="font-medium text-success">{confirmation?.payment_status === "paid" ? "Voldaan" : "In afwachting"} · {formatEuro(paymentDecision.amount)}</span></div>
                   )}
                 </div>
 
