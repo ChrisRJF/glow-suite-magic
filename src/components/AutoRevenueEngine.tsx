@@ -88,6 +88,7 @@ const DEMO_STEPS: DemoStep[] = [
 
 export function AutoRevenueEngine() {
   const { user } = useAuth();
+  const { demoMode } = useDemoMode();
   const { data: customers } = useCustomers();
   const { data: appointments, refetch: refetchAppointments } = useAppointments();
   const { data: campaigns, refetch: refetchCampaigns } = useCampaigns();
@@ -98,7 +99,7 @@ export function AutoRevenueEngine() {
   const { insert: insertAppointment } = useCrud("appointments");
   const { remove: removeAppointment } = useCrud("appointments");
 
-  const [autopilot, setAutopilot] = useState(getAutopilotState);
+  const [autopilot, setAutopilot] = useState(() => getAutopilotState(demoMode));
   const [actionLog, setActionLog] = useState<ActionLogEntry[]>([]);
   const [showLog, setShowLog] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -145,14 +146,14 @@ export function AutoRevenueEngine() {
   const toggleAutopilot = (enabled: boolean) => {
     const next = { ...autopilot, enabled };
     setAutopilot(next);
-    saveAutopilotState(next);
+    saveAutopilotState(next, demoMode);
     toast.success(enabled ? "Autopilot ingeschakeld ✨" : "Autopilot uitgeschakeld");
   };
 
   const updateSetting = (key: string, value: number) => {
     const next = { ...autopilot, [key]: value };
     setAutopilot(next);
-    saveAutopilotState(next);
+    saveAutopilotState(next, demoMode);
   };
 
   const addLog = (entry: Omit<ActionLogEntry, "id" | "timestamp">) => {
