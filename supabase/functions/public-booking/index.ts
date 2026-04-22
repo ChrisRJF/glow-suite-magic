@@ -135,6 +135,14 @@ function overlaps(startA: Date, endA: Date, startB: Date, endB: Date) {
   return startA < endB && startB < endA;
 }
 
+function addMinutesToTime(time: string, minutes: number) {
+  const [hour, minute] = time.split(":").map(Number);
+  const total = hour * 60 + minute + minutes;
+  const nextHour = Math.floor(total / 60) % 24;
+  const nextMinute = total % 60;
+  return `${String(nextHour).padStart(2, "0")}:${String(nextMinute).padStart(2, "0")}:00`;
+}
+
 async function assertAvailability(supabase: ReturnType<typeof createClient>, userId: string, date: string, bookings: Array<{ time: string; duration: number; employee: string | null }>) {
   const dayStart = `${date}T00:00:00+01:00`;
   const dayEnd = `${date}T23:59:59+01:00`;
@@ -310,7 +318,7 @@ Deno.serve(async (req) => {
         service_id: row.service.id,
         appointment_date: start.toISOString(),
         start_time: row.time,
-        end_time: end.toTimeString().slice(0, 8),
+        end_time: addMinutesToTime(row.time, row.service.duration_minutes),
         employee_id: row.employee,
         price: Number(row.service.price || 0),
         notes: [data.notes, index > 0 ? `Groepsboeking voor ${row.name}` : "Online boeking"].filter(Boolean).join(" · "),
