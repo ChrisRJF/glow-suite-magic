@@ -1073,8 +1073,30 @@ export default function BookingPage() {
             </button>
             <h2 className="text-xl font-bold mb-2">Kies een tijdstip</h2>
             <p className="text-sm text-muted-foreground mb-6">
-              <Calendar className="w-4 h-4 inline mr-1" />Dinsdag 22 maart 2026
+              <Calendar className="w-4 h-4 inline mr-1" />{new Date(`${selectedDate}T00:00:00`).toLocaleDateString("nl-NL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
             </p>
+
+            {isPublicBooking && (
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                {[0, 1, 2].map((offset) => {
+                  const option = new Date();
+                  option.setDate(option.getDate() + offset + 1);
+                  const value = option.toISOString().slice(0, 10);
+                  return (
+                    <button
+                      key={value}
+                      onClick={() => { setSelectedDate(value); setSelectedTime(null); resetPlacementOptions(); }}
+                      className={cn(
+                        "px-2 py-2 rounded-xl border text-xs font-medium transition-colors",
+                        selectedDate === value ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-secondary/60"
+                      )}
+                    >
+                      {option.toLocaleDateString("nl-NL", { weekday: "short", day: "numeric" })}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
               {availableSlots.map((slot) => {
@@ -1165,7 +1187,7 @@ export default function BookingPage() {
               })}
               <div className="flex items-center justify-between text-sm mt-2">
                 <span className="text-muted-foreground">Tijdstip</span>
-                <span className="font-medium">{selectedTime} · Di 22 mrt</span>
+                <span className="font-medium">{selectedTime} · {new Date(`${selectedDate}T00:00:00`).toLocaleDateString("nl-NL", { weekday: "short", day: "numeric", month: "short" })}</span>
               </div>
               <div className="flex items-center justify-between text-sm mt-2">
                 <span className="text-muted-foreground">Totaalprijs</span>
