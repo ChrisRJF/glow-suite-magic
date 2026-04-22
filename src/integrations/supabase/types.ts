@@ -501,8 +501,10 @@ export type Database = {
           created_at: string
           currency: string
           customer_id: string | null
+          failure_reason: string | null
           id: string
           is_demo: boolean
+          metadata: Json | null
           method: string | null
           mollie_payment_id: string | null
           paid_at: string | null
@@ -512,6 +514,7 @@ export type Database = {
           status: string
           updated_at: string
           user_id: string
+          webhook_received_at: string | null
         }
         Insert: {
           amount?: number
@@ -520,8 +523,10 @@ export type Database = {
           created_at?: string
           currency?: string
           customer_id?: string | null
+          failure_reason?: string | null
           id?: string
           is_demo?: boolean
+          metadata?: Json | null
           method?: string | null
           mollie_payment_id?: string | null
           paid_at?: string | null
@@ -531,6 +536,7 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id: string
+          webhook_received_at?: string | null
         }
         Update: {
           amount?: number
@@ -539,8 +545,10 @@ export type Database = {
           created_at?: string
           currency?: string
           customer_id?: string | null
+          failure_reason?: string | null
           id?: string
           is_demo?: boolean
+          metadata?: Json | null
           method?: string | null
           mollie_payment_id?: string | null
           paid_at?: string | null
@@ -550,6 +558,7 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id?: string
+          webhook_received_at?: string | null
         }
         Relationships: [
           {
