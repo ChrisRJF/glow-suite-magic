@@ -112,6 +112,11 @@ export function AutoRevenueEngine() {
   const [demoProgress, setDemoProgress] = useState(0);
   const [demoComplete, setDemoComplete] = useState(false);
 
+  useEffect(() => {
+    clearLegacyDemoLocalState();
+    setAutopilot(getAutopilotState(demoMode));
+  }, [demoMode]);
+
   const todayStr = new Date().toISOString().split("T")[0];
   const totalSlots = 10;
 
@@ -167,6 +172,10 @@ export function AutoRevenueEngine() {
   // === DEMO FLOW ===
   const runDemoSequence = useCallback(async () => {
     if (!user || demoRunning) return;
+    if (!demoMode) {
+      toast.error("Deze actie is alleen beschikbaar in demo modus.");
+      return;
+    }
     setDemoRunning(true);
     setDemoComplete(false);
     setCurrentStep(-1);
@@ -260,10 +269,14 @@ export function AutoRevenueEngine() {
     toast.success(`${formatEuro(addedRev)} extra omzet gegenereerd! 🎉`, {
       description: `${bookingsToAdd.length} afspraken automatisch ingepland`,
     });
-  }, [user, demoRunning, emptySlots, customers, services, insertAppointment, insertCampaign, refetchAppointments, refetchCampaigns]);
+  }, [user, demoRunning, demoMode, emptySlots, customers, services, insertAppointment, insertCampaign, refetchAppointments, refetchCampaigns]);
 
   // === RESET DEMO ===
   const resetDemo = useCallback(async () => {
+    if (!demoMode) {
+      toast.error("Deze actie is alleen beschikbaar in demo modus.");
+      return;
+    }
     // Remove created appointments
     for (const id of demoState.addedAppointmentIds) {
       await removeAppointment(id);
@@ -279,7 +292,7 @@ export function AutoRevenueEngine() {
 
     await refetchAppointments();
     toast.success("Demo is gereset 🔄");
-  }, [demoState.addedAppointmentIds, removeAppointment, refetchAppointments]);
+  }, [demoMode, demoState.addedAppointmentIds, removeAppointment, refetchAppointments]);
 
   // === AUTOPILOT ===
   const runAutopilot = useCallback(async () => {
@@ -335,14 +348,15 @@ export function AutoRevenueEngine() {
   // Auto-run when enabled
   useEffect(() => {
     if (autopilot.enabled && user && !running && customers.length > 0) {
-      const lastRun = localStorage.getItem("glowsuite_autopilot_lastrun");
+      const lastRunKey = autopilotLastRunKey(demoMode);
+      const lastRun = localStorage.getItem(lastRunKey);
       if (!lastRun || lastRun !== todayStr) {
-        localStorage.setItem("glowsuite_autopilot_lastrun", todayStr);
+        localStorage.setItem(lastRunKey, todayStr);
         const timer = setTimeout(() => runAutopilot(), 2000);
         return () => clearTimeout(timer);
       }
     }
-  }, [autopilot.enabled, user, customers.length, todayStr]);
+  }, [autopilot.enabled, user, customers.length, todayStr, demoMode, runAutopilot]);
 
   return (
     <div id="auto-revenue-engine" className="glass-card p-6 mb-6 opacity-0 animate-fade-in-up border border-primary/20 relative overflow-hidden" style={{ animationDelay: '50ms' }}>
