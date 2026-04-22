@@ -15,6 +15,7 @@ const EMPLOYEES = [
 
 const RequestSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("get_salon"), slug: z.string().trim().min(1).max(120) }),
+  z.object({ action: z.literal("get_booking"), slug: z.string().trim().min(1).max(120), booking_token: z.string().uuid() }),
   z.object({ action: z.literal("lookup_customer"), slug: z.string().trim().min(1).max(120), email: z.string().trim().email().max(255) }),
   z.object({
     action: z.literal("create_booking"),
@@ -134,6 +135,14 @@ function overlaps(startA: Date, endA: Date, startB: Date, endB: Date) {
   return startA < endB && startB < endA;
 }
 
+function addMinutesToTime(time: string, minutes: number) {
+  const [hour, minute] = time.split(":").map(Number);
+  const total = hour * 60 + minute + minutes;
+  const nextHour = Math.floor(total / 60) % 24;
+  const nextMinute = total % 60;
+  return `${String(nextHour).padStart(2, "0")}:${String(nextMinute).padStart(2, "0")}:00`;
+}
+
 async function assertAvailability(supabase: ReturnType<typeof createClient>, userId: string, date: string, bookings: Array<{ time: string; duration: number; employee: string | null }>) {
   const dayStart = `${date}T00:00:00+01:00`;
   const dayEnd = `${date}T23:59:59+01:00`;
@@ -212,6 +221,30 @@ Deno.serve(async (req) => {
 
     if (parsed.data.action === "get_salon") return json(safeSalonPayload(ctx));
 
+    if (parsed.data.action === "get_booking") {
+      const { data: appointment, error: appointmentError } = await supabase
+        .from("appointments")
+        .select("id, booking_reference, booking_token, appointment_date, start_time, employee_id, payment_status, status, service_id, services(name)")
+        .eq("user_id", ctx.settings.user_id)
+        .eq("booking_token", parsed.data.booking_token)
+        .maybeSingle();
+      if (appointmentError) throw appointmentError;
+      if (!appointment) return json({ error: "Boeking niet gevonden." }, 404);
+      return json({
+        appointment,
+        confirmation: {
+          salon_name: ctx.settings.salon_name,
+          service_name: (appointment as any).services?.name || "Behandeling",
+          employee: appointment.employee_id,
+          date: String(appointment.appointment_date).slice(0, 10),
+          time: String(appointment.start_time || "").slice(0, 5),
+          reference: appointment.booking_reference,
+          payment_status: appointment.payment_status,
+          status: appointment.status,
+        },
+      });
+    }
+
     if (parsed.data.action === "lookup_customer") {
       const email = parsed.data.email.toLowerCase();
       const { data: customer } = await supabase
@@ -285,7 +318,7 @@ Deno.serve(async (req) => {
         service_id: row.service.id,
         appointment_date: start.toISOString(),
         start_time: row.time,
-        end_time: end.toTimeString().slice(0, 8),
+        end_time: addMinutesToTime(row.time, row.service.duration_minutes),
         employee_id: row.employee,
         price: Number(row.service.price || 0),
         notes: [data.notes, index > 0 ? `Groepsboeking voor ${row.name}` : "Online boeking"].filter(Boolean).join(" · "),
@@ -344,10 +377,18 @@ Deno.serve(async (req) => {
           is_demo: Boolean(ctx.settings.demo_mode),
           provider: "mollie",
           checkout_reference: primaryAppointment.booking_reference,
+          metadata: {
+            appointment_id: primaryAppointment.id,
+            customer_id: customerId,
+            salon_id: ctx.settings.public_slug || slugify(ctx.settings.salon_name || "salon"),
+            booking_token: primaryAppointment.booking_token,
+            payment_type: data.payment.type,
+          },
         });
       }
-      await supabase.from("appointments").update({ payment_status: paymentStatus === "paid" ? "paid" : "pending" }).eq("booking_group_id", groupId);
-      await supabase.from("appointments").update({ payment_status: paymentStatus === "paid" ? "paid" : "pending" }).eq("id", primaryAppointment.id);
+      const nextPaymentStatus = paymentStatus === "paid" ? "paid" : paymentInitError ? "payment_failed" : "pending";
+      await supabase.from("appointments").update({ payment_status: nextPaymentStatus, status: paymentStatus === "paid" ? "confirmed" : "pending_confirmation" }).eq("booking_group_id", groupId);
+      await supabase.from("appointments").update({ payment_status: nextPaymentStatus, status: paymentStatus === "paid" ? "confirmed" : "pending_confirmation" }).eq("id", primaryAppointment.id);
     }
 
     return json({
