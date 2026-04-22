@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
+import { useParams } from "react-router-dom";
 import { services as fallbackServices, formatEuro } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { Check, Clock, ArrowLeft, ArrowRight, Calendar, User, CreditCard, Loader2, Plus, Trash2, Users, Zap, AlertCircle, Mail, Shield, Sparkles, RotateCcw, Share2, CalendarPlus, Lock } from "lucide-react";
@@ -9,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { queueLeadIntent } from "@/hooks/useLeadAutomation";
 import { getBranding, fetchBranding, applyBrandingToDocument, type WhiteLabelBranding } from "@/lib/whitelabel";
+import { callPublicBooking, nextBookingDate, type PublicBookingData } from "@/lib/publicBooking";
 
 // Lightweight conversion tracking — sends events to host page via postMessage
 function trackEvent(event: string, data?: Record<string, any>) {
@@ -87,10 +89,15 @@ interface PlacementOption {
 }
 
 export default function BookingPage() {
+  const { salonSlug } = useParams();
+  const isPublicBooking = Boolean(salonSlug);
   const { data: liveServices } = useServices();
   const { data: liveSettings } = useSettings();
   const settingsRow = liveSettings[0] as any | undefined;
-  const isDemoMode = Boolean(settingsRow?.demo_mode);
+  const [publicData, setPublicData] = useState<PublicBookingData | null>(null);
+  const [publicLoading, setPublicLoading] = useState(isPublicBooking);
+  const [publicError, setPublicError] = useState<string | null>(null);
+  const isDemoMode = Boolean(publicData?.salon.demo_mode ?? settingsRow?.demo_mode);
   const [step, setStep] = useState(1);
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
@@ -103,12 +110,39 @@ export default function BookingPage() {
   const [selectedMethod, setSelectedMethod] = useState("ideal");
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentResult, setPaymentResult] = useState<{ status: string; message: string } | null>(null);
+  const [confirmation, setConfirmation] = useState<any>(null);
   const [isGroupBooking, setIsGroupBooking] = useState(false);
   const [mainAssignmentMode, setMainAssignmentMode] = useState<AssignmentMode>("auto");
   const [mainAssignedEmployee, setMainAssignedEmployee] = useState("");
   const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
   const [placementOptions, setPlacementOptions] = useState<PlacementOption[]>([]);
   const [selectedPlacementIndex, setSelectedPlacementIndex] = useState(0);
+
+  useEffect(() => {
+    if (!salonSlug) return;
+    let cancelled = false;
+    setPublicLoading(true);
+    setPublicError(null);
+    callPublicBooking<PublicBookingData>({ action: "get_salon", slug: salonSlug })
+      .then((data) => {
+        if (cancelled) return;
+        setPublicData(data);
+        setBranding((current) => ({
+          ...current,
+          salon_name: data.salon.name,
+          logo_url: data.salon.logo_url || current.logo_url,
+          primary_color: data.salon.primary_color || current.primary_color,
+          secondary_color: data.salon.secondary_color || current.secondary_color,
+        }));
+      })
+      .catch((error) => {
+        if (!cancelled) setPublicError(error.message || "Deze boekingspagina bestaat niet.");
+      })
+      .finally(() => {
+        if (!cancelled) setPublicLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [salonSlug]);
 
   // White-label embed mode: detect ?embed=1 in URL and load salon branding
   const isEmbed = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("embed") === "1";
@@ -126,7 +160,8 @@ export default function BookingPage() {
   }, [isEmbed, branding]);
 
   const bookingServices = useMemo<BookingServiceOption[]>(() => {
-    if (liveServices.length > 0) {
+    if (publicData) return publicData.services;
+    if (!isPublicBooking && liveServices.length > 0) {
       return liveServices
         .filter((service) => service.is_active && service.is_online_bookable && !service.is_internal_only)
         .map((service) => ({
@@ -139,6 +174,7 @@ export default function BookingPage() {
         }));
     }
 
+    if (isPublicBooking) return [];
     return fallbackServices.map((service) => ({
       id: service.id,
       name: service.name,
@@ -147,7 +183,7 @@ export default function BookingPage() {
       color: service.color,
       description: null,
     }));
-  }, [liveServices]);
+  }, [isPublicBooking, liveServices, publicData]);
 
   useEffect(() => {
     if (selectedService && !bookingServices.some((service) => service.id === selectedService)) {
