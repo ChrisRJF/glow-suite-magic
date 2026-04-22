@@ -210,10 +210,21 @@ export default function DashboardPage() {
             <p className="text-metric text-foreground">
               <AnimatedCounter value={omzetVandaag} format={(n) => formatEuro(n)} />
             </p>
-            <p className="text-meta mt-2">
-              {todaysAppts.length} {todaysAppts.length === 1 ? "afspraak" : "afspraken"} · {bezetting}% bezetting
-              {bezetting < 60 && bezetting > 0 ? " · ruimte voor groei" : ""}
-            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <span className="text-meta">
+                {todaysAppts.length} {todaysAppts.length === 1 ? "afspraak" : "afspraken"} · {bezetting}% bezetting
+              </span>
+              {bezetting < 60 && bezetting > 0 && (
+                <span className="text-[11px] font-semibold text-success bg-success/10 px-2 py-0.5 rounded-md">
+                  ruimte voor groei
+                </span>
+              )}
+              {bezetting >= 80 && (
+                <span className="text-[11px] font-semibold text-success bg-success/10 px-2 py-0.5 rounded-md">
+                  sterke dag 🔥
+                </span>
+              )}
+            </div>
           </button>
 
           {/* Vrije plekken */}
@@ -228,19 +239,21 @@ export default function DashboardPage() {
             </div>
             <p className="text-metric-sm">
               <AnimatedCounter value={vrijePlekken} />
-              {vrijePlekken > 0 && (
-                <span className="ml-2 text-sm font-semibold text-warning align-middle">
-                  +{formatEuro(missedRevenue)} kans
-                </span>
+            </p>
+            <div className="mt-2 space-y-1">
+              {vrijePlekken > 0 ? (
+                <>
+                  <span className="inline-block text-[11px] font-bold text-warning bg-warning/12 px-2 py-0.5 rounded-md">
+                    +{formatEuro(missedRevenue)} kans vandaag
+                  </span>
+                  <p className="text-meta">
+                    {freeSlotWindow ? `Open ${freeSlotWindow}` : "Open omzet vandaag"}
+                  </p>
+                </>
+              ) : (
+                <p className="text-meta text-success font-medium">Agenda is vol — sterk werk ✨</p>
               )}
-            </p>
-            <p className="text-meta mt-2">
-              {vrijePlekken > 0
-                ? freeSlotWindow
-                  ? `Kans ${freeSlotWindow}`
-                  : "Open omzet vandaag"
-                : "Agenda is vol — sterk werk"}
-            </p>
+            </div>
           </button>
 
           {/* No-show risico morgen */}
@@ -260,11 +273,17 @@ export default function DashboardPage() {
                 <span className="text-success">0</span>
               )}
             </p>
-            <p className="text-meta mt-2">
-              {noShowRiskTomorrow > 0
-                ? `Stuur extra herinnering voor morgen`
-                : "Perfecte planning voor morgen"}
-            </p>
+            <div className="mt-2">
+              {noShowRiskTomorrow > 0 ? (
+                <span className="inline-block text-[11px] font-bold text-destructive bg-destructive/10 px-2 py-0.5 rounded-md">
+                  Stuur herinnering voor morgen
+                </span>
+              ) : (
+                <span className="inline-block text-[11px] font-bold text-success bg-success/10 px-2 py-0.5 rounded-md">
+                  Perfecte planning morgen ✓
+                </span>
+              )}
+            </div>
           </button>
         </div>
       </section>
