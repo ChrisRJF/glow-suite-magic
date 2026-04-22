@@ -296,6 +296,7 @@ Deno.serve(async (req) => {
         .from("customers")
         .insert({
           user_id: ctx.settings.user_id,
+          is_demo: Boolean(ctx.settings.is_demo || ctx.settings.demo_mode),
           name: data.customer.name,
           email,
           phone: data.customer.phone,
@@ -314,6 +315,7 @@ Deno.serve(async (req) => {
       const end = new Date(start.getTime() + row.service.duration_minutes * 60000);
       return {
         user_id: ctx.settings.user_id,
+        is_demo: Boolean(ctx.settings.is_demo || ctx.settings.demo_mode),
         customer_id: customerId,
         service_id: row.service.id,
         appointment_date: start.toISOString(),
@@ -375,7 +377,7 @@ Deno.serve(async (req) => {
           status: paymentStatus,
           method: data.payment.method,
           is_demo: Boolean(ctx.settings.demo_mode),
-          provider: "mollie",
+          provider: Boolean(ctx.settings.is_demo || ctx.settings.demo_mode) ? "demo" : "mollie",
           checkout_reference: primaryAppointment.booking_reference,
           metadata: {
             appointment_id: primaryAppointment.id,
