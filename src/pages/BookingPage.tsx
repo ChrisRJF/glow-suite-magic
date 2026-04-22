@@ -275,6 +275,28 @@ export default function BookingPage() {
     }
     setEmailLookupLoading(true);
     try {
+      if (isPublicBooking && salonSlug) {
+        const result = await callPublicBooking<{ customer: { name?: string; phone?: string } | null; recentAppointments: Array<{ id: string; service_id: string | null; appointment_date: string }> }>({
+          action: "lookup_customer",
+          slug: salonSlug,
+          email: value,
+        });
+        const customer = result.customer;
+        if (!customer) {
+          setRecognizedCustomer(null);
+          setRecentAppointments([]);
+          return;
+        }
+        setRecognizedCustomer({ name: customer.name, phone: customer.phone || "" });
+        setName((current) => current || customer.name || "");
+        setPhone((current) => current || customer.phone || "");
+        setRecentAppointments((result.recentAppointments || []).map((appt) => ({
+          ...appt,
+          service_name: bookingServices.find((s) => s.id === appt.service_id)?.name,
+        })));
+        trackEvent("email_recognized", { public: true, hasRecent: (result.recentAppointments || []).length > 0 });
+        return;
+      }
       const { data: customers } = await supabase
         .from("customers")
         .select("id, name, phone, email")
@@ -306,7 +328,7 @@ export default function BookingPage() {
     } finally {
       setEmailLookupLoading(false);
     }
-  }, [bookingServices]);
+  }, [bookingServices, isPublicBooking, salonSlug]);
 
   useEffect(() => {
     const t = setTimeout(() => { if (email) lookupCustomerByEmail(email); }, 600);
@@ -324,11 +346,11 @@ export default function BookingPage() {
   const service = bookingServices.find((item) => item.id === selectedService);
 
   const rules = usePaymentRules({
-    deposit_new_client: settingsRow?.deposit_new_client ?? true,
-    deposit_percentage: settingsRow?.deposit_percentage ?? 50,
-    full_prepay_threshold: Number(settingsRow?.full_prepay_threshold) || 150,
-    skip_prepay_vip: settingsRow?.skip_prepay_vip ?? false,
-    deposit_noshow_risk: settingsRow?.deposit_noshow_risk ?? true,
+    deposit_new_client: publicData?.salon.booking_rules.deposit_new_client ?? settingsRow?.deposit_new_client ?? true,
+    deposit_percentage: publicData?.salon.booking_rules.deposit_percentage ?? settingsRow?.deposit_percentage ?? 50,
+    full_prepay_threshold: publicData?.salon.booking_rules.full_prepay_threshold ?? Number(settingsRow?.full_prepay_threshold) || 150,
+    skip_prepay_vip: publicData?.salon.booking_rules.skip_prepay_vip ?? settingsRow?.skip_prepay_vip ?? false,
+    deposit_noshow_risk: publicData?.salon.booking_rules.deposit_noshow_risk ?? settingsRow?.deposit_noshow_risk ?? true,
     demo_mode: isDemoMode,
   });
 
