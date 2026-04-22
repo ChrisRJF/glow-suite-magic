@@ -121,7 +121,6 @@ export default function InstellingenPage() {
         salon_name: salonName,
         email_enabled: notifications.email,
         whatsapp_enabled: notifications.whatsapp,
-        demo_mode: demoMode,
         mollie_mode: mollieMode,
         deposit_new_client: depositNewClient,
         deposit_percentage: depositPct,
@@ -149,6 +148,10 @@ export default function InstellingenPage() {
   };
 
   const handleDemoReset = async () => {
+    if (!demoMode) {
+      toast.error("Deze actie is alleen beschikbaar in demo modus.");
+      return;
+    }
     setResetLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -156,12 +159,12 @@ export default function InstellingenPage() {
         const { error } = await supabase.functions.invoke("seed-demo-data", {
           headers: { Authorization: `Bearer ${session.access_token}` },
         });
-        if (error) throw error;
+        if (error || (data as any)?.error) throw new Error((data as any)?.error || error?.message || "Demo omgeving kon niet opnieuw geladen worden.");
         toast.success("Demo data opnieuw geladen!");
         refetch();
       }
     } catch (err: any) {
-      toast.error(err.message || "Demo resetten mislukt");
+      toast.error(err.message || "Demo omgeving kon niet opnieuw geladen worden.");
     } finally {
       setResetLoading(false);
     }
