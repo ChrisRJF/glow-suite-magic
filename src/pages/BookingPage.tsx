@@ -637,7 +637,7 @@ export default function BookingPage() {
           action: "create_booking",
           slug: salonSlug,
           customer: { name, email, phone, privacy_consent: true, marketing_consent: false },
-          date: nextBookingDate(),
+          date: selectedDate,
           time: selectedPlacements[0]?.time || selectedTime,
           service_id: selectedService,
           employee: selectedPlacements[0]?.employee || mainAssignedEmployee || null,
@@ -660,7 +660,11 @@ export default function BookingPage() {
         trackEvent("booking_completed", { paid: !paymentDecision?.required, public: true });
       } catch (err: any) {
         const msg = err?.message || "Boeking kon niet worden opgeslagen.";
-        if (err?.code === "slot_unavailable") setStep(2);
+        if (err?.code === "slot_unavailable") {
+          setPaymentResult(null);
+          setSelectedTime(null);
+          setStep(2);
+        }
         setPaymentResult({ status: "failed", message: msg });
         toast.error(msg);
         trackEvent("booking_failed", { error: msg });
