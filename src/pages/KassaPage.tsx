@@ -2,6 +2,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { useProducts, useServices, useCustomers } from "@/hooks/useSupabaseData";
 import { useCrud } from "@/hooks/useCrud";
+import { useDemoMode } from "@/hooks/useDemoMode";
 import { formatEuro } from "@/lib/data";
 import { ShoppingBag, Plus, Minus, CreditCard, Check, Wallet } from "lucide-react";
 import { useState } from "react";
@@ -23,6 +24,7 @@ export default function KassaPage() {
   const { insert: insertPayment } = useCrud("payments");
   const { update: updateProduct } = useCrud("products");
   const { update: updateCustomer } = useCrud("customers");
+  const { demoMode } = useDemoMode();
   const [cart, setCart] = useState<Record<string, { name: string; price: number; qty: number; type: string; itemId: string }>>({});
   const [paid, setPaid] = useState(false);
   const [selectedMethod, setSelectedMethod] = useState("pin");
@@ -68,7 +70,7 @@ export default function KassaPage() {
       method: selectedMethod,
       payment_method: selectedMethod,
       provider: "glowpay",
-      is_demo: true,
+      is_demo: demoMode,
       customer_id: selectedCustomer || null,
       paid_at: new Date().toISOString(),
     });
