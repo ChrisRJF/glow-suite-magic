@@ -100,6 +100,7 @@ export default function BookingPage() {
   const isDemoMode = Boolean(publicData?.salon.demo_mode ?? settingsRow?.demo_mode);
   const [step, setStep] = useState(1);
   const [selectedService, setSelectedService] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState(() => nextBookingDate());
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -144,12 +145,32 @@ export default function BookingPage() {
     return () => { cancelled = true; };
   }, [salonSlug]);
 
+  useEffect(() => {
+    if (!salonSlug) return;
+    const params = new URLSearchParams(window.location.search);
+    const bookingToken = params.get("booking");
+    if (params.get("status") !== "payment-return" || !bookingToken) return;
+    callPublicBooking<any>({ action: "get_booking", slug: salonSlug, booking_token: bookingToken })
+      .then((result) => {
+        setConfirmation(result.confirmation);
+        setPaymentResult({
+          status: result.confirmation?.payment_status === "paid" ? "success" : "failed",
+          message: result.confirmation?.payment_status === "paid"
+            ? "Betaling ontvangen. Je afspraak is bevestigd."
+            : "Je afspraak is opgeslagen. De betaling is nog niet afgerond.",
+        });
+        setStep(3);
+      })
+      .catch((error) => toast.error(error.message || "Betaalstatus kon niet worden opgehaald."));
+  }, [salonSlug]);
+
   // White-label embed mode: detect ?embed=1 in URL and load salon branding
   const isEmbed = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("embed") === "1";
   const [branding, setBranding] = useState<WhiteLabelBranding>(() => getBranding());
   useEffect(() => {
     if (isEmbed) applyBrandingToDocument(branding);
     // Sync from DB so embed reflects salon's saved branding across devices
+    if (isPublicBooking) return;
     fetchBranding().then((remote) => {
       setBranding(remote);
       if (isEmbed) applyBrandingToDocument(remote);
@@ -157,7 +178,7 @@ export default function BookingPage() {
     const handler = () => setBranding(getBranding());
     window.addEventListener("whitelabel:updated", handler);
     return () => window.removeEventListener("whitelabel:updated", handler);
-  }, [isEmbed, branding]);
+  }, [isEmbed, branding, isPublicBooking]);
 
   const bookingServices = useMemo<BookingServiceOption[]>(() => {
     if (publicData) return publicData.services;
