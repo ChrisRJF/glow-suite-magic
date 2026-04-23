@@ -67,7 +67,7 @@ const App = () => (
             <Routes>
               <Route path="/login" element={<AuthRoute><LoginPage /></AuthRoute>} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
-              <Route path="/integrations/mollie/callback" element={<RoleProtectedRoute allow={["eigenaar","manager","admin"]}><MollieCallbackPage /></RoleProtectedRoute>} />
+              <Route path="/integrations/mollie/callback" element={<MollieCallbackPage />} />
               <Route path="/boeken" element={<BookingPage />} />
               <Route path="/boeken/:salonSlug" element={<BookingPage />} />
               <Route path="/" element={<RoleProtectedRoute><DashboardPage /></RoleProtectedRoute>} />
