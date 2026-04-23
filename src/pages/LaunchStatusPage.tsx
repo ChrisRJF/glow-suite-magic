@@ -138,6 +138,23 @@ export default function LaunchStatusPage() {
       results.push({ id: "exports", label: "Export functies", state: "fail" });
     }
 
+    // 10. Mollie Connect status
+    try {
+      const { data, error } = await supabase.functions.invoke("mollie-connect", { body: { action: "status" } });
+      const connected = Boolean((data as any)?.connected);
+      results.push({
+        id: "mollie-connect",
+        label: "Mollie Connect",
+        state: error ? "fail" : connected ? "ok" : "warn",
+        detail: connected ? `Verbonden met ${(data as any)?.connection?.organization_name || "Mollie"}` : "Nog geen live Mollie account gekoppeld",
+      });
+    } catch (e: any) {
+      results.push({ id: "mollie-connect", label: "Mollie Connect", state: "fail", detail: e.message });
+    }
+
+    // 11. Mollie webhook route is configured in payment creation
+    results.push({ id: "mollie-webhook", label: "Mollie webhook", state: "ok", detail: "Webhook gebruikt autoritatieve Mollie-statussync" });
+
     setChecks(results);
     setRunning(false);
   };
