@@ -9,6 +9,7 @@ const corsHeaders = {
 const BodySchema = z.object({
   appointment_id: z.string().uuid().optional().nullable(),
   customer_id: z.string().uuid().optional().nullable(),
+  membership_id: z.string().uuid().optional().nullable(),
   amount: z.number().positive().max(100000),
   payment_type: z.enum(["deposit", "full", "remainder", "webshop", "membership"]).optional().default("deposit"),
   method: z.enum(["ideal", "bancontact", "creditcard", "applepay", "paypal", "banktransfer"]).optional().default("ideal"),
@@ -114,7 +115,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { appointment_id, customer_id, payment_type, method, source, redirect_url } = parsed.data;
+    const { appointment_id, customer_id, membership_id, payment_type, method, source, redirect_url } = parsed.data;
     const amount = source === "test_button" ? 1 : parsed.data.amount;
 
     // Check if demo mode
@@ -136,6 +137,7 @@ Deno.serve(async (req) => {
           user_id: user.id,
           appointment_id,
           customer_id,
+          membership_id,
           mollie_payment_id: `demo_${crypto.randomUUID().slice(0, 8)}`,
           amount,
           currency: "EUR",
@@ -198,13 +200,13 @@ Deno.serve(async (req) => {
 
     const molliePayload: Record<string, unknown> = {
       amount: { currency: "EUR", value: amount.toFixed(2) },
-      description: isTestButton ? "GlowSuite Live Test Payment" : `GlowSuite ${payment_type === "deposit" ? "Aanbetaling" : "Betaling"}`,
+      description: isTestButton ? "GlowSuite Live Test Payment" : payment_type === "membership" ? "GlowSuite Membership" : `GlowSuite ${payment_type === "deposit" ? "Aanbetaling" : "Betaling"}`,
       redirectUrl: isTestButton ? (redirect_url || `${REDIRECT_BASE}/instellingen?tab=integraties`) : `${REDIRECT_BASE}/boeken?status=payment-return`,
       webhookUrl: `${supabaseUrl}/functions/v1/mollie-webhook`,
       method,
       metadata: isTestButton
         ? { source: "test_button", salon_id: user.id, payment_type: "full" }
-        : { appointment_id, customer_id, salon_id: user.id, payment_type },
+        : { appointment_id, customer_id, membership_id, salon_id: user.id, payment_type },
     };
     if (profile?.id) molliePayload.profileId = profile.id;
 
@@ -228,6 +230,7 @@ Deno.serve(async (req) => {
         user_id: user.id,
         appointment_id: isTestButton ? null : appointment_id,
         customer_id: isTestButton ? null : customer_id,
+        membership_id: isTestButton ? null : membership_id,
         mollie_payment_id: mollieData.id,
         amount,
         currency: "EUR",
@@ -241,6 +244,13 @@ Deno.serve(async (req) => {
       })
       .select()
       .single();
+
+    if (membership_id) {
+      await supabase.from("customer_memberships").update({
+        last_payment_status: "open",
+        status: "payment_issue",
+      }).eq("id", membership_id);
+    }
 
     if (appointment_id) {
       await supabase.from("appointments").update({
