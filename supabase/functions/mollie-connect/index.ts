@@ -97,19 +97,30 @@ async function refreshConnection(admin: ReturnType<typeof createClient>, connect
   return { ...connection, mollie_access_token: token.access_token, mollie_refresh_token: token.refresh_token || connection.mollie_refresh_token, mollie_access_token_expires_at: expiresAt };
 }
 
+async function getWebsiteProfile(accessToken: string) {
+  const profile = await mollieFetch("/profiles/me", accessToken).catch(async () => {
+    const profilesData = await mollieFetch("/profiles", accessToken);
+    return ((profilesData as any)?._embedded?.profiles || []).find((item: any) => item?.id) || null;
+  });
+  if (!profile?.id) throw new Error("Mollie website profiel ontbreekt. Maak eerst een websiteprofiel aan in Mollie.");
+  return profile;
+}
+
 async function syncConnectionDetails(accessToken: string) {
   const organization = await mollieFetch("/organizations/me", accessToken).catch(() => null);
+  const profile = await getWebsiteProfile(accessToken);
   let methodsData;
   try {
-    methodsData = await mollieFetch("/methods?resource=payments&sequenceType=oneoff&locale=nl_NL", accessToken);
+    const params = new URLSearchParams({ resource: "payments", sequenceType: "oneoff", locale: "nl_NL", profileId: profile.id });
+    methodsData = await mollieFetch(`/methods?${params.toString()}`, accessToken);
   } catch (error) {
-    console.error("Mollie methods fetch failed", { error: (error as Error).message });
+    console.error("Mollie methods fetch failed", { error: (error as Error).message, profile_id: profile.id });
     throw error;
   }
   const methods = ((methodsData as any)?._embedded?.methods || [])
     .filter((method: any) => ALLOWED_METHODS.includes(method.id) && method.status !== "disabled")
     .map((method: any) => ({ id: method.id, description: method.description || METHOD_LABELS[method.id] || method.id, status: method.status || "enabled" }));
-  return { organization, methods };
+  return { organization, profile, methods };
 }
 
 Deno.serve(async (req) => {
