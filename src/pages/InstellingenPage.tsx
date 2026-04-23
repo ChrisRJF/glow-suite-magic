@@ -82,6 +82,11 @@ export default function InstellingenPage() {
   const [facebookEnabled, setFacebookEnabled] = useState(false);
   const [googleReserve, setGoogleReserve] = useState(false);
   const [widgetEnabled, setWidgetEnabled] = useState(false);
+  const canManageBusiness = hasPermission(roles, "settings:business");
+  const canManageFinance = hasPermission(roles, "settings:finance");
+  const canManageTeam = hasPermission(roles, "settings:team");
+  const canManageIntegrations = hasPermission(roles, "settings:integrations");
+  const canExport = hasPermission(roles, "reports:export");
 
   useEffect(() => {
     if (settings.length > 0) {
@@ -110,7 +115,7 @@ export default function InstellingenPage() {
   useEffect(() => {
     if (!user) return;
     const fetchRoles = async () => {
-      const { data } = await (supabase.from("user_roles") as any).select("*");
+      const { data } = await (supabase.from("user_access") as any).select("*").order("created_at", { ascending: false });
       if (data) setTeamMembers(data);
     };
     fetchRoles();
@@ -118,6 +123,8 @@ export default function InstellingenPage() {
 
   const handleSave = async () => {
     if (saveLoading) return;
+    if (!canManageBusiness && activeTab !== "betaling") { toast.error("Je hebt geen rechten om deze instellingen te wijzigen."); return; }
+    if (activeTab === "betaling" && !canManageFinance) { toast.error("Alleen eigenaren kunnen betaalinstellingen wijzigen."); return; }
     setSaveLoading(true);
     try {
       const data: Record<string, any> = {
@@ -175,6 +182,7 @@ export default function InstellingenPage() {
 
   const handleAddTeamMember = async () => {
     if (addUserLoading) return;
+    if (!canManageTeam) { toast.error("Alleen eigenaren kunnen gebruikers beheren."); return; }
     if (!newUserName.trim()) { toast.error("Vul een naam in"); return; }
     if (!newUserEmail.trim()) { toast.error("Vul een e-mail in"); return; }
     if (newUserPassword.length < 8) { toast.error("Tijdelijk wachtwoord moet minimaal 8 tekens zijn"); return; }
@@ -190,7 +198,7 @@ export default function InstellingenPage() {
       }
       toast.success(`Gebruiker ${newUserName} aangemaakt`);
       setNewUserName(""); setNewUserEmail(""); setNewUserPassword(""); setNewUserRole("medewerker");
-      const { data: rolesData } = await (supabase.from("user_roles") as any).select("*");
+      const { data: rolesData } = await (supabase.from("user_access") as any).select("*").order("created_at", { ascending: false });
       if (rolesData) setTeamMembers(rolesData);
     } catch (err: any) {
       toast.error(err.message || "Aanmaken mislukt");
@@ -200,15 +208,17 @@ export default function InstellingenPage() {
   };
 
   const handleRemoveTeamMember = async (id: string) => {
+    if (!canManageTeam) { toast.error("Alleen eigenaren kunnen gebruikers beheren."); return; }
     if (await removeRole(id)) {
       toast.success("Toegang ingetrokken");
-      const { data } = await (supabase.from("user_roles") as any).select("*");
+      const { data } = await (supabase.from("user_access") as any).select("*").order("created_at", { ascending: false });
       if (data) setTeamMembers(data);
     }
   };
 
 
   const handleExportCustomers = (format: 'csv' | 'excel') => {
+    if (!canExport) { toast.error("Je hebt geen rechten om data te exporteren."); return; }
     const headers = ["Naam", "Telefoon", "E-mail", "Totaal besteed", "VIP", "No-shows"];
     const rows = customers.map(c => [
       c.name, c.phone || '', c.email || '',
@@ -222,6 +232,7 @@ export default function InstellingenPage() {
   };
 
   const handleExportAppointments = (format: 'csv' | 'excel') => {
+    if (!canExport) { toast.error("Je hebt geen rechten om data te exporteren."); return; }
     const headers = ["Datum", "Klant", "Behandeling", "Prijs", "Status", "Betaalstatus"];
     const rows = appointments.map(a => {
       const cust = customers.find(c => c.id === a.customer_id);
@@ -239,6 +250,7 @@ export default function InstellingenPage() {
   };
 
   const handleExportRevenue = (format: 'csv' | 'excel') => {
+    if (!canExport) { toast.error("Je hebt geen rechten om omzet te exporteren."); return; }
     const headers = ["Datum", "Klant", "Behandeling", "Bedrag", "Status"];
     const paid = appointments.filter(a => a.status === 'voltooid');
     const rows = paid.map(a => {
