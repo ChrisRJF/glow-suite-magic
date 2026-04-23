@@ -61,7 +61,7 @@ async function getSalon(supabase: ReturnType<typeof createClient>, slug: string)
   const normalized = slugify(slug);
   const { data: settingsRows, error } = await supabase
     .from("settings")
-    .select("user_id, salon_name, opening_hours, demo_mode, is_demo, deposit_new_client, deposit_percentage, full_prepay_threshold, skip_prepay_vip, deposit_noshow_risk, group_bookings_enabled, mollie_mode, whitelabel_branding, public_slug, show_prices_online, public_employees_enabled, cancellation_notice")
+    .select("id, user_id, salon_name, opening_hours, demo_mode, is_demo, deposit_new_client, deposit_percentage, full_prepay_threshold, skip_prepay_vip, deposit_noshow_risk, group_bookings_enabled, mollie_mode, whitelabel_branding, public_slug, show_prices_online, public_employees_enabled, cancellation_notice")
     .or(`public_slug.eq.${normalized},public_slug.eq.${slug}`)
     .limit(1);
 
@@ -71,7 +71,7 @@ async function getSalon(supabase: ReturnType<typeof createClient>, slug: string)
   if (!settings) {
     const { data: fallbackRows } = await supabase
       .from("settings")
-      .select("user_id, salon_name, opening_hours, demo_mode, is_demo, deposit_new_client, deposit_percentage, full_prepay_threshold, skip_prepay_vip, deposit_noshow_risk, group_bookings_enabled, mollie_mode, whitelabel_branding, public_slug, show_prices_online, public_employees_enabled, cancellation_notice")
+      .select("id, user_id, salon_name, opening_hours, demo_mode, is_demo, deposit_new_client, deposit_percentage, full_prepay_threshold, skip_prepay_vip, deposit_noshow_risk, group_bookings_enabled, mollie_mode, whitelabel_branding, public_slug, show_prices_online, public_employees_enabled, cancellation_notice")
       .limit(200);
     settings = fallbackRows?.find((row: any) => slugify(row.salon_name || "") === normalized);
   }
