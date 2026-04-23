@@ -460,9 +460,9 @@ export default function GlowPayPage() {
                           <Button variant="outline" size="sm" onClick={() => handleResendLink(l.id)}>
                             <Send className="w-3.5 h-3.5" /> Verstuur opnieuw
                           </Button>
-                          <Button variant="gradient" size="sm" onClick={() => handleMarkLinkPaid(l.id)}>
+                          {can("payments:update") && <Button variant="gradient" size="sm" onClick={() => handleMarkLinkPaid(l.id)}>
                             <CheckCircle2 className="w-3.5 h-3.5" /> Markeer betaald
-                          </Button>
+                          </Button>}
                         </>
                       )}
                     </div>
