@@ -1,7 +1,7 @@
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useAppointments, useCustomerMemberships, useCustomers, useMembershipPlans, useMembershipUsage, useSettings } from "@/hooks/useSupabaseData";
+import { useCustomerMemberships, useCustomers, useMembershipPlans, useSettings } from "@/hooks/useSupabaseData";
 import { usePayments } from "@/hooks/usePayments";
 import { useCrud } from "@/hooks/useCrud";
 import { exportCSV } from "@/lib/exportUtils";
@@ -31,9 +31,7 @@ function defaultBenefits(name: string) {
 export default function MembershipsPage() {
   const { data: plans, loading: plansLoading, refetch: refetchPlans } = useMembershipPlans();
   const { data: memberships, loading: membershipsLoading, refetch: refetchMemberships } = useCustomerMemberships();
-  const { data: usage } = useMembershipUsage();
   const { data: customers } = useCustomers();
-  const { data: appointments } = useAppointments();
   const { data: payments } = usePayments();
   const { data: settingsRows } = useSettings();
   const planCrud = useCrud("membership_plans");
@@ -120,7 +118,7 @@ export default function MembershipsPage() {
       credits_available: Number(plan.included_treatments || 0),
       current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
       last_payment_status: "manual",
-+      metadata: { source: "manual" },
+      metadata: { source: "manual" },
     });
     if (result) {
       toast.success("Lid handmatig toegevoegd");
