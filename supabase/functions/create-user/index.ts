@@ -5,7 +5,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const VALID_ROLES = ["admin", "medewerker", "financieel"];
+const VALID_ROLES = ["manager", "admin", "medewerker", "financieel", "receptie"];
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
       email,
       password,
       email_confirm: true,
-      user_metadata: { name, invited_by: user.id },
+      user_metadata: { name, invited_by: user.id, invited_role: role },
     });
     if (createErr || !created.user) {
       return new Response(JSON.stringify({ error: createErr?.message || "Aanmaken mislukt" }), {
@@ -90,6 +90,26 @@ Deno.serve(async (req) => {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    await admin.from("profiles").upsert({ user_id: created.user.id, email, salon_name: name });
+    await admin.from("user_access").upsert({
+      owner_user_id: user.id,
+      member_user_id: created.user.id,
+      name,
+      email,
+      role,
+      status: "active",
+      is_demo: false,
+    }, { onConflict: "owner_user_id,email" });
+    await admin.from("audit_logs").insert({
+      user_id: user.id,
+      actor_user_id: user.id,
+      action: "user_invited",
+      target_type: "user",
+      target_id: created.user.id,
+      details: { email, role },
+      is_demo: false,
+    });
 
     return new Response(JSON.stringify({
       success: true,
