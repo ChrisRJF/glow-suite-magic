@@ -92,9 +92,9 @@ export function useLeads() {
 }
 
 export function useMollieConnections() {
-  return useSupabaseQuery("mollie_connections" as TableName);
+  return useSupabaseQuery("mollie_connections");
 }
 
 export function usePaymentRefunds() {
-  return useSupabaseQuery("payment_refunds" as TableName);
+  return useSupabaseQuery("payment_refunds");
 }
