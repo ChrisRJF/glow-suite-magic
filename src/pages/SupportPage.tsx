@@ -9,8 +9,8 @@ const faqs = [
 ];
 
 const resources = [
-  { icon: Book, label: "Documentatie", desc: "Uitgebreide handleiding", url: "#" },
-  { icon: MessageCircle, label: "Live chat", desc: "Direct contact met support", url: "#" },
+  { icon: Book, label: "Documentatie", desc: "Binnenkort beschikbaar", url: "", disabled: true },
+  { icon: MessageCircle, label: "Live chat", desc: "Binnenkort beschikbaar", url: "", disabled: true },
   { icon: Mail, label: "E-mail support", desc: "support@glowsuite.nl", url: "mailto:support@glowsuite.nl" },
 ];
 
@@ -20,7 +20,13 @@ export default function SupportPage() {
       <div className="grid gap-6 max-w-2xl">
         {/* Resources */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {resources.map((r) => (
+          {resources.map((r) => r.disabled ? (
+            <button key={r.label} type="button" disabled className="glass-card p-5 text-left opacity-70 cursor-not-allowed">
+              <r.icon className="w-5 h-5 text-primary mb-2" />
+              <p className="text-sm font-semibold flex items-center gap-1">{r.label}</p>
+              <p className="text-xs text-muted-foreground mt-1">{r.desc}</p>
+            </button>
+          ) : (
             <a key={r.label} href={r.url} className="glass-card p-5 hover:border-primary/30 transition-all group">
               <r.icon className="w-5 h-5 text-primary mb-2" />
               <p className="text-sm font-semibold flex items-center gap-1">

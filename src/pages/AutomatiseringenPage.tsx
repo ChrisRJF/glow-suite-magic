@@ -33,7 +33,7 @@ const TRIGGERS = [
 
 const ACTIONS = [
   { value: "stuur_welkomst", label: "Stuur welkomstbericht", icon: "👋" },
-  { value: "stuur_email", label: "Stuur e-mail (gesimuleerd)", icon: "📧" },
+  { value: "stuur_email", label: "Stuur e-mail", icon: "📧" },
   { value: "stuur_whatsapp", label: "Stuur WhatsApp bericht", icon: "💬" },
   { value: "vraag_review", label: "Vraag om review", icon: "⭐" },
   { value: "stuur_comeback", label: "Stuur comeback aanbieding", icon: "💝" },

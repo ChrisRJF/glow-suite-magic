@@ -82,15 +82,14 @@ export default function GlowPayPage() {
 
   const handleRetry = async (id: string) => {
     if (!can("payments:update")) { toast.error("Alleen financiële rollen kunnen betalingen wijzigen."); return; }
-    // Simulate retry: randomly succeed or fail
-    const success = Math.random() > 0.3;
-    await updatePayment(id, { status: success ? "paid" : "failed", paid_at: success ? new Date().toISOString() : null });
-    toast[success ? "success" : "error"](success ? "Betaling opnieuw gelukt!" : "Betaling opnieuw mislukt");
+    toast.info("Opnieuw proberen is beschikbaar via een nieuw betaalverzoek.");
+    setActiveTab("betaallinks");
+    setShowLinkForm(true);
     refetchPayments();
   };
 
   const handleReminder = async (id: string) => {
-    toast.success("Betaalherinnering verstuurd (demo)");
+    toast.info("Betaalherinneringen zijn binnenkort beschikbaar.");
   };
 
   const getRemainingAmount = (p: any) => {
@@ -160,7 +159,7 @@ export default function GlowPayPage() {
   };
 
   const handleResendLink = (id: string) => {
-    toast.success("Betaalverzoek opnieuw verstuurd (demo)");
+    toast.info("Betaalverzoek opnieuw versturen is binnenkort beschikbaar.");
   };
 
   const getLinkStatusBadge = (status: string) => {
@@ -321,7 +320,7 @@ export default function GlowPayPage() {
                         </Button>
                       )}
                       {p.status === "pending" && (
-                        <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); toast.success("Betaalverzoek opnieuw verstuurd (demo)"); }}>
+                        <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleResendLink(p.id); }}>
                           <Send className="w-3.5 h-3.5" /> Link opnieuw
                         </Button>
                       )}

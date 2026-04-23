@@ -30,10 +30,10 @@ export default function MarketingPage() {
 
   const handleAction = async (label: string) => {
     setSending(label);
-    await insertCampaign({ title: label, type: 'whatsapp', status: 'verzonden', sent_count: Math.floor(Math.random() * 20 + 5), message: `Automatische campagne: ${label}` });
+    await insertCampaign({ title: label, type: 'whatsapp', status: 'concept', sent_count: 0, message: `Campagnevoorstel: ${label}` });
     setTimeout(() => {
       setSending(null);
-      toast.success(`"${label}" is geactiveerd!`);
+      toast.success(`"${label}" is klaargezet als concept.`);
       refetchCampaigns();
     }, 1200);
   };
@@ -111,7 +111,7 @@ export default function MarketingPage() {
                     <p className="text-xs text-muted-foreground">{c.sent_count || 0} verstuurd · {c.type}</p>
                   </div>
                 </div>
-                <span className={`text-xs px-2 py-1 rounded-full ${c.status === 'verzonden' ? 'bg-success/20 text-success' : c.status === 'actief' ? 'bg-primary/20 text-primary' : 'bg-secondary text-muted-foreground'}`}>{c.status}</span>
+                <span className={`text-xs px-2 py-1 rounded-full ${c.status === 'verzonden' ? 'bg-success/20 text-success' : c.status === 'actief' ? 'bg-primary/20 text-primary' : 'bg-secondary text-muted-foreground'}`}>{c.status === 'concept' ? 'Concept' : c.status === 'verzonden' ? 'Verzonden' : c.status || 'Niet ingesteld'}</span>
               </div>
             ))}
           </div>
