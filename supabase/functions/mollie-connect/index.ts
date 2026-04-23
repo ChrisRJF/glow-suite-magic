@@ -80,6 +80,14 @@ async function exchangeToken(body: Record<string, string>) {
   return data;
 }
 
+async function refreshConnection(admin: ReturnType<typeof createClient>, connection: any) {
+  if (connection.mollie_access_token_expires_at && new Date(connection.mollie_access_token_expires_at).getTime() > Date.now() + 120000) return connection;
+  const token = await exchangeToken({ grant_type: "refresh_token", refresh_token: connection.mollie_refresh_token });
+  const expiresAt = addSeconds(Number(token.expires_in || 3600));
+  await admin.from("mollie_connections").update({ mollie_access_token: token.access_token, mollie_refresh_token: token.refresh_token || connection.mollie_refresh_token, mollie_access_token_expires_at: expiresAt, last_sync_at: new Date().toISOString() }).eq("id", connection.id);
+  return { ...connection, mollie_access_token: token.access_token, mollie_refresh_token: token.refresh_token || connection.mollie_refresh_token, mollie_access_token_expires_at: expiresAt };
+}
+
 async function syncConnectionDetails(accessToken: string) {
   const organization = await mollieFetch("/organizations/me", accessToken).catch(() => null);
   const methodsData = await mollieFetch("/methods?resource=payments&sequenceType=oneoff&locale=nl_NL", accessToken).catch(() => ({ _embedded: { methods: [] } }));
@@ -186,7 +194,7 @@ Deno.serve(async (req) => {
     if (parsed.data.action === "sync_methods") {
       const { data: connection, error: connectionError } = await admin
         .from("mollie_connections")
-        .select("id,mollie_access_token")
+        .select("id,mollie_access_token,mollie_refresh_token,mollie_access_token_expires_at")
         .eq("user_id", user.id)
         .eq("salon_id", settings.id)
         .eq("is_active", true)
@@ -194,7 +202,8 @@ Deno.serve(async (req) => {
         .maybeSingle();
       if (connectionError) throw connectionError;
       if (!connection) return json({ error: "Mollie account is niet verbonden." }, 400);
-      const { organization, methods } = await syncConnectionDetails((connection as any).mollie_access_token);
+      const activeConnection = await refreshConnection(admin, connection as any);
+      const { organization, methods } = await syncConnectionDetails(activeConnection.mollie_access_token);
       const { data: updated, error: updateError } = await admin
         .from("mollie_connections")
         .update({
@@ -231,7 +240,8 @@ Deno.serve(async (req) => {
       if (payment.status !== "paid") return json({ error: "Alleen betaalde betalingen kunnen worden terugbetaald." }, 400);
       const { data: connection } = await admin.from("mollie_connections").select("*").eq("user_id", user.id).eq("salon_id", settings.id).eq("is_active", true).is("disconnected_at", null).maybeSingle();
       if (!connection) return json({ error: "Mollie account is niet verbonden." }, 400);
-      const refund = await mollieFetch(`/payments/${payment.mollie_payment_id}/refunds`, connection.mollie_access_token, {
+      const activeConnection = await refreshConnection(admin, connection);
+      const refund = await mollieFetch(`/payments/${payment.mollie_payment_id}/refunds`, activeConnection.mollie_access_token, {
         method: "POST",
         body: JSON.stringify({ amount: { currency: "EUR", value: Number(payment.amount).toFixed(2) }, description: parsed.data.reason || "GlowSuite terugbetaling" }),
       });
