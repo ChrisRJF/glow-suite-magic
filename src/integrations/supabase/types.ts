@@ -143,44 +143,217 @@ export type Database = {
         }
         Relationships: []
       }
+      automation_logs: {
+        Row: {
+          automation_rule_id: string | null
+          automation_run_id: string | null
+          created_at: string
+          customer_id: string | null
+          event_type: string
+          id: string
+          is_demo: boolean
+          message: string
+          metadata: Json
+          revenue_attributed: number
+          status: string
+          user_id: string
+        }
+        Insert: {
+          automation_rule_id?: string | null
+          automation_run_id?: string | null
+          created_at?: string
+          customer_id?: string | null
+          event_type: string
+          id?: string
+          is_demo?: boolean
+          message?: string
+          metadata?: Json
+          revenue_attributed?: number
+          status?: string
+          user_id: string
+        }
+        Update: {
+          automation_rule_id?: string | null
+          automation_run_id?: string | null
+          created_at?: string
+          customer_id?: string | null
+          event_type?: string
+          id?: string
+          is_demo?: boolean
+          message?: string
+          metadata?: Json
+          revenue_attributed?: number
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_logs_automation_rule_id_fkey"
+            columns: ["automation_rule_id"]
+            isOneToOne: false
+            referencedRelation: "automation_rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_logs_automation_run_id_fkey"
+            columns: ["automation_run_id"]
+            isOneToOne: false
+            referencedRelation: "automation_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       automation_rules: {
         Row: {
           action_type: string
+          booked_count: number
+          channel: string
+          conditions: Json
           config: Json | null
           created_at: string
+          delay_unit: string
+          delay_value: number
+          description: string
           id: string
           is_active: boolean | null
           is_demo: boolean
           last_triggered_at: string | null
+          message_templates: Json
+          name: string | null
+          provider_required: boolean
+          revenue_generated: number
+          run_count: number
+          sent_count: number
+          template_key: string | null
           trigger_type: string
           updated_at: string
           user_id: string
         }
         Insert: {
           action_type: string
+          booked_count?: number
+          channel?: string
+          conditions?: Json
           config?: Json | null
           created_at?: string
+          delay_unit?: string
+          delay_value?: number
+          description?: string
           id?: string
           is_active?: boolean | null
           is_demo?: boolean
           last_triggered_at?: string | null
+          message_templates?: Json
+          name?: string | null
+          provider_required?: boolean
+          revenue_generated?: number
+          run_count?: number
+          sent_count?: number
+          template_key?: string | null
           trigger_type: string
           updated_at?: string
           user_id: string
         }
         Update: {
           action_type?: string
+          booked_count?: number
+          channel?: string
+          conditions?: Json
           config?: Json | null
           created_at?: string
+          delay_unit?: string
+          delay_value?: number
+          description?: string
           id?: string
           is_active?: boolean | null
           is_demo?: boolean
           last_triggered_at?: string | null
+          message_templates?: Json
+          name?: string | null
+          provider_required?: boolean
+          revenue_generated?: number
+          run_count?: number
+          sent_count?: number
+          template_key?: string | null
           trigger_type?: string
           updated_at?: string
           user_id?: string
         }
         Relationships: []
+      }
+      automation_runs: {
+        Row: {
+          appointment_id: string | null
+          automation_rule_id: string
+          channel: string
+          created_at: string
+          customer_id: string | null
+          error_message: string | null
+          id: string
+          idempotency_key: string
+          is_demo: boolean
+          membership_id: string | null
+          payload: Json
+          payment_id: string | null
+          processed_at: string | null
+          recipient: string | null
+          revenue_attributed: number
+          scheduled_for: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          appointment_id?: string | null
+          automation_rule_id: string
+          channel?: string
+          created_at?: string
+          customer_id?: string | null
+          error_message?: string | null
+          id?: string
+          idempotency_key: string
+          is_demo?: boolean
+          membership_id?: string | null
+          payload?: Json
+          payment_id?: string | null
+          processed_at?: string | null
+          recipient?: string | null
+          revenue_attributed?: number
+          scheduled_for?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          appointment_id?: string | null
+          automation_rule_id?: string
+          channel?: string
+          created_at?: string
+          customer_id?: string | null
+          error_message?: string | null
+          id?: string
+          idempotency_key?: string
+          is_demo?: boolean
+          membership_id?: string | null
+          payload?: Json
+          payment_id?: string | null
+          processed_at?: string | null
+          recipient?: string | null
+          revenue_attributed?: number
+          scheduled_for?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_runs_automation_rule_id_fkey"
+            columns: ["automation_rule_id"]
+            isOneToOne: false
+            referencedRelation: "automation_rules"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       campaigns: {
         Row: {
@@ -353,6 +526,75 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      customer_message_preferences: {
+        Row: {
+          created_at: string
+          customer_id: string
+          email_opt_out: boolean
+          id: string
+          is_demo: boolean
+          language: string
+          preferred_channel: string
+          sms_opt_out: boolean
+          updated_at: string
+          user_id: string
+          whatsapp_opt_out: boolean
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          email_opt_out?: boolean
+          id?: string
+          is_demo?: boolean
+          language?: string
+          preferred_channel?: string
+          sms_opt_out?: boolean
+          updated_at?: string
+          user_id: string
+          whatsapp_opt_out?: boolean
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          email_opt_out?: boolean
+          id?: string
+          is_demo?: boolean
+          language?: string
+          preferred_channel?: string
+          sms_opt_out?: boolean
+          updated_at?: string
+          user_id?: string
+          whatsapp_opt_out?: boolean
+        }
+        Relationships: []
+      }
+      customer_tags: {
+        Row: {
+          created_at: string
+          customer_id: string
+          id: string
+          is_demo: boolean
+          tag: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          id?: string
+          is_demo?: boolean
+          tag: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          id?: string
+          is_demo?: boolean
+          tag?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       customers: {
         Row: {
