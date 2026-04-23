@@ -73,7 +73,7 @@ export default function WachtlijstPage() {
   };
 
   const handleNotify = async (id: string) => {
-    toast.success("Bericht verstuurd naar klant (demo)");
+    toast.info("Klantbericht versturen is binnenkort beschikbaar.");
   };
 
   const handleRemove = async (id: string) => {

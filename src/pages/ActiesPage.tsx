@@ -38,7 +38,7 @@ export default function ActiesPage() {
   const activateAction = async (id: string) => {
     const action = visibleActions.find(a => a.id === id);
     if (!action) return;
-    setActions(prev => prev.map(a => a.id === id ? { ...a, status: "actief" as const } : a));
+    setActions(prev => (prev.length ? prev : initialActions).map(a => a.id === id ? { ...a, status: "actief" as const } : a));
     toast.success(`"${action.title}" is geactiveerd!`);
 
     if (id === "2" || id === "1" || id === "5") {
@@ -54,7 +54,7 @@ export default function ActiesPage() {
     }
 
     setTimeout(() => {
-      setActions(prev => prev.map(a => a.id === id ? { ...a, status: "voltooid" as const } : a));
+      setActions(prev => (prev.length ? prev : initialActions).map(a => a.id === id ? { ...a, status: "voltooid" as const } : a));
       toast.success(`"${action.title}" is voltooid!`);
     }, 3000);
   };
