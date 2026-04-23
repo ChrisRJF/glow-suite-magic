@@ -11,12 +11,14 @@ import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { CustomerValueIntel } from "@/components/CustomerValueIntel";
 import type { Tables } from "@/integrations/supabase/types";
+import { useUserRole } from "@/hooks/useUserRole";
 
 export default function CustomersPage() {
   const { data: customers, loading, refetch } = useCustomers();
   const { data: appointments } = useAppointments();
   const { data: services } = useServices();
   const { insert, update, remove } = useCrud("customers");
+  const { can } = useUserRole();
   const [searchParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Tables<"customers"> | null>(null);
@@ -50,18 +52,21 @@ export default function CustomersPage() {
   });
 
   const handleAdd = async () => {
+    if (!can("customers:create")) { toast.error("Je hebt geen rechten om klanten toe te voegen."); return; }
     if (!form.name.trim()) { toast.error("Naam is verplicht"); return; }
     const result = await insert(form);
     if (result) { toast.success("Klant toegevoegd"); setShowAdd(false); setForm({ name: '', phone: '', email: '', notes: '' }); refetch(); }
   };
 
   const handleUpdate = async () => {
+    if (!can("customers:update")) { toast.error("Je hebt geen rechten om klanten te wijzigen."); return; }
     if (!selectedCustomer) return;
     const result = await update(selectedCustomer.id, form);
     if (result) { toast.success("Klant bijgewerkt"); setEditing(false); refetch(); setSelectedCustomer({ ...selectedCustomer, ...form }); }
   };
 
   const handleDelete = async (id: string) => {
+    if (!can("customers:delete")) { toast.error("Alleen eigenaren en managers kunnen klanten verwijderen."); return; }
     if (await remove(id)) { toast.success("Klant verwijderd"); setSelectedCustomer(null); refetch(); }
   };
 
@@ -80,7 +85,7 @@ export default function CustomersPage() {
 
   return (
     <AppLayout title="Klanten" subtitle={`${customers.length} klanten in je salon`}
-      actions={<Button variant="gradient" size="sm" onClick={() => { setShowAdd(true); setForm({ name: '', phone: '', email: '', notes: '' }); }}><Plus className="w-4 h-4" /> Nieuwe klant</Button>}>
+      actions={can("customers:create") ? <Button variant="gradient" size="sm" onClick={() => { setShowAdd(true); setForm({ name: '', phone: '', email: '', notes: '' }); }}><Plus className="w-4 h-4" /> Nieuwe klant</Button> : undefined}>
 
       <ConfirmDialog
         open={!!confirmDeleteId}
@@ -161,7 +166,7 @@ export default function CustomersPage() {
               <h3 className="text-lg font-semibold">Klantprofiel</h3>
               <div className="flex gap-1">
                 <button onClick={() => { setEditing(!editing); if (!editing) setForm({ name: selectedCustomer.name, phone: selectedCustomer.phone || '', email: selectedCustomer.email || '', notes: selectedCustomer.notes || '' }); }} className="p-1.5 rounded-lg hover:bg-secondary"><Pencil className="w-4 h-4" /></button>
-                <button onClick={() => setConfirmDeleteId(selectedCustomer.id)} className="p-1.5 rounded-lg hover:bg-destructive/20 text-destructive"><Trash2 className="w-4 h-4" /></button>
+                {can("customers:delete") && <button onClick={() => setConfirmDeleteId(selectedCustomer.id)} className="p-1.5 rounded-lg hover:bg-destructive/20 text-destructive"><Trash2 className="w-4 h-4" /></button>}
                 <button onClick={() => setSelectedCustomer(null)} className="p-1.5 rounded-lg hover:bg-secondary lg:hidden"><X className="w-4 h-4" /></button>
               </div>
             </div>

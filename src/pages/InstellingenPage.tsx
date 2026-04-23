@@ -47,7 +47,6 @@ export default function InstellingenPage() {
   const { data: appointments } = useAppointments();
   const { data: services } = useServices();
   const { insert, update } = useCrud("settings");
-  const { remove: removeRole } = useCrud("user_roles");
   const [salonName, setSalonName] = useState("Mijn Salon");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -613,10 +612,11 @@ export default function InstellingenPage() {
                       <UserCog className="w-4 h-4 text-muted-foreground" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium capitalize truncate">{member.role}</p>
-                      <p className="text-[11px] text-muted-foreground truncate">Toegevoegd {new Date(member.created_at).toLocaleDateString('nl-NL')}</p>
+                      <p className="text-sm font-medium truncate">{member.name || member.email}</p>
+                      <p className="text-[11px] text-muted-foreground truncate">{member.email} · {member.status === "disabled" ? "Geblokkeerd" : "Actief"}</p>
                     </div>
-                    <button onClick={() => handleRemoveTeamMember(member.id)} className="p-2 rounded-lg hover:bg-destructive/20 transition-colors flex-shrink-0" aria-label="Verwijderen">
+                    <span className="px-2 py-1 rounded-lg bg-secondary text-[11px] text-muted-foreground capitalize">{member.role}</span>
+                    <button onClick={() => handleRemoveTeamMember(member.id)} disabled={member.status === "disabled"} className="p-2 rounded-lg hover:bg-destructive/20 transition-colors flex-shrink-0 disabled:opacity-40" aria-label="Verwijderen">
                       <Trash2 className="w-3.5 h-3.5 text-destructive" />
                     </button>
                   </div>
@@ -637,6 +637,8 @@ export default function InstellingenPage() {
                     <select value={newUserRole} onChange={e => setNewUserRole(e.target.value)}
                       className="flex-1 px-3 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm">
                       <option value="medewerker">Medewerker</option>
+                      <option value="receptie">Receptie</option>
+                      <option value="manager">Manager</option>
                       <option value="admin">Admin</option>
                       <option value="financieel">Financieel</option>
                     </select>
