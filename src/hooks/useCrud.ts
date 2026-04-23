@@ -20,6 +20,7 @@ export function useCrud(table: TableName) {
     if (table === "payment_links" && action !== "delete") requirePermission(roles, "payments:links", "Alleen financiële rollen kunnen betaalverzoeken beheren.");
     if (table === "user_roles") requirePermission(roles, "settings:team", "Alleen eigenaren kunnen gebruikersrechten wijzigen.");
     if (table === "settings") requirePermission(roles, "settings:business", "Je hebt geen rechten om deze instellingen te wijzigen.");
+    if (table === "mollie_connections") requirePermission(roles, "mollie:manage", "Alleen eigenaren en beheerders kunnen Mollie beheren.");
   };
 
   const insert = async (data: Record<string, any>) => {

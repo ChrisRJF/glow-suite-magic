@@ -26,6 +26,7 @@ import SupportPage from "./pages/SupportPage";
 import LoginPage from "./pages/LoginPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import LaunchStatusPage from "./pages/LaunchStatusPage";
+import MollieCallbackPage from "./pages/MollieCallbackPage";
 import NotFound from "./pages/NotFound";
 import AutomatiseringenPage from "./pages/AutomatiseringenPage";
 import WachtlijstPage from "./pages/WachtlijstPage";
@@ -66,6 +67,7 @@ const App = () => (
             <Routes>
               <Route path="/login" element={<AuthRoute><LoginPage /></AuthRoute>} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
+              <Route path="/integrations/mollie/callback" element={<RoleProtectedRoute allow={["eigenaar","manager","admin"]}><MollieCallbackPage /></RoleProtectedRoute>} />
               <Route path="/boeken" element={<BookingPage />} />
               <Route path="/boeken/:salonSlug" element={<BookingPage />} />
               <Route path="/" element={<RoleProtectedRoute><DashboardPage /></RoleProtectedRoute>} />
