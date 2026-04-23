@@ -98,3 +98,23 @@ export function useMollieConnections() {
 export function usePaymentRefunds() {
   return useSupabaseQuery("payment_refunds");
 }
+
+export function useWebshopOrders() {
+  const { user } = useAuth();
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetch = useCallback(async () => {
+    if (!user) { setData([]); setLoading(false); return; }
+    setLoading(true);
+    const { data: result } = await (supabase as any)
+      .from("webshop_orders")
+      .select("*")
+      .order("created_at", { ascending: false });
+    setData(result || []);
+    setLoading(false);
+  }, [user]);
+
+  useEffect(() => { fetch(); }, [fetch]);
+  return { data, loading, refetch: fetch };
+}

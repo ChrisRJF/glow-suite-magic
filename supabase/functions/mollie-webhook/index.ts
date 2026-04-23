@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const { data: payment, error: paymentReadError } = await supabase
       .from("payments")
-      .select("id, user_id, appointment_id, customer_id, amount, metadata, is_demo")
+      .select("id, user_id, appointment_id, customer_id, amount, metadata, is_demo, order_id")
       .eq("mollie_payment_id", molliePaymentId)
       .maybeSingle();
     if (paymentReadError) throw paymentReadError;
@@ -112,6 +112,21 @@ Deno.serve(async (req) => {
         await supabase.from("appointments").update({ payment_status: mapped.payment_status, status: mapped.appointment_status, amount_paid: amountPaid }).eq("booking_group_id", appointment.booking_group_id);
       }
       await supabase.from("appointments").update({ payment_status: mapped.payment_status, status: mapped.appointment_status, amount_paid: amountPaid }).eq("id", appointmentId);
+    }
+
+    const orderId = payment.order_id || metadata.order_id;
+    if (orderId) {
+      const orderStatus = status === "paid" ? "paid" : ["failed", "expired", "canceled", "cancelled"].includes(status) ? "failed" : "open";
+      await supabase.from("webshop_orders").update({
+        payment_status: orderStatus,
+        status: orderStatus,
+        mollie_payment_id: molliePaymentId,
+        updated_at: new Date().toISOString(),
+      }).eq("id", orderId).eq("user_id", payment.user_id);
+      if (status === "paid") {
+        const { error: stockError } = await supabase.rpc("process_paid_webshop_order_stock", { _order_id: orderId });
+        if (stockError) throw stockError;
+      }
     }
 
     await logWebhookValidation(supabase, payment, status === "paid" ? "mollie_webhook_payment_success" : ["failed", "expired", "canceled", "cancelled"].includes(status) ? "mollie_webhook_payment_failed" : "mollie_webhook_validated", { mollie_payment_id: molliePaymentId, status, method: molliePayment.method || null, appointment_id: appointmentId || null });
