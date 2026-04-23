@@ -9,6 +9,7 @@ import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useUserRole } from "@/hooks/useUserRole";
 
 type ReportType = "omzet" | "diensten" | "producten" | "betalingen" | "btw";
 
@@ -18,6 +19,7 @@ export default function RapportenPage() {
   const { data: products } = useProducts();
   const { data: customers } = useCustomers();
   const { data: payments } = usePayments();
+  const { can } = useUserRole();
 
   const [dateFrom, setDateFrom] = useState(() => {
     const d = new Date(); d.setMonth(d.getMonth() - 1); return d.toISOString().split("T")[0];
@@ -124,6 +126,7 @@ export default function RapportenPage() {
   };
 
   const handleExport = (format: "csv" | "excel" | "pdf") => {
+    if (!can("reports:export")) { toast.error("Je hebt geen rechten om rapporten te exporteren."); return; }
     const { title, headers, rows } = getExportData();
     const dateStr = new Date().toISOString().split("T")[0];
     switch (format) {
@@ -146,7 +149,7 @@ export default function RapportenPage() {
   return (
     <AppLayout title="Rapporten" subtitle="Statistieken en inzichten"
       actions={
-        <div className="relative">
+        can("reports:export") ? <div className="relative">
           <Button variant="gradient" size="sm" onClick={() => setShowExport(!showExport)}>
             <Download className="w-4 h-4" /> Exporteer rapport
           </Button>
@@ -163,7 +166,7 @@ export default function RapportenPage() {
               </button>
             </div>
           )}
-        </div>
+        </div> : null
       }>
       <div className="grid gap-8">
         {/* Filters */}
