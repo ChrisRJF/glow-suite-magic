@@ -91,6 +91,7 @@ const App = () => (
               <Route path="/rapporten" element={<RoleProtectedRoute><RapportenPage /></RoleProtectedRoute>} />
               <Route path="/instellingen" element={<RoleProtectedRoute><InstellingenPage /></RoleProtectedRoute>} />
               <Route path="/automatiseringen" element={<RoleProtectedRoute><AutomatiseringenPage /></RoleProtectedRoute>} />
+              <Route path="/automations" element={<RoleProtectedRoute><AutomatiseringenPage /></RoleProtectedRoute>} />
               <Route path="/wachtlijst" element={<RoleProtectedRoute><WachtlijstPage /></RoleProtectedRoute>} />
               <Route path="/cadeaubonnen" element={<RoleProtectedRoute><CadeaubonnenPage /></RoleProtectedRoute>} />
               <Route path="/webshop" element={<RoleProtectedRoute><WebshopPage /></RoleProtectedRoute>} />
