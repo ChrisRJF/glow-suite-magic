@@ -14,6 +14,13 @@ export default function MollieCallbackPage() {
     const finish = async () => {
       const code = searchParams.get("code");
       const state = searchParams.get("state");
+      const errorParam = searchParams.get("error");
+      const errorDescription = searchParams.get("error_description");
+      if (errorParam) {
+        setStatus("error");
+        setMessage(errorDescription || "De Mollie koppeling kon niet worden afgerond. Probeer opnieuw.");
+        return;
+      }
       if (!code || !state) {
         setStatus("error");
         setMessage("De Mollie koppeling kon niet worden afgerond. Probeer opnieuw.");
@@ -31,7 +38,9 @@ export default function MollieCallbackPage() {
       }
       setStatus("success");
       setMessage("Mollie is succesvol gekoppeld.");
-      window.setTimeout(() => navigate("/instellingen?tab=integraties&mollie=connected", { replace: true }), 1400);
+      window.setTimeout(() => {
+        window.location.replace("/instellingen?tab=integraties&mollie=connected");
+      }, 1400);
     };
     finish();
   }, [navigate, searchParams]);
