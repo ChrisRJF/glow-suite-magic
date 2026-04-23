@@ -97,19 +97,30 @@ async function refreshConnection(admin: ReturnType<typeof createClient>, connect
   return { ...connection, mollie_access_token: token.access_token, mollie_refresh_token: token.refresh_token || connection.mollie_refresh_token, mollie_access_token_expires_at: expiresAt };
 }
 
+async function getWebsiteProfile(accessToken: string) {
+  const profile = await mollieFetch("/profiles/me", accessToken).catch(async () => {
+    const profilesData = await mollieFetch("/profiles", accessToken);
+    return ((profilesData as any)?._embedded?.profiles || []).find((item: any) => item?.id) || null;
+  });
+  if (!profile?.id) throw new Error("Mollie website profiel ontbreekt. Maak eerst een websiteprofiel aan in Mollie.");
+  return profile;
+}
+
 async function syncConnectionDetails(accessToken: string) {
   const organization = await mollieFetch("/organizations/me", accessToken).catch(() => null);
+  const profile = await getWebsiteProfile(accessToken);
   let methodsData;
   try {
-    methodsData = await mollieFetch("/methods?resource=payments&sequenceType=oneoff&locale=nl_NL", accessToken);
+    const params = new URLSearchParams({ resource: "payments", sequenceType: "oneoff", locale: "nl_NL", profileId: profile.id });
+    methodsData = await mollieFetch(`/methods?${params.toString()}`, accessToken);
   } catch (error) {
-    console.error("Mollie methods fetch failed", { error: (error as Error).message });
+    console.error("Mollie methods fetch failed", { error: (error as Error).message, profile_id: profile.id });
     throw error;
   }
   const methods = ((methodsData as any)?._embedded?.methods || [])
     .filter((method: any) => ALLOWED_METHODS.includes(method.id) && method.status !== "disabled")
     .map((method: any) => ({ id: method.id, description: method.description || METHOD_LABELS[method.id] || method.id, status: method.status || "enabled" }));
-  return { organization, methods };
+  return { organization, profile, methods };
 }
 
 Deno.serve(async (req) => {
@@ -181,7 +192,7 @@ Deno.serve(async (req) => {
       if (!oauthState) return json({ error: "Ongeldige of verlopen Mollie-koppelcode." }, 400);
 
       const token = await exchangeToken({ grant_type: "authorization_code", code: parsed.data.code, redirect_uri: REDIRECT_URI });
-      const { organization, methods } = await syncConnectionDetails(token.access_token);
+      const { organization, profile, methods } = await syncConnectionDetails(token.access_token);
       await admin.from("mollie_connections").update({ is_active: false, disconnected_at: new Date().toISOString() }).eq("salon_id", settings.id).eq("is_active", true);
       const { data: connection, error: insertError } = await admin.from("mollie_connections").insert({
         user_id: user.id,
@@ -193,7 +204,7 @@ Deno.serve(async (req) => {
         mollie_mode: settings.mollie_mode || "live",
         account_name: organization?.name || organization?.email || "Mollie account",
         organization_name: organization?.name || null,
-        onboarding_status: organization?.status || "connected",
+        onboarding_status: profile?.status || organization?.status || "connected",
         webhook_status: "configured",
         supported_methods: methods,
         last_sync_at: new Date().toISOString(),
@@ -202,7 +213,7 @@ Deno.serve(async (req) => {
       }).select("id,account_name,organization_name,mollie_mode,onboarding_status,webhook_status,supported_methods,last_sync_at,connected_at,is_active").single();
       if (insertError) throw insertError;
       await admin.from("mollie_oauth_states").update({ consumed_at: new Date().toISOString() }).eq("id", oauthState.id);
-      await admin.from("audit_logs").insert({ user_id: user.id, actor_user_id: user.id, action: "mollie_connected", target_type: "mollie_connection", target_id: connection.id, details: { organization_id: organization?.id }, is_demo: false });
+      await admin.from("audit_logs").insert({ user_id: user.id, actor_user_id: user.id, action: "mollie_connected", target_type: "mollie_connection", target_id: connection.id, details: { organization_id: organization?.id, profile_id: profile?.id }, is_demo: false });
       return json({ success: true, connection });
     }
 
@@ -219,7 +230,7 @@ Deno.serve(async (req) => {
       if (connectionError) throw connectionError;
       if (!connection) return json({ error: "Mollie account is niet verbonden." }, 400);
       const activeConnection = await refreshConnection(admin, connection as any);
-      const { organization, methods } = await syncConnectionDetails(activeConnection.mollie_access_token);
+      const { organization, profile, methods } = await syncConnectionDetails(activeConnection.mollie_access_token);
       console.log("Mollie methods fetched", { count: methods.length, methods: methods.map((method: any) => method.id) });
       const { data: updated, error: updateError } = await admin
         .from("mollie_connections")
@@ -227,7 +238,7 @@ Deno.serve(async (req) => {
           mollie_organization_id: organization?.id || null,
           account_name: organization?.name || organization?.email || "Mollie account",
           organization_name: organization?.name || null,
-          onboarding_status: organization?.status || "connected",
+          onboarding_status: profile?.status || organization?.status || "connected",
           supported_methods: methods,
           last_sync_at: new Date().toISOString(),
         })
@@ -235,7 +246,7 @@ Deno.serve(async (req) => {
         .select("id,account_name,organization_name,mollie_mode,onboarding_status,webhook_status,supported_methods,last_sync_at,connected_at,is_active")
         .single();
       if (updateError) throw updateError;
-      await admin.from("audit_logs").insert({ user_id: user.id, actor_user_id: user.id, action: "mollie_methods_synced", target_type: "mollie_connection", target_id: (connection as any).id, details: { methods: methods.map((method: any) => method.id) }, is_demo: false });
+      await admin.from("audit_logs").insert({ user_id: user.id, actor_user_id: user.id, action: "mollie_methods_synced", target_type: "mollie_connection", target_id: (connection as any).id, details: { profile_id: profile?.id, methods: methods.map((method: any) => method.id) }, is_demo: false });
       console.log("Mollie methods saved", { connection_id: (connection as any).id, count: methods.length });
       return json({ success: true, connection: updated });
     }
