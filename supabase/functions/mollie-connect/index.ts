@@ -183,6 +183,36 @@ Deno.serve(async (req) => {
       return json({ success: true, connection });
     }
 
+    if (parsed.data.action === "sync_methods") {
+      const { data: connection, error: connectionError } = await admin
+        .from("mollie_connections")
+        .select("id,mollie_access_token")
+        .eq("user_id", user.id)
+        .eq("salon_id", settings.id)
+        .eq("is_active", true)
+        .is("disconnected_at", null)
+        .maybeSingle();
+      if (connectionError) throw connectionError;
+      if (!connection) return json({ error: "Mollie account is niet verbonden." }, 400);
+      const { organization, methods } = await syncConnectionDetails((connection as any).mollie_access_token);
+      const { data: updated, error: updateError } = await admin
+        .from("mollie_connections")
+        .update({
+          mollie_organization_id: organization?.id || null,
+          account_name: organization?.name || organization?.email || "Mollie account",
+          organization_name: organization?.name || null,
+          onboarding_status: organization?.status || "connected",
+          supported_methods: methods,
+          last_sync_at: new Date().toISOString(),
+        })
+        .eq("id", (connection as any).id)
+        .select("id,account_name,organization_name,mollie_mode,onboarding_status,webhook_status,supported_methods,last_sync_at,connected_at,is_active")
+        .single();
+      if (updateError) throw updateError;
+      await admin.from("audit_logs").insert({ user_id: user.id, actor_user_id: user.id, action: "mollie_methods_synced", target_type: "mollie_connection", target_id: (connection as any).id, details: { methods: methods.map((method: any) => method.id) }, is_demo: false });
+      return json({ success: true, connection: updated });
+    }
+
     if (parsed.data.action === "disconnect") {
       await admin.from("mollie_connections").update({ is_active: false, disconnected_at: new Date().toISOString(), webhook_status: "disabled" }).eq("user_id", user.id).eq("salon_id", settings.id).eq("is_active", true);
       await admin.from("audit_logs").insert({ user_id: user.id, actor_user_id: user.id, action: "mollie_disconnected", target_type: "mollie_connection", details: {}, is_demo: false });
