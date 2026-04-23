@@ -19,27 +19,33 @@ const STEPS: TourStep[] = [
 ];
 
 export function GuidedTour() {
-  const { demoMode } = useDemoMode();
-  const { user } = useAuth();
+  const { demoMode, loading: demoLoading } = useDemoMode();
+  const { user, loading: authLoading, bootstrapReady } = useAuth();
   const [active, setActive] = useState(false);
   const [stepIdx, setStepIdx] = useState(0);
   const [rect, setRect] = useState<DOMRect | null>(null);
 
   // Auto-start in demo mode (once)
   useEffect(() => {
-    if (!demoMode || !user) return;
+    if (!demoMode || !user || authLoading || demoLoading || !bootstrapReady) return;
     const key = `glowsuite_tour_${user.id}`;
     if (localStorage.getItem(key)) return;
-    const t = setTimeout(() => setActive(true), 1200);
+    const t = setTimeout(() => {
+      if (!document.querySelector('[role="dialog"]')) setActive(true);
+    }, 1200);
     return () => clearTimeout(t);
-  }, [demoMode, user]);
+  }, [demoMode, user, authLoading, demoLoading, bootstrapReady]);
 
   // Listen for global "start tour" event
   useEffect(() => {
-    const onStart = () => { setStepIdx(0); setActive(true); };
+    const onStart = () => {
+      if (!user || authLoading || demoLoading || !bootstrapReady || document.querySelector('[role="dialog"]')) return;
+      setStepIdx(0);
+      setActive(true);
+    };
     window.addEventListener("glowsuite:start-tour", onStart);
     return () => window.removeEventListener("glowsuite:start-tour", onStart);
-  }, []);
+  }, [user, authLoading, demoLoading, bootstrapReady]);
 
   const step = STEPS[stepIdx];
 
