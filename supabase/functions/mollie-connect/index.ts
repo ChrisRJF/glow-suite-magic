@@ -67,7 +67,10 @@ async function mollieFetch(path: string, token: string, init?: RequestInit) {
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...(init?.headers || {}) },
   });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(`Mollie aanvraag mislukt (${response.status}).`);
+  if (!response.ok) {
+    const message = (data as any)?.detail || (data as any)?.title || (data as any)?.error?.message || JSON.stringify(data);
+    throw new Error(`Mollie aanvraag mislukt (${response.status}) voor ${path}: ${message}`);
+  }
   return data;
 }
 
@@ -96,7 +99,13 @@ async function refreshConnection(admin: ReturnType<typeof createClient>, connect
 
 async function syncConnectionDetails(accessToken: string) {
   const organization = await mollieFetch("/organizations/me", accessToken).catch(() => null);
-  const methodsData = await mollieFetch("/methods?resource=payments&sequenceType=oneoff&locale=nl_NL", accessToken).catch(() => ({ _embedded: { methods: [] } }));
+  let methodsData;
+  try {
+    methodsData = await mollieFetch("/methods?resource=payments&sequenceType=oneoff&locale=nl_NL", accessToken);
+  } catch (error) {
+    console.error("Mollie methods fetch failed", { error: (error as Error).message });
+    throw error;
+  }
   const methods = ((methodsData as any)?._embedded?.methods || [])
     .filter((method: any) => ALLOWED_METHODS.includes(method.id) && method.status !== "disabled")
     .map((method: any) => ({ id: method.id, description: method.description || METHOD_LABELS[method.id] || method.id, status: method.status || "enabled" }));
@@ -198,6 +207,7 @@ Deno.serve(async (req) => {
     }
 
     if (parsed.data.action === "sync_methods") {
+      console.log("Mollie sync_methods called", { user_id: user.id, salon_id: settings.id });
       const { data: connection, error: connectionError } = await admin
         .from("mollie_connections")
         .select("id,mollie_access_token,mollie_refresh_token,mollie_access_token_expires_at")
@@ -210,6 +220,7 @@ Deno.serve(async (req) => {
       if (!connection) return json({ error: "Mollie account is niet verbonden." }, 400);
       const activeConnection = await refreshConnection(admin, connection as any);
       const { organization, methods } = await syncConnectionDetails(activeConnection.mollie_access_token);
+      console.log("Mollie methods fetched", { count: methods.length, methods: methods.map((method: any) => method.id) });
       const { data: updated, error: updateError } = await admin
         .from("mollie_connections")
         .update({
@@ -225,6 +236,7 @@ Deno.serve(async (req) => {
         .single();
       if (updateError) throw updateError;
       await admin.from("audit_logs").insert({ user_id: user.id, actor_user_id: user.id, action: "mollie_methods_synced", target_type: "mollie_connection", target_id: (connection as any).id, details: { methods: methods.map((method: any) => method.id) }, is_demo: false });
+      console.log("Mollie methods saved", { connection_id: (connection as any).id, count: methods.length });
       return json({ success: true, connection: updated });
     }
 
@@ -259,6 +271,7 @@ Deno.serve(async (req) => {
 
     return json({ error: "Onbekende actie" }, 400);
   } catch (error) {
+    console.error("mollie-connect error", { error: (error as Error).message });
     return json({ error: (error as Error).message || "Mollie actie kon niet worden uitgevoerd." }, 500);
   }
 });
