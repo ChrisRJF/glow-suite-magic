@@ -91,6 +91,15 @@ Deno.serve(async (req) => {
       });
     }
 
+    const { data: ownerSettings } = await admin
+      .from("settings")
+      .select("is_demo,demo_mode")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const isDemo = Boolean(ownerSettings?.is_demo || ownerSettings?.demo_mode);
+
     await admin.from("profiles").upsert({ user_id: created.user.id, email, salon_name: name });
     await admin.from("user_access").upsert({
       owner_user_id: user.id,
@@ -99,7 +108,7 @@ Deno.serve(async (req) => {
       email,
       role,
       status: "active",
-      is_demo: false,
+      is_demo: isDemo,
     }, { onConflict: "owner_user_id,email" });
     await admin.from("audit_logs").insert({
       user_id: user.id,
@@ -108,7 +117,7 @@ Deno.serve(async (req) => {
       target_type: "user",
       target_id: created.user.id,
       details: { email, role },
-      is_demo: false,
+      is_demo: isDemo,
     });
 
     return new Response(JSON.stringify({
