@@ -1282,6 +1282,7 @@ export type Database = {
           payment_id: string | null
           payment_status: string
           status: string
+          stock_processed_at: string | null
           total_amount: number
           updated_at: string
           user_id: string
@@ -1301,6 +1302,7 @@ export type Database = {
           payment_id?: string | null
           payment_status?: string
           status?: string
+          stock_processed_at?: string | null
           total_amount?: number
           updated_at?: string
           user_id: string
@@ -1320,6 +1322,7 @@ export type Database = {
           payment_id?: string | null
           payment_status?: string
           status?: string
+          stock_processed_at?: string | null
           total_amount?: number
           updated_at?: string
           user_id?: string
@@ -1351,6 +1354,10 @@ export type Database = {
         Returns: boolean
       }
       prevent_live_demo_reset: { Args: { _user_id: string }; Returns: boolean }
+      process_paid_webshop_order_stock: {
+        Args: { _order_id: string }
+        Returns: boolean
+      }
       user_row_matches_active_mode: {
         Args: { _row_is_demo: boolean; _row_user_id: string }
         Returns: boolean
