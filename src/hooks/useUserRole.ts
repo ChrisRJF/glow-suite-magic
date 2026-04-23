@@ -68,6 +68,7 @@ export const ROUTE_PERMISSIONS: Record<string, AppRole[]> = {
   "/instellingen": ["eigenaar", "manager", "admin", "financieel"],
   "/support": ["eigenaar", "manager", "admin", "medewerker", "financieel", "receptie"],
   "/launch-status": ["eigenaar"],
+  "/qa-status": ["eigenaar", "manager", "admin"],
 };
 
 export function canAccessRoute(path: string, roles: AppRole[]): boolean {

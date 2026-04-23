@@ -35,6 +35,7 @@ import WebshopPage from "./pages/WebshopPage";
 import SocialStudioPage from "./pages/SocialStudioPage";
 import LeadsPage from "./pages/LeadsPage";
 import EigenaarPage from "./pages/EigenaarPage";
+import QAStatusPage from "./pages/QAStatusPage";
 import { useLeadAutomation } from "@/hooks/useLeadAutomation";
 import { OnboardingGate } from "@/components/OnboardingGate";
 import { GuidedTour } from "@/components/GuidedTour";
@@ -94,6 +95,7 @@ const App = () => (
               <Route path="/eigenaar" element={<RoleProtectedRoute allow={["eigenaar","manager"]}><EigenaarPage /></RoleProtectedRoute>} />
               <Route path="/support" element={<RoleProtectedRoute><SupportPage /></RoleProtectedRoute>} />
               <Route path="/launch-status" element={<RoleProtectedRoute allow={["eigenaar"]}><LaunchStatusPage /></RoleProtectedRoute>} />
+              <Route path="/qa-status" element={<RoleProtectedRoute allow={["eigenaar","manager","admin"]}><QAStatusPage /></RoleProtectedRoute>} />
               <Route path="*" element={<RoleProtectedRoute><NotFound /></RoleProtectedRoute>} />
             </Routes>
           </BrowserRouter>

@@ -194,6 +194,21 @@ export function AppSidebar() {
               <span>Launch Status</span>
             </Link>
           )}
+          {roles.some((role) => ["eigenaar", "manager", "admin"].includes(role)) && (
+            <Link
+              to="/qa-status"
+              onClick={() => setMobileOpen(false)}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all",
+                location.pathname === "/qa-status"
+                  ? "bg-primary/15 text-primary font-medium"
+                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+              )}
+            >
+              <Settings className="w-[18px] h-[18px]" />
+              <span>QA Status</span>
+            </Link>
+          )}
           {visibleBottom.map((item) => {
             const isActive = location.pathname === item.path;
             return (
