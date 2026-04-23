@@ -141,8 +141,8 @@ export default function MembershipsPage() {
                 </li>
               ))}
             </ul>
-            <Button variant={plan.popular ? 'gradient' : 'outline'} className="w-full">
-              Selecteren
+            <Button variant={plan.popular ? 'gradient' : 'outline'} className="w-full" disabled>
+              Binnenkort beschikbaar
             </Button>
           </div>
         ))}
