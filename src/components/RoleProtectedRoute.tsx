@@ -32,15 +32,18 @@ export function RoleProtectedRoute({ children, allow }: Props) {
     : canAccessRoute(location.pathname, roles);
 
   if (!allowed) {
+    const hasNoRole = roles.length === 0;
     return (
-      <AppLayout title="Geen toegang" subtitle="Je hebt geen rechten voor deze pagina">
+      <AppLayout title="Geen toegang" subtitle={hasNoRole ? "Je account heeft nog geen rechten" : "Je hebt geen rechten voor deze pagina"}>
         <div className="flex flex-col items-center justify-center text-center py-16 max-w-md mx-auto">
           <div className="w-16 h-16 rounded-2xl bg-destructive/10 flex items-center justify-center mb-4">
             <ShieldAlert className="w-8 h-8 text-destructive" />
           </div>
           <h2 className="text-lg font-semibold mb-2">Geen toegang tot deze pagina</h2>
           <p className="text-sm text-muted-foreground mb-6">
-            Je huidige rol ({roles.join(", ") || "geen"}) heeft geen toegang tot dit gedeelte. Vraag de eigenaar om je rechten aan te passen.
+            {hasNoRole
+              ? "Je account heeft nog geen rechten. Neem contact op met de eigenaar."
+              : `Je huidige rol (${roles.join(", ")}) heeft geen toegang tot dit gedeelte. Vraag de eigenaar om je rechten aan te passen.`}
           </p>
           <Link to="/"><Button variant="gradient" size="sm">Terug naar overzicht</Button></Link>
         </div>
