@@ -94,6 +94,17 @@ Deno.serve(async (req) => {
     const settings = await getSalon(supabase, parsed.data.slug);
     if (!settings) return json({ error: "Deze membershippagina bestaat niet." }, 404);
 
+    const branding = settings.whitelabel_branding || {};
+    const membershipFeatures = {
+      white_label_signup: true,
+      member_portal: true,
+      ...(branding.membership_features || {}),
+    };
+
+    if (!membershipFeatures.white_label_signup || !membershipFeatures.member_portal) {
+      return json({ error: "Deze membershippagina is nog niet actief." }, 404);
+    }
+
     const { data: plans, error: planError } = await supabase
       .from("membership_plans")
       .select("id, name, description, price, billing_interval, benefits, included_treatments, discount_percentage, priority_booking")
@@ -103,7 +114,6 @@ Deno.serve(async (req) => {
       .order("price", { ascending: true });
     if (planError) throw planError;
 
-    const branding = settings.whitelabel_branding || {};
     if (parsed.data.action === "get_memberships") {
       return json({ salon: { name: settings.salon_name || branding.salon_name || "Salon", primary_color: branding.primary_color || "#7B61FF", secondary_color: branding.secondary_color || "#C850C0" }, plans: plans || [] });
     }
