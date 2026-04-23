@@ -14,6 +14,7 @@ import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useUserRole } from "@/hooks/useUserRole";
+import { supabase } from "@/integrations/supabase/client";
 
 type TabType = "overzicht" | "betalingen" | "regels" | "betaallinks";
 
@@ -69,8 +70,13 @@ export default function GlowPayPage() {
 
   const handleRefund = async (id: string) => {
     if (!can("payments:refund")) { toast.error("Alleen eigenaren kunnen terugbetalingen registreren."); return; }
-    await updatePayment(id, { status: "refunded" });
-    toast.success("Terugbetaling geregistreerd (demo)");
+    const { data: { session } } = await supabase.auth.getSession();
+    const { data, error } = await supabase.functions.invoke("mollie-connect", {
+      body: { action: "refund", payment_id: id, reason: "Terugbetaling via GlowPay" },
+      headers: { Authorization: `Bearer ${session?.access_token}` },
+    });
+    if (error || (data as any)?.error) { toast.error((data as any)?.error || "Terugbetaling mislukt."); return; }
+    toast.success("Terugbetaling gestart via Mollie");
     refetchPayments();
   };
 

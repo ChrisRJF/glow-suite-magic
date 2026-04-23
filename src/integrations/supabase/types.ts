@@ -503,6 +503,114 @@ export type Database = {
         }
         Relationships: []
       }
+      mollie_connections: {
+        Row: {
+          account_name: string | null
+          connected_at: string
+          created_at: string
+          disconnected_at: string | null
+          id: string
+          is_active: boolean
+          is_demo: boolean
+          last_sync_at: string | null
+          metadata: Json
+          mollie_access_token: string
+          mollie_access_token_expires_at: string | null
+          mollie_mode: string
+          mollie_organization_id: string | null
+          mollie_refresh_token: string
+          onboarding_status: string
+          organization_name: string | null
+          salon_id: string
+          supported_methods: Json
+          updated_at: string
+          user_id: string
+          webhook_status: string
+        }
+        Insert: {
+          account_name?: string | null
+          connected_at?: string
+          created_at?: string
+          disconnected_at?: string | null
+          id?: string
+          is_active?: boolean
+          is_demo?: boolean
+          last_sync_at?: string | null
+          metadata?: Json
+          mollie_access_token: string
+          mollie_access_token_expires_at?: string | null
+          mollie_mode?: string
+          mollie_organization_id?: string | null
+          mollie_refresh_token: string
+          onboarding_status?: string
+          organization_name?: string | null
+          salon_id: string
+          supported_methods?: Json
+          updated_at?: string
+          user_id: string
+          webhook_status?: string
+        }
+        Update: {
+          account_name?: string | null
+          connected_at?: string
+          created_at?: string
+          disconnected_at?: string | null
+          id?: string
+          is_active?: boolean
+          is_demo?: boolean
+          last_sync_at?: string | null
+          metadata?: Json
+          mollie_access_token?: string
+          mollie_access_token_expires_at?: string | null
+          mollie_mode?: string
+          mollie_organization_id?: string | null
+          mollie_refresh_token?: string
+          onboarding_status?: string
+          organization_name?: string | null
+          salon_id?: string
+          supported_methods?: Json
+          updated_at?: string
+          user_id?: string
+          webhook_status?: string
+        }
+        Relationships: []
+      }
+      mollie_oauth_states: {
+        Row: {
+          consumed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          is_demo: boolean
+          redirect_to: string | null
+          salon_id: string
+          state: string
+          user_id: string
+        }
+        Insert: {
+          consumed_at?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          is_demo?: boolean
+          redirect_to?: string | null
+          salon_id: string
+          state: string
+          user_id: string
+        }
+        Update: {
+          consumed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          is_demo?: boolean
+          redirect_to?: string | null
+          salon_id?: string
+          state?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       payment_links: {
         Row: {
           amount: number
@@ -559,6 +667,51 @@ export type Database = {
           },
         ]
       }
+      payment_refunds: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          id: string
+          is_demo: boolean
+          metadata: Json
+          mollie_refund_id: string | null
+          payment_id: string
+          reason: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          is_demo?: boolean
+          metadata?: Json
+          mollie_refund_id?: string | null
+          payment_id: string
+          reason?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          is_demo?: boolean
+          metadata?: Json
+          mollie_refund_id?: string | null
+          payment_id?: string
+          reason?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       payments: {
         Row: {
           amount: number
@@ -570,13 +723,18 @@ export type Database = {
           failure_reason: string | null
           id: string
           is_demo: boolean
+          last_status_sync_at: string | null
+          membership_id: string | null
           metadata: Json | null
           method: string | null
+          mollie_method: string | null
           mollie_payment_id: string | null
+          order_id: string | null
           paid_at: string | null
           payment_method: string | null
           payment_type: string
           provider: string | null
+          refunded_amount: number
           status: string
           updated_at: string
           user_id: string
@@ -592,13 +750,18 @@ export type Database = {
           failure_reason?: string | null
           id?: string
           is_demo?: boolean
+          last_status_sync_at?: string | null
+          membership_id?: string | null
           metadata?: Json | null
           method?: string | null
+          mollie_method?: string | null
           mollie_payment_id?: string | null
+          order_id?: string | null
           paid_at?: string | null
           payment_method?: string | null
           payment_type?: string
           provider?: string | null
+          refunded_amount?: number
           status?: string
           updated_at?: string
           user_id: string
@@ -614,13 +777,18 @@ export type Database = {
           failure_reason?: string | null
           id?: string
           is_demo?: boolean
+          last_status_sync_at?: string | null
+          membership_id?: string | null
           metadata?: Json | null
           method?: string | null
+          mollie_method?: string | null
           mollie_payment_id?: string | null
+          order_id?: string | null
           paid_at?: string | null
           payment_method?: string | null
           payment_type?: string
           provider?: string | null
+          refunded_amount?: number
           status?: string
           updated_at?: string
           user_id?: string

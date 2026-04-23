@@ -90,3 +90,11 @@ export function usePaymentLinks() {
 export function useLeads() {
   return useSupabaseQuery("leads");
 }
+
+export function useMollieConnections() {
+  return useSupabaseQuery("mollie_connections" as TableName);
+}
+
+export function usePaymentRefunds() {
+  return useSupabaseQuery("payment_refunds" as TableName);
+}

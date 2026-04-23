@@ -10,10 +10,32 @@ const BodySchema = z.object({
   appointment_id: z.string().uuid().optional().nullable(),
   customer_id: z.string().uuid().optional().nullable(),
   amount: z.number().positive().max(100000),
-  payment_type: z.enum(["deposit", "full", "remainder"]).optional().default("deposit"),
-  method: z.enum(["ideal", "bancontact", "creditcard", "applepay", "paypal"]).optional().default("ideal"),
+  payment_type: z.enum(["deposit", "full", "remainder", "webshop", "membership"]).optional().default("deposit"),
+  method: z.enum(["ideal", "bancontact", "creditcard", "applepay", "paypal", "banktransfer"]).optional().default("ideal"),
   is_demo: z.boolean().optional(),
 });
+
+const REDIRECT_BASE = "https://glowsuite.nl";
+
+async function refreshConnection(admin: ReturnType<typeof createClient>, connection: any) {
+  if (connection.mollie_access_token_expires_at && new Date(connection.mollie_access_token_expires_at).getTime() > Date.now() + 120000) return connection;
+  const clientId = Deno.env.get("MOLLIE_CLIENT_ID");
+  const clientSecret = Deno.env.get("MOLLIE_CLIENT_SECRET");
+  if (!clientId || !clientSecret) throw new Error("Mollie Connect is niet volledig geconfigureerd.");
+  const response = await fetch("https://api.mollie.com/oauth2/tokens", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: connection.mollie_refresh_token, client_id: clientId, client_secret: clientSecret }),
+  });
+  const token = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    await admin.from("mollie_connections").update({ onboarding_status: "refresh_failed", is_active: false, disconnected_at: new Date().toISOString() }).eq("id", connection.id);
+    throw new Error("Mollie account is verlopen. Koppel Mollie opnieuw.");
+  }
+  const expiresAt = new Date(Date.now() + Math.max(60, Number(token.expires_in || 3600) - 120) * 1000).toISOString();
+  await admin.from("mollie_connections").update({ mollie_access_token: token.access_token, mollie_refresh_token: token.refresh_token || connection.mollie_refresh_token, mollie_access_token_expires_at: expiresAt, last_sync_at: new Date().toISOString() }).eq("id", connection.id);
+  return { ...connection, mollie_access_token: token.access_token, mollie_refresh_token: token.refresh_token || connection.mollie_refresh_token, mollie_access_token_expires_at: expiresAt };
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -28,6 +50,7 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey, {
       global: { headers: { Authorization: authHeader || "" } },
     });
+    const admin = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
@@ -63,7 +86,7 @@ Deno.serve(async (req) => {
     // Check if demo mode
     const { data: settings } = await supabase
       .from("settings")
-      .select("demo_mode, is_demo, mollie_mode")
+      .select("id, demo_mode, is_demo, mollie_mode")
       .eq("user_id", user.id)
       .maybeSingle();
 
@@ -120,29 +143,36 @@ Deno.serve(async (req) => {
       });
     }
 
-    const mollieApiKey = Deno.env.get("MOLLIE_API_KEY");
+    const { data: rawConnection } = await admin
+      .from("mollie_connections")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("salon_id", (settings as any)?.id)
+      .eq("is_active", true)
+      .is("disconnected_at", null)
+      .maybeSingle();
 
-    if (!mollieApiKey) {
-      return new Response(JSON.stringify({
-        error: "Mollie API key niet geconfigureerd. Gebruik demo modus.",
-        requiresSetup: true
-      }), {
+    if (!rawConnection) {
+      return new Response(JSON.stringify({ error: "Mollie account is nog niet gekoppeld.", requiresSetup: true }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    const connection = await refreshConnection(admin, rawConnection);
 
     const mollieResponse = await fetch("https://api.mollie.com/v2/payments", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${mollieApiKey}`,
+        Authorization: `Bearer ${connection.mollie_access_token}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
         amount: { currency: "EUR", value: amount.toFixed(2) },
         description: `GlowSuite ${payment_type === "deposit" ? "Aanbetaling" : "Betaling"}`,
-        redirectUrl: `${req.headers.get("origin") || supabaseUrl}/boeken?status=complete`,
+        redirectUrl: `${REDIRECT_BASE}/boeken?status=payment-return`,
+        webhookUrl: `${supabaseUrl}/functions/v1/mollie-webhook`,
         method,
+        metadata: { appointment_id, customer_id, salon_id: user.id, payment_type },
       }),
     });
 
@@ -167,7 +197,9 @@ Deno.serve(async (req) => {
         payment_type,
         status: "pending",
         method,
+        mollie_method: method,
         is_demo: false,
+        provider: "mollie",
       })
       .select()
       .single();

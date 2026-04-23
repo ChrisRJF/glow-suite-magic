@@ -61,7 +61,7 @@ async function getSalon(supabase: ReturnType<typeof createClient>, slug: string)
   const normalized = slugify(slug);
   const { data: settingsRows, error } = await supabase
     .from("settings")
-    .select("user_id, salon_name, opening_hours, demo_mode, is_demo, deposit_new_client, deposit_percentage, full_prepay_threshold, skip_prepay_vip, deposit_noshow_risk, group_bookings_enabled, mollie_mode, whitelabel_branding, public_slug, show_prices_online, public_employees_enabled, cancellation_notice")
+    .select("id, user_id, salon_name, opening_hours, demo_mode, is_demo, deposit_new_client, deposit_percentage, full_prepay_threshold, skip_prepay_vip, deposit_noshow_risk, group_bookings_enabled, mollie_mode, whitelabel_branding, public_slug, show_prices_online, public_employees_enabled, cancellation_notice")
     .or(`public_slug.eq.${normalized},public_slug.eq.${slug}`)
     .limit(1);
 
@@ -71,7 +71,7 @@ async function getSalon(supabase: ReturnType<typeof createClient>, slug: string)
   if (!settings) {
     const { data: fallbackRows } = await supabase
       .from("settings")
-      .select("user_id, salon_name, opening_hours, demo_mode, is_demo, deposit_new_client, deposit_percentage, full_prepay_threshold, skip_prepay_vip, deposit_noshow_risk, group_bookings_enabled, mollie_mode, whitelabel_branding, public_slug, show_prices_online, public_employees_enabled, cancellation_notice")
+      .select("id, user_id, salon_name, opening_hours, demo_mode, is_demo, deposit_new_client, deposit_percentage, full_prepay_threshold, skip_prepay_vip, deposit_noshow_risk, group_bookings_enabled, mollie_mode, whitelabel_branding, public_slug, show_prices_online, public_employees_enabled, cancellation_notice")
       .limit(200);
     settings = fallbackRows?.find((row: any) => slugify(row.salon_name || "") === normalized);
   }
@@ -171,29 +171,38 @@ async function assertAvailability(supabase: ReturnType<typeof createClient>, use
   return true;
 }
 
-async function createMolliePayment(args: { req: Request; amount: number; paymentType: string; method: string; appointmentId: string; customerId: string; salonId: string; bookingToken: string; isDemo: boolean }) {
+async function createMolliePayment(args: { req: Request; supabase: ReturnType<typeof createClient>; amount: number; paymentType: string; method: string; appointmentId: string; customerId: string; salonId: string; salonOwnerId: string; settingsId: string; bookingToken: string; isDemo: boolean }) {
   if (args.isDemo) {
     return { demo: true, status: "paid", mollieId: `demo_${crypto.randomUUID().slice(0, 8)}`, checkoutUrl: null };
   }
 
-  const mollieApiKey = Deno.env.get("MOLLIE_API_KEY");
-  if (!mollieApiKey) {
-    return { setupError: "Mollie is nog niet geconfigureerd. Je afspraak is opgeslagen, maar betaling kon niet worden gestart." };
+  const { data: connection } = await args.supabase
+    .from("mollie_connections")
+    .select("*")
+    .eq("user_id", args.salonOwnerId)
+    .eq("salon_id", args.settingsId)
+    .eq("is_active", true)
+    .is("disconnected_at", null)
+    .maybeSingle();
+  if (!connection) {
+    return { setupError: "Mollie is nog niet gekoppeld. Je afspraak is opgeslagen, maar betaling kon niet worden gestart." };
   }
 
   const origin = args.req.headers.get("origin") || "https://glowsuite.nl";
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const mollieResponse = await fetch("https://api.mollie.com/v2/payments", {
     method: "POST",
-    headers: { Authorization: `Bearer ${mollieApiKey}`, "Content-Type": "application/json" },
+    headers: { Authorization: `Bearer ${(connection as any).mollie_access_token}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       amount: { currency: "EUR", value: args.amount.toFixed(2) },
       description: `GlowSuite ${args.paymentType === "deposit" ? "aanbetaling" : "betaling"}`,
       redirectUrl: `${origin}/boeken/${args.salonId}?status=payment-return&booking=${args.bookingToken}`,
+      webhookUrl: `${supabaseUrl}/functions/v1/mollie-webhook`,
       method: args.method,
       metadata: {
         appointment_id: args.appointmentId,
         customer_id: args.customerId,
-        salon_id: args.salonId,
+        salon_id: args.salonOwnerId,
         booking_token: args.bookingToken,
         payment_type: args.paymentType,
       },
@@ -351,12 +360,15 @@ Deno.serve(async (req) => {
     if (data.payment.required && primaryAppointment) {
       const payment = await createMolliePayment({
         req,
+        supabase,
         amount: data.payment.amount,
         paymentType: data.payment.type,
         method: data.payment.method,
         appointmentId: primaryAppointment.id,
         customerId,
         salonId: ctx.settings.public_slug || slugify(ctx.settings.salon_name || "salon"),
+        salonOwnerId: ctx.settings.user_id,
+        settingsId: ctx.settings.id,
         bookingToken: primaryAppointment.booking_token,
         isDemo: Boolean(ctx.settings.demo_mode),
       });
@@ -376,6 +388,7 @@ Deno.serve(async (req) => {
           payment_type: data.payment.type,
           status: paymentStatus,
           method: data.payment.method,
+          mollie_method: data.payment.method,
           is_demo: Boolean(ctx.settings.demo_mode),
           provider: Boolean(ctx.settings.is_demo || ctx.settings.demo_mode) ? "demo" : "mollie",
           checkout_reference: primaryAppointment.booking_reference,

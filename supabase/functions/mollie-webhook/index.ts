@@ -11,7 +11,7 @@ function json(body: unknown, status = 200) {
 
 function mapPaymentStatus(status: string) {
   if (status === "paid") return { payment_status: "paid", appointment_status: "confirmed", paid_at: new Date().toISOString() };
-  if (["failed", "expired", "canceled"].includes(status)) return { payment_status: "payment_failed", appointment_status: "pending_confirmation", paid_at: null };
+  if (["failed", "expired", "canceled", "cancelled"].includes(status)) return { payment_status: "payment_failed", appointment_status: "pending_confirmation", paid_at: null };
   if (status === "authorized") return { payment_status: "authorized", appointment_status: "pending_confirmation", paid_at: null };
   return { payment_status: "pending", appointment_status: "pending_confirmation", paid_at: null };
 }
@@ -32,29 +32,46 @@ Deno.serve(async (req) => {
 
     if (!molliePaymentId) return json({ error: "Ontbrekende Mollie betaling" }, 400);
 
-    const mollieApiKey = Deno.env.get("MOLLIE_API_KEY");
-    if (!mollieApiKey) return json({ error: "Mollie is niet geconfigureerd" }, 500);
+    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const { data: payment, error: paymentReadError } = await supabase
+      .from("payments")
+      .select("id, user_id, appointment_id, customer_id, amount, metadata, is_demo")
+      .eq("mollie_payment_id", molliePaymentId)
+      .maybeSingle();
+    if (paymentReadError) throw paymentReadError;
+    if (!payment) return json({ error: "Betaling niet gevonden" }, 404);
+
+    if (payment.is_demo) return json({ success: true, demo: true });
+
+    const { data: settings } = await supabase
+      .from("settings")
+      .select("id")
+      .eq("user_id", payment.user_id)
+      .eq("is_demo", false)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const { data: connection } = await supabase
+      .from("mollie_connections")
+      .select("mollie_access_token")
+      .eq("user_id", payment.user_id)
+      .eq("salon_id", settings?.id)
+      .eq("is_active", true)
+      .is("disconnected_at", null)
+      .maybeSingle();
+    if (!connection) return json({ error: "Mollie account is niet verbonden" }, 422);
 
     const mollieResponse = await fetch(`https://api.mollie.com/v2/payments/${molliePaymentId}`, {
-      headers: { Authorization: `Bearer ${mollieApiKey}` },
+      headers: { Authorization: `Bearer ${(connection as any).mollie_access_token}` },
     });
     const molliePayment = await mollieResponse.json();
     if (!mollieResponse.ok) return json({ error: "Mollie betaling kon niet worden opgehaald" }, 502);
 
-    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const status = String(molliePayment.status || "pending");
     const mapped = mapPaymentStatus(status);
     const metadata = molliePayment.metadata || {};
-
-    const { data: payment, error: paymentReadError } = await supabase
-      .from("payments")
-      .select("id, appointment_id, customer_id, amount, metadata")
-      .eq("mollie_payment_id", molliePaymentId)
-      .maybeSingle();
-    if (paymentReadError) throw paymentReadError;
-
-    const appointmentId = payment?.appointment_id || metadata.appointment_id;
-    if (!appointmentId) return json({ error: "Geen afspraak gekoppeld aan betaling" }, 422);
+    const appointmentId = payment.appointment_id || metadata.appointment_id;
 
     const { error: paymentUpdateError } = await supabase
       .from("payments")
@@ -62,29 +79,22 @@ Deno.serve(async (req) => {
         status,
         paid_at: mapped.paid_at,
         webhook_received_at: new Date().toISOString(),
-        failure_reason: ["failed", "expired", "canceled"].includes(status) ? status : null,
-        metadata: { ...(payment?.metadata || {}), ...metadata, mollie_status: status },
+        last_status_sync_at: new Date().toISOString(),
+        failure_reason: ["failed", "expired", "canceled", "cancelled"].includes(status) ? status : null,
+        mollie_method: molliePayment.method || null,
+        metadata: { ...(payment.metadata || {}), ...metadata, mollie_status: status, mollie_payload: molliePayment },
       })
-      .eq(payment?.id ? "id" : "mollie_payment_id", payment?.id || molliePaymentId);
+      .eq("id", payment.id);
     if (paymentUpdateError) throw paymentUpdateError;
 
-    const { data: appointment } = await supabase
-      .from("appointments")
-      .select("booking_group_id")
-      .eq("id", appointmentId)
-      .maybeSingle();
-
-    if (appointment?.booking_group_id) {
-      await supabase
-        .from("appointments")
-        .update({ payment_status: mapped.payment_status, status: mapped.appointment_status, amount_paid: status === "paid" ? Number(payment?.amount || 0) : 0 })
-        .eq("booking_group_id", appointment.booking_group_id);
+    if (appointmentId) {
+      const amountPaid = status === "paid" ? Number(payment.amount || 0) : 0;
+      const { data: appointment } = await supabase.from("appointments").select("booking_group_id").eq("id", appointmentId).maybeSingle();
+      if (appointment?.booking_group_id) {
+        await supabase.from("appointments").update({ payment_status: mapped.payment_status, status: mapped.appointment_status, amount_paid: amountPaid }).eq("booking_group_id", appointment.booking_group_id);
+      }
+      await supabase.from("appointments").update({ payment_status: mapped.payment_status, status: mapped.appointment_status, amount_paid: amountPaid }).eq("id", appointmentId);
     }
-
-    await supabase
-      .from("appointments")
-      .update({ payment_status: mapped.payment_status, status: mapped.appointment_status, amount_paid: status === "paid" ? Number(payment?.amount || 0) : 0 })
-      .eq("id", appointmentId);
 
     return json({ success: true });
   } catch (error) {
