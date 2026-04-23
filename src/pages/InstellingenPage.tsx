@@ -81,10 +81,13 @@ export default function InstellingenPage() {
   const [facebookEnabled, setFacebookEnabled] = useState(false);
   const [googleReserve, setGoogleReserve] = useState(false);
   const [widgetEnabled, setWidgetEnabled] = useState(false);
+  const [mollieStatus, setMollieStatus] = useState<any>(null);
+  const [mollieLoading, setMollieLoading] = useState(false);
   const canManageBusiness = hasPermission(roles, "settings:business");
   const canManageFinance = hasPermission(roles, "settings:finance");
   const canManageTeam = hasPermission(roles, "settings:team");
   const canManageIntegrations = hasPermission(roles, "settings:integrations");
+  const canManageMollie = hasPermission(roles, "mollie:manage");
   const canExport = hasPermission(roles, "reports:export");
 
   useEffect(() => {
@@ -119,6 +122,57 @@ export default function InstellingenPage() {
     };
     fetchRoles();
   }, [user]);
+
+  useEffect(() => {
+    if (!user || !canManageIntegrations) return;
+    fetchMollieStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, canManageIntegrations]);
+
+  const callMollieConnect = async (body: Record<string, any>) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const { data, error } = await supabase.functions.invoke("mollie-connect", {
+      body,
+      headers: { Authorization: `Bearer ${session?.access_token}` },
+    });
+    if (error || (data as any)?.error) throw new Error((data as any)?.error || error?.message || "Mollie actie mislukt");
+    return data as any;
+  };
+
+  const fetchMollieStatus = async () => {
+    try {
+      const data = await callMollieConnect({ action: "status" });
+      setMollieStatus(data);
+    } catch {
+      setMollieStatus({ connected: false, error: "Status kon niet worden opgehaald" });
+    }
+  };
+
+  const handleConnectMollie = async () => {
+    if (!canManageMollie) { toast.error("Alleen eigenaren en beheerders kunnen Mollie koppelen."); return; }
+    setMollieLoading(true);
+    try {
+      const data = await callMollieConnect({ action: "start", redirect_to: "/instellingen?tab=integraties" });
+      window.location.href = data.authorizationUrl;
+    } catch (err: any) {
+      toast.error(err.message || "Mollie koppeling kon niet worden gestart.");
+      setMollieLoading(false);
+    }
+  };
+
+  const handleDisconnectMollie = async () => {
+    if (!canManageMollie) { toast.error("Alleen eigenaren en beheerders kunnen Mollie beheren."); return; }
+    setMollieLoading(true);
+    try {
+      await callMollieConnect({ action: "disconnect" });
+      toast.success("Mollie is ontkoppeld");
+      await fetchMollieStatus();
+    } catch (err: any) {
+      toast.error(err.message || "Mollie kon niet worden ontkoppeld.");
+    } finally {
+      setMollieLoading(false);
+    }
+  };
 
   const handleSave = async () => {
     if (saveLoading) return;
