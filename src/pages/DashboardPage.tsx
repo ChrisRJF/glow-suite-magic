@@ -1,7 +1,10 @@
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
-import { useCustomers, useAppointments, useServices, useCampaigns, useLeads } from "@/hooks/useSupabaseData";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useCustomers, useAppointments, useServices, useCampaigns, useLeads, usePaymentRefunds } from "@/hooks/useSupabaseData";
+import { usePayments } from "@/hooks/usePayments";
 import { formatEuro } from "@/lib/data";
+import { buildReports, rangeForPreset, trendClass, trendLabel } from "@/lib/reporting";
 import {
   TrendingUp, Users, Calendar, Euro, Sparkles, ArrowRight, Clock,
   Zap, BarChart3, Award, UserPlus, ChevronDown, AlertTriangle, Star, UserX, Send, RefreshCw,
@@ -15,11 +18,13 @@ import { useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 
 export default function DashboardPage() {
-  const { data: customers } = useCustomers();
-  const { data: appointments } = useAppointments();
-  const { data: services } = useServices();
+  const { data: customers, loading: customersLoading } = useCustomers();
+  const { data: appointments, loading: appointmentsLoading } = useAppointments();
+  const { data: services, loading: servicesLoading } = useServices();
   const { data: campaigns } = useCampaigns();
   const { data: leads } = useLeads();
+  const { data: payments, loading: paymentsLoading } = usePayments();
+  const { data: refunds, loading: refundsLoading } = usePaymentRefunds();
   const { demoMode } = useDemoMode();
   const navigate = useNavigate();
   const [showDetails, setShowDetails] = useState(false);
@@ -28,18 +33,19 @@ export default function DashboardPage() {
     clearLegacyDemoLocalState();
   }, []);
 
+  const reportRange = useMemo(() => rangeForPreset("deze_maand"), []);
+  const report = useMemo(() => buildReports({ appointments, customers, services, payments, refunds, mode: demoMode ? "demo" : "live", from: reportRange.from, to: reportRange.to }), [appointments, customers, services, payments, refunds, demoMode, reportRange.from, reportRange.to]);
+  const loading = customersLoading || appointmentsLoading || servicesLoading || paymentsLoading || refundsLoading;
+
   const todayStr = new Date().toISOString().split("T")[0];
   const todaysAppts = useMemo(
-    () => appointments.filter((a) => a.appointment_date?.startsWith(todayStr)),
-    [appointments, todayStr],
+    () => report.rows.appointments.filter((a) => a.appointment_date?.startsWith(todayStr)),
+    [report.rows.appointments, todayStr],
   );
 
-  const omzetVandaag = useMemo(
-    () => todaysAppts.filter((a) => a.status !== "geannuleerd").reduce((s, a) => s + (Number(a.price) || 0), 0),
-    [todaysAppts],
-  );
+  const omzetVandaag = report.revenue.today;
 
-  const totalSlots = 10;
+  const totalSlots = Math.max(10, todaysAppts.length);
   const bezetting = totalSlots > 0 ? Math.round((todaysAppts.length / totalSlots) * 100) : 0;
   const vrijePlekken = Math.max(0, totalSlots - todaysAppts.length);
 
@@ -79,10 +85,7 @@ export default function DashboardPage() {
     }
   }, [appointments, demoMode]);
 
-  const campaignRevenue = useMemo(() => {
-    const successful = campaigns.filter((c) => c.status === "verzonden" || c.status === "geboekt");
-    return successful.reduce((s, c) => s + (c.sent_count || 0) * 45, 0);
-  }, [campaigns]);
+  const paidRevenueThisMonth = report.revenue.month;
 
   const messagesSent = useMemo(
     () => campaigns.filter((c) => (c.type === "whatsapp" || c.type === "sms") && c.status && c.status !== "concept").length,
@@ -100,17 +103,13 @@ export default function DashboardPage() {
 
   const autoFilledAppts = useMemo(() => appointments.filter((a) => a.notes?.includes("Auto-gevuld")).length, [appointments]);
 
-  const monthlyGrowthRevenue = aiRevenue + campaignRevenue;
-  const missedRevenue = vrijePlekken * 65;
+  const monthlyGrowthRevenue = paidRevenueThisMonth;
 
   const vipCustomers = customers.filter((c) => (Number(c.total_spent) || 0) > 500);
   const newLeads = leads.filter((l) => l.status === "nieuw").length;
   const leadsConverted = leads.filter((l) => l.status === "klant_geworden" || l.status === "geboekt").length;
   const leadsConversionPct = leads.length > 0 ? Math.round((leadsConverted / leads.length) * 100) : 0;
   const leadsRevenue = leadsConverted * 65;
-
-  // Time window context for free slots (KPI storytelling)
-  const freeSlotWindow = vrijePlekken > 0 ? "tussen 13:00–17:00" : null;
 
   return (
     <AppLayout
@@ -202,7 +201,12 @@ export default function DashboardPage() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-36 rounded-2xl" />)}
+          </div>
+        ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
           {/* Omzet vandaag — hero KPI */}
           <button
             onClick={() => navigate("/rapporten?type=omzet")}
@@ -233,36 +237,11 @@ export default function DashboardPage() {
             </div>
           </button>
 
-          {/* Vrije plekken */}
-          <button
-            onClick={() => navigate("/agenda")}
-            className="text-left p-4 sm:p-5 rounded-2xl border border-border/70 bg-card hover:border-warning/30 hover:-translate-y-0.5 transition-all"
-            style={{ boxShadow: "var(--shadow-sm)" }}
-          >
-            <div className="flex items-center gap-2 mb-2.5">
-              <Clock className={`w-4 h-4 ${vrijePlekken > 3 ? "text-destructive" : "text-warning"}`} />
-              <span className="text-eyebrow">Vrije plekken</span>
-            </div>
-            <p className="text-metric-sm">
-              <AnimatedCounter value={vrijePlekken} />
-            </p>
-            <div className="mt-2 space-y-1">
-              {vrijePlekken > 0 ? (
-                <>
-                  <span className="inline-block text-[11px] font-bold text-warning bg-warning/12 px-2 py-0.5 rounded-md">
-                    +{formatEuro(missedRevenue)} kans vandaag
-                  </span>
-                  <p className="text-meta">
-                    {freeSlotWindow ? `Open ${freeSlotWindow}` : "Open omzet vandaag"}
-                  </p>
-                </>
-              ) : (
-                <p className="text-meta text-success font-medium">Agenda is vol — sterk werk ✨</p>
-              )}
-            </div>
-          </button>
+          <DashboardKpi icon={Calendar} label="Afspraken vandaag" value={String(report.appointments.today)} trend={trendLabel(report.appointments.trend)} trendValue={report.appointments.trend} onClick={() => navigate("/agenda")} />
+          <DashboardKpi icon={UserPlus} label="Nieuwe klanten" value={String(report.customers.newThisMonth)} trend={trendLabel(report.customers.trend)} trendValue={report.customers.trend} onClick={() => navigate("/klanten")} />
+          <DashboardKpi icon={Euro} label="Openstaand bedrag" value={formatEuro(report.revenue.openAmount)} trend={`${report.rows.openAppointments.length} open`} onClick={() => navigate("/glowpay")} />
 
-          {/* No-show risico morgen */}
+          {/* No-show risico */}
           <button
             onClick={() => navigate("/whatsapp")}
             className="text-left p-4 sm:p-5 rounded-2xl border border-border/70 bg-card hover:border-destructive/30 hover:-translate-y-0.5 transition-all"
@@ -292,6 +271,7 @@ export default function DashboardPage() {
             </div>
           </button>
         </div>
+        )}
       </section>
 
       {/* ═══════════ BELOW THE FOLD: Autopilot + ROI ═══════════ */}
@@ -434,5 +414,20 @@ export default function DashboardPage() {
         )}
       </section>
     </AppLayout>
+  );
+}
+
+function DashboardKpi({ icon: Icon, label, value, trend, trendValue, onClick }: { icon: React.ElementType; label: string; value: string; trend: string; trendValue?: number; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="text-left p-4 sm:p-5 rounded-2xl border border-border/70 bg-card hover:border-primary/30 hover:-translate-y-0.5 transition-all" style={{ boxShadow: "var(--shadow-sm)" }}>
+      <div className="flex items-center justify-between gap-2 mb-2.5">
+        <div className="flex items-center gap-2 min-w-0">
+          <Icon className="w-4 h-4 text-primary flex-shrink-0" />
+          <span className="text-eyebrow truncate">{label}</span>
+        </div>
+        <span className={cn("text-[11px] font-semibold px-2 py-0.5 rounded-md flex-shrink-0", typeof trendValue === "number" ? trendClass(trendValue) : "text-muted-foreground bg-secondary/50")}>{trend}</span>
+      </div>
+      <p className="text-metric-sm break-words">{value}</p>
+    </button>
   );
 }
