@@ -83,6 +83,7 @@ export default function InstellingenPage() {
   const [widgetEnabled, setWidgetEnabled] = useState(false);
   const [mollieStatus, setMollieStatus] = useState<any>(null);
   const [mollieLoading, setMollieLoading] = useState(false);
+  const [mollieTestLoading, setMollieTestLoading] = useState(false);
   const canManageBusiness = hasPermission(roles, "settings:business");
   const canManageFinance = hasPermission(roles, "settings:finance");
   const canManageTeam = hasPermission(roles, "settings:team");
@@ -145,6 +146,56 @@ export default function InstellingenPage() {
       setMollieStatus(data);
     } catch {
       setMollieStatus({ connected: false, error: "Status kon niet worden opgehaald" });
+    }
+  };
+
+  const mollieMethods = (mollieStatus?.connection?.supported_methods || []) as any[];
+  const preferredTestMethod = mollieMethods.find((m) => m.id === "ideal")?.id || mollieMethods[0]?.id || "ideal";
+
+  const handleSyncMollieMethods = async () => {
+    if (!canManageMollie) { toast.error("Alleen eigenaren en beheerders kunnen Mollie beheren."); return; }
+    setMollieLoading(true);
+    try {
+      const data = await callMollieConnect({ action: "sync_methods" });
+      setMollieStatus((prev: any) => ({ ...(prev || {}), connected: true, connection: data.connection }));
+      toast.success("Betaalmethoden gesynchroniseerd");
+    } catch (err: any) {
+      toast.error(err.message || "Betaalmethoden synchroniseren mislukt.");
+    } finally {
+      setMollieLoading(false);
+    }
+  };
+
+  const handleOneEuroLiveTest = async () => {
+    if (!canManageMollie) { toast.error("Alleen eigenaren en beheerders kunnen Mollie testen."); return; }
+    setMollieTestLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const { data, error } = await supabase.functions.invoke("create-payment", {
+        body: { amount: 1, payment_type: "full", method: preferredTestMethod, is_demo: false },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (error || (data as any)?.error) throw new Error((data as any)?.error || error?.message || "Testbetaling kon niet worden gestart.");
+      window.location.href = (data as any).checkoutUrl;
+    } catch (err: any) {
+      toast.error(err.message || "€1 testbetaling kon niet worden gestart.");
+      setMollieTestLoading(false);
+    }
+  };
+
+  const handleRefundOneEuroTest = async () => {
+    if (!canManageMollie) { toast.error("Alleen eigenaren en beheerders kunnen terugbetalingen testen."); return; }
+    setMollieTestLoading(true);
+    try {
+      const { data: payment, error: readError } = await (supabase as any).from("payments").select("id").eq("amount", 1).eq("status", "paid").eq("is_demo", false).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      if (readError) throw readError;
+      if (!payment) throw new Error("Geen betaalde €1 testbetaling gevonden om terug te betalen.");
+      await callMollieConnect({ action: "refund", payment_id: payment.id, reason: "€1 live test refund" });
+      toast.success("€1 testterugbetaling gestart");
+    } catch (err: any) {
+      toast.error(err.message || "Testterugbetaling mislukt.");
+    } finally {
+      setMollieTestLoading(false);
     }
   };
 
