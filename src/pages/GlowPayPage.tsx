@@ -294,17 +294,17 @@ export default function GlowPayPage() {
                   </p>
                   {selectedPayment === p.id && (
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {p.status === "pending" && (
+                      {p.status === "pending" && can("payments:update") && (
                         <Button variant="gradient" size="sm" onClick={(e) => { e.stopPropagation(); handleMarkPaid(p.id); }}>
                           <CheckCircle2 className="w-3.5 h-3.5" /> Markeer betaald
                         </Button>
                       )}
-                      {p.status === "failed" && (
+                      {p.status === "failed" && can("payments:update") && (
                         <Button variant="gradient" size="sm" onClick={(e) => { e.stopPropagation(); handleRetry(p.id); }}>
                           <RotateCcw className="w-3.5 h-3.5" /> Opnieuw proberen
                         </Button>
                       )}
-                      {p.status === "paid" && (
+                      {p.status === "paid" && can("payments:refund") && (
                         <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleRefund(p.id); }}>
                           <RotateCcw className="w-3.5 h-3.5" /> Terugbetalen
                         </Button>
@@ -392,11 +392,13 @@ export default function GlowPayPage() {
 
           <div className="space-y-4">
             {/* Action button */}
-            <div className="flex justify-end">
-              <Button variant="gradient" size="sm" onClick={() => setShowLinkForm(true)}>
-                <Plus className="w-4 h-4" /> Nieuw betaalverzoek
-              </Button>
-            </div>
+            {can("payments:links") && (
+              <div className="flex justify-end">
+                <Button variant="gradient" size="sm" onClick={() => setShowLinkForm(true)}>
+                  <Plus className="w-4 h-4" /> Nieuw betaalverzoek
+                </Button>
+              </div>
+            )}
 
             {/* Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
