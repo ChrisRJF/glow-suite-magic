@@ -132,6 +132,7 @@ export default function InstellingenPage() {
 
   const callMollieConnect = async (body: Record<string, any>) => {
     const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) throw new Error("Je sessie is verlopen. Log opnieuw in.");
     const { data, error } = await supabase.functions.invoke("mollie-connect", {
       body,
       headers: { Authorization: `Bearer ${session?.access_token}` },
@@ -158,7 +159,9 @@ export default function InstellingenPage() {
     try {
       const data = await callMollieConnect({ action: "sync_methods" });
       setMollieStatus((prev: any) => ({ ...(prev || {}), connected: true, connection: data.connection }));
-      toast.success("Betaalmethoden gesynchroniseerd");
+      await fetchMollieStatus();
+      const count = (data.connection?.supported_methods || []).length;
+      toast.success(count > 0 ? `${count} betaalmethoden gesynchroniseerd` : "Geen actieve betaalmethoden gevonden");
     } catch (err: any) {
       toast.error(err.message || "Betaalmethoden synchroniseren mislukt.");
     } finally {
@@ -670,7 +673,9 @@ export default function InstellingenPage() {
                   {mollieStatus?.connected ? "Opnieuw verbinden" : "Koppel Mollie"}
                 </Button>
                 {mollieStatus?.connected && <Button variant="outline" size="sm" onClick={handleDisconnectMollie} disabled={mollieLoading}>Ontkoppelen</Button>}
-                {mollieStatus?.connected && <Button variant="outline" size="sm" onClick={handleSyncMollieMethods} disabled={mollieLoading}>Methoden syncen</Button>}
+                {mollieStatus?.connected && <Button variant="outline" size="sm" onClick={handleSyncMollieMethods} disabled={mollieLoading}>
+                  {mollieLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Methoden syncen
+                </Button>}
                 {mollieStatus?.connected && canManageMollie && (
                   <>
                     <Button variant="outline" size="sm" onClick={handleOneEuroLiveTest} disabled={mollieTestLoading || mollieStatus.connection?.mollie_mode !== "live"}>
