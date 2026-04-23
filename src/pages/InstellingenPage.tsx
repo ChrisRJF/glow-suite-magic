@@ -586,6 +586,39 @@ export default function InstellingenPage() {
         {activeTab === "integraties" && (
           <div className="space-y-3">
             <h3 className="text-sm font-semibold flex items-center gap-2"><Plug className="w-4 h-4 text-primary" /> Integraties</h3>
+            <div className="glass-card p-4 flex flex-col gap-4 border border-primary/10">
+              <div className="flex items-start gap-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${mollieStatus?.connected ? "bg-success/15" : "bg-secondary/50"}`}>
+                  <CreditCard className={`w-5 h-5 ${mollieStatus?.connected ? "text-success" : "text-muted-foreground"}`} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-medium">Mollie Connect</p>
+                    <span className={`px-2 py-0.5 rounded-lg text-[11px] font-semibold ${mollieStatus?.connected ? "bg-success/15 text-success" : "bg-secondary text-muted-foreground"}`}>
+                      {mollieStatus?.connected ? "Verbonden" : "Niet verbonden"}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">Salons ontvangen betalingen rechtstreeks op hun eigen Mollie account</p>
+                </div>
+              </div>
+              {mollieStatus?.connected && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-muted-foreground">
+                  <div className="p-2 rounded-lg bg-secondary/40">Account: <span className="text-foreground font-medium">{mollieStatus.connection?.organization_name || mollieStatus.connection?.account_name}</span></div>
+                  <div className="p-2 rounded-lg bg-secondary/40">Modus: <span className="text-foreground font-medium">{mollieStatus.connection?.mollie_mode || mollieMode}</span></div>
+                  <div className="p-2 rounded-lg bg-secondary/40">Webhook: <span className="text-foreground font-medium">{mollieStatus.connection?.webhook_status || "unknown"}</span></div>
+                  <div className="p-2 rounded-lg bg-secondary/40">Laatste sync: <span className="text-foreground font-medium">{mollieStatus.connection?.last_sync_at ? new Date(mollieStatus.connection.last_sync_at).toLocaleDateString("nl-NL") : "—"}</span></div>
+                  <div className="sm:col-span-2 p-2 rounded-lg bg-secondary/40">Methoden: <span className="text-foreground font-medium">{(mollieStatus.connection?.supported_methods || []).map((m: any) => m.description || m.id).join(", ") || "Nog niet gesynchroniseerd"}</span></div>
+                </div>
+              )}
+              {mollieStatus?.demo && <div className="p-3 rounded-xl bg-secondary/50 text-xs text-muted-foreground">Demo modus gebruikt geen echte Mollie-koppeling en simuleert betalingen veilig.</div>}
+              <div className="flex gap-2 flex-wrap">
+                <Button variant="gradient" size="sm" onClick={handleConnectMollie} disabled={mollieLoading || mollieStatus?.demo}>
+                  {mollieLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
+                  {mollieStatus?.connected ? "Opnieuw verbinden" : "Koppel Mollie"}
+                </Button>
+                {mollieStatus?.connected && <Button variant="outline" size="sm" onClick={handleDisconnectMollie} disabled={mollieLoading}>Ontkoppelen</Button>}
+              </div>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {integrations.map((intg, i) => (
                 <div key={i} className="glass-card p-4 flex flex-col gap-3">
