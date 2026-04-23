@@ -10,11 +10,20 @@ const REDIRECT_URI = "https://glowsuite.nl/integrations/mollie/callback";
 const MOLLIE_API = "https://api.mollie.com/v2";
 const MOLLIE_AUTH = "https://www.mollie.com/oauth2/authorize";
 const ALLOWED_METHODS = ["ideal", "bancontact", "creditcard", "applepay", "paypal", "banktransfer"];
+const METHOD_LABELS: Record<string, string> = {
+  ideal: "iDEAL",
+  bancontact: "Bancontact",
+  creditcard: "Creditcard",
+  applepay: "Apple Pay",
+  paypal: "PayPal",
+  banktransfer: "SEPA overboeking",
+};
 
 const BodySchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("status") }),
   z.object({ action: z.literal("start"), redirect_to: z.string().optional() }),
   z.object({ action: z.literal("callback"), code: z.string().min(8), state: z.string().min(16) }),
+  z.object({ action: z.literal("sync_methods") }),
   z.object({ action: z.literal("disconnect") }),
   z.object({ action: z.literal("refund"), payment_id: z.string().uuid(), reason: z.string().max(300).optional() }),
 ]);
@@ -73,10 +82,10 @@ async function exchangeToken(body: Record<string, string>) {
 
 async function syncConnectionDetails(accessToken: string) {
   const organization = await mollieFetch("/organizations/me", accessToken).catch(() => null);
-  const methodsData = await mollieFetch("/methods?resource=payments&locale=nl_NL", accessToken).catch(() => ({ _embedded: { methods: [] } }));
+  const methodsData = await mollieFetch("/methods?resource=payments&sequenceType=oneoff&locale=nl_NL", accessToken).catch(() => ({ _embedded: { methods: [] } }));
   const methods = ((methodsData as any)?._embedded?.methods || [])
     .filter((method: any) => ALLOWED_METHODS.includes(method.id) && method.status !== "disabled")
-    .map((method: any) => ({ id: method.id, description: method.description, status: method.status }));
+    .map((method: any) => ({ id: method.id, description: method.description || METHOD_LABELS[method.id] || method.id, status: method.status || "enabled" }));
   return { organization, methods };
 }
 
