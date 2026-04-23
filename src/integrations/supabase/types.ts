@@ -107,6 +107,42 @@ export type Database = {
           },
         ]
       }
+      audit_logs: {
+        Row: {
+          action: string
+          actor_user_id: string | null
+          created_at: string
+          details: Json
+          id: string
+          is_demo: boolean
+          target_id: string | null
+          target_type: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          actor_user_id?: string | null
+          created_at?: string
+          details?: Json
+          id?: string
+          is_demo?: boolean
+          target_id?: string | null
+          target_type: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          actor_user_id?: string | null
+          created_at?: string
+          details?: Json
+          id?: string
+          is_demo?: boolean
+          target_id?: string | null
+          target_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       automation_rules: {
         Row: {
           action_type: string
@@ -1016,7 +1052,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_manage_operations: { Args: { _user_id: string }; Returns: boolean }
+      can_manage_users: { Args: { _user_id: string }; Returns: boolean }
+      can_view_finance: { Args: { _user_id: string }; Returns: boolean }
       current_account_is_demo: { Args: never; Returns: boolean }
+      has_any_role: {
+        Args: {
+          _roles: Database["public"]["Enums"]["app_role"][]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
