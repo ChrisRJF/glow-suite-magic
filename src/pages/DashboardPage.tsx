@@ -14,6 +14,7 @@ import { DailyCoach } from "@/components/DailyCoach";
 import { AnimatedCounter } from "@/components/AnimatedCounter";
 import { useDemoMode } from "@/hooks/useDemoMode";
 import { actionLogKey, clearLegacyDemoLocalState } from "@/lib/demoIsolation";
+import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 
