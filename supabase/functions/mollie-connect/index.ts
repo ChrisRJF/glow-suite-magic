@@ -124,7 +124,14 @@ Deno.serve(async (req) => {
       const state = crypto.randomUUID() + crypto.randomUUID().replaceAll("-", "");
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
       await admin.from("mollie_oauth_states").insert({ user_id: user.id, salon_id: settings.id, state, redirect_to: parsed.data.redirect_to || "/instellingen?tab=integraties", is_demo: false, expires_at: expiresAt });
-      const scopes = ["organizations.read", "payments.read", "payments.write", "refunds.read", "refunds.write", "methods.read", "profiles.read"].join(" ");
+      const scopes = [
+        "profiles.read",
+        "payments.read",
+        "payments.write",
+        "refunds.read",
+        "refunds.write",
+        "organizations.read",
+      ].join(" ");
       const params = new URLSearchParams({ client_id: clientId, redirect_uri: REDIRECT_URI, response_type: "code", state, scope: scopes });
       return json({ authorizationUrl: `${MOLLIE_AUTH}?${params.toString()}` });
     }
