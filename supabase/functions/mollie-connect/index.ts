@@ -42,6 +42,12 @@ async function requireOwner(admin: ReturnType<typeof createClient>, userId: stri
   if (!allowed) throw new Error("Alleen eigenaren en beheerders kunnen Mollie beheren.");
 }
 
+async function requireRefundAdmin(admin: ReturnType<typeof createClient>, userId: string) {
+  const { data } = await admin.from("user_roles").select("role").eq("user_id", userId);
+  const allowed = (data || []).some((row: any) => ["eigenaar", "admin"].includes(row.role));
+  if (!allowed) throw new Error("Alleen admins kunnen terugbetalingen testen.");
+}
+
 async function getSettings(admin: ReturnType<typeof createClient>, userId: string) {
   const { data, error } = await admin
     .from("settings")
@@ -229,6 +235,7 @@ Deno.serve(async (req) => {
     }
 
     if (parsed.data.action === "refund") {
+      await requireRefundAdmin(admin, user.id);
       const { data: payment, error: paymentError } = await admin.from("payments").select("*").eq("id", parsed.data.payment_id).eq("user_id", user.id).maybeSingle();
       if (paymentError) throw paymentError;
       if (!payment) return json({ error: "Betaling niet gevonden." }, 404);
