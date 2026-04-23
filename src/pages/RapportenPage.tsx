@@ -1,324 +1,208 @@
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
-import { useAppointments, useServices, useProducts, useCustomers } from "@/hooks/useSupabaseData";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useAppointments, useServices, useProducts, useCustomers, usePaymentRefunds } from "@/hooks/useSupabaseData";
 import { usePayments } from "@/hooks/usePayments";
-import { formatEuro } from "@/lib/data";
-import { exportCSV, exportExcel, exportPDF } from "@/lib/exportUtils";
-import { BarChart3, Users, TrendingUp, Clock, Download, FileText, FileSpreadsheet, Filter } from "lucide-react";
+import { exportCSV, exportPDF } from "@/lib/exportUtils";
+import { buildReports, eur, rangeForPreset, trendClass, trendLabel, type DataMode, type DatePreset } from "@/lib/reporting";
+import { BarChart3, Users, TrendingUp, Clock, Download, FileText, Filter, CalendarDays, Euro, RefreshCw, Target } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useUserRole } from "@/hooks/useUserRole";
 
-type ReportType = "omzet" | "diensten" | "producten" | "betalingen" | "btw";
+type ReportType = "omzet" | "afspraken" | "klanten" | "diensten" | "producten" | "betalingen" | "btw";
+type ExportType = "omzet" | "klanten" | "afspraken" | "refunds" | "maandrapport";
+
+const datePresets: { key: DatePreset; label: string }[] = [
+  { key: "vandaag", label: "Vandaag" },
+  { key: "7d", label: "7 dagen" },
+  { key: "30d", label: "30 dagen" },
+  { key: "deze_maand", label: "Deze maand" },
+  { key: "vorige_maand", label: "Vorige maand" },
+  { key: "custom", label: "Custom" },
+];
 
 export default function RapportenPage() {
-  const { data: appointments } = useAppointments();
-  const { data: services } = useServices();
-  const { data: products } = useProducts();
-  const { data: customers } = useCustomers();
-  const { data: payments } = usePayments();
+  const { data: appointments, loading: appointmentsLoading } = useAppointments();
+  const { data: services, loading: servicesLoading } = useServices();
+  const { data: products, loading: productsLoading } = useProducts();
+  const { data: customers, loading: customersLoading } = useCustomers();
+  const { data: payments, loading: paymentsLoading } = usePayments();
+  const { data: refunds, loading: refundsLoading } = usePaymentRefunds();
   const { can } = useUserRole();
-
-  const [dateFrom, setDateFrom] = useState(() => {
-    const d = new Date(); d.setMonth(d.getMonth() - 1); return d.toISOString().split("T")[0];
-  });
-  const [dateTo, setDateTo] = useState(() => new Date().toISOString().split("T")[0]);
+  const [preset, setPreset] = useState<DatePreset>("deze_maand");
+  const [dateFrom, setDateFrom] = useState(() => rangeForPreset("deze_maand").from);
+  const [dateTo, setDateTo] = useState(() => rangeForPreset("deze_maand").to);
+  const [dataMode, setDataMode] = useState<DataMode>("live");
   const [searchParams] = useSearchParams();
   const [reportType, setReportType] = useState<ReportType>(() => {
     const t = searchParams.get("type");
-    return (t === "omzet" || t === "diensten" || t === "producten" || t === "betalingen" || t === "btw") ? t : "omzet";
+    return (["omzet", "afspraken", "klanten", "diensten", "producten", "betalingen", "btw"] as ReportType[]).includes(t as ReportType) ? (t as ReportType) : "omzet";
   });
   const [showExport, setShowExport] = useState(false);
+  const loading = appointmentsLoading || servicesLoading || productsLoading || customersLoading || paymentsLoading || refundsLoading;
+  const range = useMemo(() => rangeForPreset(preset, dateFrom, dateTo), [preset, dateFrom, dateTo]);
+  const report = useMemo(() => buildReports({ appointments, customers, services, payments, refunds, mode: dataMode, from: range.from, to: range.to }), [appointments, customers, services, payments, refunds, dataMode, range.from, range.to]);
 
-  const filteredAppts = useMemo(() =>
-    appointments.filter(a => {
-      const d = a.appointment_date?.split("T")[0];
-      return d >= dateFrom && d <= dateTo && a.status !== 'geannuleerd';
-    }), [appointments, dateFrom, dateTo]);
-
-  const totalRevenue = filteredAppts.reduce((s, a) => s + (Number(a.price) || 0), 0);
-  const avgPerCustomer = customers.length > 0 ? totalRevenue / customers.length : 0;
-  const bezetting = filteredAppts.length > 0 ? Math.min(100, Math.round(filteredAppts.length / Math.max(appointments.length, 1) * 100)) : 0;
+  const setPresetRange = (next: DatePreset) => {
+    setPreset(next);
+    const nextRange = rangeForPreset(next, dateFrom, dateTo);
+    if (next !== "custom") {
+      setDateFrom(nextRange.from);
+      setDateTo(nextRange.to);
+    }
+  };
 
   const stats = [
-    { label: "Totale omzet", value: formatEuro(totalRevenue), icon: BarChart3, trend: `${filteredAppts.length} afspr.` },
-    { label: "Gemiddeld per klant", value: formatEuro(avgPerCustomer), icon: Users, trend: `${customers.length} klanten` },
-    { label: "Bezettingsgraad", value: `${bezetting}%`, icon: Clock, trend: "actief" },
-    { label: "Nieuwe klanten", value: `${customers.filter(c => { const d = c.created_at?.split("T")[0]; return d >= dateFrom && d <= dateTo; }).length}`, icon: TrendingUp, trend: "periode" },
+    { label: "Vandaag omzet", value: eur(report.revenue.today), icon: Euro, trend: "alleen paid" },
+    { label: "Deze maand", value: eur(report.revenue.month), icon: BarChart3, trend: trendLabel(report.revenue.trend), trendValue: report.revenue.trend },
+    { label: "Openstaand", value: eur(report.revenue.openAmount), icon: Clock, trend: `${report.rows.openAppointments.length} afspraken` },
+    { label: "Refunds", value: eur(report.revenue.refundTotal), icon: RefreshCw, trend: "apart verwerkt" },
   ];
-
-  const topServices = useMemo(() => {
-    const map: Record<string, { name: string; revenue: number; bookings: number }> = {};
-    filteredAppts.filter(a => a.service_id).forEach(a => {
-      const svc = services.find(s => s.id === a.service_id);
-      const name = svc?.name || 'Onbekend';
-      if (!map[name]) map[name] = { name, revenue: 0, bookings: 0 };
-      map[name].revenue += Number(a.price) || 0;
-      map[name].bookings++;
-    });
-    return Object.values(map).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
-  }, [filteredAppts, services]);
-
-  const monthlyData = useMemo(() => {
-    const months: { month: string; revenue: number }[] = [];
-    for (let i = 3; i >= 0; i--) {
-      const d = new Date(); d.setMonth(d.getMonth() - i);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      const rev = appointments.filter(a => a.appointment_date.startsWith(key) && a.status !== 'geannuleerd').reduce((s, a) => s + (Number(a.price) || 0), 0);
-      months.push({ month: d.toLocaleDateString('nl-NL', { month: 'short' }), revenue: rev });
-    }
-    return months;
-  }, [appointments]);
-
-  const maxRevenue = Math.max(...monthlyData.map(m => m.revenue), 1);
-
-  const getExportData = (): { title: string; headers: string[]; rows: string[][] } => {
-    switch (reportType) {
-      case "diensten":
-        return {
-          title: "Omzet per dienst",
-          headers: ["Dienst", "Boekingen", "Omzet"],
-          rows: topServices.map(s => [s.name, String(s.bookings), formatEuro(s.revenue)]),
-        };
-      case "producten":
-        return {
-          title: "Productverkopen",
-          headers: ["Product", "Categorie", "Prijs", "Voorraad"],
-          rows: products.map(p => [p.name, p.category || "—", formatEuro(p.price), String(p.stock || 0)]),
-        };
-      case "betalingen":
-        return {
-          title: "Betalingen (GlowPay)",
-          headers: ["Datum", "Klant", "Bedrag", "Methode", "Status"],
-          rows: payments.map(p => [
-            new Date(p.created_at).toLocaleDateString("nl-NL"),
-            customers.find(c => c.id === p.customer_id)?.name || "Onbekend",
-            formatEuro(Number(p.amount)),
-            p.method || p.payment_method || "—",
-            p.status,
-          ]),
-        };
-      case "btw":
-        const btw21 = totalRevenue * 0.21 / 1.21;
-        return {
-          title: "BTW Overzicht",
-          headers: ["Omschrijving", "Bedrag"],
-          rows: [
-            ["Totale omzet (incl. BTW)", formatEuro(totalRevenue)],
-            ["Omzet excl. BTW", formatEuro(totalRevenue - btw21)],
-            ["BTW 21%", formatEuro(btw21)],
-          ],
-        };
-      default:
-        return {
-          title: "Omzet per periode",
-          headers: ["Datum", "Klant", "Dienst", "Bedrag"],
-          rows: filteredAppts.map(a => [
-            new Date(a.appointment_date).toLocaleDateString("nl-NL"),
-            customers.find(c => c.id === a.customer_id)?.name || "Onbekend",
-            services.find(s => s.id === a.service_id)?.name || "—",
-            formatEuro(Number(a.price) || 0),
-          ]),
-        };
-    }
-  };
-
-  const handleExport = (format: "csv" | "excel" | "pdf") => {
-    if (!can("reports:export")) { toast.error("Je hebt geen rechten om rapporten te exporteren."); return; }
-    const { title, headers, rows } = getExportData();
-    const dateStr = new Date().toISOString().split("T")[0];
-    switch (format) {
-      case "csv": exportCSV(headers, rows, `glowsuite-${reportType}-${dateStr}.csv`); break;
-      case "excel": exportExcel(headers, rows, `glowsuite-${reportType}-${dateStr}.xls`); break;
-      case "pdf": exportPDF(title, headers, rows, `glowsuite-${reportType}-${dateStr}.pdf`); break;
-    }
-    toast.success(`${title} geëxporteerd als ${format.toUpperCase()}`);
-    setShowExport(false);
-  };
 
   const reportTabs: { key: ReportType; label: string }[] = [
     { key: "omzet", label: "Omzet" },
+    { key: "afspraken", label: "Afspraken" },
+    { key: "klanten", label: "Klanten" },
     { key: "diensten", label: "Diensten" },
     { key: "producten", label: "Producten" },
     { key: "betalingen", label: "Betalingen" },
     { key: "btw", label: "BTW" },
   ];
 
+  const exportData = (type: ExportType): { title: string; headers: string[]; rows: string[][] } => {
+    if (type === "klanten") return {
+      title: "Klantenlijst",
+      headers: ["Naam", "E-mail", "Telefoon", "Bezoeken", "Lifetime value", "Laatste bezoek"],
+      rows: report.rows.customerRevenue.map((c) => [c.name, c.email || "—", c.phone || "—", String(c.visits), eur(c.ltv), c.lastVisit ? new Date(c.lastVisit).toLocaleDateString("nl-NL") : "—"]),
+    };
+    if (type === "afspraken") return {
+      title: "Afsprakenlijst",
+      headers: ["Datum", "Tijd", "Klant", "Behandeling", "Status", "Waarde", "Betaalstatus"],
+      rows: report.rows.validPeriodAppointments.map((a) => [
+        new Date(a.appointment_date).toLocaleDateString("nl-NL"),
+        new Date(a.appointment_date).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" }),
+        customers.find((c) => c.id === a.customer_id)?.name || "Onbekend",
+        services.find((s) => s.id === a.service_id)?.name || "—",
+        a.status,
+        eur(Number(a.price) || 0),
+        a.payment_status || "—",
+      ]),
+    };
+    if (type === "refunds") return {
+      title: "Refunds",
+      headers: ["Datum", "Bedrag", "Status", "Reden", "Mollie refund ID"],
+      rows: report.rows.periodRefunds.map((r) => [new Date(r.created_at).toLocaleDateString("nl-NL"), eur(Number(r.amount) || 0), r.status, r.reason || "—", r.mollie_refund_id || "—"]),
+    };
+    if (type === "maandrapport") return {
+      title: "GlowSuite maandrapport",
+      headers: ["Metric", "Waarde"],
+      rows: [
+        ["Vandaag omzet", eur(report.revenue.today)], ["Deze week omzet", eur(report.revenue.week)], ["Deze maand omzet", eur(report.revenue.month)],
+        ["Lifetime omzet", eur(report.revenue.lifetime)], ["Gemiddelde orderwaarde", eur(report.revenue.averageOrder)], ["Openstaand bedrag", eur(report.revenue.openAmount)],
+        ["Refund totaal", eur(report.revenue.refundTotal)], ["Afspraken vandaag", String(report.appointments.today)], ["No-show percentage", `${report.appointments.noShowPct}%`],
+        ["Nieuwe klanten deze maand", String(report.customers.newThisMonth)], ["Terugkerende klanten", `${report.customers.returningPct}%`], ["Verwachte omzet komende 7 dagen", eur(report.wow.upcoming7Revenue)],
+      ],
+    };
+    return {
+      title: "Omzetrapport",
+      headers: ["Datum", "Klant", "Bedrag", "Methode", "Status", "Referentie"],
+      rows: report.rows.periodPayments.map((p) => [
+        new Date(p.created_at).toLocaleDateString("nl-NL"),
+        customers.find((c) => c.id === p.customer_id)?.name || "Onbekend",
+        eur(Number(p.amount) || 0),
+        p.mollie_method || p.method || p.payment_method || "—",
+        p.status,
+        p.checkout_reference || p.mollie_payment_id || "—",
+      ]),
+    };
+  };
+
+  const handleExport = (type: ExportType, format: "csv" | "pdf" = "csv") => {
+    if (!can("reports:export")) { toast.error("Je hebt geen rechten om rapporten te exporteren."); return; }
+    const { title, headers, rows } = exportData(type);
+    const dateStr = new Date().toISOString().split("T")[0];
+    if (format === "pdf") exportPDF(title, headers, rows, `glowsuite-${type}-${dateStr}.pdf`);
+    else exportCSV(headers, rows, `glowsuite-${type}-${dateStr}.csv`);
+    toast.success(`${title} geëxporteerd`);
+    setShowExport(false);
+  };
+
   return (
-    <AppLayout title="Rapporten" subtitle="Statistieken en inzichten"
-      actions={
-        can("reports:export") ? <div className="relative">
-          <Button variant="gradient" size="sm" onClick={() => setShowExport(!showExport)}>
-            <Download className="w-4 h-4" /> Exporteer rapport
-          </Button>
-          {showExport && (
-            <div className="absolute right-0 top-full mt-2 w-48 glass-card p-2 z-50 space-y-1">
-              <button onClick={() => handleExport("pdf")} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-secondary/50 transition-colors">
-                <FileText className="w-4 h-4 text-destructive" /> PDF
-              </button>
-              <button onClick={() => handleExport("excel")} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-secondary/50 transition-colors">
-                <FileSpreadsheet className="w-4 h-4 text-success" /> Excel (.xls)
-              </button>
-              <button onClick={() => handleExport("csv")} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-secondary/50 transition-colors">
-                <FileText className="w-4 h-4 text-primary" /> CSV
-              </button>
-            </div>
-          )}
-        </div> : null
-      }>
+    <AppLayout title="Rapporten" subtitle="Echte cijfers uit betalingen, afspraken en klanten"
+      actions={can("reports:export") ? <div className="relative">
+        <Button variant="gradient" size="sm" onClick={() => setShowExport(!showExport)}><Download className="w-4 h-4" /> Exporteer</Button>
+        {showExport && (
+          <div className="absolute right-0 top-full mt-2 w-56 glass-card p-2 z-50 space-y-1">
+            <button onClick={() => handleExport("omzet")} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-secondary/50 transition-colors"><FileText className="w-4 h-4 text-primary" /> CSV omzetrapport</button>
+            <button onClick={() => handleExport("klanten")} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-secondary/50 transition-colors"><Users className="w-4 h-4 text-primary" /> CSV klantenlijst</button>
+            <button onClick={() => handleExport("afspraken")} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-secondary/50 transition-colors"><CalendarDays className="w-4 h-4 text-primary" /> CSV afsprakenlijst</button>
+            <button onClick={() => handleExport("refunds")} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-secondary/50 transition-colors"><RefreshCw className="w-4 h-4 text-primary" /> CSV refunds</button>
+            <button onClick={() => handleExport("maandrapport", "pdf")} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-secondary/50 transition-colors"><FileText className="w-4 h-4 text-destructive" /> PDF maandrapport</button>
+          </div>
+        )}
+      </div> : null}
+    >
       <div className="grid gap-8">
-        {/* Filters */}
-        <div className="flex flex-wrap items-center gap-4 p-4 rounded-xl bg-secondary/20 border border-border/50">
-          <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-muted-foreground" />
-            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-              className="px-3 py-2 rounded-lg bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
-            <span className="text-xs text-muted-foreground">t/m</span>
-            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-              className="px-3 py-2 rounded-lg bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+        <div className="flex flex-wrap items-center gap-3 p-4 rounded-xl bg-secondary/20 border border-border/50">
+          <Filter className="w-4 h-4 text-muted-foreground" />
+          <div className="flex flex-wrap gap-1 bg-secondary/50 p-1 rounded-xl">
+            {datePresets.map((item) => <button key={item.key} onClick={() => setPresetRange(item.key)} className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition-all", preset === item.key ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground")}>{item.label}</button>)}
           </div>
+          <input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPreset("custom"); }} className="px-3 py-2 rounded-lg bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+          <span className="text-xs text-muted-foreground">t/m</span>
+          <input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPreset("custom"); }} className="px-3 py-2 rounded-lg bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
           <div className="flex gap-1 bg-secondary/50 p-1 rounded-xl">
-            {reportTabs.map(tab => (
-              <button key={tab.key} onClick={() => setReportType(tab.key)}
-                className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                  reportType === tab.key ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground")}>
-                {tab.label}
-              </button>
-            ))}
+            {(["live", "demo"] as DataMode[]).map((mode) => <button key={mode} onClick={() => setDataMode(mode)} className={cn("px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-all", dataMode === mode ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground")}>{mode}</button>)}
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {stats.map((s) => (
-            <div key={s.label} className="stat-card">
-              <div className="flex items-center justify-between"><s.icon className="w-4 h-4 text-primary" /><span className="text-xs text-success font-medium">{s.trend}</span></div>
-              <p className="text-2xl font-bold mt-3 leading-none">{s.value}</p>
-              <p className="text-xs text-muted-foreground mt-2">{s.label}</p>
-            </div>
-          ))}
+        <div className="flex gap-1 bg-secondary/50 p-1 rounded-xl overflow-x-auto">
+          {reportTabs.map((tab) => <button key={tab.key} onClick={() => setReportType(tab.key)} className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap", reportType === tab.key ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground")}>{tab.label}</button>)}
         </div>
 
-        {/* Monthly Chart */}
-        <div className="glass-card p-6">
-          <h3 className="text-sm font-semibold mb-5">Maandelijkse omzet</h3>
-          <div className="flex items-end gap-4 h-36 pt-2">
-            {monthlyData.map((m) => (
-              <div key={m.month} className="flex-1 flex flex-col items-center gap-2">
-                <span className="text-[10px] text-muted-foreground font-medium">{formatEuro(m.revenue)}</span>
-                <div className="w-full rounded-t-lg bg-gradient-to-t from-primary/80 to-accent/60 transition-all" style={{ height: `${(m.revenue / maxRevenue) * 100}%`, minHeight: '4px' }} />
-                <span className="text-xs text-muted-foreground">{m.month}</span>
-              </div>
-            ))}
+        {loading ? <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-2xl" />)}</div> : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {stats.map((s) => <div key={s.label} className="stat-card"><div className="flex items-center justify-between"><s.icon className="w-4 h-4 text-primary" /><span className={cn("text-xs font-medium px-2 py-0.5 rounded-md", typeof s.trendValue === "number" ? trendClass(s.trendValue) : "text-muted-foreground bg-secondary/50")}>{s.trend}</span></div><p className="text-2xl font-bold mt-3 leading-none">{s.value}</p><p className="text-xs text-muted-foreground mt-2">{s.label}</p></div>)}
           </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="glass-card p-5"><div className="flex items-center gap-2 mb-3"><Target className="w-4 h-4 text-primary" /><h3 className="text-sm font-semibold">Maanddoel</h3></div><p className="text-2xl font-bold">{report.wow.monthlyGoalProgress}%</p><div className="w-full h-2 rounded-full bg-secondary mt-3 overflow-hidden"><div className="h-2 rounded-full bg-primary" style={{ width: `${report.wow.monthlyGoalProgress}%` }} /></div><p className="text-xs text-muted-foreground mt-2">{eur(report.revenue.month)} van {eur(report.wow.monthlyGoal)}</p></div>
+          <div className="glass-card p-5"><p className="text-xs text-muted-foreground mb-2">Beste dag ooit omzet</p><p className="text-xl font-bold">{eur(report.wow.bestDayEver.revenue)}</p><p className="text-xs text-muted-foreground mt-1 capitalize">{report.wow.bestDayEver.label}</p></div>
+          <div className="glass-card p-5"><p className="text-xs text-muted-foreground mb-2">Verwachte omzet 7 dagen</p><p className="text-xl font-bold">{eur(report.wow.upcoming7Revenue)}</p><p className="text-xs text-muted-foreground mt-1">Geboekte niet-geannuleerde afspraken</p></div>
         </div>
 
-        {/* Report-specific content */}
-        {reportType === "omzet" && (
-          <div className="glass-card p-6">
-            <h3 className="text-sm font-semibold mb-5">Top behandelingen</h3>
-            <div className="space-y-3">
-              {topServices.length === 0 ? <p className="text-sm text-muted-foreground text-center py-6">Nog geen data</p> :
-              topServices.map((s, i) => (
-                <div key={s.name} className="flex items-center gap-4 p-3 rounded-xl bg-secondary/20">
-                  <span className="text-sm font-bold text-muted-foreground w-6 text-center">#{i + 1}</span>
-                  <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate">{s.name}</p><p className="text-xs text-muted-foreground mt-0.5">{s.bookings} boekingen</p></div>
-                  <span className="text-sm font-semibold flex-shrink-0">{formatEuro(s.revenue)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {reportType === "betalingen" && (
-          <div className="glass-card p-6">
-            <h3 className="text-sm font-semibold mb-5">Betalingsoverzicht</h3>
-            <div className="space-y-3">
-              {payments.length === 0 ? <p className="text-sm text-muted-foreground text-center py-6">Geen betalingen</p> :
-              payments.slice(0, 10).map(p => (
-                <div key={p.id} className="flex items-center justify-between gap-3 p-4 rounded-xl bg-secondary/30">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{customers.find(c => c.id === p.customer_id)?.name || "Onbekend"}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{new Date(p.created_at).toLocaleDateString("nl-NL")} · {p.method || "—"}</p>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="text-sm font-semibold">{formatEuro(Number(p.amount))}</p>
-                    <span className={cn("text-[11px] font-medium", p.status === "paid" ? "text-success" : p.status === "failed" ? "text-destructive" : "text-warning")}>{p.status}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {reportType === "btw" && (
-          <div className="glass-card p-6">
-            <h3 className="text-sm font-semibold mb-5">BTW Overzicht</h3>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center p-4 rounded-xl bg-secondary/30">
-                <span className="text-sm">Omzet incl. BTW</span>
-                <span className="text-sm font-semibold">{formatEuro(totalRevenue)}</span>
-              </div>
-              <div className="flex justify-between items-center p-4 rounded-xl bg-secondary/30">
-                <span className="text-sm">Omzet excl. BTW</span>
-                <span className="text-sm font-semibold">{formatEuro(totalRevenue / 1.21)}</span>
-              </div>
-              <div className="flex justify-between items-center p-4 rounded-xl bg-primary/10 border border-primary/20">
-                <span className="text-sm font-medium">BTW 21%</span>
-                <span className="text-sm font-bold text-primary">{formatEuro(totalRevenue * 0.21 / 1.21)}</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {reportType === "producten" && (
-          <div className="glass-card p-6">
-            <h3 className="text-sm font-semibold mb-5">Productoverzicht</h3>
-            <div className="space-y-3">
-              {products.map(p => (
-                <div key={p.id} className="flex items-center justify-between gap-3 p-4 rounded-xl bg-secondary/30">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{p.name}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{p.category || "—"}</p>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="text-sm font-semibold">{formatEuro(p.price)}</p>
-                    <span className={cn("text-[11px]", (p.stock || 0) < 5 ? "text-destructive font-medium" : "text-muted-foreground")}>
-                      Voorraad: {p.stock || 0}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {reportType === "diensten" && (
-          <div className="glass-card p-6">
-            <h3 className="text-sm font-semibold mb-5">Alle diensten</h3>
-            <div className="space-y-3">
-              {services.map(s => {
-                const bookings = filteredAppts.filter(a => a.service_id === s.id).length;
-                const rev = filteredAppts.filter(a => a.service_id === s.id).reduce((sum, a) => sum + (Number(a.price) || 0), 0);
-                return (
-                  <div key={s.id} className="flex items-center justify-between gap-3 p-4 rounded-xl bg-secondary/30">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-2 h-10 rounded-full flex-shrink-0" style={{ backgroundColor: s.color || "#7B61FF" }} />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{s.name}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{bookings} boekingen</p>
-                      </div>
-                    </div>
-                    <span className="text-sm font-semibold flex-shrink-0">{formatEuro(rev)}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
+        {reportType === "omzet" && <MetricGrid items={[["Vandaag", eur(report.revenue.today)], ["Deze week", eur(report.revenue.week)], ["Deze maand", eur(report.revenue.month)], ["Lifetime", eur(report.revenue.lifetime)], ["Gem. orderwaarde", eur(report.revenue.averageOrder)], ["Openstaand", eur(report.revenue.openAmount)], ["Refunds", eur(report.revenue.refundTotal)], ["Beste klant maand", report.wow.bestCustomerThisMonth?.name || "—"]]} />}
+        {reportType === "afspraken" && <MetricGrid items={[["Vandaag", String(report.appointments.today)], ["Komend", String(report.appointments.upcoming)], ["Afgerond", String(report.appointments.completed)], ["Geannuleerd", String(report.appointments.canceled)], ["No-show", `${report.appointments.noShowPct}%`], ["Gem. afspraakwaarde", eur(report.appointments.averageValue)], ["Populairst", report.appointments.mostPopularService], ["Drukste tijd", report.appointments.busiestTime]]} />}
+        {reportType === "klanten" && <CustomerList report={report} />}
+        {reportType === "betalingen" && <PaymentList report={report} customers={customers} />}
+        {reportType === "btw" && <MetricGrid items={[["Omzet incl. BTW", eur(report.revenue.period)], ["Omzet excl. BTW", eur(report.revenue.period / 1.21)], ["BTW 21%", eur(report.revenue.period * 0.21 / 1.21)], ["Betaalde transacties", String(report.rows.periodPayments.length)]]} />}
+        {reportType === "producten" && <ProductList products={products} />}
+        {reportType === "diensten" && <ServiceList services={report.services} />}
       </div>
     </AppLayout>
   );
+}
+
+function MetricGrid({ items }: { items: string[][] }) {
+  return <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">{items.map(([label, value]) => <div key={label} className="glass-card p-5"><p className="text-xs text-muted-foreground mb-2">{label}</p><p className="text-xl font-bold break-words">{value}</p></div>)}</div>;
+}
+
+function CustomerList({ report }: { report: ReturnType<typeof buildReports> }) {
+  return <div className="glass-card p-6"><h3 className="text-sm font-semibold mb-5">Top 10 klanten op omzet</h3><div className="space-y-3">{report.customers.top10.length === 0 ? <p className="text-sm text-muted-foreground text-center py-6">Nog geen klantomzet</p> : report.customers.top10.map((c, i) => <div key={c.id} className="flex items-center gap-4 p-3 rounded-xl bg-secondary/20"><span className="text-sm font-bold text-muted-foreground w-6 text-center">#{i + 1}</span><div className="flex-1 min-w-0"><p className="text-sm font-medium truncate">{c.name}</p><p className="text-xs text-muted-foreground mt-0.5">{c.visits} bezoeken · LTV {eur(c.ltv)}</p></div><span className="text-sm font-semibold flex-shrink-0">{eur(c.revenue)}</span></div>)}</div><div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-5"><div className="p-3 rounded-xl bg-secondary/20"><p className="text-xs text-muted-foreground">Terugkerend</p><p className="font-bold">{report.customers.returningPct}%</p></div><div className="p-3 rounded-xl bg-secondary/20"><p className="text-xs text-muted-foreground">60+ dagen niet geweest</p><p className="font-bold">{report.customers.inactive60.length}</p></div><div className="p-3 rounded-xl bg-secondary/20"><p className="text-xs text-muted-foreground">Gem. bezoekfrequentie</p><p className="font-bold">{report.customers.averageVisitFrequency.toFixed(1)}x</p></div></div></div>;
+}
+
+function PaymentList({ report, customers }: { report: ReturnType<typeof buildReports>; customers: { id: string; name: string }[] }) {
+  return <div className="glass-card p-6"><h3 className="text-sm font-semibold mb-5">Betaalde transacties</h3><div className="space-y-3">{report.rows.periodPayments.length === 0 ? <p className="text-sm text-muted-foreground text-center py-6">Geen betaalde transacties</p> : report.rows.periodPayments.slice(0, 12).map((p) => <div key={p.id} className="flex items-center justify-between gap-3 p-4 rounded-xl bg-secondary/30"><div className="min-w-0"><p className="text-sm font-medium truncate">{customers.find((c) => c.id === p.customer_id)?.name || "Onbekend"}</p><p className="text-xs text-muted-foreground mt-0.5">{new Date(p.created_at).toLocaleDateString("nl-NL")} · {p.mollie_method || p.method || "—"}</p></div><div className="text-right flex-shrink-0"><p className="text-sm font-semibold">{eur(Number(p.amount))}</p><span className="text-[11px] font-medium text-success">paid</span></div></div>)}</div></div>;
+}
+
+function ProductList({ products }: { products: { id: string; name: string; category: string | null; price: number; stock: number | null }[] }) {
+  return <div className="glass-card p-6"><h3 className="text-sm font-semibold mb-5">Productoverzicht</h3><div className="space-y-3">{products.map((p) => <div key={p.id} className="flex items-center justify-between gap-3 p-4 rounded-xl bg-secondary/30"><div className="min-w-0"><p className="text-sm font-medium truncate">{p.name}</p><p className="text-xs text-muted-foreground mt-0.5">{p.category || "—"}</p></div><div className="text-right flex-shrink-0"><p className="text-sm font-semibold">{eur(p.price)}</p><span className={cn("text-[11px]", (p.stock || 0) < 5 ? "text-destructive font-medium" : "text-muted-foreground")}>Voorraad: {p.stock || 0}</span></div></div>)}</div></div>;
+}
+
+function ServiceList({ services }: { services: { name: string; bookings: number; revenue: number }[] }) {
+  return <div className="glass-card p-6"><h3 className="text-sm font-semibold mb-5">Omzet per dienst</h3><div className="space-y-3">{services.length === 0 ? <p className="text-sm text-muted-foreground text-center py-6">Nog geen data</p> : services.map((s, i) => <div key={s.name} className="flex items-center gap-4 p-3 rounded-xl bg-secondary/20"><span className="text-sm font-bold text-muted-foreground w-6 text-center">#{i + 1}</span><div className="flex-1 min-w-0"><p className="text-sm font-medium truncate">{s.name}</p><p className="text-xs text-muted-foreground mt-0.5">{s.bookings} boekingen</p></div><span className="text-sm font-semibold flex-shrink-0">{eur(s.revenue)}</span></div>)}</div></div>;
 }
