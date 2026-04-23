@@ -17,6 +17,8 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { getMessageSettings, saveMessageSettings, type MessageSettings } from "@/lib/messaging";
 import { WhiteLabelEmbedCard } from "@/components/WhiteLabelEmbedCard";
 import { OnboardingWizard } from "@/components/OnboardingWizard";
+import { useUserRole } from "@/hooks/useUserRole";
+import { hasPermission } from "@/lib/permissions";
 
 type OpeningHours = Record<string, { open: string; close: string; enabled: boolean }>;
 
@@ -39,12 +41,13 @@ const dayLabels: Record<string, string> = {
 
 export default function InstellingenPage() {
   const { user } = useAuth();
+  const { roles, isOwner } = useUserRole();
   const { data: settings, refetch } = useSettings();
   const { data: customers } = useCustomers();
   const { data: appointments } = useAppointments();
   const { data: services } = useServices();
   const { insert, update } = useCrud("settings");
-  const { insert: insertRole, remove: removeRole } = useCrud("user_roles");
+  const { remove: removeRole } = useCrud("user_roles");
   const [salonName, setSalonName] = useState("Mijn Salon");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
