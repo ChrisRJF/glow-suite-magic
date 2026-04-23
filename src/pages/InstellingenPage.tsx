@@ -174,11 +174,20 @@ export default function InstellingenPage() {
     setMollieTestLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Je sessie is verlopen. Log opnieuw in.");
       const { data, error } = await supabase.functions.invoke("create-payment", {
-        body: { amount: 1, payment_type: "full", method: preferredTestMethod, is_demo: false },
+        body: {
+          amount: 1,
+          payment_type: "full",
+          method: preferredTestMethod,
+          is_demo: false,
+          source: "test_button",
+          redirect_url: `${window.location.origin}/instellingen?tab=integraties`,
+        },
         headers: { Authorization: `Bearer ${session?.access_token}` },
       });
       if (error || (data as any)?.error) throw new Error((data as any)?.error || error?.message || "Testbetaling kon niet worden gestart.");
+      if (!(data as any)?.checkoutUrl) throw new Error("Mollie gaf geen checkout link terug.");
       window.location.href = (data as any).checkoutUrl;
     } catch (err: any) {
       toast.error(err.message || "€1 testbetaling kon niet worden gestart.");
