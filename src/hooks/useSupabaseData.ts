@@ -4,26 +4,27 @@ import { useAuth } from "@/contexts/AuthContext";
 import type { Tables, TablesInsert } from "@/integrations/supabase/types";
 
 type TableName = keyof import("@/integrations/supabase/types").Database["public"]["Tables"];
+type AnyTableName = TableName | "membership_plans" | "customer_memberships" | "membership_usage";
 
-export function useSupabaseQuery<T extends TableName>(
+export function useSupabaseQuery<T extends AnyTableName>(
   table: T,
   options?: { orderBy?: string; ascending?: boolean; enabled?: boolean }
 ) {
   const { user } = useAuth();
-  const [data, setData] = useState<Tables<T>[]>([]);
+  const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetch = useCallback(async () => {
     if (!user) { setData([]); setLoading(false); return; }
     setLoading(true);
-    let query = supabase.from(table).select("*");
+    let query = (supabase as any).from(table).select("*");
     if (options?.orderBy) {
       query = query.order(options.orderBy, { ascending: options.ascending ?? false });
     } else {
       query = query.order("created_at", { ascending: false });
     }
     const { data: result, error } = await query;
-    if (!error && result) setData(result as Tables<T>[]);
+    if (!error && result) setData(result);
     setLoading(false);
   }, [user, table, options?.orderBy, options?.ascending]);
 
@@ -97,6 +98,18 @@ export function useMollieConnections() {
 
 export function usePaymentRefunds() {
   return useSupabaseQuery("payment_refunds");
+}
+
+export function useMembershipPlans() {
+  return useSupabaseQuery("membership_plans", { orderBy: "name", ascending: true });
+}
+
+export function useCustomerMemberships() {
+  return useSupabaseQuery("customer_memberships");
+}
+
+export function useMembershipUsage() {
+  return useSupabaseQuery("membership_usage");
 }
 
 export function useWebshopOrders() {

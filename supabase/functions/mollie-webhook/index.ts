@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const { data: payment, error: paymentReadError } = await supabase
       .from("payments")
-      .select("id, user_id, appointment_id, customer_id, amount, metadata, is_demo, order_id")
+      .select("id, user_id, appointment_id, customer_id, amount, metadata, is_demo, order_id, membership_id")
       .eq("mollie_payment_id", molliePaymentId)
       .maybeSingle();
     if (paymentReadError) throw paymentReadError;
@@ -127,6 +127,18 @@ Deno.serve(async (req) => {
         const { error: stockError } = await supabase.rpc("process_paid_webshop_order_stock", { _order_id: orderId });
         if (stockError) throw stockError;
       }
+    }
+
+    const membershipId = payment.membership_id || metadata.membership_id;
+    if (membershipId) {
+      const membershipStatus = status === "paid" ? "active" : ["failed", "expired", "canceled", "cancelled"].includes(status) ? "payment_issue" : "active";
+      await supabase.from("customer_memberships").update({
+        status: membershipStatus,
+        last_payment_status: status === "paid" ? "paid" : ["failed", "expired", "canceled", "cancelled"].includes(status) ? "failed" : "open",
+        next_payment_at: status === "paid" ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() : null,
+        failure_reason: ["failed", "expired", "canceled", "cancelled"].includes(status) ? status : null,
+        updated_at: new Date().toISOString(),
+      }).eq("id", membershipId).eq("user_id", payment.user_id);
     }
 
     await logWebhookValidation(supabase, payment, status === "paid" ? "mollie_webhook_payment_success" : ["failed", "expired", "canceled", "cancelled"].includes(status) ? "mollie_webhook_payment_failed" : "mollie_webhook_validated", { mollie_payment_id: molliePaymentId, status, method: molliePayment.method || null, appointment_id: appointmentId || null });

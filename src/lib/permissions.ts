@@ -13,12 +13,14 @@ type Permission =
   | "settings:team"
   | "settings:integrations"
   | "settings:demo"
-  | "mollie:manage";
+  | "mollie:manage"
+  | "memberships:manage"
+  | "memberships:delete";
 
 const ROLE_PERMISSIONS: Record<AppRole, Permission[]> = {
-  eigenaar: ["customers:create", "customers:update", "customers:delete", "payments:update", "payments:refund", "payments:links", "reports:export", "settings:business", "settings:finance", "settings:team", "settings:integrations", "settings:demo", "mollie:manage"],
-  manager: ["customers:create", "customers:update", "customers:delete", "payments:update", "payments:links", "reports:export", "settings:business", "settings:integrations", "mollie:manage"],
-  admin: ["customers:create", "customers:update", "customers:delete", "payments:update", "payments:links", "reports:export", "settings:business", "settings:integrations", "mollie:manage"],
+  eigenaar: ["customers:create", "customers:update", "customers:delete", "payments:update", "payments:refund", "payments:links", "reports:export", "settings:business", "settings:finance", "settings:team", "settings:integrations", "settings:demo", "mollie:manage", "memberships:manage", "memberships:delete"],
+  manager: ["customers:create", "customers:update", "customers:delete", "payments:update", "payments:links", "reports:export", "settings:business", "settings:integrations", "mollie:manage", "memberships:manage"],
+  admin: ["customers:create", "customers:update", "customers:delete", "payments:update", "payments:links", "reports:export", "settings:business", "settings:integrations", "mollie:manage", "memberships:manage"],
   medewerker: ["customers:create", "customers:update"],
   receptie: ["customers:create", "customers:update"],
   financieel: ["payments:update", "payments:links", "reports:export"],

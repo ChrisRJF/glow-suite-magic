@@ -271,6 +271,89 @@ export type Database = {
           },
         ]
       }
+      customer_memberships: {
+        Row: {
+          cancel_at_period_end: boolean
+          cancelled_at: string | null
+          created_at: string
+          credits_available: number
+          credits_used: number
+          current_period_end: string | null
+          current_period_start: string
+          customer_id: string | null
+          failure_reason: string | null
+          id: string
+          is_demo: boolean
+          last_payment_status: string
+          membership_plan_id: string
+          metadata: Json
+          mollie_customer_id: string | null
+          mollie_subscription_id: string | null
+          next_payment_at: string | null
+          paused_at: string | null
+          start_date: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cancel_at_period_end?: boolean
+          cancelled_at?: string | null
+          created_at?: string
+          credits_available?: number
+          credits_used?: number
+          current_period_end?: string | null
+          current_period_start?: string
+          customer_id?: string | null
+          failure_reason?: string | null
+          id?: string
+          is_demo?: boolean
+          last_payment_status?: string
+          membership_plan_id: string
+          metadata?: Json
+          mollie_customer_id?: string | null
+          mollie_subscription_id?: string | null
+          next_payment_at?: string | null
+          paused_at?: string | null
+          start_date?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cancel_at_period_end?: boolean
+          cancelled_at?: string | null
+          created_at?: string
+          credits_available?: number
+          credits_used?: number
+          current_period_end?: string | null
+          current_period_start?: string
+          customer_id?: string | null
+          failure_reason?: string | null
+          id?: string
+          is_demo?: boolean
+          last_payment_status?: string
+          membership_plan_id?: string
+          metadata?: Json
+          mollie_customer_id?: string | null
+          mollie_subscription_id?: string | null
+          next_payment_at?: string | null
+          paused_at?: string | null
+          start_date?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_memberships_membership_plan_id_fkey"
+            columns: ["membership_plan_id"]
+            isOneToOne: false
+            referencedRelation: "membership_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           cancellation_count: number | null
@@ -502,6 +585,116 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      membership_plans: {
+        Row: {
+          benefits: Json
+          billing_interval: string
+          created_at: string
+          credits_reset: boolean
+          description: string
+          discount_percentage: number
+          id: string
+          included_treatments: number
+          is_active: boolean
+          is_demo: boolean
+          name: string
+          price: number
+          priority_booking: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          benefits?: Json
+          billing_interval?: string
+          created_at?: string
+          credits_reset?: boolean
+          description?: string
+          discount_percentage?: number
+          id?: string
+          included_treatments?: number
+          is_active?: boolean
+          is_demo?: boolean
+          name: string
+          price?: number
+          priority_booking?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          benefits?: Json
+          billing_interval?: string
+          created_at?: string
+          credits_reset?: boolean
+          description?: string
+          discount_percentage?: number
+          id?: string
+          included_treatments?: number
+          is_active?: boolean
+          is_demo?: boolean
+          name?: string
+          price?: number
+          priority_booking?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      membership_usage: {
+        Row: {
+          appointment_id: string | null
+          benefit_type: string
+          created_at: string
+          credits_used: number
+          customer_id: string | null
+          customer_membership_id: string
+          discount_amount: number
+          id: string
+          is_demo: boolean
+          notes: string
+          service_id: string | null
+          used_at: string
+          user_id: string
+        }
+        Insert: {
+          appointment_id?: string | null
+          benefit_type?: string
+          created_at?: string
+          credits_used?: number
+          customer_id?: string | null
+          customer_membership_id: string
+          discount_amount?: number
+          id?: string
+          is_demo?: boolean
+          notes?: string
+          service_id?: string | null
+          used_at?: string
+          user_id: string
+        }
+        Update: {
+          appointment_id?: string | null
+          benefit_type?: string
+          created_at?: string
+          credits_used?: number
+          customer_id?: string | null
+          customer_membership_id?: string
+          discount_amount?: number
+          id?: string
+          is_demo?: boolean
+          notes?: string
+          service_id?: string | null
+          used_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "membership_usage_customer_membership_id_fkey"
+            columns: ["customer_membership_id"]
+            isOneToOne: false
+            referencedRelation: "customer_memberships"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       mollie_connections: {
         Row: {
@@ -1357,6 +1550,10 @@ export type Database = {
       process_paid_webshop_order_stock: {
         Args: { _order_id: string }
         Returns: boolean
+      }
+      reset_due_membership_credits: {
+        Args: { _user_id: string }
+        Returns: number
       }
       user_row_matches_active_mode: {
         Args: { _row_is_demo: boolean; _row_user_id: string }

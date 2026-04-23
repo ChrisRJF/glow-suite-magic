@@ -1,151 +1,269 @@
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
-import { memberships, formatEuro } from "@/lib/data";
-import { useCustomers, useAppointments } from "@/hooks/useSupabaseData";
+import { Badge } from "@/components/ui/badge";
+import { useCustomerMemberships, useCustomers, useMembershipPlans, useSettings } from "@/hooks/useSupabaseData";
+import { usePayments } from "@/hooks/usePayments";
 import { useCrud } from "@/hooks/useCrud";
-import { Check, Crown, Users, TrendingUp, Euro, Star, Award, Gift } from "lucide-react";
+import { exportCSV } from "@/lib/exportUtils";
+import { formatEuro } from "@/lib/data";
 import { cn } from "@/lib/utils";
-import { useMemo } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Check, Crown, Euro, Gift, Loader2, Pause, Play, Plus, RefreshCw, ShieldAlert, TrendingUp, UserPlus, Users, XCircle } from "lucide-react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
+const intervalLabels: Record<string, string> = { monthly: "Maandelijks", quarterly: "Kwartaal", yearly: "Jaarlijks" };
+const statusLabels: Record<string, string> = { active: "Actief", paused: "Gepauzeerd", cancelled: "Opgezegd", expired: "Verlopen", payment_issue: "Betalingsprobleem" };
+const statusClasses: Record<string, string> = {
+  active: "bg-success/10 text-success border-success/20",
+  paused: "bg-warning/10 text-warning border-warning/20",
+  cancelled: "bg-muted text-muted-foreground border-border",
+  expired: "bg-muted text-muted-foreground border-border",
+  payment_issue: "bg-destructive/10 text-destructive border-destructive/20",
+};
+
+function defaultBenefits(name: string) {
+  return name.toLowerCase().includes("vip")
+    ? ["Priority booking", "Members only acties", "Exclusieve voordelen"]
+    : ["Vaste maandelijkse voordelen", "Automatische betaling", "Ledenkorting"];
+}
+
 export default function MembershipsPage() {
-  const { data: customers, refetch } = useCustomers();
-  const { data: appointments } = useAppointments();
-  const { update } = useCrud("customers");
+  const { data: plans, loading: plansLoading, refetch: refetchPlans } = useMembershipPlans();
+  const { data: memberships, loading: membershipsLoading, refetch: refetchMemberships } = useCustomerMemberships();
+  const { data: customers } = useCustomers();
+  const { data: payments } = usePayments();
+  const { data: settingsRows } = useSettings();
+  const planCrud = useCrud("membership_plans");
+  const memberCrud = useCrud("customer_memberships");
+  const [showPlanForm, setShowPlanForm] = useState(false);
+  const [showMemberForm, setShowMemberForm] = useState(false);
+  const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [planForm, setPlanForm] = useState({ name: "", price: 49, description: "", benefits: "", billing_interval: "monthly", included_treatments: 1, discount_percentage: 10, priority_booking: true, credits_reset: true, is_active: true });
+  const [memberForm, setMemberForm] = useState({ customer_id: "", membership_plan_id: "", method: "ideal" });
 
-  const loyaltyData = useMemo(() => {
-    return customers.map(c => {
-      const custAppts = appointments.filter(a => a.customer_id === c.id && a.status !== 'geannuleerd');
-      const points = (Number(c.loyalty_points) || 0) + custAppts.length * 10;
-      const spent = Number(c.total_spent) || 0;
-      const isVip = c.is_vip || spent > 500;
-      const almostVip = spent >= 350 && spent < 500;
-      const tier = isVip ? "VIP" : spent >= 250 ? "Gold" : spent >= 100 ? "Silver" : "Bronze";
-      return { ...c, points, isVip, almostVip, tier, visits: custAppts.length, spent };
-    }).sort((a, b) => b.spent - a.spent);
-  }, [customers, appointments]);
+  const settings = settingsRows[0] as any | undefined;
+  const salonSlug = settings?.public_slug || (settings?.salon_name || "mijn-salon").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  const publicUrl = `${window.location.origin}/memberships/${salonSlug}`;
+  const activeMembers = memberships.filter((m: any) => m.status === "active");
+  const issueMembers = memberships.filter((m: any) => m.status === "payment_issue");
+  const cancelledMembers = memberships.filter((m: any) => ["cancelled", "expired"].includes(m.status));
 
-  const vipCount = loyaltyData.filter(c => c.isVip).length;
-  const almostVipCount = loyaltyData.filter(c => c.almostVip).length;
-  const avgPoints = loyaltyData.length > 0 ? Math.round(loyaltyData.reduce((s, c) => s + c.points, 0) / loyaltyData.length) : 0;
+  const enriched = useMemo(() => memberships.map((membership: any) => {
+    const plan = plans.find((p: any) => p.id === membership.membership_plan_id);
+    const customer = customers.find((c: any) => c.id === membership.customer_id);
+    return { ...membership, plan, customer };
+  }), [customers, memberships, plans]);
 
-  const handleMarkVip = async (id: string) => {
-    const result = await update(id, { is_vip: true } as any);
-    if (result) { toast.success("Klant gemarkeerd als VIP ⭐"); refetch(); }
+  const stats = useMemo(() => {
+    const mrr = enriched.filter((m: any) => m.status === "active").reduce((sum: number, m: any) => {
+      const price = Number(m.plan?.price || 0);
+      const interval = m.plan?.billing_interval || "monthly";
+      return sum + (interval === "yearly" ? price / 12 : interval === "quarterly" ? price / 3 : price);
+    }, 0);
+    const membershipPayments = (payments as any[]).filter((p) => p.payment_type === "membership" && p.status === "paid");
+    const topPlan = plans.map((plan: any) => ({ plan, count: activeMembers.filter((m: any) => m.membership_plan_id === plan.id).length })).sort((a, b) => b.count - a.count)[0];
+    const churnRate = memberships.length ? Math.round((cancelledMembers.length / memberships.length) * 100) : 0;
+    return { mrr, expected: mrr, paidRevenue: membershipPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0), topPlan, churnRate };
+  }, [activeMembers, cancelledMembers.length, memberships.length, payments, plans, enriched]);
+
+  const resetPlanForm = () => {
+    setEditingPlanId(null);
+    setPlanForm({ name: "", price: 49, description: "", benefits: "", billing_interval: "monthly", included_treatments: 1, discount_percentage: 10, priority_booking: true, credits_reset: true, is_active: true });
   };
 
-  const memberStats = [
-    { label: 'VIP Klanten', value: String(vipCount), icon: Star },
-    { label: 'Bijna VIP', value: String(almostVipCount), icon: TrendingUp },
-    { label: 'Gem. Punten', value: String(avgPoints), icon: Award },
-  ];
+  const openEditPlan = (plan: any) => {
+    setEditingPlanId(plan.id);
+    setPlanForm({
+      name: plan.name || "",
+      price: Number(plan.price || 0),
+      description: plan.description || "",
+      benefits: Array.isArray(plan.benefits) ? plan.benefits.join("\n") : "",
+      billing_interval: plan.billing_interval || "monthly",
+      included_treatments: Number(plan.included_treatments || 0),
+      discount_percentage: Number(plan.discount_percentage || 0),
+      priority_booking: Boolean(plan.priority_booking),
+      credits_reset: plan.credits_reset !== false,
+      is_active: plan.is_active !== false,
+    });
+    setShowPlanForm(true);
+  };
 
-  const tierColor = (tier: string) => {
-    switch (tier) {
-      case "VIP": return "bg-warning/15 text-warning";
-      case "Gold": return "bg-yellow-500/15 text-yellow-600";
-      case "Silver": return "bg-muted text-muted-foreground";
-      default: return "bg-orange-500/15 text-orange-600";
+  const savePlan = async () => {
+    if (!planForm.name.trim()) { toast.error("Naam is verplicht"); return; }
+    const payload = {
+      ...planForm,
+      benefits: planForm.benefits.split("\n").map((item) => item.trim()).filter(Boolean).length ? planForm.benefits.split("\n").map((item) => item.trim()).filter(Boolean) : defaultBenefits(planForm.name),
+      price: Number(planForm.price || 0),
+      included_treatments: Number(planForm.included_treatments || 0),
+      discount_percentage: Number(planForm.discount_percentage || 0),
+    };
+    const result = editingPlanId ? await planCrud.update(editingPlanId, payload) : await planCrud.insert(payload);
+    if (result) {
+      toast.success(editingPlanId ? "Membership bijgewerkt" : "Membership aangemaakt");
+      setShowPlanForm(false);
+      resetPlanForm();
+      refetchPlans();
     }
   };
 
+  const addManualMember = async () => {
+    const plan = plans.find((p: any) => p.id === memberForm.membership_plan_id);
+    if (!memberForm.customer_id || !plan) { toast.error("Kies een klant en membership"); return; }
+    const result = await memberCrud.insert({
+      customer_id: memberForm.customer_id,
+      membership_plan_id: plan.id,
+      status: "active",
+      credits_available: Number(plan.included_treatments || 0),
+      current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+      last_payment_status: "manual",
+      metadata: { source: "manual" },
+    });
+    if (result) {
+      toast.success("Lid handmatig toegevoegd");
+      setShowMemberForm(false);
+      setMemberForm({ customer_id: "", membership_plan_id: "", method: "ideal" });
+      refetchMemberships();
+    }
+  };
+
+  const startCheckout = async () => {
+    const plan = plans.find((p: any) => p.id === memberForm.membership_plan_id);
+    if (!memberForm.customer_id || !plan) { toast.error("Kies een klant en membership"); return; }
+    const customer = customers.find((c: any) => c.id === memberForm.customer_id);
+    const created = await memberCrud.insert({
+      customer_id: memberForm.customer_id,
+      membership_plan_id: plan.id,
+      status: "payment_issue",
+      credits_available: Number(plan.included_treatments || 0),
+      current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+      last_payment_status: "open",
+      metadata: { source: "salon_checkout" },
+    });
+    if (!created) return;
+    setBusyId(created.id);
+    const { data, error } = await supabase.functions.invoke("create-payment", { body: { amount: Number(plan.price || 0), payment_type: "membership", membership_id: created.id, customer_id: customer?.id, method: memberForm.method, redirect_url: window.location.href } });
+    setBusyId(null);
+    if (error || !data?.checkoutUrl) { toast.error((error as any)?.message || data?.error || "Checkout kon niet worden gestart"); return; }
+    window.location.href = data.checkoutUrl;
+  };
+
+  const updateMember = async (id: string, data: Record<string, any>, message: string) => {
+    setBusyId(id);
+    const result = await memberCrud.update(id, data);
+    setBusyId(null);
+    if (result) { toast.success(message); refetchMemberships(); }
+  };
+
+  const resetCredits = async () => {
+    setBusyId("reset");
+    const { error } = await supabase.rpc("reset_due_membership_credits" as any, { _user_id: (settings as any)?.user_id });
+    setBusyId(null);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Credits bijgewerkt");
+    refetchMemberships();
+  };
+
+  const exportMembers = (type: "active" | "churn" | "revenue" | "open") => {
+    const rows = enriched.filter((m: any) => type === "active" ? m.status === "active" : type === "churn" ? ["cancelled", "expired"].includes(m.status) : type === "open" ? m.last_payment_status !== "paid" && m.status !== "active" : true)
+      .map((m: any) => [m.customer?.name || "Onbekend", m.plan?.name || "Membership", statusLabels[m.status] || m.status, formatEuro(Number(m.plan?.price || 0)), m.next_payment_at ? new Date(m.next_payment_at).toLocaleDateString("nl-NL") : "Niet gepland"]);
+    exportCSV(["Klant", "Membership", "Status", "Prijs", "Volgende incasso"], rows, `memberships-${type}.csv`);
+    toast.success("CSV export gestart");
+  };
+
+  const loading = plansLoading || membershipsLoading;
+
   return (
-    <AppLayout title="Loyaliteit & Abonnementen" subtitle="Beloon trouwe klanten en verhoog retentie.">
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-        {memberStats.map((stat, i) => (
-          <div key={stat.label} className="stat-card opacity-0 animate-fade-in-up" style={{ animationDelay: `${i * 80}ms` }}>
-            <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center mb-3">
-              <stat.icon className="w-5 h-5 text-muted-foreground" />
+    <AppLayout title="Memberships" subtitle="Terugkerende omzet, ledenvoordelen en betaalstatussen." actions={<Button variant="gradient" size="sm" onClick={() => { resetPlanForm(); setShowPlanForm(true); }}><Plus className="w-4 h-4" /> Nieuw membership</Button>}>
+      {showPlanForm && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowPlanForm(false)}>
+          <div className="glass-card p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-4">{editingPlanId ? "Membership bewerken" : "Nieuw membership"}</h3>
+            <div className="space-y-3">
+              <input value={planForm.name} onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })} placeholder="Naam" className="w-full px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+              <textarea value={planForm.description} onChange={(e) => setPlanForm({ ...planForm, description: e.target.value })} placeholder="Beschrijving" className="w-full px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm min-h-[70px] focus:outline-none focus:ring-2 focus:ring-primary/30" />
+              <textarea value={planForm.benefits} onChange={(e) => setPlanForm({ ...planForm, benefits: e.target.value })} placeholder="Voordelen, één per regel" className="w-full px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm min-h-[90px] focus:outline-none focus:ring-2 focus:ring-primary/30" />
+              <div className="grid grid-cols-2 gap-3">
+                <input type="number" value={planForm.price} onChange={(e) => setPlanForm({ ...planForm, price: Number(e.target.value) })} placeholder="Prijs" className="px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm" />
+                <select value={planForm.billing_interval} onChange={(e) => setPlanForm({ ...planForm, billing_interval: e.target.value })} className="px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm"><option value="monthly">Maandelijks</option><option value="quarterly">Kwartaal</option><option value="yearly">Jaarlijks</option></select>
+                <input type="number" value={planForm.included_treatments} onChange={(e) => setPlanForm({ ...planForm, included_treatments: Number(e.target.value) })} placeholder="Credits" className="px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm" />
+                <input type="number" value={planForm.discount_percentage} onChange={(e) => setPlanForm({ ...planForm, discount_percentage: Number(e.target.value) })} placeholder="Korting %" className="px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm" />
+              </div>
+              <label className="flex items-center justify-between text-sm py-2"><span>Priority booking</span><input type="checkbox" checked={planForm.priority_booking} onChange={(e) => setPlanForm({ ...planForm, priority_booking: e.target.checked })} /></label>
+              <label className="flex items-center justify-between text-sm py-2"><span>Credits maandelijks resetten</span><input type="checkbox" checked={planForm.credits_reset} onChange={(e) => setPlanForm({ ...planForm, credits_reset: e.target.checked })} /></label>
+              <label className="flex items-center justify-between text-sm py-2"><span>Actief</span><input type="checkbox" checked={planForm.is_active} onChange={(e) => setPlanForm({ ...planForm, is_active: e.target.checked })} /></label>
             </div>
-            <p className="text-2xl font-bold tracking-tight tabular-nums">{stat.value}</p>
-            <p className="text-sm text-muted-foreground mt-0.5">{stat.label}</p>
+            <div className="flex gap-2 mt-5"><Button variant="outline" className="flex-1" onClick={() => setShowPlanForm(false)}>Annuleren</Button><Button variant="gradient" className="flex-1" onClick={savePlan}>Opslaan</Button></div>
           </div>
-        ))}
-      </div>
-
-      {/* Loyalty Tiers */}
-      <h2 className="text-lg font-semibold mb-4 opacity-0 animate-fade-in-up" style={{ animationDelay: '250ms' }}>Loyaliteit Ranglijst</h2>
-      <div className="glass-card p-6 mb-8 opacity-0 animate-fade-in-up" style={{ animationDelay: '300ms' }}>
-        <div className="space-y-2">
-          {loyaltyData.slice(0, 10).map((c, i) => (
-            <div key={c.id} className="flex items-center gap-4 p-3 rounded-xl bg-secondary/50 hover:bg-secondary transition-colors">
-              <div className="w-8 text-center text-sm font-bold text-muted-foreground">#{i + 1}</div>
-              <div className="w-9 h-9 rounded-full gradient-bg flex items-center justify-center">
-                <span className="text-xs font-semibold text-primary-foreground">
-                  {c.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase()}
-                </span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium">{c.name}</p>
-                  <span className={cn("px-1.5 py-0.5 rounded-md text-[10px] font-semibold", tierColor(c.tier))}>{c.tier}</span>
-                  {c.isVip && <Star className="w-3.5 h-3.5 text-warning" />}
-                </div>
-                <p className="text-xs text-muted-foreground">{c.visits} bezoeken · {c.points} punten</p>
-              </div>
-              <div className="text-right flex-shrink-0">
-                <p className="text-sm font-semibold tabular-nums">{formatEuro(c.spent)}</p>
-                {c.almostVip && !c.isVip && (
-                  <Button variant="outline" size="sm" className="mt-1 h-6 text-[10px]" onClick={() => handleMarkVip(c.id)}>
-                    <Star className="w-3 h-3" /> Maak VIP
-                  </Button>
-                )}
-              </div>
-            </div>
-          ))}
         </div>
-        {loyaltyData.length === 0 && <p className="text-sm text-muted-foreground text-center py-6">Nog geen klantdata</p>}
-      </div>
+      )}
 
-      {/* Reward tiers explanation */}
-      <h2 className="text-lg font-semibold mb-4 opacity-0 animate-fade-in-up" style={{ animationDelay: '350ms' }}>Beloningsniveaus</h2>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        {[
-          { tier: "Bronze", min: "€0", perk: "10 punten/bezoek", color: "border-orange-500/30" },
-          { tier: "Silver", min: "€100+", perk: "5% korting", color: "border-muted" },
-          { tier: "Gold", min: "€250+", perk: "10% korting", color: "border-yellow-500/30" },
-          { tier: "VIP", min: "€500+", perk: "15% + exclusief", color: "border-warning/30" },
-        ].map((t, i) => (
-          <div key={t.tier} className={cn("glass-card p-4 border-2 opacity-0 animate-fade-in-up", t.color)} style={{ animationDelay: `${400 + i * 80}ms` }}>
-            <p className="text-base font-bold mb-1">{t.tier}</p>
-            <p className="text-xs text-muted-foreground mb-2">Vanaf {t.min}</p>
-            <p className="text-sm flex items-center gap-1"><Gift className="w-3.5 h-3.5 text-primary" /> {t.perk}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Membership Plans */}
-      <h2 className="text-lg font-semibold mb-4 opacity-0 animate-fade-in-up" style={{ animationDelay: '700ms' }}>Abonnement Pakketten</h2>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        {memberships.map((plan, i) => (
-          <div key={plan.id} className={cn(
-            "glass-card p-6 relative opacity-0 animate-fade-in-up transition-all duration-200 hover:border-primary/30",
-            plan.popular && 'border-primary/30 shadow-[0_0_30px_-8px_hsl(var(--glow-purple)/0.2)]'
-          )} style={{ animationDelay: `${i * 100 + 800}ms` }}>
-            {plan.popular && (
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full gradient-bg text-[11px] font-semibold text-primary-foreground flex items-center gap-1">
-                <Crown className="w-3 h-3" /> Populair
-              </div>
-            )}
-            <h3 className="text-lg font-bold mb-1">{plan.name}</h3>
-            <div className="flex items-baseline gap-1 mb-5">
-              <span className="text-3xl font-bold tabular-nums">{formatEuro(plan.price)}</span>
-              <span className="text-sm text-muted-foreground">/maand</span>
+      {showMemberForm && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowMemberForm(false)}>
+          <div className="glass-card p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-4">Lid toevoegen</h3>
+            <div className="space-y-3">
+              <select value={memberForm.customer_id} onChange={(e) => setMemberForm({ ...memberForm, customer_id: e.target.value })} className="w-full px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm"><option value="">Kies klant</option>{customers.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
+              <select value={memberForm.membership_plan_id} onChange={(e) => setMemberForm({ ...memberForm, membership_plan_id: e.target.value })} className="w-full px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm"><option value="">Kies membership</option>{plans.filter((p: any) => p.is_active).map((p: any) => <option key={p.id} value={p.id}>{p.name} · {formatEuro(Number(p.price || 0))}</option>)}</select>
+              <select value={memberForm.method} onChange={(e) => setMemberForm({ ...memberForm, method: e.target.value })} className="w-full px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm"><option value="ideal">iDEAL</option><option value="creditcard">Creditcard</option><option value="bancontact">Bancontact</option></select>
             </div>
-            <ul className="space-y-2.5 mb-6">
-              {plan.perks.map((perk, pi) => (
-                <li key={pi} className="flex items-start gap-2 text-sm">
-                  <Check className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
-                  <span>{perk}</span>
-                </li>
-              ))}
-            </ul>
-            <Button variant={plan.popular ? 'gradient' : 'outline'} className="w-full" disabled>
-              Binnenkort beschikbaar
-            </Button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-5"><Button variant="outline" onClick={addManualMember}>Handmatig actief</Button><Button variant="gradient" onClick={startCheckout} disabled={!!busyId}>{busyId ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Eerste betaling</Button></div>
           </div>
-        ))}
+        </div>
+      )}
+
+      <div className="grid gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[{ label: "MRR", value: formatEuro(stats.mrr), icon: Euro }, { label: "Actieve leden", value: String(activeMembers.length), icon: Users }, { label: "Verwacht komende maand", value: formatEuro(stats.expected), icon: TrendingUp }, { label: "Betalingsproblemen", value: String(issueMembers.length), icon: ShieldAlert }].map((stat) => <div key={stat.label} className="stat-card"><stat.icon className="w-5 h-5 text-primary mb-3" /><p className="text-2xl font-bold tabular-nums">{stat.value}</p><p className="text-xs text-muted-foreground">{stat.label}</p></div>)}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="glass-card p-5"><p className="text-xs text-muted-foreground mb-1">Top retention membership</p><p className="text-lg font-semibold">{stats.topPlan?.plan?.name || "Nog geen data"}</p><p className="text-sm text-muted-foreground">{stats.topPlan?.count || 0} actieve leden</p></div>
+          <div className="glass-card p-5"><p className="text-xs text-muted-foreground mb-1">Churn rate</p><p className="text-lg font-semibold">{stats.churnRate}%</p><p className="text-sm text-muted-foreground">{cancelledMembers.length} opgezegd/verlopen</p></div>
+          <div className="glass-card p-5"><p className="text-xs text-muted-foreground mb-1">Win-back lijst</p><p className="text-lg font-semibold">{cancelledMembers.length}</p><p className="text-sm text-muted-foreground">Klanten om terug te winnen</p></div>
+        </div>
+
+        <div className="glass-card p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div><p className="font-semibold">White-label aanmeldpagina</p><p className="text-xs text-muted-foreground break-all">{publicUrl}</p></div>
+          <div className="flex flex-wrap gap-2"><Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(publicUrl).then(() => toast.success("Link gekopieerd"))}>Link kopiëren</Button><Button variant="outline" size="sm" onClick={() => window.open(publicUrl, "_blank")}>Preview</Button></div>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <Button variant="gradient" size="sm" onClick={() => setShowMemberForm(true)}><UserPlus className="w-4 h-4" /> Lid toevoegen</Button>
+          <Button variant="outline" size="sm" onClick={resetCredits} disabled={busyId === "reset"}>{busyId === "reset" ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} Credits resetten</Button>
+          <Button variant="outline" size="sm" onClick={() => exportMembers("active")}>Actieve leden CSV</Button>
+          <Button variant="outline" size="sm" onClick={() => exportMembers("churn")}>Churn CSV</Button>
+          <Button variant="outline" size="sm" onClick={() => exportMembers("open")}>Open incasso's CSV</Button>
+        </div>
+
+        <section>
+          <h2 className="text-lg font-semibold mb-4">Membership types</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {loading ? [1,2,3].map((i) => <div key={i} className="glass-card p-6 h-56 animate-pulse" />) : plans.length === 0 ? <div className="glass-card p-6 md:col-span-3 text-center text-sm text-muted-foreground">Nog geen memberships aangemaakt. Maak je eerste membership aan.</div> : plans.map((plan: any) => (
+              <div key={plan.id} className={cn("glass-card p-6 relative", !plan.is_active && "opacity-60")}>
+                <div className="flex items-start justify-between gap-2 mb-3"><h3 className="text-lg font-bold">{plan.name}</h3><Badge variant="outline">{plan.is_active ? "Actief" : "Inactief"}</Badge></div>
+                <p className="text-sm text-muted-foreground min-h-[40px]">{plan.description || "Geen beschrijving ingesteld"}</p>
+                <div className="flex items-baseline gap-1 my-4"><span className="text-3xl font-bold">{formatEuro(Number(plan.price || 0))}</span><span className="text-sm text-muted-foreground">/{intervalLabels[plan.billing_interval] || "periode"}</span></div>
+                <ul className="space-y-2 mb-5">{(Array.isArray(plan.benefits) ? plan.benefits : []).slice(0, 5).map((benefit: string) => <li key={benefit} className="flex items-start gap-2 text-sm"><Check className="w-4 h-4 text-primary mt-0.5" />{benefit}</li>)}</ul>
+                <div className="grid grid-cols-3 gap-2 text-center text-xs mb-4"><div className="rounded-lg bg-secondary/40 p-2"><b>{plan.included_treatments || 0}</b><br />credits</div><div className="rounded-lg bg-secondary/40 p-2"><b>{plan.discount_percentage || 0}%</b><br />korting</div><div className="rounded-lg bg-secondary/40 p-2"><b>{plan.priority_booking ? "Ja" : "Nee"}</b><br />priority</div></div>
+                <Button variant="outline" className="w-full" onClick={() => openEditPlan(plan)}>Beheren</Button>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="glass-card p-5">
+          <div className="flex items-center justify-between gap-3 mb-4"><h2 className="text-lg font-semibold">Ledenbeheer</h2><Badge variant="secondary">{enriched.length} leden</Badge></div>
+          <div className="space-y-2">
+            {loading ? <p className="text-sm text-muted-foreground text-center py-6">Leden laden...</p> : enriched.length === 0 ? <p className="text-sm text-muted-foreground text-center py-6">Nog geen leden. Voeg handmatig een lid toe of deel de aanmeldpagina.</p> : enriched.map((member: any) => (
+              <div key={member.id} className="p-4 rounded-xl bg-secondary/30 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="font-medium truncate">{member.customer?.name || "Onbekende klant"}</p><span className={cn("px-2 py-0.5 rounded-full border text-[11px] font-medium", statusClasses[member.status] || statusClasses.expired)}>{statusLabels[member.status] || member.status}</span>{member.plan?.priority_booking && <Crown className="w-4 h-4 text-primary" />}</div><p className="text-xs text-muted-foreground">{member.plan?.name || "Membership"} · {member.credits_available || 0} credits beschikbaar · volgende incasso {member.next_payment_at ? new Date(member.next_payment_at).toLocaleDateString("nl-NL") : "niet gepland"}</p></div>
+                <div className="flex flex-wrap gap-2"><Button variant="outline" size="sm" onClick={() => updateMember(member.id, { status: member.status === "paused" ? "active" : "paused", paused_at: member.status === "paused" ? null : new Date().toISOString() }, member.status === "paused" ? "Lid heractiveerd" : "Lid gepauzeerd")} disabled={busyId === member.id}>{member.status === "paused" ? <Play className="w-3.5 h-3.5" /> : <Pause className="w-3.5 h-3.5" />}{member.status === "paused" ? "Heractiveer" : "Pauzeer"}</Button><Button variant="outline" size="sm" onClick={() => updateMember(member.id, { credits_available: Number(member.credits_available || 0) + 1 }, "Credit toegevoegd")} disabled={busyId === member.id}><Gift className="w-3.5 h-3.5" /> Credit</Button><Button variant="outline" size="sm" onClick={() => updateMember(member.id, { status: "cancelled", cancel_at_period_end: true, cancelled_at: new Date().toISOString() }, "Lid opgezegd per periode") } disabled={busyId === member.id}><XCircle className="w-3.5 h-3.5" /> Stop</Button></div>
+              </div>
+            ))}
+          </div>
+        </section>
       </div>
     </AppLayout>
   );
