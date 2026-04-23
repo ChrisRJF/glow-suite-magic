@@ -85,10 +85,7 @@ export default function DashboardPage() {
     }
   }, [appointments, demoMode]);
 
-  const campaignRevenue = useMemo(() => {
-    const successful = campaigns.filter((c) => c.status === "verzonden" || c.status === "geboekt");
-    return successful.reduce((s, c) => s + (c.sent_count || 0) * 45, 0);
-  }, [campaigns]);
+  const paidRevenueThisMonth = report.revenue.month;
 
   const messagesSent = useMemo(
     () => campaigns.filter((c) => (c.type === "whatsapp" || c.type === "sms") && c.status && c.status !== "concept").length,
@@ -106,17 +103,13 @@ export default function DashboardPage() {
 
   const autoFilledAppts = useMemo(() => appointments.filter((a) => a.notes?.includes("Auto-gevuld")).length, [appointments]);
 
-  const monthlyGrowthRevenue = aiRevenue + campaignRevenue;
-  const missedRevenue = report.revenue.openAmount;
+  const monthlyGrowthRevenue = paidRevenueThisMonth;
 
   const vipCustomers = customers.filter((c) => (Number(c.total_spent) || 0) > 500);
   const newLeads = leads.filter((l) => l.status === "nieuw").length;
   const leadsConverted = leads.filter((l) => l.status === "klant_geworden" || l.status === "geboekt").length;
   const leadsConversionPct = leads.length > 0 ? Math.round((leadsConverted / leads.length) * 100) : 0;
   const leadsRevenue = leadsConverted * 65;
-
-  // Time window context for free slots (KPI storytelling)
-  const freeSlotWindow = vrijePlekken > 0 ? "tussen 13:00–17:00" : null;
 
   return (
     <AppLayout
@@ -421,5 +414,20 @@ export default function DashboardPage() {
         )}
       </section>
     </AppLayout>
+  );
+}
+
+function DashboardKpi({ icon: Icon, label, value, trend, trendValue, onClick }: { icon: React.ElementType; label: string; value: string; trend: string; trendValue?: number; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="text-left p-4 sm:p-5 rounded-2xl border border-border/70 bg-card hover:border-primary/30 hover:-translate-y-0.5 transition-all" style={{ boxShadow: "var(--shadow-sm)" }}>
+      <div className="flex items-center justify-between gap-2 mb-2.5">
+        <div className="flex items-center gap-2 min-w-0">
+          <Icon className="w-4 h-4 text-primary flex-shrink-0" />
+          <span className="text-eyebrow truncate">{label}</span>
+        </div>
+        <span className={cn("text-[11px] font-semibold px-2 py-0.5 rounded-md flex-shrink-0", typeof trendValue === "number" ? trendClass(trendValue) : "text-muted-foreground bg-secondary/50")}>{trend}</span>
+      </div>
+      <p className="text-metric-sm break-words">{value}</p>
+    </button>
   );
 }
