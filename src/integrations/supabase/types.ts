@@ -1262,6 +1262,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      bootstrap_current_user: { Args: never; Returns: Json }
       can_manage_operations: { Args: { _user_id: string }; Returns: boolean }
       can_manage_users: { Args: { _user_id: string }; Returns: boolean }
       can_view_finance: { Args: { _user_id: string }; Returns: boolean }
