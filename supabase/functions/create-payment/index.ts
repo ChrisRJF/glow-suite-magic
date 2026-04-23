@@ -193,28 +193,31 @@ Deno.serve(async (req) => {
       });
     }
     const connection = await refreshConnection(admin, rawConnection);
+    const isTestButton = source === "test_button";
+    const profile = isTestButton ? await getWebsiteProfile(connection.mollie_access_token) : null;
 
-    const mollieResponse = await fetch("https://api.mollie.com/v2/payments", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${connection.mollie_access_token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        amount: { currency: "EUR", value: amount.toFixed(2) },
-        description: `GlowSuite ${payment_type === "deposit" ? "Aanbetaling" : "Betaling"}`,
-        redirectUrl: `${REDIRECT_BASE}/boeken?status=payment-return`,
-        webhookUrl: `${supabaseUrl}/functions/v1/mollie-webhook`,
-        method,
-        metadata: { appointment_id, customer_id, salon_id: user.id, payment_type },
-      }),
-    });
+    const molliePayload: Record<string, unknown> = {
+      amount: { currency: "EUR", value: amount.toFixed(2) },
+      description: isTestButton ? "GlowSuite Live Test Payment" : `GlowSuite ${payment_type === "deposit" ? "Aanbetaling" : "Betaling"}`,
+      redirectUrl: isTestButton ? (redirect_url || `${REDIRECT_BASE}/instellingen?tab=integraties`) : `${REDIRECT_BASE}/boeken?status=payment-return`,
+      webhookUrl: `${supabaseUrl}/functions/v1/mollie-webhook`,
+      method,
+      metadata: isTestButton
+        ? { source: "test_button", salon_id: user.id, payment_type: "full" }
+        : { appointment_id, customer_id, salon_id: user.id, payment_type },
+    };
+    if (profile?.id) molliePayload.profileId = profile.id;
 
-    const mollieData = await mollieResponse.json();
-
-    if (!mollieResponse.ok) {
-      return new Response(JSON.stringify({ error: `Mollie fout: ${JSON.stringify(mollieData)}` }), {
-        status: 500,
+    let mollieData: any;
+    try {
+      mollieData = await mollieFetch("/payments", connection.mollie_access_token, {
+        method: "POST",
+        body: JSON.stringify(molliePayload),
+      });
+    } catch (error) {
+      console.error("Mollie payment creation failed", error);
+      return new Response(JSON.stringify({ error: (error as Error).message }), {
+        status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -223,17 +226,18 @@ Deno.serve(async (req) => {
       .from("payments")
       .insert({
         user_id: user.id,
-        appointment_id,
-        customer_id,
+        appointment_id: isTestButton ? null : appointment_id,
+        customer_id: isTestButton ? null : customer_id,
         mollie_payment_id: mollieData.id,
         amount,
         currency: "EUR",
-        payment_type,
+        payment_type: isTestButton ? "full" : payment_type,
         status: "pending",
         method,
         mollie_method: method,
         is_demo: false,
         provider: "mollie",
+        metadata: isTestButton ? { source: "test_button", profile_id: profile?.id || null } : undefined,
       })
       .select()
       .single();
