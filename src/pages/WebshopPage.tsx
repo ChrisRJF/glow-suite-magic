@@ -4,14 +4,12 @@ import { useProducts } from "@/hooks/useSupabaseData";
 import { useCrud } from "@/hooks/useCrud";
 import { formatEuro } from "@/lib/data";
 import { ShoppingCart, Eye, EyeOff, Package, TrendingUp, Globe } from "lucide-react";
-import { useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export default function WebshopPage() {
   const { data: products, refetch } = useProducts();
   const { update } = useCrud("products");
-  const [webshopEnabled, setWebshopEnabled] = useState(true);
 
   const activeProducts = products.filter(p => p.is_active);
   const totalValue = activeProducts.reduce((s, p) => s + p.price * (p.stock || 0), 0);
@@ -33,13 +31,12 @@ export default function WebshopPage() {
               <Globe className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <p className="text-sm font-semibold">Webshop {webshopEnabled ? "actief" : "inactief"}</p>
-              <p className="text-xs text-muted-foreground">Klanten kunnen online producten bestellen</p>
+              <p className="text-sm font-semibold">Webshop nog niet live</p>
+              <p className="text-xs text-muted-foreground">Productzichtbaarheid is voorbereid; online checkout volgt later</p>
             </div>
           </div>
-          <button onClick={() => { setWebshopEnabled(!webshopEnabled); toast.success(webshopEnabled ? "Webshop uitgeschakeld" : "Webshop ingeschakeld"); }}
-            className={cn("w-10 h-6 rounded-full transition-colors", webshopEnabled ? "bg-primary" : "bg-secondary")}>
-            <div className={cn("w-4 h-4 rounded-full bg-white transition-transform", webshopEnabled ? "translate-x-5" : "translate-x-1")} />
+          <button disabled className="px-3 py-1.5 rounded-lg bg-secondary text-xs text-muted-foreground cursor-not-allowed">
+            Binnenkort beschikbaar
           </button>
         </div>
 
