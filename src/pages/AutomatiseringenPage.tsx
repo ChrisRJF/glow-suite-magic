@@ -16,6 +16,7 @@ type Rule = {
   id: string;
   name?: string | null;
   description?: string | null;
+  template_key?: string | null;
   trigger_type: string;
   action_type: string;
   is_active: boolean;
