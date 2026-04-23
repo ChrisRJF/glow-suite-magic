@@ -963,6 +963,48 @@ export type Database = {
           },
         ]
       }
+      user_access: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          is_demo: boolean
+          last_active_at: string | null
+          member_user_id: string | null
+          name: string
+          owner_user_id: string
+          role: Database["public"]["Enums"]["app_role"]
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          is_demo?: boolean
+          last_active_at?: string | null
+          member_user_id?: string | null
+          name?: string
+          owner_user_id: string
+          role: Database["public"]["Enums"]["app_role"]
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          is_demo?: boolean
+          last_active_at?: string | null
+          member_user_id?: string | null
+          name?: string
+          owner_user_id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
