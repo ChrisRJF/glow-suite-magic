@@ -115,7 +115,7 @@ export default function InstellingenPage() {
   useEffect(() => {
     if (!user) return;
     const fetchRoles = async () => {
-      const { data } = await (supabase.from("user_access") as any).select("*").order("created_at", { ascending: false });
+      const { data } = await (supabase as any).from("user_access").select("*").order("created_at", { ascending: false });
       if (data) setTeamMembers(data);
     };
     fetchRoles();
@@ -198,7 +198,7 @@ export default function InstellingenPage() {
       }
       toast.success(`Gebruiker ${newUserName} aangemaakt`);
       setNewUserName(""); setNewUserEmail(""); setNewUserPassword(""); setNewUserRole("medewerker");
-      const { data: rolesData } = await (supabase.from("user_access") as any).select("*").order("created_at", { ascending: false });
+      const { data: rolesData } = await (supabase as any).from("user_access").select("*").order("created_at", { ascending: false });
       if (rolesData) setTeamMembers(rolesData);
     } catch (err: any) {
       toast.error(err.message || "Aanmaken mislukt");
@@ -209,11 +209,14 @@ export default function InstellingenPage() {
 
   const handleRemoveTeamMember = async (id: string) => {
     if (!canManageTeam) { toast.error("Alleen eigenaren kunnen gebruikers beheren."); return; }
-    if (await removeRole(id)) {
-      toast.success("Toegang ingetrokken");
-      const { data } = await (supabase.from("user_access") as any).select("*").order("created_at", { ascending: false });
-      if (data) setTeamMembers(data);
-    }
+    const member = teamMembers.find((m) => m.id === id);
+    if (!member) return;
+    const { error } = await (supabase as any).from("user_access").update({ status: "disabled" }).eq("id", id);
+    if (!error && member.member_user_id) await (supabase.from("user_roles") as any).delete().eq("user_id", member.member_user_id);
+    if (error) { toast.error("Toegang intrekken mislukt"); return; }
+    toast.success("Toegang ingetrokken");
+    const { data } = await (supabase as any).from("user_access").select("*").order("created_at", { ascending: false });
+    if (data) setTeamMembers(data);
   };
 
 
@@ -284,7 +287,14 @@ export default function InstellingenPage() {
     { id: "export", label: "Data Export", icon: Download },
     { id: "rollen", label: "Gebruikers", icon: UserCog },
     { id: "demo", label: "Demo", icon: Shield },
-  ];
+  ].filter((tab) => {
+    if (tab.id === "betaling") return canManageFinance;
+    if (tab.id === "export") return canExport;
+    if (tab.id === "rollen") return canManageTeam;
+    if (tab.id === "integraties") return canManageIntegrations;
+    if (tab.id === "demo") return isOwner;
+    return canManageBusiness;
+  });
 
   const integrations = [
     { name: "GlowPay (Mollie)", desc: "Online betalingen en aanbetalingen", enabled: mollieMode !== '', icon: CreditCard, toggle: undefined },
