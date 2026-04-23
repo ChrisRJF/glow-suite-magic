@@ -185,7 +185,7 @@ export default function AutomatiseringenPage() {
               <label className="space-y-1 sm:col-span-2"><span className="text-xs font-medium text-muted-foreground">Bericht NL</span><textarea value={form.nl} onChange={(e) => setForm({ ...form, nl: e.target.value })} className="min-h-24 w-full rounded-xl border border-border bg-secondary/30 px-3 py-2 text-sm" /></label>
               <label className="space-y-1 sm:col-span-2"><span className="text-xs font-medium text-muted-foreground">Bericht EN</span><textarea value={form.en} onChange={(e) => setForm({ ...form, en: e.target.value })} className="min-h-24 w-full rounded-xl border border-border bg-secondary/30 px-3 py-2 text-sm" /></label>
             </div>
-            <p className="mt-3 text-xs text-muted-foreground">Variabelen: {{first_name}}, {{last_name}}, {{salon_name}}, {{appointment_date}}, {{service_name}}, {{credits_left}}, {{membership_name}}, {{voucher_code}}</p>
+            <p className="mt-3 text-xs text-muted-foreground">Variabelen: {"{{first_name}}, {{last_name}}, {{salon_name}}, {{appointment_date}}, {{service_name}}, {{credits_left}}, {{membership_name}}, {{voucher_code}}"}</p>
             <div className="mt-5 flex gap-2"><Button variant="outline" className="flex-1" onClick={() => setShowBuilder(false)}>Annuleren</Button><Button variant="gradient" className="flex-1" onClick={addCustom}>Opslaan</Button></div>
           </div>
         </div>
