@@ -320,7 +320,7 @@ export default function GlowPayPage() {
                         </Button>
                       )}
                       {p.status === "pending" && (
-                        <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); toast.success("Betaalverzoek opnieuw verstuurd (demo)"); }}>
+                        <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleResendLink(p.id); }}>
                           <Send className="w-3.5 h-3.5" /> Link opnieuw
                         </Button>
                       )}
