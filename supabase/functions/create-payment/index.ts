@@ -13,6 +13,8 @@ const BodySchema = z.object({
   payment_type: z.enum(["deposit", "full", "remainder", "webshop", "membership"]).optional().default("deposit"),
   method: z.enum(["ideal", "bancontact", "creditcard", "applepay", "paypal", "banktransfer"]).optional().default("ideal"),
   is_demo: z.boolean().optional(),
+  source: z.enum(["test_button"]).optional(),
+  redirect_url: z.string().url().optional(),
 });
 
 const REDIRECT_BASE = "https://glowsuite.nl";
@@ -35,6 +37,37 @@ async function refreshConnection(admin: ReturnType<typeof createClient>, connect
   const expiresAt = new Date(Date.now() + Math.max(60, Number(token.expires_in || 3600) - 120) * 1000).toISOString();
   await admin.from("mollie_connections").update({ mollie_access_token: token.access_token, mollie_refresh_token: token.refresh_token || connection.mollie_refresh_token, mollie_access_token_expires_at: expiresAt, last_sync_at: new Date().toISOString() }).eq("id", connection.id);
   return { ...connection, mollie_access_token: token.access_token, mollie_refresh_token: token.refresh_token || connection.mollie_refresh_token, mollie_access_token_expires_at: expiresAt };
+}
+
+async function mollieFetch(path: string, accessToken: string, init?: RequestInit) {
+  const response = await fetch(`https://api.mollie.com/v2${path}`, {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+      ...(init?.headers || {}),
+    },
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = data?.detail || data?.title || data?.message || JSON.stringify(data);
+    throw new Error(`Mollie aanvraag mislukt (${response.status}) voor ${path}: ${message}`);
+  }
+  return data;
+}
+
+async function getWebsiteProfile(accessToken: string) {
+  try {
+    const profile = await mollieFetch("/profiles/me", accessToken);
+    if (profile?.id) return profile;
+  } catch (_) {
+    // Fall back to listing profiles below.
+  }
+  const profiles = await mollieFetch("/profiles", accessToken);
+  const list = profiles?._embedded?.profiles || [];
+  const active = list.find((profile: any) => profile.status === "verified") || list.find((profile: any) => profile.status === "unverified") || list[0];
+  if (!active?.id) throw new Error("Geen Mollie websiteprofiel gevonden. Maak of activeer eerst een websiteprofiel in Mollie.");
+  return active;
 }
 
 Deno.serve(async (req) => {
@@ -81,7 +114,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { appointment_id, customer_id, amount, payment_type, method } = parsed.data;
+    const { appointment_id, customer_id, payment_type, method, source, redirect_url } = parsed.data;
+    const amount = source === "test_button" ? 1 : parsed.data.amount;
 
     // Check if demo mode
     const { data: settings } = await supabase
