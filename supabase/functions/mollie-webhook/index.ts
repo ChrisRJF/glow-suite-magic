@@ -16,6 +16,18 @@ function mapPaymentStatus(status: string) {
   return { payment_status: "pending", appointment_status: "pending_confirmation", paid_at: null };
 }
 
+async function logWebhookValidation(supabase: ReturnType<typeof createClient>, payment: any, action: string, details: Record<string, unknown>) {
+  await supabase.from("audit_logs").insert({
+    user_id: payment.user_id,
+    actor_user_id: payment.user_id,
+    action,
+    target_type: "mollie_webhook",
+    target_id: payment.id,
+    details,
+    is_demo: false,
+  });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Methode niet toegestaan" }, 405);
@@ -60,13 +72,19 @@ Deno.serve(async (req) => {
       .eq("is_active", true)
       .is("disconnected_at", null)
       .maybeSingle();
-    if (!connection) return json({ error: "Mollie account is niet verbonden" }, 422);
+    if (!connection) {
+      await logWebhookValidation(supabase, payment, "mollie_webhook_validation_failed", { mollie_payment_id: molliePaymentId, reason: "missing_connection" });
+      return json({ error: "Mollie account is niet verbonden" }, 422);
+    }
 
     const mollieResponse = await fetch(`https://api.mollie.com/v2/payments/${molliePaymentId}`, {
       headers: { Authorization: `Bearer ${(connection as any).mollie_access_token}` },
     });
     const molliePayment = await mollieResponse.json();
-    if (!mollieResponse.ok) return json({ error: "Mollie betaling kon niet worden opgehaald" }, 502);
+    if (!mollieResponse.ok) {
+      await logWebhookValidation(supabase, payment, "mollie_webhook_validation_failed", { mollie_payment_id: molliePaymentId, reason: "mollie_fetch_failed", status: mollieResponse.status });
+      return json({ error: "Mollie betaling kon niet worden opgehaald" }, 502);
+    }
 
     const status = String(molliePayment.status || "pending");
     const mapped = mapPaymentStatus(status);
@@ -95,6 +113,8 @@ Deno.serve(async (req) => {
       }
       await supabase.from("appointments").update({ payment_status: mapped.payment_status, status: mapped.appointment_status, amount_paid: amountPaid }).eq("id", appointmentId);
     }
+
+    await logWebhookValidation(supabase, payment, status === "paid" ? "mollie_webhook_payment_success" : ["failed", "expired", "canceled", "cancelled"].includes(status) ? "mollie_webhook_payment_failed" : "mollie_webhook_validated", { mollie_payment_id: molliePaymentId, status, method: molliePayment.method || null, appointment_id: appointmentId || null });
 
     return json({ success: true });
   } catch (error) {

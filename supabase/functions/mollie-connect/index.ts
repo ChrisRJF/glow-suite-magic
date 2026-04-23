@@ -10,11 +10,20 @@ const REDIRECT_URI = "https://glowsuite.nl/integrations/mollie/callback";
 const MOLLIE_API = "https://api.mollie.com/v2";
 const MOLLIE_AUTH = "https://www.mollie.com/oauth2/authorize";
 const ALLOWED_METHODS = ["ideal", "bancontact", "creditcard", "applepay", "paypal", "banktransfer"];
+const METHOD_LABELS: Record<string, string> = {
+  ideal: "iDEAL",
+  bancontact: "Bancontact",
+  creditcard: "Creditcard",
+  applepay: "Apple Pay",
+  paypal: "PayPal",
+  banktransfer: "SEPA overboeking",
+};
 
 const BodySchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("status") }),
   z.object({ action: z.literal("start"), redirect_to: z.string().optional() }),
   z.object({ action: z.literal("callback"), code: z.string().min(8), state: z.string().min(16) }),
+  z.object({ action: z.literal("sync_methods") }),
   z.object({ action: z.literal("disconnect") }),
   z.object({ action: z.literal("refund"), payment_id: z.string().uuid(), reason: z.string().max(300).optional() }),
 ]);
@@ -31,6 +40,12 @@ async function requireOwner(admin: ReturnType<typeof createClient>, userId: stri
   const { data } = await admin.from("user_roles").select("role").eq("user_id", userId);
   const allowed = (data || []).some((row: any) => ["eigenaar", "manager", "admin"].includes(row.role));
   if (!allowed) throw new Error("Alleen eigenaren en beheerders kunnen Mollie beheren.");
+}
+
+async function requireRefundAdmin(admin: ReturnType<typeof createClient>, userId: string) {
+  const { data } = await admin.from("user_roles").select("role").eq("user_id", userId);
+  const allowed = (data || []).some((row: any) => ["eigenaar", "admin"].includes(row.role));
+  if (!allowed) throw new Error("Alleen admins kunnen terugbetalingen testen.");
 }
 
 async function getSettings(admin: ReturnType<typeof createClient>, userId: string) {
@@ -71,12 +86,20 @@ async function exchangeToken(body: Record<string, string>) {
   return data;
 }
 
+async function refreshConnection(admin: ReturnType<typeof createClient>, connection: any) {
+  if (connection.mollie_access_token_expires_at && new Date(connection.mollie_access_token_expires_at).getTime() > Date.now() + 120000) return connection;
+  const token = await exchangeToken({ grant_type: "refresh_token", refresh_token: connection.mollie_refresh_token });
+  const expiresAt = addSeconds(Number(token.expires_in || 3600));
+  await admin.from("mollie_connections").update({ mollie_access_token: token.access_token, mollie_refresh_token: token.refresh_token || connection.mollie_refresh_token, mollie_access_token_expires_at: expiresAt, last_sync_at: new Date().toISOString() }).eq("id", connection.id);
+  return { ...connection, mollie_access_token: token.access_token, mollie_refresh_token: token.refresh_token || connection.mollie_refresh_token, mollie_access_token_expires_at: expiresAt };
+}
+
 async function syncConnectionDetails(accessToken: string) {
   const organization = await mollieFetch("/organizations/me", accessToken).catch(() => null);
-  const methodsData = await mollieFetch("/methods?resource=payments&locale=nl_NL", accessToken).catch(() => ({ _embedded: { methods: [] } }));
+  const methodsData = await mollieFetch("/methods?resource=payments&sequenceType=oneoff&locale=nl_NL", accessToken).catch(() => ({ _embedded: { methods: [] } }));
   const methods = ((methodsData as any)?._embedded?.methods || [])
     .filter((method: any) => ALLOWED_METHODS.includes(method.id) && method.status !== "disabled")
-    .map((method: any) => ({ id: method.id, description: method.description, status: method.status }));
+    .map((method: any) => ({ id: method.id, description: method.description || METHOD_LABELS[method.id] || method.id, status: method.status || "enabled" }));
   return { organization, methods };
 }
 
@@ -174,6 +197,37 @@ Deno.serve(async (req) => {
       return json({ success: true, connection });
     }
 
+    if (parsed.data.action === "sync_methods") {
+      const { data: connection, error: connectionError } = await admin
+        .from("mollie_connections")
+        .select("id,mollie_access_token,mollie_refresh_token,mollie_access_token_expires_at")
+        .eq("user_id", user.id)
+        .eq("salon_id", settings.id)
+        .eq("is_active", true)
+        .is("disconnected_at", null)
+        .maybeSingle();
+      if (connectionError) throw connectionError;
+      if (!connection) return json({ error: "Mollie account is niet verbonden." }, 400);
+      const activeConnection = await refreshConnection(admin, connection as any);
+      const { organization, methods } = await syncConnectionDetails(activeConnection.mollie_access_token);
+      const { data: updated, error: updateError } = await admin
+        .from("mollie_connections")
+        .update({
+          mollie_organization_id: organization?.id || null,
+          account_name: organization?.name || organization?.email || "Mollie account",
+          organization_name: organization?.name || null,
+          onboarding_status: organization?.status || "connected",
+          supported_methods: methods,
+          last_sync_at: new Date().toISOString(),
+        })
+        .eq("id", (connection as any).id)
+        .select("id,account_name,organization_name,mollie_mode,onboarding_status,webhook_status,supported_methods,last_sync_at,connected_at,is_active")
+        .single();
+      if (updateError) throw updateError;
+      await admin.from("audit_logs").insert({ user_id: user.id, actor_user_id: user.id, action: "mollie_methods_synced", target_type: "mollie_connection", target_id: (connection as any).id, details: { methods: methods.map((method: any) => method.id) }, is_demo: false });
+      return json({ success: true, connection: updated });
+    }
+
     if (parsed.data.action === "disconnect") {
       await admin.from("mollie_connections").update({ is_active: false, disconnected_at: new Date().toISOString(), webhook_status: "disabled" }).eq("user_id", user.id).eq("salon_id", settings.id).eq("is_active", true);
       await admin.from("audit_logs").insert({ user_id: user.id, actor_user_id: user.id, action: "mollie_disconnected", target_type: "mollie_connection", details: {}, is_demo: false });
@@ -181,6 +235,7 @@ Deno.serve(async (req) => {
     }
 
     if (parsed.data.action === "refund") {
+      await requireRefundAdmin(admin, user.id);
       const { data: payment, error: paymentError } = await admin.from("payments").select("*").eq("id", parsed.data.payment_id).eq("user_id", user.id).maybeSingle();
       if (paymentError) throw paymentError;
       if (!payment) return json({ error: "Betaling niet gevonden." }, 404);
@@ -192,7 +247,8 @@ Deno.serve(async (req) => {
       if (payment.status !== "paid") return json({ error: "Alleen betaalde betalingen kunnen worden terugbetaald." }, 400);
       const { data: connection } = await admin.from("mollie_connections").select("*").eq("user_id", user.id).eq("salon_id", settings.id).eq("is_active", true).is("disconnected_at", null).maybeSingle();
       if (!connection) return json({ error: "Mollie account is niet verbonden." }, 400);
-      const refund = await mollieFetch(`/payments/${payment.mollie_payment_id}/refunds`, connection.mollie_access_token, {
+      const activeConnection = await refreshConnection(admin, connection);
+      const refund = await mollieFetch(`/payments/${payment.mollie_payment_id}/refunds`, activeConnection.mollie_access_token, {
         method: "POST",
         body: JSON.stringify({ amount: { currency: "EUR", value: Number(payment.amount).toFixed(2) }, description: parsed.data.reason || "GlowSuite terugbetaling" }),
       });
