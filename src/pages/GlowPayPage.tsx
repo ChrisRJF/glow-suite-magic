@@ -13,6 +13,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useUserRole } from "@/hooks/useUserRole";
 
 type TabType = "overzicht" | "betalingen" | "regels" | "betaallinks";
 
@@ -24,6 +25,7 @@ export default function GlowPayPage() {
   const { data: services } = useServices();
   const { data: settings } = useSettings();
   const { data: paymentLinks, refetch: refetchLinks } = usePaymentLinks();
+  const { can } = useUserRole();
   const { update: updatePayment } = useCrud("payments");
   const { insert: insertLink, update: updateLink } = useCrud("payment_links");
   const [searchParams] = useSearchParams();
@@ -59,18 +61,21 @@ export default function GlowPayPage() {
   }, [payments, appointments, todayStr]);
 
   const handleMarkPaid = async (id: string) => {
+    if (!can("payments:update")) { toast.error("Alleen financiële rollen kunnen betalingen wijzigen."); return; }
     await updatePayment(id, { status: "paid", paid_at: new Date().toISOString() });
     toast.success("Betaling gemarkeerd als betaald");
     refetchPayments();
   };
 
   const handleRefund = async (id: string) => {
+    if (!can("payments:refund")) { toast.error("Alleen eigenaren kunnen terugbetalingen registreren."); return; }
     await updatePayment(id, { status: "refunded" });
     toast.success("Terugbetaling geregistreerd (demo)");
     refetchPayments();
   };
 
   const handleRetry = async (id: string) => {
+    if (!can("payments:update")) { toast.error("Alleen financiële rollen kunnen betalingen wijzigen."); return; }
     // Simulate retry: randomly succeed or fail
     const success = Math.random() > 0.3;
     await updatePayment(id, { status: success ? "paid" : "failed", paid_at: success ? new Date().toISOString() : null });
@@ -117,6 +122,7 @@ export default function GlowPayPage() {
   };
 
   const handleCreateLink = async () => {
+    if (!can("payments:links")) { toast.error("Alleen financiële rollen kunnen betaalverzoeken beheren."); return; }
     const amount = Number(linkForm.amount);
     if (amount <= 0) { toast.error("Vul een geldig bedrag in"); return; }
     const linkId = crypto.randomUUID().slice(0, 8);
@@ -141,6 +147,7 @@ export default function GlowPayPage() {
   };
 
   const handleMarkLinkPaid = async (id: string) => {
+    if (!can("payments:update")) { toast.error("Alleen financiële rollen kunnen betalingen wijzigen."); return; }
     await updateLink(id, { status: "betaald", paid_at: new Date().toISOString() });
     toast.success("Betaalverzoek gemarkeerd als betaald");
     refetchLinks();
@@ -287,17 +294,17 @@ export default function GlowPayPage() {
                   </p>
                   {selectedPayment === p.id && (
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {p.status === "pending" && (
+                      {p.status === "pending" && can("payments:update") && (
                         <Button variant="gradient" size="sm" onClick={(e) => { e.stopPropagation(); handleMarkPaid(p.id); }}>
                           <CheckCircle2 className="w-3.5 h-3.5" /> Markeer betaald
                         </Button>
                       )}
-                      {p.status === "failed" && (
+                      {p.status === "failed" && can("payments:update") && (
                         <Button variant="gradient" size="sm" onClick={(e) => { e.stopPropagation(); handleRetry(p.id); }}>
                           <RotateCcw className="w-3.5 h-3.5" /> Opnieuw proberen
                         </Button>
                       )}
-                      {p.status === "paid" && (
+                      {p.status === "paid" && can("payments:refund") && (
                         <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleRefund(p.id); }}>
                           <RotateCcw className="w-3.5 h-3.5" /> Terugbetalen
                         </Button>
@@ -385,11 +392,13 @@ export default function GlowPayPage() {
 
           <div className="space-y-4">
             {/* Action button */}
-            <div className="flex justify-end">
-              <Button variant="gradient" size="sm" onClick={() => setShowLinkForm(true)}>
-                <Plus className="w-4 h-4" /> Nieuw betaalverzoek
-              </Button>
-            </div>
+            {can("payments:links") && (
+              <div className="flex justify-end">
+                <Button variant="gradient" size="sm" onClick={() => setShowLinkForm(true)}>
+                  <Plus className="w-4 h-4" /> Nieuw betaalverzoek
+                </Button>
+              </div>
+            )}
 
             {/* Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
@@ -451,9 +460,9 @@ export default function GlowPayPage() {
                           <Button variant="outline" size="sm" onClick={() => handleResendLink(l.id)}>
                             <Send className="w-3.5 h-3.5" /> Verstuur opnieuw
                           </Button>
-                          <Button variant="gradient" size="sm" onClick={() => handleMarkLinkPaid(l.id)}>
+                          {can("payments:update") && <Button variant="gradient" size="sm" onClick={() => handleMarkLinkPaid(l.id)}>
                             <CheckCircle2 className="w-3.5 h-3.5" /> Markeer betaald
-                          </Button>
+                          </Button>}
                         </>
                       )}
                     </div>

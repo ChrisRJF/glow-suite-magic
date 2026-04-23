@@ -17,6 +17,8 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { getMessageSettings, saveMessageSettings, type MessageSettings } from "@/lib/messaging";
 import { WhiteLabelEmbedCard } from "@/components/WhiteLabelEmbedCard";
 import { OnboardingWizard } from "@/components/OnboardingWizard";
+import { useUserRole } from "@/hooks/useUserRole";
+import { hasPermission } from "@/lib/permissions";
 
 type OpeningHours = Record<string, { open: string; close: string; enabled: boolean }>;
 
@@ -39,12 +41,12 @@ const dayLabels: Record<string, string> = {
 
 export default function InstellingenPage() {
   const { user } = useAuth();
+  const { roles, isOwner } = useUserRole();
   const { data: settings, refetch } = useSettings();
   const { data: customers } = useCustomers();
   const { data: appointments } = useAppointments();
   const { data: services } = useServices();
   const { insert, update } = useCrud("settings");
-  const { insert: insertRole, remove: removeRole } = useCrud("user_roles");
   const [salonName, setSalonName] = useState("Mijn Salon");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -79,6 +81,11 @@ export default function InstellingenPage() {
   const [facebookEnabled, setFacebookEnabled] = useState(false);
   const [googleReserve, setGoogleReserve] = useState(false);
   const [widgetEnabled, setWidgetEnabled] = useState(false);
+  const canManageBusiness = hasPermission(roles, "settings:business");
+  const canManageFinance = hasPermission(roles, "settings:finance");
+  const canManageTeam = hasPermission(roles, "settings:team");
+  const canManageIntegrations = hasPermission(roles, "settings:integrations");
+  const canExport = hasPermission(roles, "reports:export");
 
   useEffect(() => {
     if (settings.length > 0) {
@@ -107,7 +114,7 @@ export default function InstellingenPage() {
   useEffect(() => {
     if (!user) return;
     const fetchRoles = async () => {
-      const { data } = await (supabase.from("user_roles") as any).select("*");
+      const { data } = await (supabase as any).from("user_access").select("*").order("created_at", { ascending: false });
       if (data) setTeamMembers(data);
     };
     fetchRoles();
@@ -115,6 +122,8 @@ export default function InstellingenPage() {
 
   const handleSave = async () => {
     if (saveLoading) return;
+    if (!canManageBusiness && activeTab !== "betaling") { toast.error("Je hebt geen rechten om deze instellingen te wijzigen."); return; }
+    if (activeTab === "betaling" && !canManageFinance) { toast.error("Alleen eigenaren kunnen betaalinstellingen wijzigen."); return; }
     setSaveLoading(true);
     try {
       const data: Record<string, any> = {
@@ -172,6 +181,7 @@ export default function InstellingenPage() {
 
   const handleAddTeamMember = async () => {
     if (addUserLoading) return;
+    if (!canManageTeam) { toast.error("Alleen eigenaren kunnen gebruikers beheren."); return; }
     if (!newUserName.trim()) { toast.error("Vul een naam in"); return; }
     if (!newUserEmail.trim()) { toast.error("Vul een e-mail in"); return; }
     if (newUserPassword.length < 8) { toast.error("Tijdelijk wachtwoord moet minimaal 8 tekens zijn"); return; }
@@ -187,7 +197,7 @@ export default function InstellingenPage() {
       }
       toast.success(`Gebruiker ${newUserName} aangemaakt`);
       setNewUserName(""); setNewUserEmail(""); setNewUserPassword(""); setNewUserRole("medewerker");
-      const { data: rolesData } = await (supabase.from("user_roles") as any).select("*");
+      const { data: rolesData } = await (supabase as any).from("user_access").select("*").order("created_at", { ascending: false });
       if (rolesData) setTeamMembers(rolesData);
     } catch (err: any) {
       toast.error(err.message || "Aanmaken mislukt");
@@ -197,15 +207,20 @@ export default function InstellingenPage() {
   };
 
   const handleRemoveTeamMember = async (id: string) => {
-    if (await removeRole(id)) {
-      toast.success("Toegang ingetrokken");
-      const { data } = await (supabase.from("user_roles") as any).select("*");
-      if (data) setTeamMembers(data);
-    }
+    if (!canManageTeam) { toast.error("Alleen eigenaren kunnen gebruikers beheren."); return; }
+    const member = teamMembers.find((m) => m.id === id);
+    if (!member) return;
+    const { error } = await (supabase as any).from("user_access").update({ status: "disabled" }).eq("id", id);
+    if (!error && member.member_user_id) await (supabase.from("user_roles") as any).delete().eq("user_id", member.member_user_id);
+    if (error) { toast.error("Toegang intrekken mislukt"); return; }
+    toast.success("Toegang ingetrokken");
+    const { data } = await (supabase as any).from("user_access").select("*").order("created_at", { ascending: false });
+    if (data) setTeamMembers(data);
   };
 
 
   const handleExportCustomers = (format: 'csv' | 'excel') => {
+    if (!canExport) { toast.error("Je hebt geen rechten om data te exporteren."); return; }
     const headers = ["Naam", "Telefoon", "E-mail", "Totaal besteed", "VIP", "No-shows"];
     const rows = customers.map(c => [
       c.name, c.phone || '', c.email || '',
@@ -219,6 +234,7 @@ export default function InstellingenPage() {
   };
 
   const handleExportAppointments = (format: 'csv' | 'excel') => {
+    if (!canExport) { toast.error("Je hebt geen rechten om data te exporteren."); return; }
     const headers = ["Datum", "Klant", "Behandeling", "Prijs", "Status", "Betaalstatus"];
     const rows = appointments.map(a => {
       const cust = customers.find(c => c.id === a.customer_id);
@@ -236,6 +252,7 @@ export default function InstellingenPage() {
   };
 
   const handleExportRevenue = (format: 'csv' | 'excel') => {
+    if (!canExport) { toast.error("Je hebt geen rechten om omzet te exporteren."); return; }
     const headers = ["Datum", "Klant", "Behandeling", "Bedrag", "Status"];
     const paid = appointments.filter(a => a.status === 'voltooid');
     const rows = paid.map(a => {
@@ -269,7 +286,14 @@ export default function InstellingenPage() {
     { id: "export", label: "Data Export", icon: Download },
     { id: "rollen", label: "Gebruikers", icon: UserCog },
     { id: "demo", label: "Demo", icon: Shield },
-  ];
+  ].filter((tab) => {
+    if (tab.id === "betaling") return canManageFinance;
+    if (tab.id === "export") return canExport;
+    if (tab.id === "rollen") return canManageTeam;
+    if (tab.id === "integraties") return canManageIntegrations;
+    if (tab.id === "demo") return isOwner;
+    return canManageBusiness;
+  });
 
   const integrations = [
     { name: "GlowPay (Mollie)", desc: "Online betalingen en aanbetalingen", enabled: mollieMode !== '', icon: CreditCard, toggle: undefined },
@@ -588,10 +612,11 @@ export default function InstellingenPage() {
                       <UserCog className="w-4 h-4 text-muted-foreground" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium capitalize truncate">{member.role}</p>
-                      <p className="text-[11px] text-muted-foreground truncate">Toegevoegd {new Date(member.created_at).toLocaleDateString('nl-NL')}</p>
+                      <p className="text-sm font-medium truncate">{member.name || member.email}</p>
+                      <p className="text-[11px] text-muted-foreground truncate">{member.email} · {member.status === "disabled" ? "Geblokkeerd" : "Actief"}</p>
                     </div>
-                    <button onClick={() => handleRemoveTeamMember(member.id)} className="p-2 rounded-lg hover:bg-destructive/20 transition-colors flex-shrink-0" aria-label="Verwijderen">
+                    <span className="px-2 py-1 rounded-lg bg-secondary text-[11px] text-muted-foreground capitalize">{member.role}</span>
+                    <button onClick={() => handleRemoveTeamMember(member.id)} disabled={member.status === "disabled"} className="p-2 rounded-lg hover:bg-destructive/20 transition-colors flex-shrink-0 disabled:opacity-40" aria-label="Verwijderen">
                       <Trash2 className="w-3.5 h-3.5 text-destructive" />
                     </button>
                   </div>
@@ -612,6 +637,8 @@ export default function InstellingenPage() {
                     <select value={newUserRole} onChange={e => setNewUserRole(e.target.value)}
                       className="flex-1 px-3 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm">
                       <option value="medewerker">Medewerker</option>
+                      <option value="receptie">Receptie</option>
+                      <option value="manager">Manager</option>
                       <option value="admin">Admin</option>
                       <option value="financieel">Financieel</option>
                     </select>
