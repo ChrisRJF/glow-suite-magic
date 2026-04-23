@@ -14,6 +14,7 @@ import { DailyCoach } from "@/components/DailyCoach";
 import { AnimatedCounter } from "@/components/AnimatedCounter";
 import { useDemoMode } from "@/hooks/useDemoMode";
 import { actionLogKey, clearLegacyDemoLocalState } from "@/lib/demoIsolation";
+import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 
@@ -305,9 +306,9 @@ export default function DashboardPage() {
             <p className="text-lg font-bold text-success tabular-nums">{formatEuro(aiRevenue)}</p>
             <p className="text-[11px] text-muted-foreground mt-0.5">AI omzet</p>
           </button>
-          <button onClick={() => navigate("/whatsapp")} className="text-left p-3 rounded-xl hover:bg-primary/5 transition-colors">
-            <p className="text-lg font-bold text-primary tabular-nums">{formatEuro(campaignRevenue)}</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Campagnes · {messagesSent}</p>
+          <button onClick={() => navigate("/rapporten?type=omzet")} className="text-left p-3 rounded-xl hover:bg-primary/5 transition-colors">
+            <p className="text-lg font-bold text-primary tabular-nums">{formatEuro(paidRevenueThisMonth)}</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Betaald deze maand · {messagesSent}</p>
           </button>
           <button onClick={() => navigate("/klanten?filter=risico")} className="text-left p-3 rounded-xl hover:bg-warning/5 transition-colors">
             <p className="text-lg font-bold text-warning tabular-nums">{recoveredCustomers}</p>
