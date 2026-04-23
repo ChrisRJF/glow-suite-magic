@@ -817,9 +817,11 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          image_url: string | null
           is_active: boolean | null
           is_demo: boolean
           name: string
+          online_visible: boolean | null
           price: number
           stock: number | null
           updated_at: string
@@ -830,9 +832,11 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          image_url?: string | null
           is_active?: boolean | null
           is_demo?: boolean
           name: string
+          online_visible?: boolean | null
           price?: number
           stock?: number | null
           updated_at?: string
@@ -843,9 +847,11 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          image_url?: string | null
           is_active?: boolean | null
           is_demo?: boolean
           name?: string
+          online_visible?: boolean | null
           price?: number
           stock?: number | null
           updated_at?: string
@@ -999,6 +1005,7 @@ export type Database = {
           timezone: string | null
           updated_at: string
           user_id: string
+          webshop_enabled: boolean | null
           whatsapp_enabled: boolean | null
           whitelabel_branding: Json | null
         }
@@ -1031,6 +1038,7 @@ export type Database = {
           timezone?: string | null
           updated_at?: string
           user_id: string
+          webshop_enabled?: boolean | null
           whatsapp_enabled?: boolean | null
           whitelabel_branding?: Json | null
         }
@@ -1063,6 +1071,7 @@ export type Database = {
           timezone?: string | null
           updated_at?: string
           user_id?: string
+          webshop_enabled?: boolean | null
           whatsapp_enabled?: boolean | null
           whitelabel_branding?: Json | null
         }
@@ -1257,6 +1266,69 @@ export type Database = {
           },
         ]
       }
+      webshop_orders: {
+        Row: {
+          created_at: string
+          currency: string
+          customer_email: string | null
+          customer_id: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          id: string
+          is_demo: boolean
+          items: Json
+          mollie_payment_id: string | null
+          order_number: string
+          payment_id: string | null
+          payment_status: string
+          status: string
+          stock_processed_at: string | null
+          total_amount: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          customer_email?: string | null
+          customer_id?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          id?: string
+          is_demo?: boolean
+          items?: Json
+          mollie_payment_id?: string | null
+          order_number: string
+          payment_id?: string | null
+          payment_status?: string
+          status?: string
+          stock_processed_at?: string | null
+          total_amount?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          customer_email?: string | null
+          customer_id?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          id?: string
+          is_demo?: boolean
+          items?: Json
+          mollie_payment_id?: string | null
+          order_number?: string
+          payment_id?: string | null
+          payment_status?: string
+          status?: string
+          stock_processed_at?: string | null
+          total_amount?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -1282,6 +1354,10 @@ export type Database = {
         Returns: boolean
       }
       prevent_live_demo_reset: { Args: { _user_id: string }; Returns: boolean }
+      process_paid_webshop_order_stock: {
+        Args: { _order_id: string }
+        Returns: boolean
+      }
       user_row_matches_active_mode: {
         Args: { _row_is_demo: boolean; _row_user_id: string }
         Returns: boolean

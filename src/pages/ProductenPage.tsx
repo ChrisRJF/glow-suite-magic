@@ -3,26 +3,28 @@ import { Button } from "@/components/ui/button";
 import { useProducts } from "@/hooks/useSupabaseData";
 import { useCrud } from "@/hooks/useCrud";
 import { formatEuro } from "@/lib/data";
-import { Package, Search, Plus, Pencil, Trash2, AlertTriangle } from "lucide-react";
+import { Package, Search, Plus, Pencil, Trash2, AlertTriangle, Globe } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 export default function ProductenPage() {
-  const { data: products, loading, refetch } = useProducts();
+  const { data: rawProducts, loading, refetch } = useProducts();
+  const products = rawProducts as any[];
   const { insert, update, remove } = useCrud("products");
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: '', category: '', price: 0, stock: 0, description: '', is_active: true });
+  const [form, setForm] = useState({ name: '', category: '', price: 0, stock: 0, description: '', image_url: '', is_active: true, online_visible: false });
 
   const filtered = products.filter((p) =>
     p.name.toLowerCase().includes(search.toLowerCase()) ||
     (p.category || '').toLowerCase().includes(search.toLowerCase())
   );
 
-  const close = () => { setShowForm(false); setEditingId(null); setForm({ name: '', category: '', price: 0, stock: 0, description: '', is_active: true }); };
+  const resetForm = () => setForm({ name: '', category: '', price: 0, stock: 0, description: '', image_url: '', is_active: true, online_visible: false });
+  const close = () => { setShowForm(false); setEditingId(null); resetForm(); };
 
   const handleSave = async () => {
     if (!form.name.trim()) { toast.error("Naam is verplicht"); return; }
@@ -39,7 +41,16 @@ export default function ProductenPage() {
 
   const openEdit = (p: any) => {
     setEditingId(p.id);
-    setForm({ name: p.name, category: p.category || '', price: p.price, stock: p.stock || 0, description: p.description || '', is_active: p.is_active ?? true });
+    setForm({
+      name: p.name,
+      category: p.category || '',
+      price: p.price,
+      stock: p.stock || 0,
+      description: p.description || '',
+      image_url: p.image_url || '',
+      is_active: p.is_active ?? true,
+      online_visible: p.online_visible ?? false,
+    });
     setShowForm(true);
   };
 
@@ -59,7 +70,7 @@ export default function ProductenPage() {
 
       {showForm && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={close}>
-          <div className="glass-card p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+          <div className="glass-card p-6 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-4">{editingId ? 'Product bewerken' : 'Nieuw product'}</h3>
             <div className="space-y-3">
               <div><label className="text-xs text-muted-foreground">Naam *</label><input value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" /></div>
@@ -68,8 +79,10 @@ export default function ProductenPage() {
                 <div><label className="text-xs text-muted-foreground">Prijs (€)</label><input type="number" step="0.01" value={form.price} onChange={e => setForm({...form, price: parseFloat(e.target.value) || 0})} className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" /></div>
                 <div><label className="text-xs text-muted-foreground">Voorraad</label><input type="number" value={form.stock} onChange={e => setForm({...form, stock: parseInt(e.target.value) || 0})} className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" /></div>
               </div>
-              <div><label className="text-xs text-muted-foreground">Beschrijving</label><textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 min-h-[60px]" /></div>
-              <div className="flex items-center gap-2"><input type="checkbox" checked={form.is_active} onChange={e => setForm({...form, is_active: e.target.checked})} className="rounded" /><label className="text-sm">Actief</label></div>
+              <div><label className="text-xs text-muted-foreground">Afbeelding URL</label><input value={form.image_url} onChange={e => setForm({...form, image_url: e.target.value})} placeholder="https://..." className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" /></div>
+              <div><label className="text-xs text-muted-foreground">Korte omschrijving</label><textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 min-h-[60px]" /></div>
+              <div className="flex items-center justify-between gap-3 py-2"><label className="text-sm">Actief</label><input type="checkbox" checked={form.is_active} onChange={e => setForm({...form, is_active: e.target.checked})} className="rounded" /></div>
+              <div className="flex items-center justify-between gap-3 py-2"><label className="text-sm">Online zichtbaar</label><input type="checkbox" checked={form.online_visible} onChange={e => setForm({...form, online_visible: e.target.checked})} className="rounded" /></div>
             </div>
             <div className="flex gap-2 mt-4">
               <Button variant="outline" className="flex-1" onClick={close}>Annuleren</Button>
@@ -80,7 +93,6 @@ export default function ProductenPage() {
       )}
 
       <div className="grid gap-6">
-        {/* Low stock alerts */}
         {products.filter(p => (p.stock || 0) > 0 && (p.stock || 0) < 5).length > 0 && (
           <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
@@ -122,6 +134,7 @@ export default function ProductenPage() {
                       <div className="p-2 rounded-lg bg-secondary"><Package className="w-4 h-4 text-primary" /></div>
                       <span className="text-sm font-medium">{p.name}</span>
                       {!p.is_active && <span className="text-[10px] text-warning">Inactief</span>}
+                      {p.online_visible && <span className="text-[10px] text-success inline-flex items-center gap-1"><Globe className="w-3 h-3" /> Online</span>}
                     </div>
                   </td>
                   <td className="p-4 text-sm text-muted-foreground">{p.category || '—'}</td>
@@ -130,7 +143,7 @@ export default function ProductenPage() {
                     <span className={`text-sm font-medium ${(p.stock || 0) < 10 ? "text-destructive" : "text-success"}`}>{p.stock || 0}</span>
                   </td>
                   <td className="p-4 text-right">
-                    <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex justify-end gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                       <button onClick={() => openEdit(p)} className="p-1.5 rounded-lg hover:bg-secondary"><Pencil className="w-3.5 h-3.5 text-muted-foreground" /></button>
                       <button onClick={() => setConfirmDeleteId(p.id)} className="p-1.5 rounded-lg hover:bg-destructive/20"><Trash2 className="w-3.5 h-3.5 text-destructive" /></button>
                     </div>

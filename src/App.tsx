@@ -36,6 +36,7 @@ import SocialStudioPage from "./pages/SocialStudioPage";
 import LeadsPage from "./pages/LeadsPage";
 import EigenaarPage from "./pages/EigenaarPage";
 import QAStatusPage from "./pages/QAStatusPage";
+import ShopPage from "./pages/ShopPage";
 import { useLeadAutomation } from "@/hooks/useLeadAutomation";
 import { OnboardingGate } from "@/components/OnboardingGate";
 import { GuidedTour } from "@/components/GuidedTour";
@@ -71,6 +72,7 @@ const App = () => (
               <Route path="/integrations/mollie/callback" element={<MollieCallbackPage />} />
               <Route path="/boeken" element={<BookingPage />} />
               <Route path="/boeken/:salonSlug" element={<BookingPage />} />
+              <Route path="/shop/:salonSlug" element={<ShopPage />} />
               <Route path="/" element={<RoleProtectedRoute><DashboardPage /></RoleProtectedRoute>} />
               <Route path="/agenda" element={<RoleProtectedRoute><CalendarPage /></RoleProtectedRoute>} />
               <Route path="/klanten" element={<RoleProtectedRoute><CustomersPage /></RoleProtectedRoute>} />
