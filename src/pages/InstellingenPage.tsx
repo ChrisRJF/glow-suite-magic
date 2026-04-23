@@ -658,7 +658,9 @@ export default function InstellingenPage() {
                   <div className="p-2 rounded-lg bg-secondary/40">Modus: <span className="text-foreground font-medium">{mollieStatus.connection?.mollie_mode || mollieMode}</span></div>
                   <div className="p-2 rounded-lg bg-secondary/40">Webhook: <span className="text-foreground font-medium">{mollieStatus.connection?.webhook_status || "unknown"}</span></div>
                   <div className="p-2 rounded-lg bg-secondary/40">Laatste sync: <span className="text-foreground font-medium">{mollieStatus.connection?.last_sync_at ? new Date(mollieStatus.connection.last_sync_at).toLocaleDateString("nl-NL") : "—"}</span></div>
-                  <div className="sm:col-span-2 p-2 rounded-lg bg-secondary/40">Methoden: <span className="text-foreground font-medium">{(mollieStatus.connection?.supported_methods || []).map((m: any) => m.description || m.id).join(", ") || "Nog niet gesynchroniseerd"}</span></div>
+                  <div className="sm:col-span-2 p-2 rounded-lg bg-secondary/40">
+                    Methoden: <span className="text-foreground font-medium">{mollieMethods.map((m: any) => m.description || m.id).join(", ") || "Nog niet gesynchroniseerd"}</span>
+                  </div>
                 </div>
               )}
               {mollieStatus?.demo && <div className="p-3 rounded-xl bg-secondary/50 text-xs text-muted-foreground">Demo modus gebruikt geen echte Mollie-koppeling en simuleert betalingen veilig.</div>}
@@ -668,6 +670,17 @@ export default function InstellingenPage() {
                   {mollieStatus?.connected ? "Opnieuw verbinden" : "Koppel Mollie"}
                 </Button>
                 {mollieStatus?.connected && <Button variant="outline" size="sm" onClick={handleDisconnectMollie} disabled={mollieLoading}>Ontkoppelen</Button>}
+                {mollieStatus?.connected && <Button variant="outline" size="sm" onClick={handleSyncMollieMethods} disabled={mollieLoading}>Methoden syncen</Button>}
+                {mollieStatus?.connected && canManageMollie && (
+                  <>
+                    <Button variant="outline" size="sm" onClick={handleOneEuroLiveTest} disabled={mollieTestLoading || mollieStatus.connection?.mollie_mode !== "live"}>
+                      {mollieTestLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlayCircle className="w-4 h-4" />} €1 live test
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={handleRefundOneEuroTest} disabled={mollieTestLoading || mollieStatus.connection?.mollie_mode !== "live"}>
+                      <RotateCcw className="w-4 h-4" /> Refund test
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
