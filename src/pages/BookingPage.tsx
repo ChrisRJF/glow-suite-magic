@@ -36,9 +36,8 @@ const STORAGE_KEY = "glowsuite:booking-progress";
 const availableSlots = ["09:00", "10:00", "11:30", "13:00", "14:30", "16:00", "17:00"];
 const paymentMethods = [
   { id: "ideal", label: "iDEAL | Wero" },
-  { id: "bancontact", label: "Bancontact" },
   { id: "creditcard", label: "Creditcard" },
-  { id: "applepay", label: "Apple Pay", icon: "🍎" },
+  { id: "bancontact", label: "Bancontact" },
 ];
 
 const EMPLOYEES = [
@@ -909,18 +908,18 @@ export default function BookingPage() {
       )}
 
       <div className="flex-1 max-w-2xl mx-auto w-full p-4 sm:p-6 pb-28 sm:pb-6">
-        {/* Progress: 4 steps (Behandeling → Tijd → Gegevens → Bevestiging) */}
+        {/* Conversion progress: Afspraak → Gegevens → Betalen */}
         <div className="mb-3 flex items-center justify-between">
           <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
-            Stap {paymentResult ? 4 : Math.min(step, 3)} van 4
+            Stap {paymentResult ? 3 : step <= 2 ? 1 : 2} van 3
           </span>
           <span className="text-[11px] text-muted-foreground hidden sm:block">
-            {paymentResult ? "Bevestiging" : step === 1 ? "Behandeling" : step === 2 ? "Tijd" : "Gegevens"}
+            {paymentResult ? "Bevestigd" : step <= 2 ? "Afspraak" : "Gegevens en betalen"}
           </span>
         </div>
         <div className="flex items-center gap-2 mb-8">
-          {[1, 2, 3, 4].map((s) => {
-            const currentStep = paymentResult ? 4 : step;
+          {[1, 2, 3].map((s) => {
+            const currentStep = paymentResult ? 3 : step <= 2 ? 1 : 2;
             return (
               <div key={s} className="flex items-center gap-2 flex-1">
                 <div
@@ -932,9 +931,9 @@ export default function BookingPage() {
                   {currentStep > s ? <Check className="w-4 h-4" /> : s}
                 </div>
                 <span className={cn("text-xs font-medium hidden sm:block", currentStep >= s ? "text-foreground" : "text-muted-foreground")}>
-                  {s === 1 ? "Behandeling" : s === 2 ? "Tijd" : s === 3 ? "Gegevens" : "Bevestiging"}
+                  {s === 1 ? "Afspraak" : s === 2 ? "Gegevens" : "Betalen"}
                 </span>
-                {s < 4 && <div className={cn("flex-1 h-px", currentStep > s ? "bg-primary" : "bg-border")} />}
+                {s < 3 && <div className={cn("flex-1 h-px", currentStep > s ? "bg-primary" : "bg-border")} />}
               </div>
             );
           })}
