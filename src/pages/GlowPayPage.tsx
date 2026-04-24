@@ -299,9 +299,14 @@ export default function GlowPayPage() {
                           <RotateCcw className="w-3.5 h-3.5" /> Opnieuw proberen
                         </Button>
                       )}
-                      {p.status === "paid" && can("payments:refund") && (
-                        <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleRefund(p.id); }}>
-                          <RotateCcw className="w-3.5 h-3.5" /> Terugbetalen
+                      {isRefundEligible(p) && can("payments:refund") && (
+                        <Button asChild variant="outline" size="sm" onClick={(e) => e.stopPropagation()}>
+                          <Link to={`/refunds?payment=${p.id}`}><RotateCcw className="w-3.5 h-3.5" /> Terugbetalen</Link>
+                        </Button>
+                      )}
+                      {p.status === "paid" && (
+                        <Button asChild variant="outline" size="sm" onClick={(e) => e.stopPropagation()}>
+                          <Link to={`/refunds?payment=${p.id}`}><Eye className="w-3.5 h-3.5" /> Refund historie</Link>
                         </Button>
                       )}
                       {p.status === "pending" && (
