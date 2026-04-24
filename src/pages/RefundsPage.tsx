@@ -10,6 +10,7 @@ import { exportCSV, exportExcel } from "@/lib/exportUtils";
 import { cn } from "@/lib/utils";
 import { AlertTriangle, CheckCircle2, Clock, Download, FileSpreadsheet, History, RotateCcw, Search, Settings, ShieldCheck, XCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
 type RefundRequest = {
@@ -57,6 +58,7 @@ export default function RefundsPage() {
   const { data: services } = useServices();
   const { data: settings, refetch: refetchSettings } = useSettings();
   const { hasAny, can } = useUserRole();
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("center");
   const [requests, setRequests] = useState<RefundRequest[]>([]);
   const [events, setEvents] = useState<RefundEvent[]>([]);
@@ -99,6 +101,17 @@ export default function RefundsPage() {
   const getPayment = (id: string) => payments.find((payment) => payment.id === id);
   const remainingRefundable = (payment: any) => Math.max(0, Number(payment?.amount || 0) - Number(payment?.refunded_amount || 0));
   const isEligible = (payment: any) => payment?.status === "paid" && !payment?.is_demo && payment?.provider === "mollie" && payment?.mollie_payment_id && remainingRefundable(payment) > 0;
+
+  useEffect(() => {
+    const paymentId = searchParams.get("payment");
+    if (!paymentId || payments.length === 0) return;
+    const payment = payments.find((item) => item.id === paymentId);
+    if (payment && isEligible(payment)) {
+      setActiveTab("payments");
+      setSelectedPayment(payment);
+      setForm({ amount: remainingRefundable(payment).toFixed(2), reason: REASONS[0], custom_reason: "", internal_note: "", notify_customer: true });
+    }
+  }, [searchParams, payments.length]);
 
   const filteredPayments = useMemo(() => {
     const q = search.trim().toLowerCase();
