@@ -34,6 +34,7 @@ const BodySchema = z.object({
 type TemplateKey = z.infer<typeof TemplateSchema>;
 
 type TemplateResult = { subject: string; preview: string; html: string; text: string };
+type Action = { label: string; url?: string };
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -78,60 +79,100 @@ function nlDate(value: unknown) {
   return date.toLocaleDateString("nl-NL", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 }
 
-function shell(args: { salonName: string; title: string; intro: string; body: string; ctaLabel?: string; ctaUrl?: string; logoUrl?: string; accent?: string }) {
-  const accent = args.accent || "#7B61FF";
-  const logo = args.logoUrl ? `<img src="${escapeHtml(args.logoUrl)}" width="52" height="52" alt="${escapeHtml(args.salonName)}" style="border-radius:14px;display:block;margin-bottom:18px;object-fit:cover;" />` : "";
-  const cta = args.ctaUrl ? `<a href="${escapeHtml(args.ctaUrl)}" style="display:inline-block;background:${accent};color:#ffffff;text-decoration:none;border-radius:12px;padding:13px 18px;font-size:14px;font-weight:700;margin-top:8px;">${escapeHtml(args.ctaLabel || "Bekijk details")}</a>` : "";
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(args.title)}</title></head><body style="margin:0;background:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;color:#111827;"><div style="display:none;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(args.intro)}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#ffffff;"><tr><td align="center" style="padding:28px 16px;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;border:1px solid #eee7f8;border-radius:22px;overflow:hidden;background:#ffffff;"><tr><td style="padding:28px 26px 10px;">${logo}<p style="margin:0 0 8px;color:${accent};font-size:13px;font-weight:700;letter-spacing:.02em;">${escapeHtml(args.salonName)}</p><h1 style="margin:0;color:#111827;font-size:25px;line-height:1.18;font-weight:750;">${escapeHtml(args.title)}</h1><p style="margin:14px 0 0;color:#6B7280;font-size:15px;line-height:1.6;">${escapeHtml(args.intro)}</p></td></tr><tr><td style="padding:12px 26px 26px;">${args.body}${cta}<hr style="border:none;border-top:1px solid #F1EEF7;margin:26px 0 16px;" /><p style="margin:0;color:#8A8F98;font-size:12px;line-height:1.5;">Verzonden door ${escapeHtml(args.salonName)} via GlowSuite. Veilig opgeslagen en automatisch gesynchroniseerd.</p></td></tr></table></td></tr></table></body></html>`;
+function hexColor(value: unknown, fallback: string) {
+  const color = String(value || "").trim();
+  return /^#[0-9A-Fa-f]{6}$/.test(color) ? color : fallback;
+}
+
+function firstFilled(...values: unknown[]) {
+  return values.map((value) => String(value ?? "").trim()).find(Boolean) || "";
+}
+
+function nlDateShort(value: unknown) {
+  if (!value) return "";
+  const date = new Date(String(value));
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric" });
+}
+
+function shell(args: { salonName: string; title: string; intro: string; body: string; primaryAction?: Action; secondaryAction?: Action; logoUrl?: string; accent?: string; secondary?: string }) {
+  const accent = hexColor(args.accent, "#7B61FF");
+  const secondary = hexColor(args.secondary, "#C850C0");
+  const logo = args.logoUrl ? `<img src="${escapeHtml(args.logoUrl)}" width="56" height="56" alt="${escapeHtml(args.salonName)}" style="border-radius:16px;display:block;margin:0 auto 18px;object-fit:cover;border:1px solid #F1EEF7;" />` : `<div style="width:56px;height:56px;border-radius:16px;margin:0 auto 18px;background:${accent};color:#ffffff;text-align:center;line-height:56px;font-size:20px;font-weight:800;">${escapeHtml(args.salonName.slice(0, 1).toUpperCase())}</div>`;
+  const primaryCta = args.primaryAction?.url ? `<a href="${escapeHtml(args.primaryAction.url)}" style="display:block;background:${accent};color:#ffffff;text-decoration:none;border-radius:14px;padding:15px 18px;font-size:15px;font-weight:800;text-align:center;margin:18px 0 10px;">${escapeHtml(args.primaryAction.label)}</a>` : "";
+  const secondaryCta = args.secondaryAction?.url ? `<a href="${escapeHtml(args.secondaryAction.url)}" style="display:block;background:#ffffff;color:${secondary};text-decoration:none;border:1px solid #E9DFF7;border-radius:14px;padding:13px 18px;font-size:14px;font-weight:750;text-align:center;margin:0 0 8px;">${escapeHtml(args.secondaryAction.label)}</a>` : "";
+  return `<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"><title>${escapeHtml(args.title)}</title></head><body style="margin:0;background:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;color:#111827;-webkit-font-smoothing:antialiased;"><div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">${escapeHtml(args.intro)}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#ffffff;"><tr><td align="center" style="padding:22px 12px;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:584px;border:1px solid #EEE7F8;border-radius:24px;overflow:hidden;background:#ffffff;"><tr><td style="padding:30px 24px 18px;text-align:center;background:linear-gradient(180deg,#FFFFFF 0%,#FCFAFF 100%);">${logo}<p style="margin:0 0 9px;color:${accent};font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;">${escapeHtml(args.salonName)}</p><h1 style="margin:0;color:#111827;font-size:26px;line-height:1.16;font-weight:800;letter-spacing:0;">${escapeHtml(args.title)}</h1><p style="margin:14px auto 0;color:#5F6673;font-size:16px;line-height:1.62;max-width:480px;">${escapeHtml(args.intro)}</p></td></tr><tr><td style="padding:8px 24px 30px;">${args.body}${primaryCta}${secondaryCta}<hr style="border:none;border-top:1px solid #F1EEF7;margin:26px 0 16px;" /><p style="margin:0;color:#8A8F98;font-size:12px;line-height:1.55;text-align:center;">Verzonden door ${escapeHtml(args.salonName)} via GlowSuite. Dit is een servicebericht over je afspraak, betaling of membership.</p></td></tr></table></td></tr></table></body></html>`;
 }
 
 function infoRows(rows: Array<[string, unknown]>) {
-  return `<div style="border:1px solid #F1EEF7;border-radius:16px;overflow:hidden;margin:14px 0 18px;">${rows.filter(([, value]) => value !== undefined && value !== null && String(value) !== "").map(([label, value]) => `<div style="display:flex;justify-content:space-between;gap:14px;padding:12px 14px;border-bottom:1px solid #F7F3FB;"><span style="color:#6B7280;font-size:13px;">${escapeHtml(label)}</span><strong style="color:#111827;font-size:13px;text-align:right;">${escapeHtml(value)}</strong></div>`).join("")}</div>`;
+  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border:1px solid #F1EEF7;border-radius:18px;overflow:hidden;margin:16px 0 18px;background:#ffffff;">${rows.filter(([, value]) => value !== undefined && value !== null && String(value) !== "").map(([label, value]) => `<tr><td style="padding:13px 15px;border-bottom:1px solid #F7F3FB;color:#6B7280;font-size:13px;line-height:1.35;">${escapeHtml(label)}</td><td align="right" style="padding:13px 15px;border-bottom:1px solid #F7F3FB;color:#111827;font-size:14px;line-height:1.35;font-weight:750;">${escapeHtml(value)}</td></tr>`).join("")}</table>`;
+}
+
+function noteBlock(title: string, items: unknown[]) {
+  const lines = items.map((item) => String(item ?? "").trim()).filter(Boolean);
+  if (!lines.length) return "";
+  return `<div style="background:#FCFAFF;border:1px solid #F1EEF7;border-radius:18px;padding:16px 16px;margin:16px 0;"><p style="margin:0 0 10px;color:#111827;font-size:14px;font-weight:800;">${escapeHtml(title)}</p>${lines.map((item) => `<p style="margin:7px 0;color:#5F6673;font-size:14px;line-height:1.55;">• ${escapeHtml(item)}</p>`).join("")}</div>`;
+}
+
+function amountSummary(args: { amount?: unknown; vatAmount?: unknown; vatRate?: unknown; total?: unknown }) {
+  return `<div style="background:#111827;border-radius:20px;padding:18px;margin:16px 0;color:#ffffff;"><p style="margin:0 0 8px;color:#D1D5DB;font-size:13px;font-weight:700;">Totaal betaald</p><p style="margin:0;color:#ffffff;font-size:30px;line-height:1;font-weight:850;">${escapeHtml(formatEuro(args.total || args.amount))}</p>${args.vatAmount ? `<p style="margin:12px 0 0;color:#D1D5DB;font-size:13px;">Inclusief BTW${args.vatRate ? ` (${escapeHtml(args.vatRate)}%)` : ""}: ${escapeHtml(formatEuro(args.vatAmount))}</p>` : ""}</div>`;
 }
 
 function template(key: TemplateKey, data: Record<string, unknown>, salonName: string, branding: any): TemplateResult {
   const firstName = String(data.customer_name || data.recipient_name || "").trim().split(/\s+/)[0] || "";
-  const accent = branding?.primary_color || "#7B61FF";
-  const base = { salonName, logoUrl: branding?.logo_url || "", accent };
+  const accent = hexColor(branding?.primary_color, "#7B61FF");
+  const secondary = hexColor(branding?.secondary_color, "#C850C0");
+  const base = { salonName, logoUrl: branding?.logo_url || "", accent, secondary };
+  const manageUrl = firstFilled(data.manage_url, data.appointment_url, data.booking_url);
+  const calendarUrl = firstFilled(data.calendar_url, data.add_to_calendar_url);
+  const contactUrl = firstFilled(data.contact_url, data.route_url, data.location_url);
+  const supportEmail = firstFilled(data.support_email, data.salon_contact_email, branding?.contact_email);
 
   if (key === "booking_confirmation") {
-    const title = "Je afspraak is bevestigd";
-    const intro = `${firstName ? `${firstName}, je` : "Je"} afspraak bij ${salonName} staat vast.`;
-    const rows = infoRows([["Behandeling", data.service_name], ["Datum", nlDate(data.appointment_date || data.date)], ["Tijd", data.time], ["Medewerker", data.employee], ["Referentie", data.reference], ["Totaal", data.total_amount ? formatEuro(data.total_amount) : undefined]]);
-    return { subject: `${salonName} · afspraak bevestigd`, preview: intro, html: shell({ ...base, title, intro, body: rows }), text: `${title}\n${intro}` };
+    const title = "Je afspraak staat klaar";
+    const intro = `${firstName ? `${firstName}, je` : "Je"} behandeling bij ${salonName} is bevestigd. We kijken ernaar uit je te ontvangen.`;
+    const rows = infoRows([["Klant", data.customer_name || data.recipient_name], ["Datum", nlDate(data.appointment_date || data.date)], ["Tijd", data.time || data.start_time], ["Behandeling", data.service_name], ["Medewerker", data.employee || data.staff_name], ["Locatie", data.location || data.address], ["Referentie", data.reference], ["Totaal", data.total_amount ? formatEuro(data.total_amount) : undefined]]);
+    const body = rows + noteBlock("Handig om te weten", ["Zet je afspraak direct in je agenda.", "Kun je niet komen? Beheer je afspraak op tijd via de knop hieronder."]);
+    return { subject: `${salonName} · je afspraak op ${nlDateShort(data.appointment_date || data.date) || "is bevestigd"}`, preview: intro, html: shell({ ...base, title, intro, body, primaryAction: { label: "Afspraak beheren", url: manageUrl }, secondaryAction: { label: "Toevoegen aan kalender", url: calendarUrl } }), text: `${title}\n${intro}\n${String(data.service_name || "")}\n${nlDate(data.appointment_date || data.date)} ${String(data.time || data.start_time || "")}` };
   }
 
   if (key === "payment_receipt") {
-    const title = "Betaling ontvangen";
-    const intro = `We hebben je betaling aan ${salonName} veilig ontvangen.`;
-    const rows = infoRows([["Bedrag", formatEuro(data.amount)], ["Betaalmethode", data.method], ["Omschrijving", data.description || data.service_name || data.membership_name], ["Referentie", data.reference]]);
-    return { subject: `${salonName} · betalingsbewijs`, preview: intro, html: shell({ ...base, title, intro, body: rows }), text: `${title}\n${intro}\nBedrag: ${formatEuro(data.amount)}` };
+    const title = "Je betaalbewijs";
+    const intro = `Dank je wel. Je betaling aan ${salonName} is veilig verwerkt.`;
+    const rows = infoRows([["Betaalmethode", data.method || data.payment_method], ["Omschrijving", data.description || data.service_name || data.membership_name], ["Datum", nlDate(data.paid_at || data.date)], ["Referentie", data.reference || data.receipt_number], ["BTW", data.vat_amount ? formatEuro(data.vat_amount) : data.vat_enabled ? "Actief" : undefined]]);
+    const body = amountSummary({ amount: data.amount, vatAmount: data.vat_amount, vatRate: data.vat_rate, total: data.total_amount }) + rows;
+    return { subject: `${salonName} · betaalbewijs ${data.reference ? `#${String(data.reference)}` : ""}`.trim(), preview: intro, html: shell({ ...base, title, intro, body, primaryAction: { label: "Bekijk afspraak", url: manageUrl } }), text: `${title}\n${intro}\nBedrag: ${formatEuro(data.total_amount || data.amount)}\nBetaalmethode: ${String(data.method || data.payment_method || "")}` };
   }
 
   if (key === "appointment_reminder") {
-    const title = "Herinnering aan je afspraak";
-    const intro = `${firstName ? `${firstName}, vergeet` : "Vergeet"} je afspraak bij ${salonName} niet.`;
-    const rows = infoRows([["Behandeling", data.service_name], ["Datum", nlDate(data.appointment_date || data.date)], ["Tijd", data.time], ["Medewerker", data.employee]]);
-    return { subject: `${salonName} · herinnering afspraak`, preview: intro, html: shell({ ...base, title, intro, body: rows }), text: `${title}\n${intro}` };
+    const title = "Tot snel bij je afspraak";
+    const intro = `${firstName ? `${firstName}, dit` : "Dit"} is een vriendelijke herinnering aan je afspraak bij ${salonName}.`;
+    const rows = infoRows([["Datum", nlDate(data.appointment_date || data.date)], ["Tijd", data.time || data.start_time], ["Behandeling", data.service_name], ["Medewerker", data.employee || data.staff_name], ["Locatie", data.location || data.address]]);
+    const body = rows + noteBlock("Voorbereiding", [data.preparation_tip || "Kom liefst een paar minuten op tijd.", "Laat het ons weten als je vragen hebt of verhinderd bent.", data.aftercare_note]);
+    return { subject: `${salonName} · herinnering voor ${nlDateShort(data.appointment_date || data.date) || "je afspraak"}`, preview: intro, html: shell({ ...base, title, intro, body, primaryAction: { label: "Route & contact", url: contactUrl }, secondaryAction: { label: "Afspraak beheren", url: manageUrl } }), text: `${title}\n${intro}\n${nlDate(data.appointment_date || data.date)} ${String(data.time || data.start_time || "")}` };
   }
 
   if (key === "booking_cancellation") {
     const title = "Je afspraak is geannuleerd";
-    const intro = `Je afspraak bij ${salonName} is geannuleerd. Neem gerust contact op om opnieuw te plannen.`;
-    const rows = infoRows([["Behandeling", data.service_name], ["Datum", nlDate(data.appointment_date || data.date)], ["Tijd", data.time], ["Referentie", data.reference]]);
-    return { subject: `${salonName} · afspraak geannuleerd`, preview: intro, html: shell({ ...base, title, intro, body: rows }), text: `${title}\n${intro}` };
+    const intro = `We bevestigen dat je afspraak bij ${salonName} is geannuleerd. Je bent altijd welkom om een nieuw moment te kiezen.`;
+    const rows = infoRows([["Status", data.status || "Geannuleerd"], ["Behandeling", data.service_name], ["Datum", nlDate(data.appointment_date || data.date)], ["Tijd", data.time || data.start_time], ["Referentie", data.reference], ["Support", supportEmail]]);
+    const body = rows + noteBlock("Hulp nodig?", ["Neem gerust contact op als dit niet klopt.", supportEmail ? `Je kunt ons bereiken via ${supportEmail}.` : "Ons team helpt je graag met het plannen van een nieuw moment."]);
+    return { subject: `${salonName} · annulering bevestigd`, preview: intro, html: shell({ ...base, title, intro, body, primaryAction: { label: "Nieuwe afspraak maken", url: firstFilled(data.new_booking_url, data.booking_url, manageUrl) }, secondaryAction: { label: "Contact opnemen", url: contactUrl } }), text: `${title}\n${intro}\nStatus: geannuleerd` };
   }
 
   if (key === "membership_notification") {
-    const title = "Update over je membership";
-    const intro = `Er is een update over je membership bij ${salonName}.`;
-    const rows = infoRows([["Membership", data.membership_name], ["Status", data.status], ["Credits", data.credits], ["Volgende betaling", nlDate(data.next_payment_at)], ["Bedrag", data.amount ? formatEuro(data.amount) : undefined]]);
-    return { subject: `${salonName} · membership update`, preview: intro, html: shell({ ...base, title, intro, body: rows }), text: `${title}\n${intro}` };
+    const title = "Welkom als member";
+    const intro = `${firstName ? `${firstName}, welkom` : "Welkom"} bij de members van ${salonName}. Je voordelen staan voor je klaar.`;
+    const benefits = Array.isArray(data.benefits) ? data.benefits : [data.benefit_1, data.benefit_2, data.benefit_3];
+    const rows = infoRows([["Membership", data.membership_name], ["Status", data.status || "Actief"], ["Credits", data.credits || data.credits_status], ["Volgende incasso", nlDate(data.next_payment_at)], ["Maandbedrag", data.amount ? formatEuro(data.amount) : undefined]]);
+    const body = rows + noteBlock("Jouw voordelen", benefits);
+    return { subject: `${salonName} · welkom bij je membership`, preview: intro, html: shell({ ...base, title, intro, body, primaryAction: { label: "Membership beheren", url: firstFilled(data.membership_url, data.manage_membership_url, manageUrl) } }), text: `${title}\n${intro}\nMembership: ${String(data.membership_name || "")}` };
   }
 
-  const title = "Hoe was je behandeling?";
-  const intro = `${firstName ? `${firstName}, we` : "We"} horen graag hoe je ervaring bij ${salonName} was.`;
-  return { subject: `${salonName} · deel je ervaring`, preview: intro, html: shell({ ...base, title, intro, body: `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6;">Je feedback helpt de salon groeien en helpt andere klanten kiezen met vertrouwen.</p>`, ctaLabel: "Review achterlaten", ctaUrl: String(data.review_url || "") || undefined }), text: `${title}\n${intro}` };
+  const title = "Dank je wel voor je bezoek";
+  const intro = `${firstName ? `${firstName}, bedankt` : "Bedankt"} voor je bezoek aan ${salonName}. We hopen dat je tevreden bent met je behandeling.`;
+  const body = infoRows([["Behandeling", data.service_name], ["Datum", nlDate(data.appointment_date || data.completed_at || data.date)], ["Medewerker", data.employee || data.staff_name]]) + `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.65;">Je review helpt ons om de salonervaring nog beter te maken en helpt nieuwe klanten kiezen met vertrouwen.</p>`;
+  return { subject: `${salonName} · hoe was je ervaring?`, preview: intro, html: shell({ ...base, title, intro, body, primaryAction: { label: "Review achterlaten", url: firstFilled(data.review_url, data.google_review_url) }, secondaryAction: { label: "Opnieuw boeken", url: firstFilled(data.rebook_url, data.booking_url) } }), text: `${title}\n${intro}` };
 }
 
 async function logEmail(admin: ReturnType<typeof createClient>, row: Record<string, unknown>) {
