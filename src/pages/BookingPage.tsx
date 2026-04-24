@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { queueLeadIntent } from "@/hooks/useLeadAutomation";
 import { getBranding, fetchBranding, applyBrandingToDocument, type WhiteLabelBranding } from "@/lib/whitelabel";
 import { callPublicBooking, nextBookingDate, type PublicBookingData } from "@/lib/publicBooking";
+import { PaymentMethodLogo } from "@/components/PaymentMethodLogo";
 
 // Lightweight conversion tracking — sends events to host page via postMessage
 function trackEvent(event: string, data?: Record<string, any>) {
@@ -34,9 +35,9 @@ const STORAGE_KEY = "glowsuite:booking-progress";
 
 const availableSlots = ["09:00", "10:00", "11:30", "13:00", "14:30", "16:00", "17:00"];
 const paymentMethods = [
-  { id: "ideal", label: "iDEAL", icon: "🏦" },
-  { id: "bancontact", label: "Bancontact", icon: "💳" },
-  { id: "creditcard", label: "Creditcard", icon: "💳" },
+  { id: "ideal", label: "iDEAL | Wero" },
+  { id: "bancontact", label: "Bancontact" },
+  { id: "creditcard", label: "Creditcard" },
   { id: "applepay", label: "Apple Pay", icon: "🍎" },
 ];
 
@@ -1346,11 +1347,12 @@ export default function BookingPage() {
                       key={method.id}
                       onClick={() => setSelectedMethod(method.id)}
                       className={cn(
-                        "p-3 rounded-xl border text-sm font-medium transition-all duration-200 flex items-center gap-2",
+                        "min-h-14 p-3 rounded-xl border text-sm font-medium transition-all duration-200 flex items-center gap-3",
                         selectedMethod === method.id ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-secondary/60"
                       )}
                     >
-                      <span>{method.icon}</span> {method.label}
+                      {method.icon ? <span>{method.icon}</span> : <PaymentMethodLogo method={method.id} className="h-6 max-w-20" />}
+                      <span className="truncate">{method.label}</span>
                     </button>
                   ))}
                 </div>
