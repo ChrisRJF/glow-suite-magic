@@ -907,7 +907,7 @@ export default function BookingPage() {
         </header>
       )}
 
-      <div className="flex-1 max-w-2xl mx-auto w-full p-6 pb-28 sm:pb-6">
+      <div className="flex-1 max-w-2xl mx-auto w-full p-4 sm:p-6 pb-28 sm:pb-6">
         {/* Progress: 4 steps (Behandeling → Tijd → Gegevens → Bevestiging) */}
         <div className="mb-3 flex items-center justify-between">
           <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
@@ -947,14 +947,17 @@ export default function BookingPage() {
             </div>
 
             <div className="flex flex-wrap gap-2 mb-3">
-              <span className="text-[10px] inline-flex items-center gap-1 px-2 py-1 rounded-full bg-secondary/60 text-muted-foreground">
+              <span className="trust-chip">
                 <Check className="w-3 h-3 text-primary" /> Direct bevestigd
               </span>
-              <span className="text-[10px] inline-flex items-center gap-1 px-2 py-1 rounded-full bg-secondary/60 text-muted-foreground">
+              <span className="trust-chip">
                 <Shield className="w-3 h-3 text-primary" /> Veilig betalen
               </span>
-              <span className="text-[10px] inline-flex items-center gap-1 px-2 py-1 rounded-full bg-secondary/60 text-muted-foreground">
+              <span className="trust-chip">
                 <Sparkles className="w-3 h-3 text-primary" /> Geen account nodig
+              </span>
+              <span className="trust-chip">
+                Gratis annuleren
               </span>
             </div>
 
@@ -991,8 +994,8 @@ export default function BookingPage() {
                   setSelectedService(item.id);
                 }}
                 className={cn(
-                  "w-full flex items-center gap-4 p-4 rounded-xl border transition-all duration-200 text-left",
-                  selectedService === item.id ? "border-primary bg-primary/10" : "border-border bg-secondary/30 hover:bg-secondary/60"
+                  "w-full flex items-center gap-4 p-4 sm:p-5 rounded-xl border transition-all duration-200 text-left shadow-[var(--shadow-xs)] active:scale-[0.99]",
+                  selectedService === item.id ? "border-primary bg-primary/10 shadow-[var(--shadow-sm)]" : "border-border bg-card hover:bg-secondary/50"
                 )}
               >
                 <div className="w-2 h-10 rounded-full" style={{ backgroundColor: item.color || "hsl(var(--primary))" }} />
@@ -1005,7 +1008,7 @@ export default function BookingPage() {
                     </span>
                   </div>
                 </div>
-                <p className="text-sm font-bold tabular-nums">{formatEuro(item.price)}</p>
+                  <p className="text-base font-bold tabular-nums">{formatEuro(item.price)}</p>
               </button>
             ))}
 
@@ -1098,7 +1101,7 @@ export default function BookingPage() {
               </div>
             )}
 
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {availableSlots.map((slot) => {
                 const meta = SLOT_LABELS[slot];
                 const isSelected = selectedTime === slot;
@@ -1111,8 +1114,8 @@ export default function BookingPage() {
                       trackEvent("slot_selected", { slot });
                     }}
                     className={cn(
-                      "relative p-3 rounded-xl text-sm font-medium tabular-nums border transition-all duration-200 flex flex-col items-center gap-1",
-                      isSelected ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-secondary/60"
+                       "relative min-h-14 p-3 rounded-xl text-sm font-medium tabular-nums border transition-all duration-200 flex flex-col items-center justify-center gap-1 active:scale-[0.98]",
+                       isSelected ? "border-primary bg-primary/10 text-primary" : "border-border bg-card hover:bg-secondary/60"
                     )}
                   >
                     <span>{slot}</span>
