@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEuro } from "@/lib/data";
 import { cn } from "@/lib/utils";
+import { PaymentMethodLogo } from "@/components/PaymentMethodLogo";
 import { ArrowLeft, CheckCircle2, Loader2, Minus, Plus, ShoppingBag, ShoppingCart, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
@@ -28,6 +29,14 @@ type ShopData = {
   };
   products: ShopProduct[];
 };
+
+const paymentMethods = [
+  { id: "ideal", label: "iDEAL | Wero" },
+  { id: "bancontact", label: "Bancontact" },
+  { id: "creditcard", label: "Creditcard" },
+  { id: "applepay", label: "Apple Pay" },
+  { id: "paypal", label: "PayPal" },
+];
 
 function callPublicShop<T>(body: Record<string, unknown>) {
   return supabase.functions.invoke("public-shop", { body }).then(({ data, error }) => {
@@ -221,13 +230,22 @@ export default function ShopPage() {
                   <input value={customer.name} onChange={(e) => setCustomer({ ...customer, name: e.target.value })} placeholder="Naam" className="px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm" />
                   <input value={customer.email} onChange={(e) => setCustomer({ ...customer, email: e.target.value })} placeholder="E-mail" className="px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm" />
                   <input value={customer.phone} onChange={(e) => setCustomer({ ...customer, phone: e.target.value })} placeholder="Telefoon" className="px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm" />
-                  <select value={method} onChange={(e) => setMethod(e.target.value)} className="px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm">
-                    <option value="ideal">iDEAL</option>
-                    <option value="bancontact">Bancontact</option>
-                    <option value="creditcard">Creditcard</option>
-                    <option value="applepay">Apple Pay</option>
-                    <option value="paypal">PayPal</option>
-                  </select>
+                  <div className="grid grid-cols-1 gap-2">
+                    {paymentMethods.map((paymentMethod) => (
+                      <button
+                        key={paymentMethod.id}
+                        type="button"
+                        onClick={() => setMethod(paymentMethod.id)}
+                        className={cn(
+                          "min-h-12 rounded-xl border px-3 text-left text-sm font-medium transition-all flex items-center justify-between gap-3",
+                          method === paymentMethod.id ? "border-primary bg-primary/10 text-primary" : "border-border bg-secondary/40 hover:bg-secondary/60"
+                        )}
+                      >
+                        <span>{paymentMethod.label}</span>
+                        <PaymentMethodLogo method={paymentMethod.id} className="h-6 max-w-24" />
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <div className="flex items-center justify-between text-sm font-semibold border-t border-border pt-3"><span>Totaal</span><span>{formatEuro(total)}</span></div>
                 <Button variant="gradient" className="w-full" onClick={checkout} disabled={checkoutLoading}>{checkoutLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShoppingCart className="w-4 h-4" />} Afrekenen</Button>

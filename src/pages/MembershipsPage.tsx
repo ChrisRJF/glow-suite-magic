@@ -11,6 +11,7 @@ import { useCrud } from "@/hooks/useCrud";
 import { exportCSV } from "@/lib/exportUtils";
 import { formatEuro } from "@/lib/data";
 import { cn } from "@/lib/utils";
+import { PaymentMethodLogo } from "@/components/PaymentMethodLogo";
 import { supabase } from "@/integrations/supabase/client";
 import { Archive, Check, Crown, Euro, EyeOff, Gift, Loader2, Pause, Play, Plus, RefreshCw, ShieldAlert, Trash2, TrendingUp, UserPlus, Users, XCircle } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -28,6 +29,11 @@ const statusClasses: Record<string, string> = {
   expired: "bg-muted text-muted-foreground border-border",
   payment_issue: "bg-destructive/10 text-destructive border-destructive/20",
 };
+const paymentMethods = [
+  { id: "ideal", label: "iDEAL | Wero" },
+  { id: "creditcard", label: "Creditcard" },
+  { id: "bancontact", label: "Bancontact" },
+];
 const defaultFeatures: MembershipFeatures = {
   white_label_signup: true,
   credits_system: true,
@@ -285,7 +291,7 @@ export default function MembershipsPage() {
             <div className="space-y-3">
               <select value={memberForm.customer_id} onChange={(e) => setMemberForm({ ...memberForm, customer_id: e.target.value })} className="w-full px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm"><option value="">Kies klant</option>{customers.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
               <select value={memberForm.membership_plan_id} onChange={(e) => setMemberForm({ ...memberForm, membership_plan_id: e.target.value })} className="w-full px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm"><option value="">Kies membership</option>{plans.filter((p: any) => p.is_active).map((p: any) => <option key={p.id} value={p.id}>{p.name} · {formatEuro(Number(p.price || 0))}</option>)}</select>
-              <select value={memberForm.method} onChange={(e) => setMemberForm({ ...memberForm, method: e.target.value })} className="w-full px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm"><option value="ideal">iDEAL</option><option value="creditcard">Creditcard</option><option value="bancontact">Bancontact</option></select>
+              <div className="grid grid-cols-1 gap-2">{paymentMethods.map((method) => <button key={method.id} type="button" onClick={() => setMemberForm({ ...memberForm, method: method.id })} className={cn("min-h-12 rounded-xl border px-3 text-left text-sm font-medium transition-all flex items-center justify-between gap-3", memberForm.method === method.id ? "border-primary bg-primary/10 text-primary" : "border-border bg-secondary/40 hover:bg-secondary/60")}><span>{method.label}</span><PaymentMethodLogo method={method.id} className="h-6 max-w-24" /></button>)}</div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-5"><Button variant="outline" onClick={addManualMember}>Handmatig actief</Button><Button variant="gradient" onClick={startCheckout} disabled={!!busyId}>{busyId ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Eerste betaling</Button></div>
           </div>
