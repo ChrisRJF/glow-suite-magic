@@ -120,28 +120,36 @@ function amountSummary(args: { amount?: unknown; vatAmount?: unknown; vatRate?: 
 
 function template(key: TemplateKey, data: Record<string, unknown>, salonName: string, branding: any): TemplateResult {
   const firstName = String(data.customer_name || data.recipient_name || "").trim().split(/\s+/)[0] || "";
-  const accent = branding?.primary_color || "#7B61FF";
-  const base = { salonName, logoUrl: branding?.logo_url || "", accent };
+  const accent = hexColor(branding?.primary_color, "#7B61FF");
+  const secondary = hexColor(branding?.secondary_color, "#C850C0");
+  const base = { salonName, logoUrl: branding?.logo_url || "", accent, secondary };
+  const manageUrl = firstFilled(data.manage_url, data.appointment_url, data.booking_url);
+  const calendarUrl = firstFilled(data.calendar_url, data.add_to_calendar_url);
+  const contactUrl = firstFilled(data.contact_url, data.route_url, data.location_url);
+  const supportEmail = firstFilled(data.support_email, data.salon_contact_email, branding?.contact_email);
 
   if (key === "booking_confirmation") {
-    const title = "Je afspraak is bevestigd";
-    const intro = `${firstName ? `${firstName}, je` : "Je"} afspraak bij ${salonName} staat vast.`;
-    const rows = infoRows([["Behandeling", data.service_name], ["Datum", nlDate(data.appointment_date || data.date)], ["Tijd", data.time], ["Medewerker", data.employee], ["Referentie", data.reference], ["Totaal", data.total_amount ? formatEuro(data.total_amount) : undefined]]);
-    return { subject: `${salonName} · afspraak bevestigd`, preview: intro, html: shell({ ...base, title, intro, body: rows }), text: `${title}\n${intro}` };
+    const title = "Je afspraak staat klaar";
+    const intro = `${firstName ? `${firstName}, je` : "Je"} behandeling bij ${salonName} is bevestigd. We kijken ernaar uit je te ontvangen.`;
+    const rows = infoRows([["Klant", data.customer_name || data.recipient_name], ["Datum", nlDate(data.appointment_date || data.date)], ["Tijd", data.time || data.start_time], ["Behandeling", data.service_name], ["Medewerker", data.employee || data.staff_name], ["Locatie", data.location || data.address], ["Referentie", data.reference], ["Totaal", data.total_amount ? formatEuro(data.total_amount) : undefined]]);
+    const body = rows + noteBlock("Handig om te weten", ["Zet je afspraak direct in je agenda.", "Kun je niet komen? Beheer je afspraak op tijd via de knop hieronder."]);
+    return { subject: `${salonName} · je afspraak op ${nlDateShort(data.appointment_date || data.date) || "is bevestigd"}`, preview: intro, html: shell({ ...base, title, intro, body, primaryAction: { label: "Afspraak beheren", url: manageUrl }, secondaryAction: { label: "Toevoegen aan kalender", url: calendarUrl } }), text: `${title}\n${intro}\n${String(data.service_name || "")}\n${nlDate(data.appointment_date || data.date)} ${String(data.time || data.start_time || "")}` };
   }
 
   if (key === "payment_receipt") {
-    const title = "Betaling ontvangen";
-    const intro = `We hebben je betaling aan ${salonName} veilig ontvangen.`;
-    const rows = infoRows([["Bedrag", formatEuro(data.amount)], ["Betaalmethode", data.method], ["Omschrijving", data.description || data.service_name || data.membership_name], ["Referentie", data.reference]]);
-    return { subject: `${salonName} · betalingsbewijs`, preview: intro, html: shell({ ...base, title, intro, body: rows }), text: `${title}\n${intro}\nBedrag: ${formatEuro(data.amount)}` };
+    const title = "Je betaalbewijs";
+    const intro = `Dank je wel. Je betaling aan ${salonName} is veilig verwerkt.`;
+    const rows = infoRows([["Betaalmethode", data.method || data.payment_method], ["Omschrijving", data.description || data.service_name || data.membership_name], ["Datum", nlDate(data.paid_at || data.date)], ["Referentie", data.reference || data.receipt_number], ["BTW", data.vat_amount ? formatEuro(data.vat_amount) : data.vat_enabled ? "Actief" : undefined]]);
+    const body = amountSummary({ amount: data.amount, vatAmount: data.vat_amount, vatRate: data.vat_rate, total: data.total_amount }) + rows;
+    return { subject: `${salonName} · betaalbewijs ${data.reference ? `#${String(data.reference)}` : ""}`.trim(), preview: intro, html: shell({ ...base, title, intro, body, primaryAction: { label: "Bekijk afspraak", url: manageUrl } }), text: `${title}\n${intro}\nBedrag: ${formatEuro(data.total_amount || data.amount)}\nBetaalmethode: ${String(data.method || data.payment_method || "")}` };
   }
 
   if (key === "appointment_reminder") {
-    const title = "Herinnering aan je afspraak";
-    const intro = `${firstName ? `${firstName}, vergeet` : "Vergeet"} je afspraak bij ${salonName} niet.`;
-    const rows = infoRows([["Behandeling", data.service_name], ["Datum", nlDate(data.appointment_date || data.date)], ["Tijd", data.time], ["Medewerker", data.employee]]);
-    return { subject: `${salonName} · herinnering afspraak`, preview: intro, html: shell({ ...base, title, intro, body: rows }), text: `${title}\n${intro}` };
+    const title = "Tot snel bij je afspraak";
+    const intro = `${firstName ? `${firstName}, dit` : "Dit"} is een vriendelijke herinnering aan je afspraak bij ${salonName}.`;
+    const rows = infoRows([["Datum", nlDate(data.appointment_date || data.date)], ["Tijd", data.time || data.start_time], ["Behandeling", data.service_name], ["Medewerker", data.employee || data.staff_name], ["Locatie", data.location || data.address]]);
+    const body = rows + noteBlock("Voorbereiding", [data.preparation_tip || "Kom liefst een paar minuten op tijd.", "Laat het ons weten als je vragen hebt of verhinderd bent.", data.aftercare_note]);
+    return { subject: `${salonName} · herinnering voor ${nlDateShort(data.appointment_date || data.date) || "je afspraak"}`, preview: intro, html: shell({ ...base, title, intro, body, primaryAction: { label: "Route & contact", url: contactUrl }, secondaryAction: { label: "Afspraak beheren", url: manageUrl } }), text: `${title}\n${intro}\n${nlDate(data.appointment_date || data.date)} ${String(data.time || data.start_time || "")}` };
   }
 
   if (key === "booking_cancellation") {
