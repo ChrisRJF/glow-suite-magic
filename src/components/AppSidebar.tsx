@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Calendar, Users, Scissors, X, Globe,
   MessageCircle, CreditCard, TrendingUp, RefreshCw, Megaphone,
   Zap, ShoppingBag, Package, BarChart3, Settings, HelpCircle, LogOut,
-  Sun, Moon, Bot, Clock, Gift, ShoppingCart, Share2, UserPlus, Crown, RotateCcw,
+  Sun, Moon, Bot, Clock, Gift, ShoppingCart, Share2, UserPlus, Crown, RotateCcw, Mail,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -196,19 +196,34 @@ export function AppSidebar() {
             </Link>
           )}
           {roles.some((role) => ["eigenaar", "manager", "admin"].includes(role)) && (
-            <Link
-              to="/qa-status"
-              onClick={() => setMobileOpen(false)}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all",
-                location.pathname === "/qa-status"
-                  ? "bg-primary/15 text-primary font-medium"
-                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-              )}
-            >
-              <Settings className="w-[18px] h-[18px]" />
-              <span>QA Status</span>
-            </Link>
+            <>
+              <Link
+                to="/admin/email-templates"
+                onClick={() => setMobileOpen(false)}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all",
+                  location.pathname === "/admin/email-templates"
+                    ? "bg-primary/15 text-primary font-medium"
+                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                )}
+              >
+                <Mail className="w-[18px] h-[18px]" />
+                <span>Email previews</span>
+              </Link>
+              <Link
+                to="/qa-status"
+                onClick={() => setMobileOpen(false)}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all",
+                  location.pathname === "/qa-status"
+                    ? "bg-primary/15 text-primary font-medium"
+                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                )}
+              >
+                <Settings className="w-[18px] h-[18px]" />
+                <span>QA Status</span>
+              </Link>
+            </>
           )}
           {visibleBottom.map((item) => {
             const isActive = location.pathname === item.path;
