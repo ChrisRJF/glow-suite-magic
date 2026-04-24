@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const MOLLIE_API = "https://api.mollie.com/v2";
-const REASONS = ["Cancelled appointment", "Duplicate payment", "Customer complaint", "Staff issue", "Booking error", "Membership cancellation", "Goodwill gesture", "Other"];
+const REASONS = ["Cancelled appointment", "Duplicate payment", "Customer complaint", "Staff issue", "Booking error", "Abonnement opzegging", "Goodwill gesture", "Other"];
 
 const BodySchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("create_request"), payment_id: z.string().uuid(), amount: z.number().positive(), reason: z.enum(REASONS as [string, ...string[]]), custom_reason: z.string().max(160).optional(), internal_note: z.string().max(600).optional(), notify_customer: z.boolean().default(false) }),
