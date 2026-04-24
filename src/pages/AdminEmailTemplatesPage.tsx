@@ -59,6 +59,24 @@ const sampleData: Record<TemplateKey, Record<string, unknown>> = {
   review_request: { customer_name: "Sophie de Vries", review_url: "https://glowsuite.nl/review" },
 };
 
+const fallbackServices: Service[] = [
+  { id: "glow-facial", name: "Glow Facial", duration_minutes: 60, category: "Facial" },
+  { id: "lash-lift", name: "Lash Lift", duration_minutes: 45, category: "Lashes" },
+  { id: "brow-styling", name: "Brow Styling", duration_minutes: 30, category: "Brows" },
+];
+
+const fallbackSchedules = [
+  { label: "24 uur vooraf", hoursBefore: 24 },
+  { label: "2 uur vooraf", hoursBefore: 2 },
+];
+
+const slugify = (value: string) => value.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 64) || "afspraak";
+
+const extractCalendarButtonStyle = (html: string, calendarUrl: string) => {
+  const escapedUrl = calendarUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return html.match(new RegExp(`<a[^>]+href="${escapedUrl}"[^>]+style="([^"]+)"`, "i"))?.[1] || "";
+};
+
 export default function AdminEmailTemplatesPage() {
   const [salons, setSalons] = useState<Salon[]>([]);
   const [selectedSalonId, setSelectedSalonId] = useState("");
