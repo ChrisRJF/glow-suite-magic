@@ -99,6 +99,9 @@ export default function AdminEmailTemplatesPage() {
       .map((item) => ({ label: item.label || `${item.hours_before} uur vooraf`, hoursBefore: Number(item.hours_before) }));
     return active.length ? active : fallbackSchedules;
   }, [selectedSalon]);
+  const salonSlug = useMemo(() => slugify(selectedSalon?.public_slug || selectedSalon?.salon_name || "salon"), [selectedSalon]);
+  const primaryService = services[0] || fallbackServices[0];
+  const bookingCalendarUrl = `https://${salonSlug}.glowsuite.nl/calendar/${slugify(primaryService.name)}/booking_confirmation.ics?date=2026-04-24&time=10%3A00&duration=${primaryService.duration_minutes}&ref=GS-8F42A1C9`;
 
   useEffect(() => {
     let active = true;
@@ -138,7 +141,9 @@ export default function AdminEmailTemplatesPage() {
     if (!selectedSalon) return;
     setRendering(true);
     setError("");
-    const salonSlug = slugify(selectedSalon.public_slug || selectedSalon.salon_name || "salon");
+    const previewTemplateData = selectedTemplate === "booking_confirmation"
+      ? { ...sampleData.booking_confirmation, service_name: primaryService.name, calendar_url: bookingCalendarUrl }
+      : sampleData[selectedTemplate];
     const { data, error } = await supabase.functions.invoke("send-white-label-email", {
       body: {
         user_id: selectedSalon.user_id,
@@ -147,7 +152,7 @@ export default function AdminEmailTemplatesPage() {
         recipient_email: recipientEmail,
         recipient_name: "Sophie de Vries",
         template_key: selectedTemplate,
-        template_data: sampleData[selectedTemplate],
+        template_data: previewTemplateData,
         preview_only: true,
         idempotency_key: `admin-preview-${selectedSalon.user_id}-${selectedTemplate}`,
       },
@@ -280,6 +285,15 @@ export default function AdminEmailTemplatesPage() {
             <TabsContent value="visual" className="mt-4">
               <Card>
                 <CardContent className="p-0 overflow-hidden">
+                  {selectedTemplate === "booking_confirmation" && preview?.html && (
+                    <div className="space-y-2 border-b border-border bg-muted/30 p-3">
+                      <div className="flex items-start gap-2 text-xs">
+                        <Link2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                        <code className="break-all font-mono text-foreground">{bookingCalendarUrl}</code>
+                      </div>
+                      <p className="break-all font-mono text-[11px] leading-relaxed text-muted-foreground">Button style: {extractCalendarButtonStyle(preview.html, bookingCalendarUrl) || "—"}</p>
+                    </div>
+                  )}
                   <iframe title="Email template preview" srcDoc={preview?.html || ""} className="h-[620px] w-full bg-background" />
                 </CardContent>
               </Card>

@@ -167,6 +167,7 @@ describe("white-label transactional email CTA link coverage", () => {
       const parsed = new URL(calendarUrl);
       const htmlCalendarUrl = calendarUrl.replace(/&/g, "&amp;");
       expect(rendered.html).toContain(`href="${htmlCalendarUrl}"`);
+      expect(rendered.html).toContain(`href="${htmlCalendarUrl}" style="display:block;background:#ffffff;color:${salon.branding.secondary_color};text-decoration:none;border:1px solid #E9DFF7;border-radius:14px;padding:13px 18px;font-size:14px;font-weight:750;text-align:center;margin:0 0 16px;"`);
       expect(parsed.hostname).toBe(`${salon.slug}.glowsuite.nl`);
       expect(parsed.pathname).toBe(`/calendar/${service.slug}/booking_confirmation.ics`);
       expect(parsed.searchParams.get("date")).toBe("2026-05-12");

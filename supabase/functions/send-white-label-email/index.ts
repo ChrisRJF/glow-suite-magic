@@ -132,8 +132,9 @@ function template(key: TemplateKey, data: Record<string, unknown>, salonName: st
     const title = "Je afspraak staat klaar";
     const intro = `${firstName ? `${firstName}, je` : "Je"} behandeling bij ${salonName} is bevestigd. We kijken ernaar uit je te ontvangen.`;
     const rows = infoRows([["Klant", data.customer_name || data.recipient_name], ["Datum", nlDate(data.appointment_date || data.date)], ["Tijd", data.time || data.start_time], ["Behandeling", data.service_name], ["Medewerker", data.employee || data.staff_name], ["Locatie", data.location || data.address], ["Referentie", data.reference], ["Totaal", data.total_amount ? formatEuro(data.total_amount) : undefined]]);
-    const body = rows + noteBlock("Handig om te weten", ["Zet je afspraak direct in je agenda.", "Kun je niet komen? Beheer je afspraak op tijd via de knop hieronder."]);
-    return { subject: `${salonName} · je afspraak op ${nlDateShort(data.appointment_date || data.date) || "is bevestigd"}`, preview: intro, html: shell({ ...base, title, intro, body, primaryAction: { label: "Afspraak beheren", url: manageUrl }, secondaryAction: { label: "Toevoegen aan kalender", url: calendarUrl } }), text: `${title}\n${intro}\n${String(data.service_name || "")}\n${nlDate(data.appointment_date || data.date)} ${String(data.time || data.start_time || "")}` };
+    const calendarLink = calendarUrl ? `<a href="${escapeHtml(calendarUrl)}" style="display:block;background:#ffffff;color:${secondary};text-decoration:none;border:1px solid #E9DFF7;border-radius:14px;padding:13px 18px;font-size:14px;font-weight:750;text-align:center;margin:0 0 16px;">Toevoegen aan kalender</a>` : "";
+    const body = rows + calendarLink + noteBlock("Handig om te weten", ["Zet je afspraak direct in je agenda.", "Kun je niet komen? Beheer je afspraak op tijd via de knop hieronder."]);
+    return { subject: `${salonName} · je afspraak op ${nlDateShort(data.appointment_date || data.date) || "is bevestigd"}`, preview: intro, html: shell({ ...base, title, intro, body, primaryAction: { label: "Afspraak beheren", url: manageUrl } }), text: `${title}\n${intro}\n${String(data.service_name || "")}\n${nlDate(data.appointment_date || data.date)} ${String(data.time || data.start_time || "")}` };
   }
 
   if (key === "payment_receipt") {
