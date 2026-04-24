@@ -143,6 +143,11 @@ function addMinutesToTime(time: string, minutes: number) {
   return `${String(nextHour).padStart(2, "0")}:${String(nextMinute).padStart(2, "0")}:00`;
 }
 
+async function sendWhiteLabelEmail(supabase: ReturnType<typeof createClient>, body: Record<string, unknown>) {
+  const { error } = await supabase.functions.invoke("send-white-label-email", { body });
+  if (error) console.error("White-label email failed", error.message);
+}
+
 async function assertAvailability(supabase: ReturnType<typeof createClient>, userId: string, date: string, bookings: Array<{ time: string; duration: number; employee: string | null }>) {
   const dayStart = `${date}T00:00:00+01:00`;
   const dayEnd = `${date}T23:59:59+01:00`;
@@ -404,6 +409,28 @@ Deno.serve(async (req) => {
       const nextPaymentStatus = paymentStatus === "paid" ? "paid" : paymentInitError ? "payment_failed" : "pending";
       await supabase.from("appointments").update({ payment_status: nextPaymentStatus, status: paymentStatus === "paid" ? "confirmed" : "pending_confirmation" }).eq("booking_group_id", groupId);
       await supabase.from("appointments").update({ payment_status: nextPaymentStatus, status: paymentStatus === "paid" ? "confirmed" : "pending_confirmation" }).eq("id", primaryAppointment.id);
+    }
+
+    if (primaryAppointment) {
+      await sendWhiteLabelEmail(supabase, {
+        user_id: ctx.settings.user_id,
+        salon_slug: ctx.settings.public_slug || slugify(ctx.settings.salon_name || "salon"),
+        salon_name: ctx.settings.salon_name || "Salon",
+        recipient_email: email,
+        recipient_name: data.customer.name,
+        template_key: "booking_confirmation",
+        idempotency_key: `booking-confirmation-${primaryAppointment.id}`,
+        template_data: {
+          customer_name: data.customer.name,
+          service_name: mainService.name,
+          appointment_date: primaryAppointment.appointment_date,
+          date: data.date,
+          time: data.time,
+          employee: primaryAppointment.employee_id,
+          reference: primaryAppointment.booking_reference,
+          total_amount: data.payment.required ? data.payment.amount : Number(mainService.price || 0),
+        },
+      });
     }
 
     return json({

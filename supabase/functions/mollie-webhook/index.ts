@@ -28,6 +28,15 @@ async function logWebhookValidation(supabase: ReturnType<typeof createClient>, p
   });
 }
 
+function slugify(value: string) {
+  return value.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "").slice(0, 48) || "salon";
+}
+
+async function sendWhiteLabelEmail(supabase: ReturnType<typeof createClient>, body: Record<string, unknown>) {
+  const { error } = await supabase.functions.invoke("send-white-label-email", { body });
+  if (error) console.error("White-label email failed", error.message);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Methode niet toegestaan" }, 405);
@@ -112,6 +121,23 @@ Deno.serve(async (req) => {
         await supabase.from("appointments").update({ payment_status: mapped.payment_status, status: mapped.appointment_status, amount_paid: amountPaid }).eq("booking_group_id", appointment.booking_group_id);
       }
       await supabase.from("appointments").update({ payment_status: mapped.payment_status, status: mapped.appointment_status, amount_paid: amountPaid }).eq("id", appointmentId);
+    }
+
+    if (status === "paid") {
+      const { data: settings } = await supabase.from("settings").select("salon_name, public_slug").eq("user_id", payment.user_id).eq("is_demo", false).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      const { data: customer } = payment.customer_id ? await supabase.from("customers").select("name, email").eq("id", payment.customer_id).eq("user_id", payment.user_id).maybeSingle() : { data: null };
+      if (customer?.email) {
+        await sendWhiteLabelEmail(supabase, {
+          user_id: payment.user_id,
+          salon_slug: settings?.public_slug || slugify(settings?.salon_name || "salon"),
+          salon_name: settings?.salon_name || "Salon",
+          recipient_email: customer.email,
+          recipient_name: customer.name || "",
+          template_key: payment.membership_id ? "membership_notification" : "payment_receipt",
+          idempotency_key: `payment-${payment.id}-${status}`,
+          template_data: { customer_name: customer.name, amount: payment.amount, method: molliePayment.method || payment.method, reference: payment.id, status: "Actief" },
+        });
+      }
     }
 
     const orderId = payment.order_id || metadata.order_id;
