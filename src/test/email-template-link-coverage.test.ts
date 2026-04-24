@@ -17,6 +17,12 @@ type SalonFixture = {
   branding: { primary_color: string; secondary_color: string; logo_url: string };
 };
 
+type ServiceFixture = {
+  name: string;
+  slug: string;
+  preparation_tip: string;
+};
+
 const source = readFileSync("supabase/functions/send-white-label-email/index.ts", "utf8");
 const helpersStart = source.indexOf("function escapeHtml");
 const helpersEnd = source.indexOf("async function logEmail");
@@ -48,6 +54,12 @@ const salons: SalonFixture[] = [
   },
 ];
 
+const services: ServiceFixture[] = [
+  { name: "Glow Facial", slug: "glow-facial", preparation_tip: "Kom zonder make-up voor het mooiste resultaat." },
+  { name: "Lash Lift", slug: "lash-lift", preparation_tip: "Gebruik 24 uur vooraf geen waterproof mascara." },
+  { name: "Brow Styling", slug: "brow-styling", preparation_tip: "Laat je wenkbrauwen vooraf zoveel mogelijk met rust." },
+];
+
 const templateCoverage: Record<TemplateKey, Array<"manage" | "calendar" | "contact" | "review">> = {
   booking_confirmation: ["manage", "calendar"],
   payment_receipt: ["manage"],
@@ -57,13 +69,14 @@ const templateCoverage: Record<TemplateKey, Array<"manage" | "calendar" | "conta
   review_request: ["review"],
 };
 
-function dataFor(templateKey: TemplateKey, salon: SalonFixture) {
+function dataFor(templateKey: TemplateKey, salon: SalonFixture, service: ServiceFixture = services[0]) {
   const baseUrl = `https://${salon.slug}.glowsuite.nl`;
   return {
     customer_name: "Sophie de Vries",
     appointment_date: "2026-05-12T10:00:00.000Z",
     time: "10:00",
-    service_name: "Glow Facial",
+    service_name: service.name,
+    preparation_tip: service.preparation_tip,
     employee: "Nina",
     location: "Keizersgracht 12, Amsterdam",
     reference: `${salon.slug}-A100`,
@@ -76,7 +89,7 @@ function dataFor(templateKey: TemplateKey, salon: SalonFixture) {
     benefits: ["Priority booking", "10% korting", "Maandelijkse glow treatment"],
     manage_url: `${baseUrl}/afspraak/${templateKey}/beheer`,
     appointment_url: `${baseUrl}/afspraak/${templateKey}/details`,
-    calendar_url: `${baseUrl}/calendar/${templateKey}.ics`,
+    calendar_url: `${baseUrl}/calendar/${service.slug}/${templateKey}.ics`,
     contact_url: `${baseUrl}/route-contact/${templateKey}`,
     route_url: `${baseUrl}/route/${templateKey}`,
     new_booking_url: `${baseUrl}/boeken/nieuw`,
