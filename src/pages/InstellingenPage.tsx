@@ -394,14 +394,14 @@ export default function InstellingenPage() {
   );
 
   const tabs = [
-    { id: "algemeen", label: "Algemeen", icon: Building },
+    { id: "algemeen", label: "Salon", icon: Building },
     { id: "agenda", label: "Agenda", icon: Calendar },
     { id: "boekingen", label: "Online Boeken", icon: Globe },
-    { id: "betaling", label: "Betalingen", icon: CreditCard },
+    { id: "betaling", label: "Payments", icon: CreditCard },
     { id: "klanten", label: "Klanten", icon: Users },
-    { id: "integraties", label: "Integraties", icon: Plug },
-    { id: "export", label: "Data Export", icon: Download },
-    { id: "rollen", label: "Gebruikers", icon: UserCog },
+    { id: "integraties", label: "Integrations", icon: Plug },
+    { id: "export", label: "Branding & Export", icon: Download },
+    { id: "rollen", label: "Team", icon: UserCog },
     { id: "demo", label: "Demo", icon: Shield },
   ].filter((tab) => {
     if (tab.id === "betaling") return canManageFinance;
@@ -436,7 +436,7 @@ export default function InstellingenPage() {
       <div className="flex gap-2 overflow-x-auto pb-3 mb-8 -mx-1 px-1 border-b border-border/50">
         {tabs.map(t => (
           <button key={t.id} onClick={() => setActiveTab(t.id)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all ${
+            className={`flex items-center gap-2 min-h-10 px-4 py-2.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all ${
               activeTab === t.id ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
             }`}>
             <t.icon className="w-3.5 h-3.5" />{t.label}
@@ -444,7 +444,7 @@ export default function InstellingenPage() {
         ))}
       </div>
 
-      <div className="grid gap-8 max-w-2xl">
+      <div className="grid gap-6 sm:gap-8 max-w-3xl">
         {/* Algemeen */}
         {activeTab === "algemeen" && (
           <>

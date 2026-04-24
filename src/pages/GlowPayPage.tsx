@@ -36,6 +36,7 @@ export default function GlowPayPage() {
   const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
   const [showLinkForm, setShowLinkForm] = useState(false);
   const [linkForm, setLinkForm] = useState({ amount: "", description: "", customer_id: "", type: "link" });
+  const [paymentFilter, setPaymentFilter] = useState<"today" | "week" | "month">("month");
 
   const s = settings.length > 0 ? settings[0] as any : null;
 
@@ -91,6 +92,14 @@ export default function GlowPayPage() {
   const isRefundEligible = (p: any) => p.status === "paid" && !p.is_demo && p.provider === "mollie" && Boolean(p.mollie_payment_id) && getRefundableAmount(p) > 0;
 
   const getCustomerName = (id: string | null) => customers.find(c => c.id === id)?.name || "Onbekend";
+  const filteredPayments = useMemo(() => {
+    const now = new Date();
+    const start = new Date(now);
+    if (paymentFilter === "today") start.setHours(0, 0, 0, 0);
+    if (paymentFilter === "week") start.setDate(now.getDate() - 7);
+    if (paymentFilter === "month") start.setMonth(now.getMonth() - 1);
+    return payments.filter((payment) => new Date(payment.created_at) >= start);
+  }, [payments, paymentFilter]);
   const getStatusBadge = (status: string) => {
     const map: Record<string, { label: string; class: string; icon: typeof CheckCircle2 }> = {
       paid: { label: "Betaald", class: "bg-success/15 text-success", icon: CheckCircle2 },
@@ -261,7 +270,7 @@ export default function GlowPayPage() {
                 </div>
               ))}
               {payments.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-6">Nog geen betalingen</p>
+                <div className="premium-empty"><CreditCard className="w-8 h-8 text-muted-foreground/50" /><p>Nog geen betalingen. Zodra klanten afrekenen verschijnen ze hier live.</p></div>
               )}
             </div>
           </div>
@@ -270,11 +279,18 @@ export default function GlowPayPage() {
 
       {activeTab === "betalingen" && (
         <div className="glass-card p-6 opacity-0 animate-fade-in-up">
-          <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
-            <CreditCard className="w-4 h-4 text-primary" /> Alle betalingen
-          </h3>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+            <h3 className="text-sm font-semibold flex items-center gap-2">
+              <CreditCard className="w-4 h-4 text-primary" /> Alle betalingen
+            </h3>
+            <div className="flex gap-1 bg-secondary/50 p-1 rounded-xl w-fit overflow-x-auto">
+              {[{ key: "today", label: "Vandaag" }, { key: "week", label: "Week" }, { key: "month", label: "Maand" }].map((item) => (
+                <button key={item.key} onClick={() => setPaymentFilter(item.key as any)} className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap", paymentFilter === item.key ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground")}>{item.label}</button>
+              ))}
+            </div>
+          </div>
           <div className="space-y-2">
-            {payments.map(p => (
+            {filteredPayments.map(p => (
               <div key={p.id}
                 className={cn("flex items-center gap-3 p-3 rounded-xl transition-colors cursor-pointer",
                   selectedPayment === p.id ? "bg-primary/10 border border-primary/20" : "bg-secondary/30 hover:bg-secondary/50 border border-transparent")}
@@ -336,8 +352,8 @@ export default function GlowPayPage() {
                 </div>
               </div>
             ))}
-            {payments.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-8">Geen betalingen gevonden</p>
+            {filteredPayments.length === 0 && (
+              <div className="premium-empty"><CreditCard className="w-8 h-8 text-muted-foreground/50" /><p>Geen betalingen in deze periode. Kies een andere filter of maak een betaalverzoek.</p></div>
             )}
           </div>
         </div>

@@ -8,6 +8,7 @@ import { buildReports, rangeForPreset, trendClass, trendLabel } from "@/lib/repo
 import {
   TrendingUp, Users, Calendar, Euro, Sparkles, ArrowRight, Clock,
   Zap, BarChart3, Award, UserPlus, ChevronDown, AlertTriangle, Star, UserX, Send, RefreshCw,
+  CheckCircle2, Crown,
 } from "lucide-react";
 import { AutoRevenueEngine } from "@/components/AutoRevenueEngine";
 import { DailyCoach } from "@/components/DailyCoach";
@@ -105,9 +106,12 @@ export default function DashboardPage() {
   const autoFilledAppts = useMemo(() => appointments.filter((a) => a.notes?.includes("Auto-gevuld")).length, [appointments]);
 
   const monthlyGrowthRevenue = paidRevenueThisMonth;
+  const membershipRevenue = payments.filter((p: any) => p.payment_type === "membership" && p.status === "paid").reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+  const glowSuiteWeekRevenue = report.revenue.week + aiRevenue;
 
   const vipCustomers = customers.filter((c) => (Number(c.total_spent) || 0) > 500);
   const newLeads = leads.filter((l) => l.status === "nieuw").length;
+  const openActions = noShowRiskTomorrow + newLeads + inactiveCustomers.length;
   const leadsConverted = leads.filter((l) => l.status === "klant_geworden" || l.status === "geboekt").length;
   const leadsConversionPct = leads.length > 0 ? Math.round((leadsConverted / leads.length) * 100) : 0;
   const leadsRevenue = leadsConverted * 65;
@@ -117,8 +121,21 @@ export default function DashboardPage() {
       title="Overzicht"
       subtitle={new Date().toLocaleDateString("nl-NL", { weekday: "long", day: "numeric", month: "long" })}
     >
-      {/* ═══════════ SECTION 1: VANDAAG PRIORITEIT ═══════════ */}
-      <DailyCoach />
+      <section className="premium-panel overflow-hidden relative">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+          <div className="space-y-2">
+            <div className="flex flex-wrap gap-2">
+              <span className="trust-chip"><CheckCircle2 className="w-3.5 h-3.5 text-success" />Live gekoppeld</span>
+              <span className="trust-chip">Laatste update zojuist</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">+{formatEuro(glowSuiteWeekRevenue)} verdiend via GlowSuite deze week</h2>
+            <p className="text-sm text-muted-foreground max-w-2xl">Heldere groei uit boekingen, betalingen en automatische opvolging.</p>
+          </div>
+          <Button variant="gradient" onClick={() => navigate("/rapporten?type=omzet")}>
+            Bekijk groei <ArrowRight className="w-4 h-4" />
+          </Button>
+        </div>
+      </section>
 
       {/* ═══════════ SECTION 2: PLANNING VANDAAG ═══════════ */}
       <section>
@@ -190,7 +207,6 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* ═══════════ SECTION 3: VANDAAG OMZET & KPI ═══════════ */}
       <section>
         <div className="flex items-end justify-between mb-4">
           <div>
@@ -207,7 +223,7 @@ export default function DashboardPage() {
             {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-36 rounded-2xl" />)}
           </div>
         ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4">
           {/* Omzet vandaag — hero KPI */}
           <button
             onClick={() => navigate("/rapporten?type=omzet")}
@@ -239,8 +255,10 @@ export default function DashboardPage() {
           </button>
 
           <DashboardKpi icon={Calendar} label="Afspraken vandaag" value={String(report.appointments.today)} trend={trendLabel(report.appointments.trend)} trendValue={report.appointments.trend} onClick={() => navigate("/agenda")} />
-          <DashboardKpi icon={UserPlus} label="Nieuwe klanten" value={String(report.customers.newThisMonth)} trend={trendLabel(report.customers.trend)} trendValue={report.customers.trend} onClick={() => navigate("/klanten")} />
-          <DashboardKpi icon={Euro} label="Openstaand bedrag" value={formatEuro(report.revenue.openAmount)} trend={`${report.rows.openAppointments.length} open`} onClick={() => navigate("/glowpay")} />
+          <DashboardKpi icon={UserPlus} label="Nieuwe klanten deze week" value={String(report.customers.newThisMonth)} trend={trendLabel(report.customers.trend)} trendValue={report.customers.trend} onClick={() => navigate("/klanten")} />
+          <DashboardKpi icon={RefreshCw} label="Herhaalboekingen" value={`${rebookPct}%`} trend="retentie" onClick={() => navigate("/herboekingen")} />
+          <DashboardKpi icon={Crown} label="Membership omzet" value={formatEuro(membershipRevenue)} trend="recurring" onClick={() => navigate("/memberships")} />
+          <DashboardKpi icon={AlertTriangle} label="Open acties" value={String(openActions)} trend="vandaag" onClick={() => navigate("/acties")} />
 
           {/* No-show risico */}
           <button
@@ -275,9 +293,8 @@ export default function DashboardPage() {
         )}
       </section>
 
-      {/* ═══════════ BELOW THE FOLD: Autopilot + ROI ═══════════ */}
+      <DailyCoach />
 
-      {/* Auto Revenue Engine */}
       <section data-tour="auto-revenue" id="auto-revenue-engine">
         <AutoRevenueEngine />
       </section>
