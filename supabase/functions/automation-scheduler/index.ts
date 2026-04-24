@@ -154,18 +154,20 @@ async function insertRun(admin: any, rule: Rule, settings: any, candidate: any, 
   return run.status;
 }
 
-async function candidatesForRule(admin: any, rule: Rule) {
+async function candidatesForRule(admin: any, rule: Rule, settings: any) {
   const now = new Date();
   const userFilter = { user_id: rule.user_id, is_demo: rule.is_demo };
   const trigger = rule.trigger_type;
   const candidates: any[] = [];
 
   if (["appointment_reminder_24h", "appointment_reminder_2h", "afspraak_geboekt"].includes(trigger)) {
-    const hours = trigger === "appointment_reminder_2h" ? 2 : trigger === "appointment_reminder_24h" ? 24 : 0;
-    const from = new Date(now.getTime() + Math.max(0, hours - 1) * 60 * 60 * 1000).toISOString();
-    const to = new Date(now.getTime() + (hours + 1) * 60 * 60 * 1000).toISOString();
-    const { data } = await admin.from("appointments").select("*, customer:customers(*), service:services(*)").match(userFilter).gte("appointment_date", from).lte("appointment_date", to).limit(50);
-    (data || []).forEach((appointment: any) => appointment.customer && candidates.push({ appointment, customer: appointment.customer, service: appointment.service }));
+    for (const reminder of reminderSchedules(settings, trigger)) {
+      const hours = Number(reminder.hours_before);
+      const from = new Date(now.getTime() + Math.max(0, hours - 1) * 60 * 60 * 1000).toISOString();
+      const to = new Date(now.getTime() + (hours + 1) * 60 * 60 * 1000).toISOString();
+      const { data } = await admin.from("appointments").select("*, customer:customers(*), service:services(*)").match(userFilter).gte("appointment_date", from).lte("appointment_date", to).limit(50);
+      (data || []).forEach((appointment: any) => appointment.customer && candidates.push({ appointment, customer: appointment.customer, service: appointment.service, reminder }));
+    }
   }
 
   if (["rebook_30_days", "ask_review_after_appointment", "na_afspraak"].includes(trigger)) {
@@ -217,11 +219,12 @@ Deno.serve(async (req) => {
     let duplicates = 0;
 
     for (const rule of (rules || []) as Rule[]) {
-      const { data: settings } = await admin.from("settings").select("salon_name, public_slug, timezone, email_enabled, whatsapp_enabled").eq("user_id", rule.user_id).eq("is_demo", rule.is_demo).order("created_at", { ascending: false }).limit(1).maybeSingle();
-      const candidates = await candidatesForRule(admin, rule);
+      const { data: settings } = await admin.from("settings").select("salon_name, public_slug, timezone, email_enabled, whatsapp_enabled, appointment_reminder_schedule").eq("user_id", rule.user_id).eq("is_demo", rule.is_demo).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      const candidates = await candidatesForRule(admin, rule, settings);
       for (const candidate of candidates) {
         const { data: preferences } = candidate.customer?.id ? await admin.from("customer_message_preferences").select("*").eq("user_id", rule.user_id).eq("customer_id", candidate.customer.id).maybeSingle() : { data: null };
-        const result = await insertRun(admin, rule, settings, { ...candidate, preferences }, addDelay(new Date(), Number(rule.delay_value || 0), rule.delay_unit || "instant"), rule.trigger_type);
+        const scheduledFor = candidate.reminder?.hours_before ? new Date(candidate.appointment.appointment_date) : addDelay(new Date(), Number(rule.delay_value || 0), rule.delay_unit || "instant");
+        const result = await insertRun(admin, rule, settings, { ...candidate, preferences }, scheduledFor, rule.trigger_type);
         if (result === "scheduled") scheduled += 1;
         if (result === "skipped") skipped += 1;
         if (result === "duplicate") duplicates += 1;
