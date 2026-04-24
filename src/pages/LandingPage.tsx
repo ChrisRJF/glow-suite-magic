@@ -14,6 +14,11 @@ import {
 import logoFull from "@/assets/logo-full.png";
 import logoIcon from "@/assets/logo-icon.png";
 import { PaymentMethodLogo } from "@/components/PaymentMethodLogo";
+import shotDashboard from "@/assets/landing/dashboard.png";
+import shotAgenda from "@/assets/landing/agenda.png";
+import shotBetalingen from "@/assets/landing/betalingen.png";
+import shotAbonnementen from "@/assets/landing/abonnementen.png";
+import shotRapportage from "@/assets/landing/rapportage.png";
 
 const SIGNUP = "/login?mode=signup";
 const DEMO = "/login?demo=1";
