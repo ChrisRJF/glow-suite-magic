@@ -8,7 +8,7 @@ const corsHeaders = {
 
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/resend";
 const SENDER_DOMAIN = "email.glowsuite.nl";
-const FROM_EMAIL = `bookings@${SENDER_DOMAIN}`;
+const RESERVED_LOCAL_PARTS = new Set(["admin", "administrator", "abuse", "billing", "bookings", "contact", "hello", "help", "info", "mail", "noreply", "postmaster", "security", "support"]);
 
 const TemplateSchema = z.enum([
   "booking_confirmation",
@@ -51,6 +51,19 @@ function escapeHtml(value: unknown) {
 function slugify(value: string) {
   const slug = value.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "").slice(0, 48);
   return slug || "salon";
+}
+
+function uniqueSalonSlug(args: { requested?: string; publicSlug?: string | null; salonName: string; userId: string }) {
+  const hasStableSlug = Boolean(args.requested || args.publicSlug);
+  const base = slugify(args.requested || args.publicSlug || args.salonName);
+  const safeBase = RESERVED_LOCAL_PARTS.has(base) ? `salon${base}` : base;
+  if (hasStableSlug) return safeBase.slice(0, 60);
+  return `${safeBase.slice(0, 48)}${args.userId.replace(/-/g, "").slice(0, 8)}`.slice(0, 60);
+}
+
+function validReplyTo(value: unknown) {
+  const email = String(value || "").trim().toLowerCase();
+  return z.string().email().safeParse(email).success ? email : undefined;
 }
 
 function formatEuro(value: unknown) {
@@ -144,10 +157,19 @@ Deno.serve(async (req) => {
     if (settingsError) throw settingsError;
     if (!settings) return json({ error: "Salon niet gevonden" }, 404);
 
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("email")
+      .eq("user_id", parsed.data.user_id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
     const branding = (settings as any).whitelabel_branding || {};
     const salonName = parsed.data.salon_name || (settings as any).salon_name || branding.salon_name || "Salon";
-    const salonSlug = slugify(parsed.data.salon_slug || (settings as any).public_slug || salonName);
-    const fromEmail = FROM_EMAIL;
+    const salonSlug = uniqueSalonSlug({ requested: parsed.data.salon_slug, publicSlug: (settings as any).public_slug, salonName, userId: parsed.data.user_id });
+    const fromEmail = `${salonSlug}@${SENDER_DOMAIN}`;
+    const replyTo = validReplyTo((parsed.data.template_data as any).salon_contact_email || branding.contact_email || (profile as any)?.email);
     const rendered = template(parsed.data.template_key, { ...parsed.data.template_data, recipient_name: parsed.data.recipient_name }, salonName, branding);
     const commonLog = {
       user_id: parsed.data.user_id,
@@ -158,7 +180,7 @@ Deno.serve(async (req) => {
       template_key: parsed.data.template_key,
       subject: rendered.subject,
       provider: "resend",
-      metadata: { idempotency_key: parsed.data.idempotency_key, preview: rendered.preview },
+      metadata: { idempotency_key: parsed.data.idempotency_key, preview: rendered.preview, reply_to: replyTo || null },
       is_demo: Boolean((settings as any).is_demo || (settings as any).demo_mode),
     };
 
@@ -168,6 +190,7 @@ Deno.serve(async (req) => {
         success: true,
         preview_only: true,
         from: `${salonName} <${fromEmail}>`,
+        reply_to: replyTo || null,
         subject: rendered.subject,
         preview: rendered.preview,
         html: rendered.html,
@@ -193,6 +216,7 @@ Deno.serve(async (req) => {
         subject: rendered.subject,
         html: rendered.html,
         text: rendered.text,
+        ...(replyTo ? { reply_to: replyTo } : {}),
         headers: { "Idempotency-Key": parsed.data.idempotency_key },
       }),
     });
@@ -203,7 +227,7 @@ Deno.serve(async (req) => {
     }
 
     await logEmail(admin, { ...commonLog, status: "sent", provider_message_id: result?.id || result?.data?.id || null });
-    return json({ success: true, from: `${salonName} <${fromEmail}>`, subject: rendered.subject, provider_message_id: result?.id || result?.data?.id || null });
+    return json({ success: true, from: `${salonName} <${fromEmail}>`, reply_to: replyTo || null, subject: rendered.subject, provider_message_id: result?.id || result?.data?.id || null });
   } catch (error) {
     return json({ error: (error as Error).message || "Email kon niet worden verwerkt" }, 500);
   }
