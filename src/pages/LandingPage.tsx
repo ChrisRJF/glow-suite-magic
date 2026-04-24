@@ -53,15 +53,27 @@ function MockWindow({ url, children }: { url: string; children: React.ReactNode 
         <span className="w-2.5 h-2.5 rounded-full bg-success/60" />
         <span className="ml-3 text-[11px] sm:text-xs text-muted-foreground truncate">{url}</span>
       </div>
-      <div className="p-4 sm:p-6 bg-gradient-to-br from-background to-muted/30">{children}</div>
+      <div className="bg-gradient-to-br from-background to-muted/30">{children}</div>
     </div>
+  );
+}
+
+function Shot({ src, alt }: { src: string; alt: string }) {
+  return (
+    <img
+      src={src}
+      alt={alt}
+      loading="lazy"
+      className="block w-full h-auto select-none"
+      draggable={false}
+    />
   );
 }
 
 function DemoBadge() {
   return (
     <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide font-semibold text-muted-foreground bg-muted/60 px-2 py-0.5 rounded">
-      Voorbeelddata
+      Echte demo-omgeving
     </span>
   );
 }
