@@ -154,21 +154,25 @@ function template(key: TemplateKey, data: Record<string, unknown>, salonName: st
 
   if (key === "booking_cancellation") {
     const title = "Je afspraak is geannuleerd";
-    const intro = `Je afspraak bij ${salonName} is geannuleerd. Neem gerust contact op om opnieuw te plannen.`;
-    const rows = infoRows([["Behandeling", data.service_name], ["Datum", nlDate(data.appointment_date || data.date)], ["Tijd", data.time], ["Referentie", data.reference]]);
-    return { subject: `${salonName} · afspraak geannuleerd`, preview: intro, html: shell({ ...base, title, intro, body: rows }), text: `${title}\n${intro}` };
+    const intro = `We bevestigen dat je afspraak bij ${salonName} is geannuleerd. Je bent altijd welkom om een nieuw moment te kiezen.`;
+    const rows = infoRows([["Status", data.status || "Geannuleerd"], ["Behandeling", data.service_name], ["Datum", nlDate(data.appointment_date || data.date)], ["Tijd", data.time || data.start_time], ["Referentie", data.reference], ["Support", supportEmail]]);
+    const body = rows + noteBlock("Hulp nodig?", ["Neem gerust contact op als dit niet klopt.", supportEmail ? `Je kunt ons bereiken via ${supportEmail}.` : "Ons team helpt je graag met het plannen van een nieuw moment."]);
+    return { subject: `${salonName} · annulering bevestigd`, preview: intro, html: shell({ ...base, title, intro, body, primaryAction: { label: "Nieuwe afspraak maken", url: firstFilled(data.new_booking_url, data.booking_url, manageUrl) }, secondaryAction: { label: "Contact opnemen", url: contactUrl } }), text: `${title}\n${intro}\nStatus: geannuleerd` };
   }
 
   if (key === "membership_notification") {
-    const title = "Update over je membership";
-    const intro = `Er is een update over je membership bij ${salonName}.`;
-    const rows = infoRows([["Membership", data.membership_name], ["Status", data.status], ["Credits", data.credits], ["Volgende betaling", nlDate(data.next_payment_at)], ["Bedrag", data.amount ? formatEuro(data.amount) : undefined]]);
-    return { subject: `${salonName} · membership update`, preview: intro, html: shell({ ...base, title, intro, body: rows }), text: `${title}\n${intro}` };
+    const title = "Welkom als member";
+    const intro = `${firstName ? `${firstName}, welkom` : "Welkom"} bij de members van ${salonName}. Je voordelen staan voor je klaar.`;
+    const benefits = Array.isArray(data.benefits) ? data.benefits : [data.benefit_1, data.benefit_2, data.benefit_3];
+    const rows = infoRows([["Membership", data.membership_name], ["Status", data.status || "Actief"], ["Credits", data.credits || data.credits_status], ["Volgende incasso", nlDate(data.next_payment_at)], ["Maandbedrag", data.amount ? formatEuro(data.amount) : undefined]]);
+    const body = rows + noteBlock("Jouw voordelen", benefits);
+    return { subject: `${salonName} · welkom bij je membership`, preview: intro, html: shell({ ...base, title, intro, body, primaryAction: { label: "Membership beheren", url: firstFilled(data.membership_url, data.manage_membership_url, manageUrl) } }), text: `${title}\n${intro}\nMembership: ${String(data.membership_name || "")}` };
   }
 
-  const title = "Hoe was je behandeling?";
-  const intro = `${firstName ? `${firstName}, we` : "We"} horen graag hoe je ervaring bij ${salonName} was.`;
-  return { subject: `${salonName} · deel je ervaring`, preview: intro, html: shell({ ...base, title, intro, body: `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6;">Je feedback helpt de salon groeien en helpt andere klanten kiezen met vertrouwen.</p>`, ctaLabel: "Review achterlaten", ctaUrl: String(data.review_url || "") || undefined }), text: `${title}\n${intro}` };
+  const title = "Dank je wel voor je bezoek";
+  const intro = `${firstName ? `${firstName}, bedankt` : "Bedankt"} voor je bezoek aan ${salonName}. We hopen dat je tevreden bent met je behandeling.`;
+  const body = infoRows([["Behandeling", data.service_name], ["Datum", nlDate(data.appointment_date || data.completed_at || data.date)], ["Medewerker", data.employee || data.staff_name]]) + `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.65;">Je review helpt ons om de salonervaring nog beter te maken en helpt nieuwe klanten kiezen met vertrouwen.</p>`;
+  return { subject: `${salonName} · hoe was je ervaring?`, preview: intro, html: shell({ ...base, title, intro, body, primaryAction: { label: "Review achterlaten", url: firstFilled(data.review_url, data.google_review_url) }, secondaryAction: { label: "Opnieuw boeken", url: firstFilled(data.rebook_url, data.booking_url) } }), text: `${title}\n${intro}` };
 }
 
 async function logEmail(admin: ReturnType<typeof createClient>, row: Record<string, unknown>) {
