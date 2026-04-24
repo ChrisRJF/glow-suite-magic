@@ -148,7 +148,8 @@ function template(key: TemplateKey, data: Record<string, unknown>, salonName: st
     const title = "Tot snel bij je afspraak";
     const intro = `${firstName ? `${firstName}, dit` : "Dit"} is een vriendelijke herinnering aan je afspraak bij ${salonName}.`;
     const rows = infoRows([["Datum", nlDate(data.appointment_date || data.date)], ["Tijd", data.time || data.start_time], ["Behandeling", data.service_name], ["Medewerker", data.employee || data.staff_name], ["Locatie", data.location || data.address]]);
-    const body = rows + noteBlock("Voorbereiding", [data.preparation_tip || "Kom liefst een paar minuten op tijd.", "Laat het ons weten als je vragen hebt of verhinderd bent.", data.aftercare_note]);
+    const calendarLink = calendarUrl ? `<a href="${escapeHtml(calendarUrl)}" style="display:block;background:#ffffff;color:${secondary};text-decoration:none;border:1px solid #E9DFF7;border-radius:14px;padding:13px 18px;font-size:14px;font-weight:750;text-align:center;margin:0 0 16px;">Toevoegen aan kalender</a>` : "";
+    const body = rows + calendarLink + noteBlock("Voorbereiding", [data.preparation_tip || "Kom liefst een paar minuten op tijd.", "Laat het ons weten als je vragen hebt of verhinderd bent.", data.aftercare_note]);
     return { subject: `${salonName} · herinnering voor ${nlDateShort(data.appointment_date || data.date) || "je afspraak"}`, preview: intro, html: shell({ ...base, title, intro, body, primaryAction: { label: "Route & contact", url: contactUrl }, secondaryAction: { label: "Afspraak beheren", url: manageUrl } }), text: `${title}\n${intro}\n${nlDate(data.appointment_date || data.date)} ${String(data.time || data.start_time || "")}` };
   }
 
