@@ -78,6 +78,7 @@ const App = () => (
               <Route path="/boeken/:salonSlug" element={<BookingPage />} />
               <Route path="/shop/:salonSlug" element={<ShopPage />} />
               <Route path="/memberships/:salonSlug" element={<MembershipPortalPage />} />
+              <Route path="/abonnementen/:salonSlug" element={<MembershipPortalPage />} />
               <Route path="/salonvoorwaarden" element={<PublicActionPage />} />
               <Route path="/route-contact" element={<PublicActionPage />} />
               <Route path="/route-contact/:templateKey" element={<PublicActionPage />} />
