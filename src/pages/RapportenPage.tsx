@@ -194,3 +194,14 @@ function ProductList({ products }: { products: { id: string; name: string; categ
 function ServiceList({ services }: { services: { name: string; bookings: number; revenue: number }[] }) {
   return <div className="glass-card p-6"><h3 className="text-sm font-semibold mb-5">Omzet per dienst</h3><div className="space-y-3">{services.length === 0 ? <p className="text-sm text-muted-foreground text-center py-6">Nog geen data</p> : services.map((s, i) => <div key={s.name} className="flex items-center gap-4 p-3 rounded-xl bg-secondary/20"><span className="text-sm font-bold text-muted-foreground w-6 text-center">#{i + 1}</span><div className="flex-1 min-w-0"><p className="text-sm font-medium truncate">{s.name}</p><p className="text-xs text-muted-foreground mt-0.5">{s.bookings} boekingen</p></div><span className="text-sm font-semibold flex-shrink-0">{eur(s.revenue)}</span></div>)}</div></div>;
 }
+
+function ExportCenter({ canExport, onExport }: { canExport: boolean; onExport: (type: ExportType, format?: "csv" | "pdf") => void }) {
+  const exports: { title: string; desc: string; type: ExportType; format?: "csv" | "pdf"; icon: typeof FileText }[] = [
+    { title: "Omzetrapport", desc: "Betaalde transacties per periode", type: "omzet", icon: Euro },
+    { title: "Klantenlijst", desc: "LTV, bezoeken en contactgegevens", type: "klanten", icon: Users },
+    { title: "Afsprakenlijst", desc: "Planning, status en betaalstatus", type: "afspraken", icon: CalendarDays },
+    { title: "Refunds", desc: "Terugbetalingen en Mollie status", type: "refunds", icon: RefreshCw },
+    { title: "Maandrapport PDF", desc: "Executive samenvatting voor eigenaar", type: "maandrapport", format: "pdf", icon: FileText },
+  ];
+  return <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{exports.map((item) => <div key={item.title} className="premium-panel flex items-center justify-between gap-4"><div className="flex items-start gap-3"><div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center"><item.icon className="w-4 h-4 text-primary" /></div><div><h3 className="text-sm font-semibold">{item.title}</h3><p className="text-xs text-muted-foreground mt-1">{item.desc}</p></div></div><Button variant="outline" size="sm" disabled={!canExport} onClick={() => onExport(item.type, item.format)}><Download className="w-4 h-4" /> Export</Button></div>)}</div>;
+}
