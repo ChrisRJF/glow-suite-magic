@@ -1,0 +1,2 @@
+ALTER TABLE public.settings
+ADD COLUMN IF NOT EXISTS appointment_reminder_schedule jsonb NOT NULL DEFAULT '[{"label":"24 uur vooraf","hours_before":24,"enabled":true},{"label":"2 uur vooraf","hours_before":2,"enabled":true}]'::jsonb;

@@ -38,6 +38,20 @@ function renderTemplate(body: string, vars: Record<string, string>) {
   return body.replace(/{{\s*([a-zA-Z0-9_]+)\s*}}/g, (_, key) => vars[key] ?? "");
 }
 
+function slugify(value: string) {
+  return value.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 64) || "salon";
+}
+
+function reminderSchedules(settings: any, trigger: string) {
+  const configured = Array.isArray(settings?.appointment_reminder_schedule) ? settings.appointment_reminder_schedule : [];
+  const schedules = (configured.length ? configured : [
+    { label: "24 uur vooraf", hours_before: 24, enabled: true },
+    { label: "2 uur vooraf", hours_before: 2, enabled: true },
+  ]).filter((item: any) => item?.enabled !== false && Number(item?.hours_before) > 0);
+  const explicit = trigger.match(/appointment_reminder_(\d+)h/);
+  return explicit ? schedules.filter((item: any) => Number(item.hours_before) === Number(explicit[1])) : schedules;
+}
+
 async function sendWhiteLabelEmail(admin: ReturnType<typeof createClient>, body: Record<string, unknown>) {
   const { error } = await admin.functions.invoke("send-white-label-email", { body });
   if (error) console.error("White-label email failed", error.message);
@@ -67,9 +81,14 @@ async function insertRun(admin: any, rule: Rule, settings: any, candidate: any, 
     return "skipped";
   }
 
-  const idempotencyKey = `${rule.id}:${reason}:${customer?.id || candidate.id}:${candidate.appointment_id || candidate.appointment?.id || candidate.payment_id || candidate.membership_id || candidate.id}`;
+  const reminderKey = candidate.reminder?.hours_before ? `:${candidate.reminder.hours_before}h` : "";
+  const idempotencyKey = `${rule.id}:${reason}${reminderKey}:${customer?.id || candidate.id}:${candidate.appointment_id || candidate.appointment?.id || candidate.payment_id || candidate.membership_id || candidate.id}`;
   const templates = rule.message_templates || {};
   const salonName = settings?.salon_name || "de salon";
+  const salonSlug = slugify(settings?.public_slug || salonName);
+  const serviceSlug = slugify(candidate.service?.name || "afspraak");
+  const reminderSuffix = candidate.reminder?.hours_before ? `-${candidate.reminder.hours_before}h` : "";
+  const publicBaseUrl = `https://${salonSlug}.glowsuite.nl`;
   const body = renderTemplate(templates.nl || templates.en || "", {
     first_name: firstName(customer?.name),
     last_name: String(customer?.name || "").trim().split(/\s+/).slice(1).join(" "),
@@ -99,12 +118,17 @@ async function insertRun(admin: any, rule: Rule, settings: any, candidate: any, 
       reason,
       action_type: rule.action_type,
       salon_name: salonName,
-      salon_slug: settings?.public_slug || salonName,
+      salon_slug: salonSlug,
       customer_name: customer?.name || "",
       service_name: candidate.service?.name || "",
       appointment_date: candidate.appointment?.appointment_date || "",
       time: candidate.appointment?.start_time || "",
       employee: candidate.appointment?.employee_id || "",
+      calendar_url: `${publicBaseUrl}/calendar/${serviceSlug}/appointment_reminder${reminderSuffix}.ics`,
+      manage_url: `${publicBaseUrl}/afspraak/${candidate.appointment?.booking_token || candidate.appointment?.id || "beheer"}`,
+      contact_url: `${publicBaseUrl}/route-contact`,
+      reminder_schedule_label: candidate.reminder?.label || "",
+      reminder_hours_before: candidate.reminder?.hours_before || null,
       membership_name: candidate.plan?.name || "",
       credits: candidate.membership?.credits_available ?? "",
       template_key: emailTemplateForTrigger(rule.trigger_type),
@@ -130,16 +154,25 @@ async function insertRun(admin: any, rule: Rule, settings: any, candidate: any, 
   return run.status;
 }
 
-async function candidatesForRule(admin: any, rule: Rule) {
+async function candidatesForRule(admin: any, rule: Rule, settings: any) {
   const now = new Date();
   const userFilter = { user_id: rule.user_id, is_demo: rule.is_demo };
   const trigger = rule.trigger_type;
   const candidates: any[] = [];
 
-  if (["appointment_reminder_24h", "appointment_reminder_2h", "afspraak_geboekt"].includes(trigger)) {
-    const hours = trigger === "appointment_reminder_2h" ? 2 : trigger === "appointment_reminder_24h" ? 24 : 0;
-    const from = new Date(now.getTime() + Math.max(0, hours - 1) * 60 * 60 * 1000).toISOString();
-    const to = new Date(now.getTime() + (hours + 1) * 60 * 60 * 1000).toISOString();
+  if (["appointment_reminder_24h", "appointment_reminder_2h"].includes(trigger)) {
+    for (const reminder of reminderSchedules(settings, trigger)) {
+      const hours = Number(reminder.hours_before);
+      const from = new Date(now.getTime() + Math.max(0, hours - 1) * 60 * 60 * 1000).toISOString();
+      const to = new Date(now.getTime() + (hours + 1) * 60 * 60 * 1000).toISOString();
+      const { data } = await admin.from("appointments").select("*, customer:customers(*), service:services(*)").match(userFilter).gte("appointment_date", from).lte("appointment_date", to).limit(50);
+      (data || []).forEach((appointment: any) => appointment.customer && candidates.push({ appointment, customer: appointment.customer, service: appointment.service, reminder }));
+    }
+  }
+
+  if (trigger === "afspraak_geboekt") {
+    const from = now.toISOString();
+    const to = new Date(now.getTime() + 60 * 60 * 1000).toISOString();
     const { data } = await admin.from("appointments").select("*, customer:customers(*), service:services(*)").match(userFilter).gte("appointment_date", from).lte("appointment_date", to).limit(50);
     (data || []).forEach((appointment: any) => appointment.customer && candidates.push({ appointment, customer: appointment.customer, service: appointment.service }));
   }
@@ -193,11 +226,12 @@ Deno.serve(async (req) => {
     let duplicates = 0;
 
     for (const rule of (rules || []) as Rule[]) {
-      const { data: settings } = await admin.from("settings").select("salon_name, public_slug, timezone, email_enabled, whatsapp_enabled").eq("user_id", rule.user_id).eq("is_demo", rule.is_demo).order("created_at", { ascending: false }).limit(1).maybeSingle();
-      const candidates = await candidatesForRule(admin, rule);
+      const { data: settings } = await admin.from("settings").select("salon_name, public_slug, timezone, email_enabled, whatsapp_enabled, appointment_reminder_schedule").eq("user_id", rule.user_id).eq("is_demo", rule.is_demo).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      const candidates = await candidatesForRule(admin, rule, settings);
       for (const candidate of candidates) {
         const { data: preferences } = candidate.customer?.id ? await admin.from("customer_message_preferences").select("*").eq("user_id", rule.user_id).eq("customer_id", candidate.customer.id).maybeSingle() : { data: null };
-        const result = await insertRun(admin, rule, settings, { ...candidate, preferences }, addDelay(new Date(), Number(rule.delay_value || 0), rule.delay_unit || "instant"), rule.trigger_type);
+        const scheduledFor = candidate.reminder?.hours_before ? new Date(new Date(candidate.appointment.appointment_date).getTime() - Number(candidate.reminder.hours_before) * 60 * 60 * 1000) : addDelay(new Date(), Number(rule.delay_value || 0), rule.delay_unit || "instant");
+        const result = await insertRun(admin, rule, settings, { ...candidate, preferences }, scheduledFor, rule.trigger_type);
         if (result === "scheduled") scheduled += 1;
         if (result === "skipped") skipped += 1;
         if (result === "duplicate") duplicates += 1;
