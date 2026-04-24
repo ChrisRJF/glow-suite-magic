@@ -90,6 +90,13 @@ export default function AdminEmailTemplatesPage() {
   const [error, setError] = useState("");
 
   const selectedSalon = useMemo(() => salons.find((salon) => salon.user_id === selectedSalonId) || null, [salons, selectedSalonId]);
+  const reminderSchedules = useMemo(() => {
+    const configured = selectedSalon?.appointment_reminder_schedule || [];
+    const active = configured
+      .filter((item) => item?.enabled !== false && Number(item?.hours_before) > 0)
+      .map((item) => ({ label: item.label || `${item.hours_before} uur vooraf`, hoursBefore: Number(item.hours_before) }));
+    return active.length ? active : fallbackSchedules;
+  }, [selectedSalon]);
 
   useEffect(() => {
     let active = true;
@@ -129,10 +136,11 @@ export default function AdminEmailTemplatesPage() {
     if (!selectedSalon) return;
     setRendering(true);
     setError("");
+    const salonSlug = slugify(selectedSalon.public_slug || selectedSalon.salon_name || "salon");
     const { data, error } = await supabase.functions.invoke("send-white-label-email", {
       body: {
         user_id: selectedSalon.user_id,
-        salon_slug: selectedSalon.public_slug || selectedSalon.salon_name || "salon",
+        salon_slug: salonSlug,
         salon_name: selectedSalon.salon_name || "Salon",
         recipient_email: recipientEmail,
         recipient_name: "Sophie de Vries",
@@ -148,6 +156,34 @@ export default function AdminEmailTemplatesPage() {
     } else {
       setPreview(data as PreviewResult);
     }
+    const reminderResults = await Promise.all(services.map((service) => Promise.all(reminderSchedules.map(async (schedule) => {
+      const serviceSlug = slugify(service.name);
+      const calendarUrl = `https://${salonSlug}.glowsuite.nl/calendar/${serviceSlug}/appointment_reminder-${schedule.hoursBefore}h.ics`;
+      const { data: reminderData, error: reminderError } = await supabase.functions.invoke("send-white-label-email", {
+        body: {
+          user_id: selectedSalon.user_id,
+          salon_slug: salonSlug,
+          salon_name: selectedSalon.salon_name || "Salon",
+          recipient_email: recipientEmail,
+          recipient_name: "Sophie de Vries",
+          template_key: "appointment_reminder",
+          template_data: {
+            ...sampleData.appointment_reminder,
+            service_name: service.name,
+            calendar_url: calendarUrl,
+            reminder_schedule_label: schedule.label,
+            reminder_hours_before: schedule.hoursBefore,
+            preparation_tip: service.category ? `Voorbereiding afgestemd op ${service.category}.` : "Kom liefst een paar minuten op tijd.",
+          },
+          preview_only: true,
+          idempotency_key: `admin-reminder-preview-${selectedSalon.user_id}-${service.id}-${schedule.hoursBefore}h`,
+        },
+      });
+      if (reminderError || !reminderData) return null;
+      const rendered = reminderData as PreviewResult;
+      return { service, schedule, calendarUrl, buttonStyle: extractCalendarButtonStyle(rendered.html, calendarUrl), preview: rendered } satisfies ReminderPreview;
+    }))));
+    setReminderPreviews(reminderResults.flat().filter(Boolean) as ReminderPreview[]);
     setRendering(false);
   };
 
