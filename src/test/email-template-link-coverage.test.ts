@@ -104,6 +104,10 @@ function dataFor(templateKey: TemplateKey, salon: SalonFixture, service: Service
   };
 }
 
+function bookingConfirmationCalendarUrl(salon: SalonFixture, service: ServiceFixture) {
+  return `https://${salon.slug}.glowsuite.nl/calendar/${service.slug}/booking_confirmation.ics?date=2026-05-12&time=10%3A00&duration=60&ref=${salon.slug}-A100`;
+}
+
 function expectedUrl(kind: "manage" | "calendar" | "contact" | "review", templateKey: TemplateKey, salon: SalonFixture) {
   const data = dataFor(templateKey, salon);
   if (templateKey === "booking_cancellation" && kind === "manage") return data.new_booking_url;
@@ -147,6 +151,27 @@ describe("white-label transactional email CTA link coverage", () => {
       for (const otherSalon of salons.filter((candidate) => candidate.slug !== salon.slug)) {
         expect(rendered.html).not.toContain(`https://${otherSalon.slug}.glowsuite.nl/calendar/`);
       }
+    }
+  });
+
+  it.each(salons)("renders booking confirmation .ics links with the exact appointment date and time for every service for $name", (salon) => {
+    for (const service of services) {
+      const calendarUrl = bookingConfirmationCalendarUrl(salon, service);
+      const rendered = renderTemplate("booking_confirmation", {
+        ...dataFor("booking_confirmation", salon, service),
+        date: "2026-05-12",
+        time: "10:00",
+        calendar_url: calendarUrl,
+      }, salon.name, salon.branding);
+
+      const parsed = new URL(calendarUrl);
+      expect(rendered.html).toContain(`href="${calendarUrl}"`);
+      expect(parsed.hostname).toBe(`${salon.slug}.glowsuite.nl`);
+      expect(parsed.pathname).toBe(`/calendar/${service.slug}/booking_confirmation.ics`);
+      expect(parsed.searchParams.get("date")).toBe("2026-05-12");
+      expect(parsed.searchParams.get("time")).toBe("10:00");
+      expect(parsed.searchParams.get("duration")).toBe("60");
+      expect(parsed.searchParams.get("ref")).toBe(`${salon.slug}-A100`);
     }
   });
 
