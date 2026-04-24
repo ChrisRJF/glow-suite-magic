@@ -194,9 +194,8 @@ export default function CalendarPage() {
 
   const getBookedSlots = (date: string, excludeSubIdx?: number): Map<string, Set<string>> => {
     const booked = new Map<string, Set<string>>();
-    appointments.filter(a => a.appointment_date.startsWith(date)).forEach(a => {
-      const t = new Date(a.appointment_date);
-      const time = `${t.getHours().toString().padStart(2, '0')}:${t.getMinutes().toString().padStart(2, '0')}`;
+    appointments.filter(a => getAppointmentDate(a) === date).forEach(a => {
+      const time = getAppointmentTime(a);
       const emp = a.notes?.match(/Medewerker: (\w+)/)?.[1];
       if (emp) {
         if (!booked.has(emp)) booked.set(emp, new Set());
@@ -366,10 +365,13 @@ export default function CalendarPage() {
     const svc = services.find(s => s.id === form.service_id);
     const mainEmployee = placementOptions.length > 0 ? placementOptions[selectedOption].placements[0]?.employee : '';
     const dt = `${form.date}T${form.time}:00`;
+    const endTime = addMinutes(form.time, svc?.duration_minutes || 30);
     const result = await insert({
       customer_id: form.customer_id,
       service_id: form.service_id,
       appointment_date: dt,
+      start_time: form.time,
+      end_time: endTime,
       price: svc?.price || 0,
       notes: subAppts.length > 0
         ? `Groepsboeking: ${subAppts.length + 1} personen | Medewerker: ${mainEmployee}`
@@ -380,7 +382,7 @@ export default function CalendarPage() {
       for (const sub of subAppts) {
         if (sub.person_name && sub.service_id) {
           const subSvc = services.find(s => s.id === sub.service_id);
-          const subDt = `${form.date}T${sub.assigned_time || form.time}:00`;
+          const subTime = sub.assigned_time || form.time;
           await (supabase.from("sub_appointments") as any).insert({
             parent_appointment_id: result.id,
             person_name: sub.person_name,
@@ -389,7 +391,7 @@ export default function CalendarPage() {
             user_id: user.id,
             assigned_employee_id: null,
             assignment_mode: sub.assignment_mode,
-            notes: `Medewerker: ${sub.assigned_employee || 'Niet toegewezen'} | Tijd: ${sub.assigned_time}${sub.assignment_mode === 'auto' ? ' | ⚡ Automatisch geplaatst' : ' | ✋ Handmatig gekozen'}`,
+            notes: `Medewerker: ${sub.assigned_employee || 'Niet toegewezen'} | Tijd: ${subTime}${sub.assignment_mode === 'auto' ? ' | ⚡ Automatisch geplaatst' : ' | ✋ Handmatig gekozen'}`,
           });
         }
       }
