@@ -1384,12 +1384,17 @@ export default function BookingPage() {
             )}
 
             {paymentResult && paymentResult.status === "success" && (
-              <div className="mt-6 p-5 rounded-2xl bg-success/10 border border-success/20 text-center">
-                <div className="w-12 h-12 rounded-full bg-success/20 flex items-center justify-center mx-auto mb-3">
-                  <Check className="w-6 h-6 text-success" />
+              <div className="mt-6 p-5 rounded-2xl bg-success/10 border border-success/20 text-center shadow-[var(--shadow-sm)]">
+                <div className="w-14 h-14 rounded-full bg-success/20 flex items-center justify-center mx-auto mb-3">
+                  <Check className="w-7 h-7 text-success" />
                 </div>
-                <p className="font-semibold text-success text-base">Afspraak bevestigd!</p>
-                <p className="text-xs text-muted-foreground mt-1">Je ontvangt een bevestiging per e-mail.</p>
+                <p className="font-bold text-success text-xl">Boeking bevestigd</p>
+                <p className="text-sm text-muted-foreground mt-1">Je afspraak staat vast. Voeg hem direct toe aan je agenda.</p>
+
+                <div className="mt-4 flex flex-wrap justify-center gap-2">
+                  <span className="trust-chip"><Check className="w-3 h-3 text-primary" /> Afspraak direct bevestigd</span>
+                  <span className="trust-chip"><Lock className="w-3 h-3 text-primary" /> Betaling veilig verwerkt</span>
+                </div>
 
                 <div className="mt-4 grid gap-1.5 text-left text-sm bg-background/60 rounded-xl p-3">
                   <div className="flex justify-between"><span className="text-muted-foreground">Salon</span><span className="font-medium">{confirmation?.salon_name || publicData?.salon.name || branding.salon_name}</span></div>
@@ -1408,7 +1413,7 @@ export default function BookingPage() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 mt-4">
-                  <Button variant="outline" size="sm" onClick={downloadIcs}><CalendarPlus className="w-3.5 h-3.5 mr-1" />Toevoegen aan agenda</Button>
+                  <Button variant="gradient" size="sm" onClick={downloadIcs}><CalendarPlus className="w-3.5 h-3.5 mr-1" />Zet in agenda</Button>
                   <Button variant="outline" size="sm" onClick={shareAppointment}><Share2 className="w-3.5 h-3.5 mr-1" />Delen</Button>
                 </div>
               </div>
