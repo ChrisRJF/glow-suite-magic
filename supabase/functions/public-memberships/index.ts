@@ -82,6 +82,11 @@ async function getSalon(supabase: ReturnType<typeof createClient>, slug: string)
   return settings || null;
 }
 
+async function sendWhiteLabelEmail(supabase: ReturnType<typeof createClient>, body: Record<string, unknown>) {
+  const { error } = await supabase.functions.invoke("send-white-label-email", { body });
+  if (error) console.error("White-label email failed", error.message);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Methode niet toegestaan" }, 405);
@@ -181,6 +186,23 @@ Deno.serve(async (req) => {
       metadata: { source: "membership", membership_id: membership.id, profile_id: profile.id },
     });
     if (paymentError) throw paymentError;
+
+    await sendWhiteLabelEmail(supabase, {
+      user_id: settings.user_id,
+      salon_slug: settings.public_slug || slugify(settings.salon_name || "salon"),
+      salon_name: settings.salon_name || "Salon",
+      recipient_email: email,
+      recipient_name: data.customer.name,
+      template_key: "membership_notification",
+      idempotency_key: `membership-created-${membership.id}`,
+      template_data: {
+        customer_name: data.customer.name,
+        membership_name: plan.name,
+        status: "Aanmelding ontvangen",
+        credits: Number(plan.included_treatments || 0),
+        amount: Number(plan.price || 0),
+      },
+    });
 
     return json({ success: true, membership, checkoutUrl: molliePayment._links?.checkout?.href });
   } catch (error) {
