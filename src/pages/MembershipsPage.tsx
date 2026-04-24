@@ -1,6 +1,9 @@
 import { AppLayout } from "@/components/AppLayout";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useCustomerMemberships, useCustomers, useMembershipPlans, useSettings } from "@/hooks/useSupabaseData";
 import { usePayments } from "@/hooks/usePayments";
@@ -9,7 +12,7 @@ import { exportCSV } from "@/lib/exportUtils";
 import { formatEuro } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { Check, Crown, Euro, Gift, Loader2, Pause, Play, Plus, RefreshCw, ShieldAlert, TrendingUp, UserPlus, Users, XCircle } from "lucide-react";
+import { Archive, Check, Crown, Euro, EyeOff, Gift, Loader2, Pause, Play, Plus, RefreshCw, ShieldAlert, Trash2, TrendingUp, UserPlus, Users, XCircle } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -73,6 +76,7 @@ export default function MembershipsPage() {
   const [showPlanForm, setShowPlanForm] = useState(false);
   const [showMemberForm, setShowMemberForm] = useState(false);
   const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
+  const [deletePlan, setDeletePlan] = useState<any | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [planForm, setPlanForm] = useState({ name: "", price: 49, description: "", benefits: "", billing_interval: "monthly", included_treatments: 1, discount_percentage: 10, priority_booking: true, credits_reset: true, is_active: true });
   const [memberForm, setMemberForm] = useState({ customer_id: "", membership_plan_id: "", method: "ideal" });
@@ -191,6 +195,24 @@ export default function MembershipsPage() {
     if (result) { toast.success(message); refetchMemberships(); }
   };
 
+  const activeMembersForPlan = (planId: string) => activeMembers.filter((member: any) => member.membership_plan_id === planId).length;
+
+  const updatePlanStatus = async (planId: string, isActive: boolean, message: string) => {
+    setBusyId(planId);
+    const result = await planCrud.update(planId, { is_active: isActive });
+    setBusyId(null);
+    if (result) { toast.success(message); refetchPlans(); }
+  };
+
+  const removePlan = async () => {
+    if (!deletePlan) return;
+    if (activeMembersForPlan(deletePlan.id) > 0) { toast.error("Verwijderen kan alleen zonder actieve leden"); return; }
+    setBusyId(deletePlan.id);
+    const removed = await planCrud.remove(deletePlan.id);
+    setBusyId(null);
+    if (removed) { toast.success("Membership verwijderd"); setDeletePlan(null); setShowPlanForm(false); resetPlanForm(); refetchPlans(); }
+  };
+
   const resetCredits = async () => {
     if (!features.credits_system) return;
     setBusyId("reset");
@@ -228,23 +250,27 @@ export default function MembershipsPage() {
 
   return (
     <AppLayout title="Memberships" subtitle="Terugkerende omzet, ledenvoordelen en betaalstatussen." actions={<Button variant="gradient" size="sm" onClick={() => { resetPlanForm(); setShowPlanForm(true); }}><Plus className="w-4 h-4" /> Nieuw membership</Button>}>
+      <ConfirmDialog
+        open={!!deletePlan}
+        onOpenChange={(open) => !open && setDeletePlan(null)}
+        title="Membership verwijderen?"
+        description="Dit kan niet ongedaan worden gemaakt. Verwijderen kan alleen wanneer er geen actieve leden op dit membership zitten."
+        confirmLabel="Verwijderen"
+        destructive
+        onConfirm={removePlan}
+      />
+
       {showPlanForm && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowPlanForm(false)}>
-          <div className="glass-card p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold mb-4">{editingPlanId ? "Membership bewerken" : "Nieuw membership"}</h3>
-            <div className="space-y-3">
-              <input value={planForm.name} onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })} placeholder="Naam" className="w-full px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
-              <textarea value={planForm.description} onChange={(e) => setPlanForm({ ...planForm, description: e.target.value })} placeholder="Beschrijving" className="w-full px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm min-h-[70px] focus:outline-none focus:ring-2 focus:ring-primary/30" />
-              <textarea value={planForm.benefits} onChange={(e) => setPlanForm({ ...planForm, benefits: e.target.value })} placeholder="Voordelen, één per regel" className="w-full px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm min-h-[90px] focus:outline-none focus:ring-2 focus:ring-primary/30" />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <input type="number" value={planForm.price} onChange={(e) => setPlanForm({ ...planForm, price: Number(e.target.value) })} placeholder="Prijs" className="px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm" />
-                <select value={planForm.billing_interval} onChange={(e) => setPlanForm({ ...planForm, billing_interval: e.target.value })} className="px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm"><option value="monthly">Maandelijks</option><option value="quarterly">Kwartaal</option><option value="yearly">Jaarlijks</option></select>
-                {features.credits_system && <input type="number" value={planForm.included_treatments} onChange={(e) => setPlanForm({ ...planForm, included_treatments: Number(e.target.value) })} placeholder="Credits" className="px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm" />}
-                <input type="number" value={planForm.discount_percentage} onChange={(e) => setPlanForm({ ...planForm, discount_percentage: Number(e.target.value) })} placeholder="Korting %" className="px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm" />
+          <div className="glass-card p-5 sm:p-6 w-full max-w-4xl max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-5"><h3 className="text-lg font-semibold">{editingPlanId ? "Membership bewerken" : "Nieuw membership"}</h3><p className="text-sm text-muted-foreground">Heldere prijzen, credits en ledenvoordelen voor je aanmeldpagina.</p></div>
+            <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
+              <div className="space-y-5">
+                <div className="space-y-3"><h4 className="text-sm font-semibold">Basisgegevens</h4><Input value={planForm.name} onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })} placeholder="Membership naam" /><textarea value={planForm.description} onChange={(e) => setPlanForm({ ...planForm, description: e.target.value })} placeholder="Beschrijving" className="w-full px-4 py-2.5 rounded-md bg-background border border-input text-sm min-h-[78px] focus:outline-none focus:ring-2 focus:ring-ring" /><textarea value={planForm.benefits} onChange={(e) => setPlanForm({ ...planForm, benefits: e.target.value })} placeholder="Voordelen, één per regel" className="w-full px-4 py-2.5 rounded-md bg-background border border-input text-sm min-h-[96px] focus:outline-none focus:ring-2 focus:ring-ring" /></div>
+                <div className="space-y-3"><h4 className="text-sm font-semibold">Prijs en inbegrepen waarde</h4><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><div className="space-y-1.5"><Label>Price per month (€)</Label><Input type="number" min="0" value={planForm.price} onChange={(e) => setPlanForm({ ...planForm, price: Number(e.target.value) })} /><p className="text-xs text-muted-foreground">Monthly recurring payment amount.</p></div><div className="space-y-1.5"><Label>Facturatie</Label><select value={planForm.billing_interval} onChange={(e) => setPlanForm({ ...planForm, billing_interval: e.target.value })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"><option value="monthly">Maandelijks</option><option value="quarterly">Kwartaal</option><option value="yearly">Jaarlijks</option></select><p className="text-xs text-muted-foreground">Hoe vaak dit membership wordt gefactureerd.</p></div>{features.credits_system && <div className="space-y-1.5"><Label>Monthly credits included</Label><Input type="number" min="0" value={planForm.included_treatments} onChange={(e) => setPlanForm({ ...planForm, included_treatments: Number(e.target.value) })} /><p className="text-xs text-muted-foreground">How many treatments/uses members receive each month.</p></div>}<div className="space-y-1.5"><Label>Member discount (%)</Label><Input type="number" min="0" max="100" value={planForm.discount_percentage} onChange={(e) => setPlanForm({ ...planForm, discount_percentage: Number(e.target.value) })} /><p className="text-xs text-muted-foreground">Discount members receive on extra services/products.</p></div></div></div>
+                <div className="space-y-3"><h4 className="text-sm font-semibold">Instellingen</h4><label className="flex items-center justify-between rounded-md bg-secondary/30 px-4 py-3 text-sm"><span>Priority booking</span><Switch checked={planForm.priority_booking} onCheckedChange={(checked) => setPlanForm({ ...planForm, priority_booking: checked })} /></label>{features.credits_system && <label className="flex items-center justify-between rounded-md bg-secondary/30 px-4 py-3 text-sm"><span>Credits maandelijks resetten</span><Switch checked={planForm.credits_reset} onCheckedChange={(checked) => setPlanForm({ ...planForm, credits_reset: checked })} /></label>}<label className="flex items-center justify-between rounded-md bg-secondary/30 px-4 py-3 text-sm"><span>Verkoop actief op signup pagina</span><Switch checked={planForm.is_active} onCheckedChange={(checked) => setPlanForm({ ...planForm, is_active: checked })} /></label></div>
               </div>
-              <label className="flex items-center justify-between text-sm py-2"><span>Priority booking</span><input type="checkbox" checked={planForm.priority_booking} onChange={(e) => setPlanForm({ ...planForm, priority_booking: e.target.checked })} /></label>
-              {features.credits_system && <label className="flex items-center justify-between text-sm py-2"><span>Credits maandelijks resetten</span><input type="checkbox" checked={planForm.credits_reset} onChange={(e) => setPlanForm({ ...planForm, credits_reset: e.target.checked })} /></label>}
-              <label className="flex items-center justify-between text-sm py-2"><span>Actief</span><input type="checkbox" checked={planForm.is_active} onChange={(e) => setPlanForm({ ...planForm, is_active: e.target.checked })} /></label>
+              <aside className="space-y-4"><div className="rounded-md border border-border bg-secondary/20 p-5"><p className="text-xs font-medium text-muted-foreground mb-2">Live preview</p><h4 className="text-xl font-bold">{planForm.name || "Membership Name"}</h4><p className="text-sm text-muted-foreground mt-1">{planForm.description || "Beschrijving verschijnt hier."}</p><div className="flex items-baseline gap-1 mt-5"><span className="text-3xl font-bold">{formatEuro(Number(planForm.price || 0))}</span><span className="text-sm text-muted-foreground">/ month</span></div><div className="grid grid-cols-3 gap-2 mt-5 text-center text-xs"><div className="rounded-md bg-background p-2"><b>{planForm.included_treatments || 0}</b><br />credits</div><div className="rounded-md bg-background p-2"><b>{planForm.discount_percentage || 0}%</b><br />discount</div><div className="rounded-md bg-background p-2"><b>{planForm.priority_booking ? "Yes" : "No"}</b><br />priority</div></div></div>{editingPlanId && <div className="rounded-md border border-border p-4 space-y-3"><h4 className="text-sm font-semibold">Membership Actions</h4><Button variant="outline" size="sm" className="w-full justify-start" onClick={() => updatePlanStatus(editingPlanId, false, "Membership gearchiveerd")} disabled={busyId === editingPlanId}><Archive className="w-4 h-4" /> Archive membership</Button><Button variant="outline" size="sm" className="w-full justify-start" onClick={() => setPlanForm({ ...planForm, is_active: false })}><EyeOff className="w-4 h-4" /> Pause sales</Button><Button variant="destructive" size="sm" className="w-full justify-start" disabled={activeMembersForPlan(editingPlanId) > 0 || busyId === editingPlanId} onClick={() => setDeletePlan(plans.find((p: any) => p.id === editingPlanId))}><Trash2 className="w-4 h-4" /> Delete membership</Button>{activeMembersForPlan(editingPlanId) > 0 && <p className="text-xs text-muted-foreground">Verwijderen kan pas bij 0 actieve leden.</p>}</div>}</aside>
             </div>
             <div className="flex gap-2 mt-5"><Button variant="outline" className="flex-1" onClick={() => setShowPlanForm(false)}>Annuleren</Button><Button variant="gradient" className="flex-1" onClick={savePlan}>Opslaan</Button></div>
           </div>
