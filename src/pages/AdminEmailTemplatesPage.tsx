@@ -79,10 +79,12 @@ const extractCalendarButtonStyle = (html: string, calendarUrl: string) => {
 
 export default function AdminEmailTemplatesPage() {
   const [salons, setSalons] = useState<Salon[]>([]);
+  const [services, setServices] = useState<Service[]>(fallbackServices);
   const [selectedSalonId, setSelectedSalonId] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateKey>("booking_confirmation");
   const [recipientEmail, setRecipientEmail] = useState("preview@glowsuite.nl");
   const [preview, setPreview] = useState<PreviewResult | null>(null);
+  const [reminderPreviews, setReminderPreviews] = useState<ReminderPreview[]>([]);
   const [loading, setLoading] = useState(true);
   const [rendering, setRendering] = useState(false);
   const [error, setError] = useState("");
@@ -95,7 +97,7 @@ export default function AdminEmailTemplatesPage() {
       setLoading(true);
       const { data, error } = await supabase
         .from("settings")
-        .select("user_id, salon_name, public_slug")
+        .select("user_id, salon_name, public_slug, appointment_reminder_schedule")
         .eq("is_demo", false)
         .order("created_at", { ascending: false });
       if (!active) return;
@@ -107,6 +109,21 @@ export default function AdminEmailTemplatesPage() {
     })();
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    if (!selectedSalonId) return;
+    let active = true;
+    (async () => {
+      const { data } = await supabase
+        .from("services")
+        .select("id, name, duration_minutes, category")
+        .eq("user_id", selectedSalonId)
+        .eq("is_active", true)
+        .order("name", { ascending: true });
+      if (active) setServices(((data || []) as Service[]).length ? (data as Service[]) : fallbackServices);
+    })();
+    return () => { active = false; };
+  }, [selectedSalonId]);
 
   const renderPreview = async () => {
     if (!selectedSalon) return;
