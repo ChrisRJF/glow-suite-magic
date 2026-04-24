@@ -41,9 +41,17 @@ import ShopPage from "./pages/ShopPage";
 import MembershipPortalPage from "./pages/MembershipPortalPage";
 import RefundsPage from "./pages/RefundsPage";
 import PublicActionPage from "./pages/PublicActionPage";
+import LandingPage from "./pages/LandingPage";
 import { useLeadAutomation } from "@/hooks/useLeadAutomation";
 import { OnboardingGate } from "@/components/OnboardingGate";
 import { GuidedTour } from "@/components/GuidedTour";
+
+function RootRoute() {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-pulse text-muted-foreground text-sm">Laden...</div></div>;
+  if (!user) return <LandingPage />;
+  return <RoleProtectedRoute><DashboardPage /></RoleProtectedRoute>;
+}
 
 const queryClient = new QueryClient();
 
@@ -88,7 +96,7 @@ const App = () => (
               <Route path="/abonnement-beheren" element={<PublicActionPage />} />
               <Route path="/review" element={<PublicActionPage />} />
               <Route path="/review/:templateKey" element={<PublicActionPage />} />
-              <Route path="/" element={<RoleProtectedRoute><DashboardPage /></RoleProtectedRoute>} />
+              <Route path="/" element={<RootRoute />} />
               <Route path="/agenda" element={<RoleProtectedRoute><CalendarPage /></RoleProtectedRoute>} />
               <Route path="/klanten" element={<RoleProtectedRoute><CustomersPage /></RoleProtectedRoute>} />
               <Route path="/behandelingen" element={<RoleProtectedRoute><ServicesPage /></RoleProtectedRoute>} />
