@@ -100,7 +100,7 @@ export default function CalendarPage() {
   // Count appointments per employee for a given date
   const getEmployeeApptCount = (empName: string, date: string) => {
     return appointments.filter(a =>
-      a.appointment_date.startsWith(date) &&
+      getAppointmentDate(a) === date &&
       a.notes?.includes(`Medewerker: ${empName}`)
     ).length;
   };
@@ -126,11 +126,8 @@ export default function CalendarPage() {
     if (status === 'afwezig') return 0;
     const bookedTimes = new Set(
       appointments
-        .filter(a => a.appointment_date.startsWith(date) && a.notes?.includes(`Medewerker: ${empName}`))
-        .map(a => {
-          const t = new Date(a.appointment_date);
-          return `${t.getHours().toString().padStart(2, '0')}:${t.getMinutes().toString().padStart(2, '0')}`;
-        })
+        .filter(a => getAppointmentDate(a) === date && a.notes?.includes(`Medewerker: ${empName}`))
+        .map(a => getAppointmentTime(a))
     );
     return timeSlots.filter(s => !bookedTimes.has(s) && !isSlotPauze(emp, s)).length;
   };
@@ -154,7 +151,7 @@ export default function CalendarPage() {
   }, [filterAvailability, currentDate]);
 
   const dayAppts = useMemo(() =>
-    filterByEmployee(appointments.filter(a => a.appointment_date.startsWith(dateStr))),
+    filterByEmployee(appointments.filter(a => getAppointmentDate(a) === dateStr)),
     [appointments, dateStr, selectedEmployee]
   );
 
@@ -186,8 +183,7 @@ export default function CalendarPage() {
 
   const emptySlotCount = useMemo(() => {
     const bookedTimes = new Set(dayAppts.map(a => {
-      const t = new Date(a.appointment_date);
-      return `${t.getHours().toString().padStart(2, '0')}:${t.getMinutes().toString().padStart(2, '0')}`;
+      return getAppointmentTime(a);
     }));
     return timeSlots.filter(s => !bookedTimes.has(s)).length;
   }, [dayAppts]);
