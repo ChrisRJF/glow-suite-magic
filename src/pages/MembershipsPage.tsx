@@ -1,6 +1,9 @@
 import { AppLayout } from "@/components/AppLayout";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useCustomerMemberships, useCustomers, useMembershipPlans, useSettings } from "@/hooks/useSupabaseData";
 import { usePayments } from "@/hooks/usePayments";
@@ -9,7 +12,7 @@ import { exportCSV } from "@/lib/exportUtils";
 import { formatEuro } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { Check, Crown, Euro, Gift, Loader2, Pause, Play, Plus, RefreshCw, ShieldAlert, TrendingUp, UserPlus, Users, XCircle } from "lucide-react";
+import { Archive, Check, Crown, Euro, EyeOff, Gift, Loader2, Pause, Play, Plus, RefreshCw, ShieldAlert, Trash2, TrendingUp, UserPlus, Users, XCircle } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -73,6 +76,7 @@ export default function MembershipsPage() {
   const [showPlanForm, setShowPlanForm] = useState(false);
   const [showMemberForm, setShowMemberForm] = useState(false);
   const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
+  const [deletePlan, setDeletePlan] = useState<any | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [planForm, setPlanForm] = useState({ name: "", price: 49, description: "", benefits: "", billing_interval: "monthly", included_treatments: 1, discount_percentage: 10, priority_booking: true, credits_reset: true, is_active: true });
   const [memberForm, setMemberForm] = useState({ customer_id: "", membership_plan_id: "", method: "ideal" });
