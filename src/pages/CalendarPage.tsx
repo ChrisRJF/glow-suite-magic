@@ -14,6 +14,26 @@ type View = 'day' | 'week';
 
 const timeSlots = ['09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00'];
 
+const formatLocalDate = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getAppointmentDate = (appointment: { appointment_date: string }) => appointment.appointment_date.slice(0, 10);
+const getAppointmentTime = (appointment: { appointment_date: string; start_time?: string | null }) => {
+  if (appointment.start_time) return appointment.start_time.slice(0, 5);
+  const match = appointment.appointment_date.match(/T(\d{2}:\d{2})/);
+  return match?.[1] || '';
+};
+
+const addMinutes = (time: string, minutes: number) => {
+  const [hours, mins] = time.split(':').map(Number);
+  const total = hours * 60 + mins + minutes;
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+};
+
 // Demo medewerkers with capabilities and availability
 const MEDEWERKERS = [
   { name: 'Bas', role: 'Kapper', services: ['Kinder knippen', 'Heren knippen', 'Heren baard trimmen'], days: [1,2,3,4,5], pauze: '12:00-12:30', color: '#7B61FF' },
@@ -55,7 +75,7 @@ export default function CalendarPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [filterAvailability, setFilterAvailability] = useState<string>('alle'); // alle, beschikbaar, afwezig
 
-  const dateStr = currentDate.toISOString().split('T')[0];
+  const dateStr = formatLocalDate(currentDate);
   const currentDayOfWeek = currentDate.getDay() === 0 ? 7 : currentDate.getDay(); // 1=ma..7=zo
 
   // Employee availability for current date
@@ -80,7 +100,7 @@ export default function CalendarPage() {
   // Count appointments per employee for a given date
   const getEmployeeApptCount = (empName: string, date: string) => {
     return appointments.filter(a =>
-      a.appointment_date.startsWith(date) &&
+      getAppointmentDate(a) === date &&
       a.notes?.includes(`Medewerker: ${empName}`)
     ).length;
   };
@@ -106,11 +126,8 @@ export default function CalendarPage() {
     if (status === 'afwezig') return 0;
     const bookedTimes = new Set(
       appointments
-        .filter(a => a.appointment_date.startsWith(date) && a.notes?.includes(`Medewerker: ${empName}`))
-        .map(a => {
-          const t = new Date(a.appointment_date);
-          return `${t.getHours().toString().padStart(2, '0')}:${t.getMinutes().toString().padStart(2, '0')}`;
-        })
+        .filter(a => getAppointmentDate(a) === date && a.notes?.includes(`Medewerker: ${empName}`))
+        .map(a => getAppointmentTime(a))
     );
     return timeSlots.filter(s => !bookedTimes.has(s) && !isSlotPauze(emp, s)).length;
   };
@@ -134,7 +151,7 @@ export default function CalendarPage() {
   }, [filterAvailability, currentDate]);
 
   const dayAppts = useMemo(() =>
-    filterByEmployee(appointments.filter(a => a.appointment_date.startsWith(dateStr))),
+    filterByEmployee(appointments.filter(a => getAppointmentDate(a) === dateStr)),
     [appointments, dateStr, selectedEmployee]
   );
 
@@ -166,8 +183,7 @@ export default function CalendarPage() {
 
   const emptySlotCount = useMemo(() => {
     const bookedTimes = new Set(dayAppts.map(a => {
-      const t = new Date(a.appointment_date);
-      return `${t.getHours().toString().padStart(2, '0')}:${t.getMinutes().toString().padStart(2, '0')}`;
+      return getAppointmentTime(a);
     }));
     return timeSlots.filter(s => !bookedTimes.has(s)).length;
   }, [dayAppts]);
@@ -178,9 +194,8 @@ export default function CalendarPage() {
 
   const getBookedSlots = (date: string, excludeSubIdx?: number): Map<string, Set<string>> => {
     const booked = new Map<string, Set<string>>();
-    appointments.filter(a => a.appointment_date.startsWith(date)).forEach(a => {
-      const t = new Date(a.appointment_date);
-      const time = `${t.getHours().toString().padStart(2, '0')}:${t.getMinutes().toString().padStart(2, '0')}`;
+    appointments.filter(a => getAppointmentDate(a) === date).forEach(a => {
+      const time = getAppointmentTime(a);
       const emp = a.notes?.match(/Medewerker: (\w+)/)?.[1];
       if (emp) {
         if (!booked.has(emp)) booked.set(emp, new Set());
@@ -350,10 +365,13 @@ export default function CalendarPage() {
     const svc = services.find(s => s.id === form.service_id);
     const mainEmployee = placementOptions.length > 0 ? placementOptions[selectedOption].placements[0]?.employee : '';
     const dt = `${form.date}T${form.time}:00`;
+    const endTime = addMinutes(form.time, svc?.duration_minutes || 30);
     const result = await insert({
       customer_id: form.customer_id,
       service_id: form.service_id,
       appointment_date: dt,
+      start_time: form.time,
+      end_time: endTime,
       price: svc?.price || 0,
       notes: subAppts.length > 0
         ? `Groepsboeking: ${subAppts.length + 1} personen | Medewerker: ${mainEmployee}`
@@ -364,7 +382,7 @@ export default function CalendarPage() {
       for (const sub of subAppts) {
         if (sub.person_name && sub.service_id) {
           const subSvc = services.find(s => s.id === sub.service_id);
-          const subDt = `${form.date}T${sub.assigned_time || form.time}:00`;
+          const subTime = sub.assigned_time || form.time;
           await (supabase.from("sub_appointments") as any).insert({
             parent_appointment_id: result.id,
             person_name: sub.person_name,
@@ -373,7 +391,7 @@ export default function CalendarPage() {
             user_id: user.id,
             assigned_employee_id: null,
             assignment_mode: sub.assignment_mode,
-            notes: `Medewerker: ${sub.assigned_employee || 'Niet toegewezen'} | Tijd: ${sub.assigned_time}${sub.assignment_mode === 'auto' ? ' | ⚡ Automatisch geplaatst' : ' | ✋ Handmatig gekozen'}`,
+            notes: `Medewerker: ${sub.assigned_employee || 'Niet toegewezen'} | Tijd: ${subTime}${sub.assignment_mode === 'auto' ? ' | ⚡ Automatisch geplaatst' : ' | ✋ Handmatig gekozen'}`,
           });
         }
       }
@@ -416,7 +434,7 @@ export default function CalendarPage() {
     return getAvailableEmployees(svc.name);
   };
 
-  const isToday = dateStr === new Date().toISOString().split('T')[0];
+  const isToday = dateStr === formatLocalDate(new Date());
 
   // Workload variant colors using semantic tokens
   const workloadColors: Record<string, string> = {
@@ -743,7 +761,7 @@ export default function CalendarPage() {
             <button className="p-2 rounded-lg hover:bg-secondary transition-colors" onClick={() => navigate(1)}><ChevronRight className="w-4 h-4" /></button>
           </div>
           <span className="text-sm text-muted-foreground">
-            {view === 'day' ? `${dayAppts.length} afspraken` : `${filterByEmployee(appointments.filter(a => weekDays.some(d => a.appointment_date.startsWith(d.toISOString().split('T')[0])))).length} afspraken`}
+            {view === 'day' ? `${dayAppts.length} afspraken` : `${filterByEmployee(appointments.filter(a => weekDays.some(d => getAppointmentDate(a) === formatLocalDate(d)))).length} afspraken`}
             {selectedEmployee !== 'alle' && ` · ${selectedEmployee}`}
           </span>
         </div>
@@ -752,8 +770,7 @@ export default function CalendarPage() {
           <div className="relative">
             {timeSlots.map((slot) => {
               const apt = dayAppts.find(a => {
-                const t = new Date(a.appointment_date).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
-                return t === slot;
+                return getAppointmentTime(a) === slot;
               });
               const svc = apt ? services.find(s => s.id === apt.service_id) : null;
               const cust = apt ? customers.find(c => c.id === apt.customer_id) : null;
@@ -825,8 +842,8 @@ export default function CalendarPage() {
           <div className="overflow-x-auto">
             <div className="grid grid-cols-6 gap-3 min-w-[700px]">
               {weekDays.map((day, i) => {
-                const ds = day.toISOString().split('T')[0];
-                const apts = filterByEmployee(appointments.filter(a => a.appointment_date.startsWith(ds)));
+                const ds = formatLocalDate(day);
+                const apts = filterByEmployee(appointments.filter(a => getAppointmentDate(a) === ds));
                 const isSelected = ds === dateStr;
                 const freeSlots = timeSlots.length - apts.length;
                 return (
@@ -842,7 +859,7 @@ export default function CalendarPage() {
                       {apts.map((apt) => {
                         const svc = services.find(s => s.id === apt.service_id);
                         const cust = customers.find(c => c.id === apt.customer_id);
-                        const time = new Date(apt.appointment_date).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+                        const time = getAppointmentTime(apt);
                         const emp = apt.notes?.match(/Medewerker: (\w+)/)?.[1];
                         return (
                           <div key={apt.id} className="p-2.5 rounded-xl cursor-pointer transition-all duration-200 hover:scale-[1.02]"

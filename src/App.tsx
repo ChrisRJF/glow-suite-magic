@@ -40,6 +40,7 @@ import AdminEmailTemplatesPage from "./pages/AdminEmailTemplatesPage";
 import ShopPage from "./pages/ShopPage";
 import MembershipPortalPage from "./pages/MembershipPortalPage";
 import RefundsPage from "./pages/RefundsPage";
+import PublicActionPage from "./pages/PublicActionPage";
 import { useLeadAutomation } from "@/hooks/useLeadAutomation";
 import { OnboardingGate } from "@/components/OnboardingGate";
 import { GuidedTour } from "@/components/GuidedTour";
@@ -77,6 +78,16 @@ const App = () => (
               <Route path="/boeken/:salonSlug" element={<BookingPage />} />
               <Route path="/shop/:salonSlug" element={<ShopPage />} />
               <Route path="/memberships/:salonSlug" element={<MembershipPortalPage />} />
+              <Route path="/abonnementen/:salonSlug" element={<MembershipPortalPage />} />
+              <Route path="/salonvoorwaarden" element={<PublicActionPage />} />
+              <Route path="/route-contact" element={<PublicActionPage />} />
+              <Route path="/route-contact/:templateKey" element={<PublicActionPage />} />
+              <Route path="/afspraak/:token" element={<PublicActionPage />} />
+              <Route path="/afspraak/:token/:action" element={<PublicActionPage />} />
+              <Route path="/betaalbewijs" element={<PublicActionPage />} />
+              <Route path="/abonnement-beheren" element={<PublicActionPage />} />
+              <Route path="/review" element={<PublicActionPage />} />
+              <Route path="/review/:templateKey" element={<PublicActionPage />} />
               <Route path="/" element={<RoleProtectedRoute><DashboardPage /></RoleProtectedRoute>} />
               <Route path="/agenda" element={<RoleProtectedRoute><CalendarPage /></RoleProtectedRoute>} />
               <Route path="/klanten" element={<RoleProtectedRoute><CustomersPage /></RoleProtectedRoute>} />

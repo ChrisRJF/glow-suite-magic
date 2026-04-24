@@ -97,7 +97,7 @@ Deno.serve(async (req) => {
     if (!parsed.success) return json({ error: "Ongeldige invoer", details: parsed.error.flatten().fieldErrors }, 400);
 
     const settings = await getSalon(supabase, parsed.data.slug);
-    if (!settings) return json({ error: "Deze membershippagina bestaat niet." }, 404);
+    if (!settings) return json({ error: "Deze abonnementspagina bestaat niet." }, 404);
 
     const branding = settings.whitelabel_branding || {};
     const membershipFeatures = {
@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
     };
 
     if (!membershipFeatures.white_label_signup || !membershipFeatures.member_portal) {
-      return json({ error: "Deze membershippagina is nog niet actief." }, 404);
+      return json({ error: "Deze abonnementspagina is nog niet actief." }, 404);
     }
 
     const { data: plans, error: planError } = await supabase
@@ -125,13 +125,13 @@ Deno.serve(async (req) => {
 
     const data = parsed.data;
     const plan = (plans || []).find((item: any) => item.id === data.membership_plan_id);
-    if (!plan) return json({ error: "Membership is niet beschikbaar." }, 404);
+    if (!plan) return json({ error: "Abonnement is niet beschikbaar." }, 404);
 
     const email = data.customer.email.toLowerCase();
     const { data: existingCustomer } = await supabase.from("customers").select("id").eq("user_id", settings.user_id).ilike("email", email).maybeSingle();
     let customerId = existingCustomer?.id || null;
     if (!customerId) {
-      const { data: customer, error } = await supabase.from("customers").insert({ user_id: settings.user_id, is_demo: Boolean(settings.is_demo || settings.demo_mode), name: data.customer.name, email, phone: data.customer.phone || "", notes: "Aangemaakt via membership aanmelding" }).select("id").single();
+      const { data: customer, error } = await supabase.from("customers").insert({ user_id: settings.user_id, is_demo: Boolean(settings.is_demo || settings.demo_mode), name: data.customer.name, email, phone: data.customer.phone || "", notes: "Aangemaakt via abonnementsaanmelding" }).select("id").single();
       if (error) throw error;
       customerId = customer.id;
     }
@@ -151,7 +151,7 @@ Deno.serve(async (req) => {
     if (settings.demo_mode || settings.is_demo) return json({ success: true, demo: true, membership });
 
     const { data: rawConnection } = await supabase.from("mollie_connections").select("*").eq("user_id", settings.user_id).eq("salon_id", settings.id).eq("is_active", true).is("disconnected_at", null).maybeSingle();
-    if (!rawConnection) return json({ error: "Mollie is nog niet gekoppeld. De salon kan memberships pas verkopen na activatie van GlowPay." }, 400);
+    if (!rawConnection) return json({ error: "Mollie is nog niet gekoppeld. De salon kan abonnementen pas verkopen na activatie van GlowPay." }, 400);
     const connection = await refreshConnection(supabase, rawConnection);
     const profile = await getWebsiteProfile(connection.mollie_access_token);
     const origin = req.headers.get("origin") || "https://glowsuite.nl";
@@ -160,7 +160,7 @@ Deno.serve(async (req) => {
       method: "POST",
       body: JSON.stringify({
         amount: { currency: "EUR", value: Number(plan.price || 0).toFixed(2) },
-        description: `${plan.name} membership`,
+        description: `${plan.name} abonnement`,
         redirectUrl: `${redirectBase}${redirectBase.includes("?") ? "&" : "?"}membership=${membership.id}`,
         webhookUrl: `${Deno.env.get("SUPABASE_URL")}/functions/v1/mollie-webhook`,
         method: data.method,
@@ -206,6 +206,6 @@ Deno.serve(async (req) => {
 
     return json({ success: true, membership, checkoutUrl: molliePayment._links?.checkout?.href });
   } catch (error) {
-    return json({ error: (error as Error).message || "Membership kon niet worden verwerkt." }, 500);
+    return json({ error: (error as Error).message || "Abonnement kon niet worden verwerkt." }, 500);
   }
 });

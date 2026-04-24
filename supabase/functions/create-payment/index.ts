@@ -200,7 +200,7 @@ Deno.serve(async (req) => {
 
     const molliePayload: Record<string, unknown> = {
       amount: { currency: "EUR", value: amount.toFixed(2) },
-      description: isTestButton ? "GlowSuite Live Test Payment" : payment_type === "membership" ? "GlowSuite Membership" : `GlowSuite ${payment_type === "deposit" ? "Aanbetaling" : "Betaling"}`,
+      description: isTestButton ? "GlowSuite Live Test Payment" : payment_type === "membership" ? "GlowSuite Abonnement" : `GlowSuite ${payment_type === "deposit" ? "Aanbetaling" : "Betaling"}`,
       redirectUrl: isTestButton ? (redirect_url || `${REDIRECT_BASE}/instellingen?tab=integraties`) : `${REDIRECT_BASE}/boeken?status=payment-return`,
       webhookUrl: `${supabaseUrl}/functions/v1/mollie-webhook`,
       method,

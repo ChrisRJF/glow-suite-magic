@@ -47,7 +47,7 @@ const templates: Array<{ key: TemplateKey; label: string }> = [
   { key: "payment_receipt", label: "Betaalbewijs" },
   { key: "appointment_reminder", label: "Afspraakherinnering" },
   { key: "booking_cancellation", label: "Annulering" },
-  { key: "membership_notification", label: "Membership" },
+  { key: "membership_notification", label: "Abonnement" },
   { key: "review_request", label: "Reviewverzoek" },
 ];
 
@@ -316,7 +316,7 @@ export default function AdminEmailTemplatesPage() {
                       disabled={Boolean(sendingTestKey) || !recipientEmail}
                     >
                       {sendingTestKey === `${item.service.id}-${item.schedule.hoursBefore}` ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                      Send test email
+                      Testmail versturen
                     </Button>
                     <div className="space-y-2 rounded-md border border-border bg-muted/30 p-3">
                       <div className="flex items-start gap-2 text-xs">

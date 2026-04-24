@@ -66,7 +66,7 @@ const reminderSchedules = [
 ];
 
 const templateCoverage: Record<TemplateKey, Array<"manage" | "calendar" | "contact" | "review">> = {
-  booking_confirmation: ["manage", "calendar"],
+  booking_confirmation: ["manage", "calendar", "contact"],
   payment_receipt: ["manage"],
   appointment_reminder: ["contact", "manage"],
   booking_cancellation: ["manage", "contact"],
@@ -98,7 +98,8 @@ function dataFor(templateKey: TemplateKey, salon: SalonFixture, service: Service
     contact_url: `${baseUrl}/route-contact/${templateKey}`,
     route_url: `${baseUrl}/route/${templateKey}`,
     new_booking_url: `${baseUrl}/boeken/nieuw`,
-    membership_url: `${baseUrl}/membership/beheer`,
+    receipt_url: `${baseUrl}/betaalbewijs/${templateKey}`,
+    membership_url: `${baseUrl}/abonnement-beheren`,
     review_url: `${baseUrl}/review/${templateKey}`,
     booking_url: `${baseUrl}/boeken`,
   };
@@ -111,6 +112,7 @@ function bookingConfirmationCalendarUrl(salon: SalonFixture, service: ServiceFix
 function expectedUrl(kind: "manage" | "calendar" | "contact" | "review", templateKey: TemplateKey, salon: SalonFixture) {
   const data = dataFor(templateKey, salon);
   if (templateKey === "booking_cancellation" && kind === "manage") return data.new_booking_url;
+  if (templateKey === "payment_receipt" && kind === "manage") return data.receipt_url;
   if (templateKey === "membership_notification" && kind === "manage") return data.membership_url;
   if (kind === "manage") return data.manage_url;
   if (kind === "calendar") return data.calendar_url;
@@ -168,6 +170,8 @@ describe("white-label transactional email CTA link coverage", () => {
       const htmlCalendarUrl = calendarUrl.replace(/&/g, "&amp;");
       expect(rendered.html).toContain(`href="${htmlCalendarUrl}"`);
       expect(rendered.html).toContain(`href="${htmlCalendarUrl}" style="display:block;background:#ffffff;color:${salon.branding.secondary_color};text-decoration:none;border:1px solid #E9DFF7;border-radius:14px;padding:13px 18px;font-size:14px;font-weight:750;text-align:center;margin:0 0 16px;"`);
+      expect(rendered.html).toContain("Op deze afspraak gelden de");
+      expect(rendered.html).toContain(`href="https://${salon.slug}.glowsuite.nl/salonvoorwaarden"`);
       expect(parsed.hostname).toBe(`${salon.slug}.glowsuite.nl`);
       expect(parsed.pathname).toBe(`/calendar/${service.slug}/booking_confirmation.ics`);
       expect(parsed.searchParams.get("date")).toBe("2026-05-12");
