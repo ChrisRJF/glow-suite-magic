@@ -108,6 +108,16 @@ function infoRows(rows: Array<[string, unknown]>) {
   return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border:1px solid #F1EEF7;border-radius:18px;overflow:hidden;margin:16px 0 18px;background:#ffffff;">${rows.filter(([, value]) => value !== undefined && value !== null && String(value) !== "").map(([label, value]) => `<tr><td style="padding:13px 15px;border-bottom:1px solid #F7F3FB;color:#6B7280;font-size:13px;line-height:1.35;">${escapeHtml(label)}</td><td align="right" style="padding:13px 15px;border-bottom:1px solid #F7F3FB;color:#111827;font-size:14px;line-height:1.35;font-weight:750;">${escapeHtml(value)}</td></tr>`).join("")}</table>`;
 }
 
+function noteBlock(title: string, items: unknown[]) {
+  const lines = items.map((item) => String(item ?? "").trim()).filter(Boolean);
+  if (!lines.length) return "";
+  return `<div style="background:#FCFAFF;border:1px solid #F1EEF7;border-radius:18px;padding:16px 16px;margin:16px 0;"><p style="margin:0 0 10px;color:#111827;font-size:14px;font-weight:800;">${escapeHtml(title)}</p>${lines.map((item) => `<p style="margin:7px 0;color:#5F6673;font-size:14px;line-height:1.55;">• ${escapeHtml(item)}</p>`).join("")}</div>`;
+}
+
+function amountSummary(args: { amount?: unknown; vatAmount?: unknown; vatRate?: unknown; total?: unknown }) {
+  return `<div style="background:#111827;border-radius:20px;padding:18px;margin:16px 0;color:#ffffff;"><p style="margin:0 0 8px;color:#D1D5DB;font-size:13px;font-weight:700;">Totaal betaald</p><p style="margin:0;color:#ffffff;font-size:30px;line-height:1;font-weight:850;">${escapeHtml(formatEuro(args.total || args.amount))}</p>${args.vatAmount ? `<p style="margin:12px 0 0;color:#D1D5DB;font-size:13px;">Inclusief BTW${args.vatRate ? ` (${escapeHtml(args.vatRate)}%)` : ""}: ${escapeHtml(formatEuro(args.vatAmount))}</p>` : ""}</div>`;
+}
+
 function template(key: TemplateKey, data: Record<string, unknown>, salonName: string, branding: any): TemplateResult {
   const firstName = String(data.customer_name || data.recipient_name || "").trim().split(/\s+/)[0] || "";
   const accent = branding?.primary_color || "#7B61FF";
