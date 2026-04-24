@@ -99,6 +99,9 @@ export default function AdminEmailTemplatesPage() {
       .map((item) => ({ label: item.label || `${item.hours_before} uur vooraf`, hoursBefore: Number(item.hours_before) }));
     return active.length ? active : fallbackSchedules;
   }, [selectedSalon]);
+  const salonSlug = useMemo(() => slugify(selectedSalon?.public_slug || selectedSalon?.salon_name || "salon"), [selectedSalon]);
+  const primaryService = services[0] || fallbackServices[0];
+  const bookingCalendarUrl = `https://${salonSlug}.glowsuite.nl/calendar/${slugify(primaryService.name)}/booking_confirmation.ics?date=2026-04-24&time=10%3A00&duration=${primaryService.duration_minutes}&ref=GS-8F42A1C9`;
 
   useEffect(() => {
     let active = true;
@@ -138,9 +141,6 @@ export default function AdminEmailTemplatesPage() {
     if (!selectedSalon) return;
     setRendering(true);
     setError("");
-    const salonSlug = slugify(selectedSalon.public_slug || selectedSalon.salon_name || "salon");
-    const primaryService = services[0] || fallbackServices[0];
-    const bookingCalendarUrl = `https://${salonSlug}.glowsuite.nl/calendar/${slugify(primaryService.name)}/booking_confirmation.ics?date=2026-04-24&time=10%3A00&duration=${primaryService.duration_minutes}&ref=GS-8F42A1C9`;
     const previewTemplateData = selectedTemplate === "booking_confirmation"
       ? { ...sampleData.booking_confirmation, service_name: primaryService.name, calendar_url: bookingCalendarUrl }
       : sampleData[selectedTemplate];
