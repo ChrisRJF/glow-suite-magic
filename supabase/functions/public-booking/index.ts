@@ -412,9 +412,12 @@ Deno.serve(async (req) => {
     }
 
     if (primaryAppointment) {
+      const salonSlug = ctx.settings.public_slug || slugify(ctx.settings.salon_name || "salon");
+      const serviceSlug = slugify(mainService.name || "service");
+      const calendarUrl = `https://${salonSlug}.glowsuite.nl/calendar/${serviceSlug}/booking_confirmation.ics?date=${encodeURIComponent(data.date)}&time=${encodeURIComponent(data.time)}&duration=${encodeURIComponent(String(mainService.duration_minutes || 30))}&ref=${encodeURIComponent(primaryAppointment.booking_reference || primaryAppointment.id)}`;
       await sendWhiteLabelEmail(supabase, {
         user_id: ctx.settings.user_id,
-        salon_slug: ctx.settings.public_slug || slugify(ctx.settings.salon_name || "salon"),
+        salon_slug: salonSlug,
         salon_name: ctx.settings.salon_name || "Salon",
         recipient_email: email,
         recipient_name: data.customer.name,
@@ -429,6 +432,7 @@ Deno.serve(async (req) => {
           employee: primaryAppointment.employee_id,
           reference: primaryAppointment.booking_reference,
           total_amount: data.payment.required ? data.payment.amount : Number(mainService.price || 0),
+          calendar_url: calendarUrl,
         },
       });
     }
