@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
-import { CalendarDays, Link2, RefreshCw } from "lucide-react";
+import { CalendarDays, Link2, Loader2, RefreshCw, Send } from "lucide-react";
+import { toast } from "sonner";
 
 type TemplateKey = "booking_confirmation" | "payment_receipt" | "appointment_reminder" | "booking_cancellation" | "membership_notification" | "review_request";
 
@@ -87,6 +88,7 @@ export default function AdminEmailTemplatesPage() {
   const [reminderPreviews, setReminderPreviews] = useState<ReminderPreview[]>([]);
   const [loading, setLoading] = useState(true);
   const [rendering, setRendering] = useState(false);
+  const [sendingTestKey, setSendingTestKey] = useState("");
   const [error, setError] = useState("");
 
   const selectedSalon = useMemo(() => salons.find((salon) => salon.user_id === selectedSalonId) || null, [salons, selectedSalonId]);
@@ -187,6 +189,38 @@ export default function AdminEmailTemplatesPage() {
     setRendering(false);
   };
 
+  const sendReminderTestEmail = async (item: ReminderPreview) => {
+    if (!selectedSalon) return;
+    setSendingTestKey(`${item.service.id}-${item.schedule.hoursBefore}`);
+    const salonSlug = slugify(selectedSalon.public_slug || selectedSalon.salon_name || "salon");
+    const { error } = await supabase.functions.invoke("send-white-label-email", {
+      body: {
+        user_id: selectedSalon.user_id,
+        salon_slug: salonSlug,
+        salon_name: selectedSalon.salon_name || "Salon",
+        recipient_email: recipientEmail,
+        recipient_name: "Sophie de Vries",
+        template_key: "appointment_reminder",
+        template_data: {
+          ...sampleData.appointment_reminder,
+          service_name: item.service.name,
+          calendar_url: item.calendarUrl,
+          reminder_schedule_label: item.schedule.label,
+          reminder_hours_before: item.schedule.hoursBefore,
+          preparation_tip: item.service.category ? `Voorbereiding afgestemd op ${item.service.category}.` : "Kom liefst een paar minuten op tijd.",
+        },
+        preview_only: false,
+        idempotency_key: `admin-reminder-test-${selectedSalon.user_id}-${item.service.id}-${item.schedule.hoursBefore}h-${Date.now()}`,
+      },
+    });
+    setSendingTestKey("");
+    if (error) {
+      toast.error(error.message || "Testmail kon niet worden verzonden");
+      return;
+    }
+    toast.success(`Testmail verzonden naar ${recipientEmail}`);
+  };
+
   useEffect(() => {
     if (selectedSalonId) renderPreview();
   }, [selectedSalonId, selectedTemplate, services, reminderSchedules]);
@@ -260,6 +294,16 @@ export default function AdminEmailTemplatesPage() {
                         <CalendarDays className="h-3.5 w-3.5" /> {item.service.duration_minutes} min
                       </span>
                     </CardTitle>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full sm:w-fit"
+                      onClick={() => sendReminderTestEmail(item)}
+                      disabled={Boolean(sendingTestKey) || !recipientEmail}
+                    >
+                      {sendingTestKey === `${item.service.id}-${item.schedule.hoursBefore}` ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                      Send test email
+                    </Button>
                     <div className="space-y-2 rounded-md border border-border bg-muted/30 p-3">
                       <div className="flex items-start gap-2 text-xs">
                         <Link2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
