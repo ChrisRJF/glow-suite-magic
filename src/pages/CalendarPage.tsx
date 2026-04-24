@@ -434,7 +434,7 @@ export default function CalendarPage() {
     return getAvailableEmployees(svc.name);
   };
 
-  const isToday = dateStr === new Date().toISOString().split('T')[0];
+  const isToday = dateStr === formatLocalDate(new Date());
 
   // Workload variant colors using semantic tokens
   const workloadColors: Record<string, string> = {
@@ -761,7 +761,7 @@ export default function CalendarPage() {
             <button className="p-2 rounded-lg hover:bg-secondary transition-colors" onClick={() => navigate(1)}><ChevronRight className="w-4 h-4" /></button>
           </div>
           <span className="text-sm text-muted-foreground">
-            {view === 'day' ? `${dayAppts.length} afspraken` : `${filterByEmployee(appointments.filter(a => weekDays.some(d => a.appointment_date.startsWith(d.toISOString().split('T')[0])))).length} afspraken`}
+            {view === 'day' ? `${dayAppts.length} afspraken` : `${filterByEmployee(appointments.filter(a => weekDays.some(d => getAppointmentDate(a) === formatLocalDate(d)))).length} afspraken`}
             {selectedEmployee !== 'alle' && ` · ${selectedEmployee}`}
           </span>
         </div>
@@ -770,8 +770,7 @@ export default function CalendarPage() {
           <div className="relative">
             {timeSlots.map((slot) => {
               const apt = dayAppts.find(a => {
-                const t = new Date(a.appointment_date).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
-                return t === slot;
+                return getAppointmentTime(a) === slot;
               });
               const svc = apt ? services.find(s => s.id === apt.service_id) : null;
               const cust = apt ? customers.find(c => c.id === apt.customer_id) : null;
@@ -843,8 +842,8 @@ export default function CalendarPage() {
           <div className="overflow-x-auto">
             <div className="grid grid-cols-6 gap-3 min-w-[700px]">
               {weekDays.map((day, i) => {
-                const ds = day.toISOString().split('T')[0];
-                const apts = filterByEmployee(appointments.filter(a => a.appointment_date.startsWith(ds)));
+                const ds = formatLocalDate(day);
+                const apts = filterByEmployee(appointments.filter(a => getAppointmentDate(a) === ds));
                 const isSelected = ds === dateStr;
                 const freeSlots = timeSlots.length - apts.length;
                 return (
@@ -860,7 +859,7 @@ export default function CalendarPage() {
                       {apts.map((apt) => {
                         const svc = services.find(s => s.id === apt.service_id);
                         const cust = customers.find(c => c.id === apt.customer_id);
-                        const time = new Date(apt.appointment_date).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+                        const time = getAppointmentTime(apt);
                         const emp = apt.notes?.match(/Medewerker: (\w+)/)?.[1];
                         return (
                           <div key={apt.id} className="p-2.5 rounded-xl cursor-pointer transition-all duration-200 hover:scale-[1.02]"
