@@ -127,4 +127,21 @@ describe("white-label transactional email CTA link coverage", () => {
       }
     }
   });
+
+  it.each(salons)("renders a salon-specific .ics calendar link in appointment reminders for every service for $name", (salon) => {
+    for (const service of services) {
+      const rendered = renderTemplate("appointment_reminder", dataFor("appointment_reminder", salon, service), salon.name, salon.branding);
+      const expectedCalendarUrl = `https://${salon.slug}.glowsuite.nl/calendar/${service.slug}/appointment_reminder.ics`;
+
+      expect(rendered.subject).toContain(salon.name);
+      expect(rendered.html).toContain(service.name);
+      expect(rendered.html).toContain(service.preparation_tip);
+      expect(rendered.html).toContain(`href="${expectedCalendarUrl}"`);
+      expect(new URL(expectedCalendarUrl).pathname.endsWith(".ics")).toBe(true);
+
+      for (const otherSalon of salons.filter((candidate) => candidate.slug !== salon.slug)) {
+        expect(rendered.html).not.toContain(`https://${otherSalon.slug}.glowsuite.nl/calendar/`);
+      }
+    }
+  });
 });
