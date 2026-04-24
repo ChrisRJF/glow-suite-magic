@@ -189,7 +189,7 @@ export default function AdminEmailTemplatesPage() {
 
   useEffect(() => {
     if (selectedSalonId) renderPreview();
-  }, [selectedSalonId, selectedTemplate]);
+  }, [selectedSalonId, selectedTemplate, services, reminderSchedules]);
 
   return (
     <AppLayout title="Email templates" subtitle="Interne preview van white-label e-mails per salon">
@@ -237,8 +237,9 @@ export default function AdminEmailTemplatesPage() {
           </Card>
 
           <Tabs defaultValue="visual" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="visual">HTML preview</TabsTrigger>
+              <TabsTrigger value="reminders">Reminder .ics</TabsTrigger>
               <TabsTrigger value="html">HTML output</TabsTrigger>
               <TabsTrigger value="text">Tekst output</TabsTrigger>
             </TabsList>
@@ -248,6 +249,31 @@ export default function AdminEmailTemplatesPage() {
                   <iframe title="Email template preview" srcDoc={preview?.html || ""} className="h-[620px] w-full bg-background" />
                 </CardContent>
               </Card>
+            </TabsContent>
+            <TabsContent value="reminders" className="mt-4 space-y-4">
+              {reminderPreviews.map((item) => (
+                <Card key={`${item.service.id}-${item.schedule.hoursBefore}`}>
+                  <CardHeader className="space-y-2">
+                    <CardTitle className="flex flex-col gap-2 text-base sm:flex-row sm:items-center sm:justify-between">
+                      <span>{item.service.name} · {item.schedule.label}</span>
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                        <CalendarDays className="h-3.5 w-3.5" /> {item.service.duration_minutes} min
+                      </span>
+                    </CardTitle>
+                    <div className="space-y-2 rounded-md border border-border bg-muted/30 p-3">
+                      <div className="flex items-start gap-2 text-xs">
+                        <Link2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                        <code className="break-all font-mono text-foreground">{item.calendarUrl}</code>
+                      </div>
+                      <p className="break-all font-mono text-[11px] leading-relaxed text-muted-foreground">Button style: {item.buttonStyle || "—"}</p>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-0 overflow-hidden">
+                    <iframe title={`Reminder preview ${item.service.name} ${item.schedule.label}`} srcDoc={item.preview.html} className="h-[520px] w-full bg-background" />
+                  </CardContent>
+                </Card>
+              ))}
+              {!reminderPreviews.length && <Card><CardContent className="p-6 text-sm text-muted-foreground">Geen reminder previews beschikbaar.</CardContent></Card>}
             </TabsContent>
             <TabsContent value="html" className="mt-4">
               <Textarea value={preview?.html || ""} readOnly className="min-h-[620px] font-mono text-xs" />
