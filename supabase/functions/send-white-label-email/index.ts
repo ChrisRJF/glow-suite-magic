@@ -8,6 +8,7 @@ const corsHeaders = {
 
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/resend";
 const SENDER_DOMAIN = "email.glowsuite.nl";
+const FROM_EMAIL = `bookings@${SENDER_DOMAIN}`;
 
 const TemplateSchema = z.enum([
   "booking_confirmation",
@@ -146,7 +147,7 @@ Deno.serve(async (req) => {
     const branding = (settings as any).whitelabel_branding || {};
     const salonName = parsed.data.salon_name || (settings as any).salon_name || branding.salon_name || "Salon";
     const salonSlug = slugify(parsed.data.salon_slug || (settings as any).public_slug || salonName);
-    const fromEmail = `${salonSlug}@${SENDER_DOMAIN}`;
+    const fromEmail = FROM_EMAIL;
     const rendered = template(parsed.data.template_key, { ...parsed.data.template_data, recipient_name: parsed.data.recipient_name }, salonName, branding);
     const commonLog = {
       user_id: parsed.data.user_id,
