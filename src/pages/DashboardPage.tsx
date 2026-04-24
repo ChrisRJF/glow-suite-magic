@@ -8,7 +8,7 @@ import { buildReports, rangeForPreset, trendClass, trendLabel } from "@/lib/repo
 import {
   TrendingUp, Users, Calendar, Euro, Sparkles, ArrowRight, Clock,
   Zap, BarChart3, Award, UserPlus, ChevronDown, AlertTriangle, Star, UserX, Send, RefreshCw,
-  CheckCircle2,
+  CheckCircle2, Crown,
 } from "lucide-react";
 import { AutoRevenueEngine } from "@/components/AutoRevenueEngine";
 import { DailyCoach } from "@/components/DailyCoach";
@@ -107,11 +107,11 @@ export default function DashboardPage() {
 
   const monthlyGrowthRevenue = paidRevenueThisMonth;
   const membershipRevenue = payments.filter((p: any) => p.payment_type === "membership" && p.status === "paid").reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
-  const openActions = noShowRiskTomorrow + newLeads + inactiveCustomers.length;
   const glowSuiteWeekRevenue = report.revenue.week + aiRevenue;
 
   const vipCustomers = customers.filter((c) => (Number(c.total_spent) || 0) > 500);
   const newLeads = leads.filter((l) => l.status === "nieuw").length;
+  const openActions = noShowRiskTomorrow + newLeads + inactiveCustomers.length;
   const leadsConverted = leads.filter((l) => l.status === "klant_geworden" || l.status === "geboekt").length;
   const leadsConversionPct = leads.length > 0 ? Math.round((leadsConverted / leads.length) * 100) : 0;
   const leadsRevenue = leadsConverted * 65;
@@ -257,7 +257,7 @@ export default function DashboardPage() {
           <DashboardKpi icon={Calendar} label="Afspraken vandaag" value={String(report.appointments.today)} trend={trendLabel(report.appointments.trend)} trendValue={report.appointments.trend} onClick={() => navigate("/agenda")} />
           <DashboardKpi icon={UserPlus} label="Nieuwe klanten deze week" value={String(report.customers.newThisMonth)} trend={trendLabel(report.customers.trend)} trendValue={report.customers.trend} onClick={() => navigate("/klanten")} />
           <DashboardKpi icon={RefreshCw} label="Herhaalboekingen" value={`${rebookPct}%`} trend="retentie" onClick={() => navigate("/herboekingen")} />
-          <DashboardKpi icon={CrownIcon} label="Membership omzet" value={formatEuro(membershipRevenue)} trend="recurring" onClick={() => navigate("/memberships")} />
+          <DashboardKpi icon={Crown} label="Membership omzet" value={formatEuro(membershipRevenue)} trend="recurring" onClick={() => navigate("/memberships")} />
           <DashboardKpi icon={AlertTriangle} label="Open acties" value={String(openActions)} trend="vandaag" onClick={() => navigate("/acties")} />
 
           {/* No-show risico */}
