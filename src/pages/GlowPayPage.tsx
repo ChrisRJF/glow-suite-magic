@@ -36,6 +36,7 @@ export default function GlowPayPage() {
   const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
   const [showLinkForm, setShowLinkForm] = useState(false);
   const [linkForm, setLinkForm] = useState({ amount: "", description: "", customer_id: "", type: "link" });
+  const [paymentFilter, setPaymentFilter] = useState<"today" | "week" | "month">("month");
 
   const s = settings.length > 0 ? settings[0] as any : null;
 
@@ -91,6 +92,14 @@ export default function GlowPayPage() {
   const isRefundEligible = (p: any) => p.status === "paid" && !p.is_demo && p.provider === "mollie" && Boolean(p.mollie_payment_id) && getRefundableAmount(p) > 0;
 
   const getCustomerName = (id: string | null) => customers.find(c => c.id === id)?.name || "Onbekend";
+  const filteredPayments = useMemo(() => {
+    const now = new Date();
+    const start = new Date(now);
+    if (paymentFilter === "today") start.setHours(0, 0, 0, 0);
+    if (paymentFilter === "week") start.setDate(now.getDate() - 7);
+    if (paymentFilter === "month") start.setMonth(now.getMonth() - 1);
+    return payments.filter((payment) => new Date(payment.created_at) >= start);
+  }, [payments, paymentFilter]);
   const getStatusBadge = (status: string) => {
     const map: Record<string, { label: string; class: string; icon: typeof CheckCircle2 }> = {
       paid: { label: "Betaald", class: "bg-success/15 text-success", icon: CheckCircle2 },
