@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
-import { RefreshCw } from "lucide-react";
+import { CalendarDays, Link2, RefreshCw } from "lucide-react";
 
 type TemplateKey = "booking_confirmation" | "payment_receipt" | "appointment_reminder" | "booking_cancellation" | "membership_notification" | "review_request";
 
@@ -15,6 +15,14 @@ type Salon = {
   user_id: string;
   salon_name: string | null;
   public_slug: string | null;
+  appointment_reminder_schedule?: Array<{ label?: string; hours_before?: number; enabled?: boolean }> | null;
+};
+
+type Service = {
+  id: string;
+  name: string;
+  duration_minutes: number;
+  category: string | null;
 };
 
 type PreviewResult = {
@@ -23,6 +31,14 @@ type PreviewResult = {
   preview: string;
   html: string;
   text: string;
+};
+
+type ReminderPreview = {
+  service: Service;
+  schedule: { label: string; hoursBefore: number };
+  calendarUrl: string;
+  buttonStyle: string;
+  preview: PreviewResult;
 };
 
 const templates: Array<{ key: TemplateKey; label: string }> = [
