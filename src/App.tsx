@@ -38,6 +38,7 @@ import EigenaarPage from "./pages/EigenaarPage";
 import QAStatusPage from "./pages/QAStatusPage";
 import ShopPage from "./pages/ShopPage";
 import MembershipPortalPage from "./pages/MembershipPortalPage";
+import RefundsPage from "./pages/RefundsPage";
 import { useLeadAutomation } from "@/hooks/useLeadAutomation";
 import { OnboardingGate } from "@/components/OnboardingGate";
 import { GuidedTour } from "@/components/GuidedTour";
@@ -86,6 +87,7 @@ const App = () => (
               <Route path="/marketing" element={<RoleProtectedRoute><MarketingPage /></RoleProtectedRoute>} />
               <Route path="/acties" element={<RoleProtectedRoute><ActiesPage /></RoleProtectedRoute>} />
               <Route path="/glowpay" element={<RoleProtectedRoute><GlowPayPage /></RoleProtectedRoute>} />
+              <Route path="/refunds" element={<RoleProtectedRoute><RefundsPage /></RoleProtectedRoute>} />
               <Route path="/kassa" element={<RoleProtectedRoute><KassaPage /></RoleProtectedRoute>} />
               <Route path="/producten" element={<RoleProtectedRoute><ProductenPage /></RoleProtectedRoute>} />
               <Route path="/rapporten" element={<RoleProtectedRoute><RapportenPage /></RoleProtectedRoute>} />
