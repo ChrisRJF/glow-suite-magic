@@ -11,6 +11,7 @@ import { useCrud } from "@/hooks/useCrud";
 import { exportCSV } from "@/lib/exportUtils";
 import { formatEuro } from "@/lib/data";
 import { cn } from "@/lib/utils";
+import { PaymentMethodLogo } from "@/components/PaymentMethodLogo";
 import { supabase } from "@/integrations/supabase/client";
 import { Archive, Check, Crown, Euro, EyeOff, Gift, Loader2, Pause, Play, Plus, RefreshCw, ShieldAlert, Trash2, TrendingUp, UserPlus, Users, XCircle } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -28,6 +29,11 @@ const statusClasses: Record<string, string> = {
   expired: "bg-muted text-muted-foreground border-border",
   payment_issue: "bg-destructive/10 text-destructive border-destructive/20",
 };
+const paymentMethods = [
+  { id: "ideal", label: "iDEAL | Wero" },
+  { id: "creditcard", label: "Creditcard" },
+  { id: "bancontact", label: "Bancontact" },
+];
 const defaultFeatures: MembershipFeatures = {
   white_label_signup: true,
   credits_system: true,
