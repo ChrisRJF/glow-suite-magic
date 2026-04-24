@@ -1359,6 +1359,180 @@ export type Database = {
           },
         ]
       }
+      refund_approvals: {
+        Row: {
+          approval_level: number
+          approver_user_id: string
+          created_at: string
+          id: string
+          is_demo: boolean
+          note: string | null
+          refund_request_id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          approval_level?: number
+          approver_user_id: string
+          created_at?: string
+          id?: string
+          is_demo?: boolean
+          note?: string | null
+          refund_request_id: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          approval_level?: number
+          approver_user_id?: string
+          created_at?: string
+          id?: string
+          is_demo?: boolean
+          note?: string | null
+          refund_request_id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      refund_events: {
+        Row: {
+          actor_user_id: string | null
+          amount: number | null
+          created_at: string
+          event_type: string
+          id: string
+          ip_address: string | null
+          is_demo: boolean
+          metadata: Json
+          notes: string | null
+          payment_id: string | null
+          reason: string | null
+          refund_request_id: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          actor_user_id?: string | null
+          amount?: number | null
+          created_at?: string
+          event_type: string
+          id?: string
+          ip_address?: string | null
+          is_demo?: boolean
+          metadata?: Json
+          notes?: string | null
+          payment_id?: string | null
+          reason?: string | null
+          refund_request_id?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          actor_user_id?: string | null
+          amount?: number | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          ip_address?: string | null
+          is_demo?: boolean
+          metadata?: Json
+          notes?: string | null
+          payment_id?: string | null
+          reason?: string | null
+          refund_request_id?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      refund_requests: {
+        Row: {
+          amount: number
+          appointment_id: string | null
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          currency: string
+          custom_reason: string | null
+          customer_id: string | null
+          executed_at: string | null
+          executed_by: string | null
+          failure_reason: string | null
+          id: string
+          idempotency_key: string
+          internal_note: string | null
+          is_demo: boolean
+          metadata: Json
+          mollie_refund_id: string | null
+          notify_customer: boolean
+          payment_id: string
+          processed_at: string | null
+          reason: string
+          requested_at: string
+          requested_by: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          appointment_id?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          currency?: string
+          custom_reason?: string | null
+          customer_id?: string | null
+          executed_at?: string | null
+          executed_by?: string | null
+          failure_reason?: string | null
+          id?: string
+          idempotency_key?: string
+          internal_note?: string | null
+          is_demo?: boolean
+          metadata?: Json
+          mollie_refund_id?: string | null
+          notify_customer?: boolean
+          payment_id: string
+          processed_at?: string | null
+          reason: string
+          requested_at?: string
+          requested_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          appointment_id?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          currency?: string
+          custom_reason?: string | null
+          customer_id?: string | null
+          executed_at?: string | null
+          executed_by?: string | null
+          failure_reason?: string | null
+          id?: string
+          idempotency_key?: string
+          internal_note?: string | null
+          is_demo?: boolean
+          metadata?: Json
+          mollie_refund_id?: string | null
+          notify_customer?: boolean
+          payment_id?: string
+          processed_at?: string | null
+          reason?: string
+          requested_at?: string
+          requested_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       services: {
         Row: {
           category: string | null

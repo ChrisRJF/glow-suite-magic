@@ -64,6 +64,7 @@ export const ROUTE_PERMISSIONS: Record<string, AppRole[]> = {
   "/automations": ["eigenaar", "manager", "admin", "medewerker", "receptie"],
   "/whatsapp": ["eigenaar", "manager", "admin"],
   "/glowpay": ["eigenaar", "manager", "financieel"],
+  "/refunds": ["eigenaar", "manager", "admin", "financieel"],
   "/omzet": ["eigenaar", "manager", "admin", "financieel"],
   "/rapporten": ["eigenaar", "manager", "admin", "financieel"],
   "/instellingen": ["eigenaar", "manager", "admin", "financieel"],
