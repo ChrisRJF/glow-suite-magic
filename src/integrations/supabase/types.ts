@@ -1938,6 +1938,60 @@ export type Database = {
         }
         Relationships: []
       }
+      white_label_email_logs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          from_email: string
+          from_name: string
+          id: string
+          is_demo: boolean
+          metadata: Json
+          provider: string
+          provider_message_id: string | null
+          recipient_email: string
+          salon_slug: string
+          status: string
+          subject: string
+          template_key: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          from_email: string
+          from_name: string
+          id?: string
+          is_demo?: boolean
+          metadata?: Json
+          provider?: string
+          provider_message_id?: string | null
+          recipient_email: string
+          salon_slug: string
+          status?: string
+          subject: string
+          template_key: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          from_email?: string
+          from_name?: string
+          id?: string
+          is_demo?: boolean
+          metadata?: Json
+          provider?: string
+          provider_message_id?: string | null
+          recipient_email?: string
+          salon_slug?: string
+          status?: string
+          subject?: string
+          template_key?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
