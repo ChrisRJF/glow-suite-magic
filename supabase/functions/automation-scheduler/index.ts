@@ -38,6 +38,20 @@ function renderTemplate(body: string, vars: Record<string, string>) {
   return body.replace(/{{\s*([a-zA-Z0-9_]+)\s*}}/g, (_, key) => vars[key] ?? "");
 }
 
+function slugify(value: string) {
+  return value.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 64) || "salon";
+}
+
+function reminderSchedules(settings: any, trigger: string) {
+  const configured = Array.isArray(settings?.appointment_reminder_schedule) ? settings.appointment_reminder_schedule : [];
+  const schedules = (configured.length ? configured : [
+    { label: "24 uur vooraf", hours_before: 24, enabled: true },
+    { label: "2 uur vooraf", hours_before: 2, enabled: true },
+  ]).filter((item: any) => item?.enabled !== false && Number(item?.hours_before) > 0);
+  const explicit = trigger.match(/appointment_reminder_(\d+)h/);
+  return explicit ? schedules.filter((item: any) => Number(item.hours_before) === Number(explicit[1])) : schedules;
+}
+
 async function sendWhiteLabelEmail(admin: ReturnType<typeof createClient>, body: Record<string, unknown>) {
   const { error } = await admin.functions.invoke("send-white-label-email", { body });
   if (error) console.error("White-label email failed", error.message);
@@ -67,9 +81,14 @@ async function insertRun(admin: any, rule: Rule, settings: any, candidate: any, 
     return "skipped";
   }
 
-  const idempotencyKey = `${rule.id}:${reason}:${customer?.id || candidate.id}:${candidate.appointment_id || candidate.appointment?.id || candidate.payment_id || candidate.membership_id || candidate.id}`;
+  const reminderKey = candidate.reminder?.hours_before ? `:${candidate.reminder.hours_before}h` : "";
+  const idempotencyKey = `${rule.id}:${reason}${reminderKey}:${customer?.id || candidate.id}:${candidate.appointment_id || candidate.appointment?.id || candidate.payment_id || candidate.membership_id || candidate.id}`;
   const templates = rule.message_templates || {};
   const salonName = settings?.salon_name || "de salon";
+  const salonSlug = slugify(settings?.public_slug || salonName);
+  const serviceSlug = slugify(candidate.service?.name || "afspraak");
+  const reminderSuffix = candidate.reminder?.hours_before ? `-${candidate.reminder.hours_before}h` : "";
+  const publicBaseUrl = `https://${salonSlug}.glowsuite.nl`;
   const body = renderTemplate(templates.nl || templates.en || "", {
     first_name: firstName(customer?.name),
     last_name: String(customer?.name || "").trim().split(/\s+/).slice(1).join(" "),
@@ -99,12 +118,17 @@ async function insertRun(admin: any, rule: Rule, settings: any, candidate: any, 
       reason,
       action_type: rule.action_type,
       salon_name: salonName,
-      salon_slug: settings?.public_slug || salonName,
+      salon_slug: salonSlug,
       customer_name: customer?.name || "",
       service_name: candidate.service?.name || "",
       appointment_date: candidate.appointment?.appointment_date || "",
       time: candidate.appointment?.start_time || "",
       employee: candidate.appointment?.employee_id || "",
+      calendar_url: `${publicBaseUrl}/calendar/${serviceSlug}/appointment_reminder${reminderSuffix}.ics`,
+      manage_url: `${publicBaseUrl}/afspraak/${candidate.appointment?.booking_token || candidate.appointment?.id || "beheer"}`,
+      contact_url: `${publicBaseUrl}/route-contact`,
+      reminder_schedule_label: candidate.reminder?.label || "",
+      reminder_hours_before: candidate.reminder?.hours_before || null,
       membership_name: candidate.plan?.name || "",
       credits: candidate.membership?.credits_available ?? "",
       template_key: emailTemplateForTrigger(rule.trigger_type),
