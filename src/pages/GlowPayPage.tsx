@@ -10,11 +10,10 @@ import {
   Wallet, Banknote, Smartphone, QrCode, Link2, Plus, Copy, ExternalLink
 } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useUserRole } from "@/hooks/useUserRole";
-import { supabase } from "@/integrations/supabase/client";
 
 type TabType = "overzicht" | "betalingen" | "regels" | "betaallinks";
 
@@ -68,18 +67,6 @@ export default function GlowPayPage() {
     refetchPayments();
   };
 
-  const handleRefund = async (id: string) => {
-    if (!can("payments:refund")) { toast.error("Alleen eigenaren kunnen terugbetalingen registreren."); return; }
-    const { data: { session } } = await supabase.auth.getSession();
-    const { data, error } = await supabase.functions.invoke("mollie-connect", {
-      body: { action: "refund", payment_id: id, reason: "Terugbetaling via GlowPay" },
-      headers: { Authorization: `Bearer ${session?.access_token}` },
-    });
-    if (error || (data as any)?.error) { toast.error((data as any)?.error || "Terugbetaling mislukt."); return; }
-    toast.success("Terugbetaling gestart via Mollie");
-    refetchPayments();
-  };
-
   const handleRetry = async (id: string) => {
     if (!can("payments:update")) { toast.error("Alleen financiële rollen kunnen betalingen wijzigen."); return; }
     toast.info("Opnieuw proberen is beschikbaar via een nieuw betaalverzoek.");
@@ -99,6 +86,9 @@ export default function GlowPayPage() {
     }
     return 0;
   };
+
+  const getRefundableAmount = (p: any) => Math.max(0, Number(p.amount || 0) - Number(p.refunded_amount || 0));
+  const isRefundEligible = (p: any) => p.status === "paid" && !p.is_demo && p.provider === "mollie" && Boolean(p.mollie_payment_id) && getRefundableAmount(p) > 0;
 
   const getCustomerName = (id: string | null) => customers.find(c => c.id === id)?.name || "Onbekend";
   const getStatusBadge = (status: string) => {
