@@ -1586,6 +1586,7 @@ export type Database = {
       }
       settings: {
         Row: {
+          appointment_reminder_schedule: Json
           auto_block_noshow: number | null
           buffer_minutes: number | null
           cancellation_notice: string | null
@@ -1619,6 +1620,7 @@ export type Database = {
           whitelabel_branding: Json | null
         }
         Insert: {
+          appointment_reminder_schedule?: Json
           auto_block_noshow?: number | null
           buffer_minutes?: number | null
           cancellation_notice?: string | null
@@ -1652,6 +1654,7 @@ export type Database = {
           whitelabel_branding?: Json | null
         }
         Update: {
+          appointment_reminder_schedule?: Json
           auto_block_noshow?: number | null
           buffer_minutes?: number | null
           cancellation_notice?: string | null
