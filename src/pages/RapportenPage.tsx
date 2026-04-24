@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useUserRole } from "@/hooks/useUserRole";
 
-type ReportType = "omzet" | "afspraken" | "klanten" | "diensten" | "producten" | "betalingen" | "btw";
+type ReportType = "omzet" | "afspraken" | "klanten" | "diensten" | "producten" | "betalingen" | "btw" | "export";
 type ExportType = "omzet" | "klanten" | "afspraken" | "refunds" | "maandrapport";
 
 const datePresets: { key: DatePreset; label: string }[] = [
@@ -39,9 +39,8 @@ export default function RapportenPage() {
   const [searchParams] = useSearchParams();
   const [reportType, setReportType] = useState<ReportType>(() => {
     const t = searchParams.get("type");
-    return (["omzet", "afspraken", "klanten", "diensten", "producten", "betalingen", "btw"] as ReportType[]).includes(t as ReportType) ? (t as ReportType) : "omzet";
+    return (["omzet", "afspraken", "klanten", "diensten", "producten", "betalingen", "btw", "export"] as ReportType[]).includes(t as ReportType) ? (t as ReportType) : "omzet";
   });
-  const [showExport, setShowExport] = useState(false);
   const loading = appointmentsLoading || servicesLoading || productsLoading || customersLoading || paymentsLoading || refundsLoading;
   const range = useMemo(() => rangeForPreset(preset, dateFrom, dateTo), [preset, dateFrom, dateTo]);
   const report = useMemo(() => buildReports({ appointments, customers, services, payments, refunds, mode: dataMode, from: range.from, to: range.to }), [appointments, customers, services, payments, refunds, dataMode, range.from, range.to]);
@@ -70,6 +69,7 @@ export default function RapportenPage() {
     { key: "producten", label: "Producten" },
     { key: "betalingen", label: "Betalingen" },
     { key: "btw", label: "BTW" },
+    { key: "export", label: "Export" },
   ];
 
   const exportData = (type: ExportType): { title: string; headers: string[]; rows: string[][] } => {
@@ -127,23 +127,10 @@ export default function RapportenPage() {
     if (format === "pdf") exportPDF(title, headers, rows, `glowsuite-${type}-${dateStr}.pdf`);
     else exportCSV(headers, rows, `glowsuite-${type}-${dateStr}.csv`);
     toast.success(`${title} geëxporteerd`);
-    setShowExport(false);
   };
 
   return (
     <AppLayout title="Rapporten" subtitle="Echte cijfers uit betalingen, afspraken en klanten"
-      actions={can("reports:export") ? <div className="relative">
-        <Button variant="gradient" size="sm" onClick={() => setShowExport(!showExport)}><Download className="w-4 h-4" /> Exporteer</Button>
-        {showExport && (
-          <div className="absolute right-0 top-full mt-2 w-56 glass-card p-2 z-50 space-y-1">
-            <button onClick={() => handleExport("omzet")} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-secondary/50 transition-colors"><FileText className="w-4 h-4 text-primary" /> CSV omzetrapport</button>
-            <button onClick={() => handleExport("klanten")} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-secondary/50 transition-colors"><Users className="w-4 h-4 text-primary" /> CSV klantenlijst</button>
-            <button onClick={() => handleExport("afspraken")} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-secondary/50 transition-colors"><CalendarDays className="w-4 h-4 text-primary" /> CSV afsprakenlijst</button>
-            <button onClick={() => handleExport("refunds")} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-secondary/50 transition-colors"><RefreshCw className="w-4 h-4 text-primary" /> CSV refunds</button>
-            <button onClick={() => handleExport("maandrapport", "pdf")} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-secondary/50 transition-colors"><FileText className="w-4 h-4 text-destructive" /> PDF maandrapport</button>
-          </div>
-        )}
-      </div> : null}
     >
       <div className="grid gap-8">
         <div className="flex flex-wrap items-center gap-3 p-4 rounded-xl bg-secondary/20 border border-border/50">
@@ -182,6 +169,7 @@ export default function RapportenPage() {
         {reportType === "btw" && <MetricGrid items={[["Omzet incl. BTW", eur(report.revenue.period)], ["Omzet excl. BTW", eur(report.revenue.period / 1.21)], ["BTW 21%", eur(report.revenue.period * 0.21 / 1.21)], ["Betaalde transacties", String(report.rows.periodPayments.length)]]} />}
         {reportType === "producten" && <ProductList products={products} />}
         {reportType === "diensten" && <ServiceList services={report.services} />}
+        {reportType === "export" && <ExportCenter canExport={can("reports:export")} onExport={handleExport} />}
       </div>
     </AppLayout>
   );
