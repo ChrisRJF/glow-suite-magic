@@ -14,6 +14,26 @@ type View = 'day' | 'week';
 
 const timeSlots = ['09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00'];
 
+const formatLocalDate = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getAppointmentDate = (appointment: { appointment_date: string }) => appointment.appointment_date.slice(0, 10);
+const getAppointmentTime = (appointment: { appointment_date: string; start_time?: string | null }) => {
+  if (appointment.start_time) return appointment.start_time.slice(0, 5);
+  const match = appointment.appointment_date.match(/T(\d{2}:\d{2})/);
+  return match?.[1] || '';
+};
+
+const addMinutes = (time: string, minutes: number) => {
+  const [hours, mins] = time.split(':').map(Number);
+  const total = hours * 60 + mins + minutes;
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+};
+
 // Demo medewerkers with capabilities and availability
 const MEDEWERKERS = [
   { name: 'Bas', role: 'Kapper', services: ['Kinder knippen', 'Heren knippen', 'Heren baard trimmen'], days: [1,2,3,4,5], pauze: '12:00-12:30', color: '#7B61FF' },
@@ -55,7 +75,7 @@ export default function CalendarPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [filterAvailability, setFilterAvailability] = useState<string>('alle'); // alle, beschikbaar, afwezig
 
-  const dateStr = currentDate.toISOString().split('T')[0];
+  const dateStr = formatLocalDate(currentDate);
   const currentDayOfWeek = currentDate.getDay() === 0 ? 7 : currentDate.getDay(); // 1=ma..7=zo
 
   // Employee availability for current date
