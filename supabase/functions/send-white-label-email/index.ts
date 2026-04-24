@@ -130,17 +130,23 @@ function template(key: TemplateKey, data: Record<string, unknown>, salonName: st
   const accent = hexColor(branding?.primary_color, "#7B61FF");
   const secondary = hexColor(branding?.secondary_color, "#C850C0");
   const base = { salonName, logoUrl: branding?.logo_url || "", accent, secondary };
-  const manageUrl = firstFilled(data.manage_url, data.appointment_url, data.booking_url);
+  const publicBaseUrl = firstFilled(data.public_base_url, data.base_url) || `https://${slugify(String(data.salon_slug || salonName))}.glowsuite.nl`;
+  const manageUrl = absoluteUrl(firstFilled(data.manage_url, data.appointment_url), "/afspraak/beheer", publicBaseUrl);
   const calendarUrl = firstFilled(data.calendar_url, data.add_to_calendar_url);
-  const contactUrl = firstFilled(data.contact_url, data.route_url, data.location_url);
+  const contactUrl = absoluteUrl(firstFilled(data.contact_url, data.route_url, data.location_url), "/route-contact", publicBaseUrl);
+  const bookingUrl = absoluteUrl(data.booking_url, "/boeken", publicBaseUrl);
+  const receiptUrl = absoluteUrl(firstFilled(data.receipt_url, data.payment_url), "/betaalbewijs", publicBaseUrl);
+  const membershipUrl = absoluteUrl(firstFilled(data.membership_url, data.manage_membership_url), "/abonnement-beheren", publicBaseUrl);
+  const reviewUrl = absoluteUrl(firstFilled(data.review_url, data.google_review_url), "/review", publicBaseUrl);
+  const termsUrl = absoluteUrl(data.terms_url, "/salonvoorwaarden", publicBaseUrl);
   const supportEmail = firstFilled(data.support_email, data.salon_contact_email, branding?.contact_email);
 
   if (key === "booking_confirmation") {
     const title = "Je afspraak staat klaar";
     const intro = `${firstName ? `${firstName}, je` : "Je"} behandeling bij ${salonName} is bevestigd. We kijken ernaar uit je te ontvangen.`;
     const rows = infoRows([["Klant", data.customer_name || data.recipient_name], ["Datum", nlDate(data.appointment_date || data.date)], ["Tijd", data.time || data.start_time], ["Behandeling", data.service_name], ["Medewerker", data.employee || data.staff_name], ["Locatie", data.location || data.address], ["Referentie", data.reference], ["Totaal", data.total_amount ? formatEuro(data.total_amount) : undefined]]);
-    const calendarLink = calendarUrl ? `<a href="${escapeHtml(calendarUrl)}" style="display:block;background:#ffffff;color:${secondary};text-decoration:none;border:1px solid #E9DFF7;border-radius:14px;padding:13px 18px;font-size:14px;font-weight:750;text-align:center;margin:0 0 16px;">Toevoegen aan kalender</a>` : "";
-    const body = rows + calendarLink + noteBlock("Handig om te weten", ["Zet je afspraak direct in je agenda.", "Kun je niet komen? Beheer je afspraak op tijd via de knop hieronder."]);
+    const calendarLink = calendarUrl ? `<a href="${escapeHtml(calendarUrl)}" style="display:block;background:#ffffff;color:${secondary};text-decoration:none;border:1px solid #E9DFF7;border-radius:14px;padding:13px 18px;font-size:14px;font-weight:750;text-align:center;margin:0 0 16px;">Toevoegen aan agenda</a>` : "";
+    const body = rows + calendarLink + noteBlock("Handig om te weten", ["Zet je afspraak direct in je agenda.", "Kun je niet komen? Beheer je afspraak op tijd."]) + `<p style="margin:10px 0 18px;color:#8A8F98;font-size:12px;line-height:1.55;text-align:center;">Op deze afspraak gelden de <a href="${escapeHtml(termsUrl)}" style="color:${secondary};text-decoration:underline;">salonvoorwaarden</a>.</p>`;
     return { subject: `${salonName} · je afspraak op ${nlDateShort(data.appointment_date || data.date) || "is bevestigd"}`, preview: intro, html: shell({ ...base, title, intro, body, primaryAction: { label: "Afspraak beheren", url: manageUrl } }), text: `${title}\n${intro}\n${String(data.service_name || "")}\n${nlDate(data.appointment_date || data.date)} ${String(data.time || data.start_time || "")}` };
   }
 
@@ -149,7 +155,7 @@ function template(key: TemplateKey, data: Record<string, unknown>, salonName: st
     const intro = `Dank je wel. Je betaling aan ${salonName} is veilig verwerkt.`;
     const rows = infoRows([["Betaalmethode", data.method || data.payment_method], ["Omschrijving", data.description || data.service_name || data.membership_name], ["Datum", nlDate(data.paid_at || data.date)], ["Referentie", data.reference || data.receipt_number], ["BTW", data.vat_amount ? formatEuro(data.vat_amount) : data.vat_enabled ? "Actief" : undefined]]);
     const body = amountSummary({ amount: data.amount, vatAmount: data.vat_amount, vatRate: data.vat_rate, total: data.total_amount }) + rows;
-    return { subject: `${salonName} · betaalbewijs ${data.reference ? `#${String(data.reference)}` : ""}`.trim(), preview: intro, html: shell({ ...base, title, intro, body, primaryAction: { label: "Bekijk afspraak", url: manageUrl } }), text: `${title}\n${intro}\nBedrag: ${formatEuro(data.total_amount || data.amount)}\nBetaalmethode: ${String(data.method || data.payment_method || "")}` };
+    return { subject: `${salonName} · betaalbewijs ${data.reference ? `#${String(data.reference)}` : ""}`.trim(), preview: intro, html: shell({ ...base, title, intro, body, primaryAction: { label: "Bekijk betaalbewijs", url: receiptUrl }, secondaryAction: { label: "Afspraak bekijken", url: manageUrl } }), text: `${title}\n${intro}\nBedrag: ${formatEuro(data.total_amount || data.amount)}\nBetaalmethode: ${String(data.method || data.payment_method || "")}` };
   }
 
   if (key === "appointment_reminder") {
