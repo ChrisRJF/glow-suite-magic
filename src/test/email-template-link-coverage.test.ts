@@ -60,6 +60,11 @@ const services: ServiceFixture[] = [
   { name: "Brow Styling", slug: "brow-styling", preparation_tip: "Laat je wenkbrauwen vooraf zoveel mogelijk met rust." },
 ];
 
+const reminderSchedules = [
+  { label: "24 uur vooraf", hoursBefore: 24 },
+  { label: "2 uur vooraf", hoursBefore: 2 },
+];
+
 const templateCoverage: Record<TemplateKey, Array<"manage" | "calendar" | "contact" | "review">> = {
   booking_confirmation: ["manage", "calendar"],
   payment_receipt: ["manage"],
@@ -141,6 +146,25 @@ describe("white-label transactional email CTA link coverage", () => {
 
       for (const otherSalon of salons.filter((candidate) => candidate.slug !== salon.slug)) {
         expect(rendered.html).not.toContain(`https://${otherSalon.slug}.glowsuite.nl/calendar/`);
+      }
+    }
+  });
+
+  it.each(salons)("renders working .ics links for every configured reminder schedule for $name", (salon) => {
+    for (const service of services) {
+      for (const schedule of reminderSchedules) {
+        const calendarUrl = `https://${salon.slug}.glowsuite.nl/calendar/${service.slug}/appointment_reminder-${schedule.hoursBefore}h.ics`;
+        const rendered = renderTemplate("appointment_reminder", {
+          ...dataFor("appointment_reminder", salon, service),
+          calendar_url: calendarUrl,
+          reminder_schedule_label: schedule.label,
+          reminder_hours_before: schedule.hoursBefore,
+        }, salon.name, salon.branding);
+
+        expect(rendered.subject).toContain(salon.name);
+        expect(rendered.html).toContain(`href="${calendarUrl}"`);
+        expect(new URL(calendarUrl).hostname).toBe(`${salon.slug}.glowsuite.nl`);
+        expect(new URL(calendarUrl).pathname).toBe(`/calendar/${service.slug}/appointment_reminder-${schedule.hoursBefore}h.ics`);
       }
     }
   });
