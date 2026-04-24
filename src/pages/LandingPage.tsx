@@ -14,6 +14,11 @@ import {
 import logoFull from "@/assets/logo-full.png";
 import logoIcon from "@/assets/logo-icon.png";
 import { PaymentMethodLogo } from "@/components/PaymentMethodLogo";
+import shotDashboard from "@/assets/landing/dashboard.png";
+import shotAgenda from "@/assets/landing/agenda.png";
+import shotBetalingen from "@/assets/landing/betalingen.png";
+import shotAbonnementen from "@/assets/landing/abonnementen.png";
+import shotRapportage from "@/assets/landing/rapportage.png";
 
 const SIGNUP = "/login?mode=signup";
 const DEMO = "/login?demo=1";
@@ -48,15 +53,27 @@ function MockWindow({ url, children }: { url: string; children: React.ReactNode 
         <span className="w-2.5 h-2.5 rounded-full bg-success/60" />
         <span className="ml-3 text-[11px] sm:text-xs text-muted-foreground truncate">{url}</span>
       </div>
-      <div className="p-4 sm:p-6 bg-gradient-to-br from-background to-muted/30">{children}</div>
+      <div className="bg-gradient-to-br from-background to-muted/30">{children}</div>
     </div>
+  );
+}
+
+function Shot({ src, alt }: { src: string; alt: string }) {
+  return (
+    <img
+      src={src}
+      alt={alt}
+      loading="lazy"
+      className="block w-full h-auto select-none"
+      draggable={false}
+    />
   );
 }
 
 function DemoBadge() {
   return (
     <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide font-semibold text-muted-foreground bg-muted/60 px-2 py-0.5 rounded">
-      Voorbeelddata
+      Echte demo-omgeving
     </span>
   );
 }
@@ -417,32 +434,7 @@ export default function LandingPage() {
             <div className="mt-3"><DemoBadge /></div>
           </div>
           <MockWindow url="salon.glowsuite.nl/dashboard">
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { l: "Omzet vandaag", v: "€1.247", t: "+12%" },
-                  { l: "Boekingen", v: "23", t: "+5" },
-                  { l: "Open plekken", v: "4", t: "vandaag" },
-                  { l: "No-show risico", v: "1", t: "lage prio" },
-                ].map((k) => (
-                  <div key={k.l} className="rounded-xl border border-border/60 bg-card p-3">
-                    <div className="text-[11px] text-muted-foreground">{k.l}</div>
-                    <div className="text-lg font-semibold mt-0.5">{k.v}</div>
-                    <div className="text-[10px] text-success font-medium">{k.t}</div>
-                  </div>
-                ))}
-              </div>
-              <div className="rounded-xl border border-border/60 bg-card p-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold">Omzetkansen</span>
-                  <TrendingUp className="w-4 h-4 text-primary" />
-                </div>
-                <div className="mt-2 space-y-1.5 text-xs text-muted-foreground">
-                  <div className="flex justify-between"><span>Sophie heeft 2 gaten van 30 min</span><span className="text-primary">+ €120</span></div>
-                  <div className="flex justify-between"><span>5 klanten herboeken nog niet</span><span className="text-primary">+ €380</span></div>
-                </div>
-              </div>
-            </div>
+            <Shot src={shotDashboard} alt="GlowSuite dashboard met dagomzet, planning en omzetkansen" />
           </MockWindow>
         </div>
       </Section>
@@ -451,34 +443,7 @@ export default function LandingPage() {
       <Section className="bg-muted/30 border-y border-border/60">
         <div className="grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
           <MockWindow url="salon.glowsuite.nl/agenda">
-            <div className="space-y-2">
-              <div className="grid grid-cols-3 gap-2 text-[10px] font-semibold text-muted-foreground uppercase">
-                <div>Sophie</div><div>Lisa</div><div>Mark</div>
-              </div>
-              {[
-                { time: "09:00", cells: ["Knippen", "—", "Baard"] },
-                { time: "10:00", cells: ["Föhnen", "Balayage", "—"] },
-                { time: "11:00", cells: ["—", "Balayage", "Knippen"] },
-                { time: "12:00", cells: ["Manicure", "—", "Baard"] },
-                { time: "13:00", cells: ["—", "Kleur", "Knippen"] },
-              ].map((row) => (
-                <div key={row.time} className="grid grid-cols-[40px_1fr_1fr_1fr] gap-2 items-center">
-                  <div className="text-[10px] text-muted-foreground">{row.time}</div>
-                  {row.cells.map((c, i) => (
-                    <div
-                      key={i}
-                      className={`rounded-md px-2 py-1.5 text-[10px] sm:text-[11px] truncate ${
-                        c === "—"
-                          ? "bg-muted/40 text-muted-foreground border border-dashed border-border/60"
-                          : "bg-gradient-to-r from-primary to-accent text-white font-medium"
-                      }`}
-                    >
-                      {c === "—" ? "Vrij" : c}
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
+            <Shot src={shotAgenda} alt="GlowSuite agenda met dagplanning per medewerker" />
           </MockWindow>
           <div>
             <Eyebrow>Agenda</Eyebrow>
@@ -513,38 +478,7 @@ export default function LandingPage() {
             <div className="mt-3"><DemoBadge /></div>
           </div>
           <MockWindow url="salon.glowsuite.nl/betalingen">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between rounded-xl border border-border/60 bg-card p-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-success/10 text-success flex items-center justify-center"><Wallet className="w-4 h-4" /></div>
-                  <div>
-                    <div className="text-xs font-semibold">Mollie verbonden</div>
-                    <div className="text-[10px] text-muted-foreground">Live · Payouts dagelijks</div>
-                  </div>
-                </div>
-                <span className="text-[10px] font-medium text-success bg-success/10 px-2 py-0.5 rounded">Actief</span>
-              </div>
-              <div className="rounded-xl border border-border/60 bg-card p-3">
-                <div className="text-[11px] text-muted-foreground mb-2">Geaccepteerde methodes</div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <PaymentMethodLogo method="ideal" />
-                  <PaymentMethodLogo method="bancontact" />
-                  <PaymentMethodLogo method="creditcard" />
-                </div>
-              </div>
-              <div className="rounded-xl border border-border/60 bg-card p-3 space-y-2 text-xs">
-                {[
-                  { c: "Sophie K.", a: "€45,00", s: "Betaald", t: "text-success bg-success/10" },
-                  { c: "Mark v.D.", a: "€20,00", s: "Aanbetaling", t: "text-primary bg-primary/10" },
-                  { c: "Eva B.", a: "€12,50", s: "Refund", t: "text-muted-foreground bg-muted" },
-                ].map((r) => (
-                  <div key={r.c} className="flex items-center justify-between">
-                    <span>{r.c}</span>
-                    <span className="flex items-center gap-2"><span className="font-medium">{r.a}</span><span className={`text-[10px] px-2 py-0.5 rounded ${r.t}`}>{r.s}</span></span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <Shot src={shotBetalingen} alt="GlowPay betalingen overzicht met live betaalstatussen" />
           </MockWindow>
         </div>
       </Section>
@@ -553,36 +487,7 @@ export default function LandingPage() {
       <Section className="bg-muted/30 border-y border-border/60">
         <div className="grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
           <MockWindow url="salon.glowsuite.nl/abonnementen">
-            <div className="space-y-3">
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { l: "Actieve leden", v: "84" },
-                  { l: "MRR", v: "€2.940" },
-                  { l: "Churn", v: "2,1%" },
-                ].map((k) => (
-                  <div key={k.l} className="rounded-xl border border-border/60 bg-card p-3">
-                    <div className="text-[10px] text-muted-foreground">{k.l}</div>
-                    <div className="text-base font-semibold mt-0.5">{k.v}</div>
-                  </div>
-                ))}
-              </div>
-              <div className="rounded-xl border border-border/60 bg-card p-3 space-y-2 text-xs">
-                {[
-                  { p: "Basis", c: "1 knipbeurt /mnd", price: "€29" },
-                  { p: "Premium", c: "2 behandelingen /mnd", price: "€59" },
-                  { p: "VIP", c: "Onbeperkt + producten", price: "€99" },
-                ].map((r) => (
-                  <div key={r.p} className="flex items-center justify-between">
-                    <div><div className="font-semibold">{r.p}</div><div className="text-[10px] text-muted-foreground">{r.c}</div></div>
-                    <span className="font-semibold">{r.price}<span className="text-[10px] text-muted-foreground">/mnd</span></span>
-                  </div>
-                ))}
-              </div>
-              <div className="rounded-xl border border-dashed border-primary/40 bg-primary/5 p-3 text-xs">
-                <div className="font-semibold text-primary">Aanmeldpagina live</div>
-                <div className="text-muted-foreground text-[11px] truncate">salon.glowsuite.nl/abonnement</div>
-              </div>
-            </div>
+            <Shot src={shotAbonnementen} alt="Abonnementen dashboard met MRR, leden en churn" />
           </MockWindow>
           <div>
             <Eyebrow>Abonnementen</Eyebrow>
@@ -617,37 +522,7 @@ export default function LandingPage() {
             <div className="mt-3"><DemoBadge /></div>
           </div>
           <MockWindow url="salon.glowsuite.nl/rapporten">
-            <div className="space-y-3">
-              <div className="rounded-xl border border-border/60 bg-card p-3">
-                <div className="flex items-center justify-between">
-                  <div className="text-xs font-semibold">Omzettrend · 30 dagen</div>
-                  <span className="text-[10px] text-success font-medium">+18%</span>
-                </div>
-                <div className="mt-3 flex items-end gap-1 h-20">
-                  {[40, 55, 48, 70, 62, 80, 72, 90, 85, 95, 88, 100].map((h, i) => (
-                    <div key={i} className="flex-1 rounded-sm bg-gradient-to-t from-primary/40 to-accent" style={{ height: `${h}%` }} />
-                  ))}
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-xl border border-border/60 bg-card p-3 text-xs">
-                  <div className="font-semibold mb-2">Top behandelingen</div>
-                  {["Balayage", "Knippen H", "Manicure"].map((s, i) => (
-                    <div key={s} className="flex justify-between text-muted-foreground"><span>{s}</span><span className="text-foreground font-medium">€{[820, 640, 380][i]}</span></div>
-                  ))}
-                </div>
-                <div className="rounded-xl border border-border/60 bg-card p-3 text-xs">
-                  <div className="font-semibold mb-2">Klantenwaarde</div>
-                  {[
-                    { l: "Top 10%", v: "€420" },
-                    { l: "Gemiddeld", v: "€186" },
-                    { l: "Nieuw", v: "€62" },
-                  ].map((r) => (
-                    <div key={r.l} className="flex justify-between text-muted-foreground"><span>{r.l}</span><span className="text-foreground font-medium">{r.v}</span></div>
-                  ))}
-                </div>
-              </div>
-            </div>
+            <Shot src={shotRapportage} alt="Rapportage met omzetcijfers, maanddoel en klantenwaarde" />
           </MockWindow>
         </div>
       </Section>
