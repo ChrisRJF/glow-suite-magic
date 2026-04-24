@@ -36,9 +36,8 @@ const STORAGE_KEY = "glowsuite:booking-progress";
 const availableSlots = ["09:00", "10:00", "11:30", "13:00", "14:30", "16:00", "17:00"];
 const paymentMethods = [
   { id: "ideal", label: "iDEAL | Wero" },
-  { id: "bancontact", label: "Bancontact" },
   { id: "creditcard", label: "Creditcard" },
-  { id: "applepay", label: "Apple Pay", icon: "🍎" },
+  { id: "bancontact", label: "Bancontact" },
 ];
 
 const EMPLOYEES = [
@@ -909,18 +908,18 @@ export default function BookingPage() {
       )}
 
       <div className="flex-1 max-w-2xl mx-auto w-full p-4 sm:p-6 pb-28 sm:pb-6">
-        {/* Progress: 4 steps (Behandeling → Tijd → Gegevens → Bevestiging) */}
+        {/* Conversion progress: Afspraak → Gegevens → Betalen */}
         <div className="mb-3 flex items-center justify-between">
           <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
-            Stap {paymentResult ? 4 : Math.min(step, 3)} van 4
+            Stap {paymentResult ? 3 : step <= 2 ? 1 : 2} van 3
           </span>
           <span className="text-[11px] text-muted-foreground hidden sm:block">
-            {paymentResult ? "Bevestiging" : step === 1 ? "Behandeling" : step === 2 ? "Tijd" : "Gegevens"}
+            {paymentResult ? "Bevestigd" : step <= 2 ? "Afspraak" : "Gegevens en betalen"}
           </span>
         </div>
         <div className="flex items-center gap-2 mb-8">
-          {[1, 2, 3, 4].map((s) => {
-            const currentStep = paymentResult ? 4 : step;
+          {[1, 2, 3].map((s) => {
+            const currentStep = paymentResult ? 3 : step <= 2 ? 1 : 2;
             return (
               <div key={s} className="flex items-center gap-2 flex-1">
                 <div
@@ -932,9 +931,9 @@ export default function BookingPage() {
                   {currentStep > s ? <Check className="w-4 h-4" /> : s}
                 </div>
                 <span className={cn("text-xs font-medium hidden sm:block", currentStep >= s ? "text-foreground" : "text-muted-foreground")}>
-                  {s === 1 ? "Behandeling" : s === 2 ? "Tijd" : s === 3 ? "Gegevens" : "Bevestiging"}
+                  {s === 1 ? "Afspraak" : s === 2 ? "Gegevens" : "Betalen"}
                 </span>
-                {s < 4 && <div className={cn("flex-1 h-px", currentStep > s ? "bg-primary" : "bg-border")} />}
+                {s < 3 && <div className={cn("flex-1 h-px", currentStep > s ? "bg-primary" : "bg-border")} />}
               </div>
             );
           })}
@@ -1339,36 +1338,63 @@ export default function BookingPage() {
             </div>
 
             {paymentDecision?.required && (
-              <div className="mt-6">
-                <label className="text-sm font-medium mb-2 block">Betaalmethode</label>
-                <div className="grid grid-cols-2 gap-2">
+              <div className="mt-6 space-y-3">
+                <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Betaling aan:</p>
+                      <p className="text-base font-bold">{publicData?.salon.name || branding.salon_name || "Glow Studio"}</p>
+                    </div>
+                    <span className="trust-chip shrink-0"><Lock className="w-3 h-3 text-primary" /> Mollie</span>
+                  </div>
+                  <div className="rounded-xl bg-background border border-border p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-sm text-muted-foreground">Totaal te betalen</span>
+                      <span className="text-2xl font-bold tabular-nums">{formatEuro(paymentDecision.amount)}</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-1">Geen verborgen kosten · inclusief veilige verwerking</p>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] text-muted-foreground">
+                    <span className="flex items-center gap-1"><Lock className="w-3 h-3 text-primary" /> Veilig betalen via Mollie</span>
+                    <span className="flex items-center gap-1"><Check className="w-3 h-3 text-primary" /> Afspraak direct bevestigd</span>
+                    <span className="flex items-center gap-1"><Shield className="w-3 h-3 text-primary" /> 1000+ veilige boekingen verwerkt</span>
+                  </div>
+                </div>
+
+                <label className="text-sm font-medium block">Kies je betaalmethode</label>
+                <div className="grid grid-cols-1 gap-2">
                   {paymentMethods.map((method) => (
                     <button
                       key={method.id}
                       onClick={() => setSelectedMethod(method.id)}
                       className={cn(
-                        "min-h-14 p-3 rounded-xl border text-sm font-medium transition-all duration-200 flex items-center gap-3",
-                        selectedMethod === method.id ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-secondary/60"
+                        "min-h-16 p-4 rounded-xl border text-sm font-semibold transition-all duration-200 flex items-center justify-between gap-4 active:scale-[0.99]",
+                        selectedMethod === method.id ? "border-primary bg-primary/10 text-primary shadow-[var(--shadow-sm)]" : "border-border bg-card hover:bg-secondary/60"
                       )}
                     >
-                      {method.icon ? <span>{method.icon}</span> : <PaymentMethodLogo method={method.id} className="h-6 max-w-20" />}
-                      <span className="truncate">{method.label}</span>
+                      <span className="flex items-center gap-3 min-w-0">
+                        <PaymentMethodLogo method={method.id} className="h-6 max-w-28" />
+                        <span className="truncate">{method.label}</span>
+                      </span>
+                      {selectedMethod === method.id && <Check className="w-4 h-4 shrink-0" />}
                     </button>
                   ))}
                 </div>
-                <p className="text-[11px] text-muted-foreground mt-2 flex items-center gap-1">
-                  <Lock className="w-3 h-3" /> Veilig afrekenen via GlowPay · SSL versleuteld
-                </p>
               </div>
             )}
 
             {paymentResult && paymentResult.status === "success" && (
-              <div className="mt-6 p-5 rounded-2xl bg-success/10 border border-success/20 text-center">
-                <div className="w-12 h-12 rounded-full bg-success/20 flex items-center justify-center mx-auto mb-3">
-                  <Check className="w-6 h-6 text-success" />
+              <div className="mt-6 p-5 rounded-2xl bg-success/10 border border-success/20 text-center shadow-[var(--shadow-sm)]">
+                <div className="w-14 h-14 rounded-full bg-success/20 flex items-center justify-center mx-auto mb-3">
+                  <Check className="w-7 h-7 text-success" />
                 </div>
-                <p className="font-semibold text-success text-base">Afspraak bevestigd!</p>
-                <p className="text-xs text-muted-foreground mt-1">Je ontvangt een bevestiging per e-mail.</p>
+                <p className="font-bold text-success text-xl">Boeking bevestigd</p>
+                <p className="text-sm text-muted-foreground mt-1">Je afspraak staat vast. Voeg hem direct toe aan je agenda.</p>
+
+                <div className="mt-4 flex flex-wrap justify-center gap-2">
+                  <span className="trust-chip"><Check className="w-3 h-3 text-primary" /> Afspraak direct bevestigd</span>
+                  <span className="trust-chip"><Lock className="w-3 h-3 text-primary" /> Betaling veilig verwerkt</span>
+                </div>
 
                 <div className="mt-4 grid gap-1.5 text-left text-sm bg-background/60 rounded-xl p-3">
                   <div className="flex justify-between"><span className="text-muted-foreground">Salon</span><span className="font-medium">{confirmation?.salon_name || publicData?.salon.name || branding.salon_name}</span></div>
@@ -1387,7 +1413,7 @@ export default function BookingPage() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 mt-4">
-                  <Button variant="outline" size="sm" onClick={downloadIcs}><CalendarPlus className="w-3.5 h-3.5 mr-1" />Toevoegen aan agenda</Button>
+                  <Button variant="gradient" size="sm" onClick={downloadIcs}><CalendarPlus className="w-3.5 h-3.5 mr-1" />Zet in agenda</Button>
                   <Button variant="outline" size="sm" onClick={shareAppointment}><Share2 className="w-3.5 h-3.5 mr-1" />Delen</Button>
                 </div>
               </div>
