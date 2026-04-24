@@ -164,7 +164,15 @@ Deno.serve(async (req) => {
 
     if (parsed.data.preview_only || (settings as any).is_demo || (settings as any).demo_mode) {
       await logEmail(admin, { ...commonLog, status: parsed.data.preview_only ? "preview" : "demo_skipped" });
-      return json({ success: true, preview_only: true, from: `${salonName} <${fromEmail}>`, subject: rendered.subject });
+      return json({
+        success: true,
+        preview_only: true,
+        from: `${salonName} <${fromEmail}>`,
+        subject: rendered.subject,
+        preview: rendered.preview,
+        html: rendered.html,
+        text: rendered.text,
+      });
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
