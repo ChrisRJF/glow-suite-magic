@@ -48,14 +48,14 @@ const defaultFeatures: MembershipFeatures = {
 };
 const featureLabels: { key: MembershipFeatureKey; label: string; description: string }[] = [
   { key: "white_label_signup", label: "White-label aanmelden", description: "Openbare aanmeldpagina zonder GlowSuite branding." },
-  { key: "member_portal", label: "Ledenportaal", description: "Klanten kunnen abonnements online bekijken en starten." },
+  { key: "member_portal", label: "Ledenportaal", description: "Klanten kunnen abonnementen online bekijken en starten." },
   { key: "credits_system", label: "Creditsysteem", description: "Inbegrepen behandelingen, credits en resets tonen." },
   { key: "auto_renew", label: "Automatisch verlengen", description: "Terugkerende incasso's en volgende betaaldatum tonen." },
   { key: "pause_allowed", label: "Pauzeren toegestaan", description: "Salon kan leden tijdelijk pauzeren of heractiveren." },
   { key: "self_cancel", label: "Zelf opzeggen", description: "Opzegacties worden zichtbaar wanneer dit actief is." },
   { key: "churn_analytics", label: "Churn analytics", description: "Churn, win-back en retentie-rapportage tonen." },
   { key: "trials", label: "Trials", description: "Proefperiodes tonen zodra beschikbaar voor deze salon." },
-  { key: "waitlist", label: "Wachtlijst", description: "Wachtlijst-flow tonen zodra beschikbaar voor abonnements." },
+  { key: "waitlist", label: "Wachtlijst", description: "Wachtlijst-flow tonen zodra beschikbaar voor abonnementen." },
   { key: "referrals", label: "Referrals", description: "Referral-acties tonen zodra beschikbaar voor leden." },
 ];
 
@@ -188,7 +188,7 @@ export default function MembershipsPage() {
     });
     if (!created) return;
     setBusyId(created.id);
-    const { data, error } = await supabase.functions.invoke("create-payment", { body: { amount: Number(plan.price || 0), payment_type: "abonnement", abonnement_id: created.id, customer_id: customer?.id, method: memberForm.method, redirect_url: window.location.href } });
+    const { data, error } = await supabase.functions.invoke("create-payment", { body: { amount: Number(plan.price || 0), payment_type: "membership", membership_id: created.id, customer_id: customer?.id, method: memberForm.method, redirect_url: window.location.href } });
     setBusyId(null);
     if (error || !data?.checkoutUrl) { toast.error((error as any)?.message || data?.error || "Checkout kon niet worden gestart"); return; }
     window.location.href = data.checkoutUrl;
@@ -222,7 +222,7 @@ export default function MembershipsPage() {
   const resetCredits = async () => {
     if (!features.credits_system) return;
     setBusyId("reset");
-    const { error } = await supabase.rpc("reset_due_abonnement_credits" as any, { _user_id: (settings as any)?.user_id });
+    const { error } = await supabase.rpc("reset_due_membership_credits" as any, { _user_id: (settings as any)?.user_id });
     setBusyId(null);
     if (error) { toast.error(error.message); return; }
     toast.success("Credits bijgewerkt");
@@ -255,7 +255,7 @@ export default function MembershipsPage() {
   ].filter((item) => item.show);
 
   return (
-    <AppLayout title="Abonnements" subtitle="Terugkerende omzet, ledenvoordelen en betaalstatussen." actions={<Button variant="gradient" size="sm" onClick={() => { resetPlanForm(); setShowPlanForm(true); }}><Plus className="w-4 h-4" /> Nieuw abonnement</Button>}>
+    <AppLayout title="Abonnementen" subtitle="Terugkerende omzet, ledenvoordelen en betaalstatussen." actions={<Button variant="gradient" size="sm" onClick={() => { resetPlanForm(); setShowPlanForm(true); }}><Plus className="w-4 h-4" /> Nieuw abonnement</Button>}>
       <ConfirmDialog
         open={!!deletePlan}
         onOpenChange={(open) => !open && setDeletePlan(null)}
@@ -302,7 +302,7 @@ export default function MembershipsPage() {
         <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
           {[
             ["overzicht", "Overzicht"],
-            ["plannen", "Abonnements"],
+            ["plannen", "Abonnementen"],
             ["leden", "Leden"],
             ["functies", "Functies"],
             ["rapportage", "Rapportage"],
