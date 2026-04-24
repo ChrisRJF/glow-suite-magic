@@ -35,7 +35,7 @@ type RefundRequest = {
 
 type RefundEvent = { id: string; refund_request_id: string | null; payment_id: string | null; event_type: string; amount: number | null; reason: string | null; notes: string | null; created_at: string };
 
-const REASONS = ["Cancelled appointment", "Duplicate payment", "Customer complaint", "Staff issue", "Booking error", "Membership cancellation", "Goodwill gesture", "Other"];
+const REASONS = ["Cancelled appointment", "Duplicate payment", "Customer complaint", "Staff issue", "Booking error", "Abonnement opzegging", "Goodwill gesture", "Other"];
 const STATUS_STYLES: Record<string, string> = {
   requested: "bg-warning/15 text-warning",
   needs_approval: "bg-warning/15 text-warning",

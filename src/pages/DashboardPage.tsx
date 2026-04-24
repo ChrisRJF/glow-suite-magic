@@ -257,7 +257,7 @@ export default function DashboardPage() {
           <DashboardKpi icon={Calendar} label="Afspraken vandaag" value={String(report.appointments.today)} trend={trendLabel(report.appointments.trend)} trendValue={report.appointments.trend} onClick={() => navigate("/agenda")} />
           <DashboardKpi icon={UserPlus} label="Nieuwe klanten deze week" value={String(report.customers.newThisMonth)} trend={trendLabel(report.customers.trend)} trendValue={report.customers.trend} onClick={() => navigate("/klanten")} />
           <DashboardKpi icon={RefreshCw} label="Herhaalboekingen" value={`${rebookPct}%`} trend="retentie" onClick={() => navigate("/herboekingen")} />
-          <DashboardKpi icon={Crown} label="Membership omzet" value={formatEuro(membershipRevenue)} trend="recurring" onClick={() => navigate("/memberships")} />
+          <DashboardKpi icon={Crown} label="Abonnement omzet" value={formatEuro(membershipRevenue)} trend="recurring" onClick={() => navigate("/abonnementen")} />
           <DashboardKpi icon={AlertTriangle} label="Open acties" value={String(openActions)} trend="vandaag" onClick={() => navigate("/acties")} />
 
           {/* No-show risico */}

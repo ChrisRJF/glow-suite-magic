@@ -21,8 +21,8 @@ export function useCrud(table: TableName) {
     if (table === "user_roles") requirePermission(roles, "settings:team", "Alleen eigenaren kunnen gebruikersrechten wijzigen.");
     if (table === "settings") requirePermission(roles, "settings:business", "Je hebt geen rechten om deze instellingen te wijzigen.");
     if (table === "mollie_connections") requirePermission(roles, "mollie:manage", "Alleen eigenaren en beheerders kunnen Mollie beheren.");
-    if (["membership_plans", "customer_memberships", "membership_usage"].includes(table) && action !== "delete") requirePermission(roles, "memberships:manage", "Alleen beheerders kunnen memberships beheren.");
-    if (["membership_plans", "customer_memberships", "membership_usage"].includes(table) && action === "delete") requirePermission(roles, "memberships:delete", "Alleen eigenaren kunnen memberships verwijderen.");
+    if (["membership_plans", "customer_memberships", "membership_usage"].includes(table) && action !== "delete") requirePermission(roles, "memberships:manage", "Alleen beheerders kunnen abonnementen beheren.");
+    if (["membership_plans", "customer_memberships", "membership_usage"].includes(table) && action === "delete") requirePermission(roles, "memberships:delete", "Alleen eigenaren kunnen abonnementen verwijderen.");
   };
 
   const insert = async (data: Record<string, any>) => {
