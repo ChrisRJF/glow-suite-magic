@@ -163,8 +163,8 @@ function template(key: TemplateKey, data: Record<string, unknown>, salonName: st
     const intro = `${firstName ? `${firstName}, dit` : "Dit"} is een vriendelijke herinnering aan je afspraak bij ${salonName}.`;
     const rows = infoRows([["Datum", nlDate(data.appointment_date || data.date)], ["Tijd", data.time || data.start_time], ["Behandeling", data.service_name], ["Medewerker", data.employee || data.staff_name], ["Locatie", data.location || data.address]]);
     const calendarLink = calendarUrl ? `<a href="${escapeHtml(calendarUrl)}" style="display:block;background:#ffffff;color:${secondary};text-decoration:none;border:1px solid #E9DFF7;border-radius:14px;padding:13px 18px;font-size:14px;font-weight:750;text-align:center;margin:0 0 16px;">Toevoegen aan kalender</a>` : "";
-    const body = rows + calendarLink + noteBlock("Voorbereiding", [data.preparation_tip || "Kom liefst een paar minuten op tijd.", "Laat het ons weten als je vragen hebt of verhinderd bent.", data.aftercare_note]);
-    return { subject: `${salonName} · herinnering voor ${nlDateShort(data.appointment_date || data.date) || "je afspraak"}`, preview: intro, html: shell({ ...base, title, intro, body, primaryAction: { label: "Route & contact", url: contactUrl }, secondaryAction: { label: "Afspraak beheren", url: manageUrl } }), text: `${title}\n${intro}\n${nlDate(data.appointment_date || data.date)} ${String(data.time || data.start_time || "")}` };
+    const body = rows + calendarLink + noteBlock("Voor je afspraak", [data.preparation_tip || "Kom liefst een paar minuten op tijd.", "Ben je verhinderd? Beheer je afspraak op tijd.", data.aftercare_note]);
+    return { subject: `${salonName} · herinnering voor ${nlDateShort(data.appointment_date || data.date) || "je afspraak"}`, preview: intro, html: shell({ ...base, title, intro, body, primaryAction: { label: "Afspraak beheren", url: manageUrl }, secondaryAction: { label: "Route bekijken", url: contactUrl } }), text: `${title}\n${intro}\n${nlDate(data.appointment_date || data.date)} ${String(data.time || data.start_time || "")}` };
   }
 
   if (key === "booking_cancellation") {
@@ -172,22 +172,22 @@ function template(key: TemplateKey, data: Record<string, unknown>, salonName: st
     const intro = `We bevestigen dat je afspraak bij ${salonName} is geannuleerd. Je bent altijd welkom om een nieuw moment te kiezen.`;
     const rows = infoRows([["Status", data.status || "Geannuleerd"], ["Behandeling", data.service_name], ["Datum", nlDate(data.appointment_date || data.date)], ["Tijd", data.time || data.start_time], ["Referentie", data.reference], ["Support", supportEmail]]);
     const body = rows + noteBlock("Hulp nodig?", ["Neem gerust contact op als dit niet klopt.", supportEmail ? `Je kunt ons bereiken via ${supportEmail}.` : "Ons team helpt je graag met het plannen van een nieuw moment."]);
-    return { subject: `${salonName} · annulering bevestigd`, preview: intro, html: shell({ ...base, title, intro, body, primaryAction: { label: "Nieuwe afspraak maken", url: firstFilled(data.new_booking_url, data.booking_url, manageUrl) }, secondaryAction: { label: "Contact opnemen", url: contactUrl } }), text: `${title}\n${intro}\nStatus: geannuleerd` };
+    return { subject: `${salonName} · annulering bevestigd`, preview: intro, html: shell({ ...base, title, intro, body, primaryAction: { label: "Nieuwe afspraak maken", url: absoluteUrl(data.new_booking_url, "/boeken", publicBaseUrl) }, secondaryAction: { label: "Route bekijken", url: contactUrl } }), text: `${title}\n${intro}\nStatus: geannuleerd` };
   }
 
   if (key === "membership_notification") {
-    const title = "Welkom als member";
-    const intro = `${firstName ? `${firstName}, welkom` : "Welkom"} bij de members van ${salonName}. Je voordelen staan voor je klaar.`;
+    const title = "Welkom bij je abonnement";
+    const intro = `${firstName ? `${firstName}, welkom` : "Welkom"} bij je abonnement van ${salonName}. Je voordelen staan voor je klaar.`;
     const benefits = Array.isArray(data.benefits) ? data.benefits : [data.benefit_1, data.benefit_2, data.benefit_3];
-    const rows = infoRows([["Membership", data.membership_name], ["Status", data.status || "Actief"], ["Credits", data.credits || data.credits_status], ["Volgende incasso", nlDate(data.next_payment_at)], ["Maandbedrag", data.amount ? formatEuro(data.amount) : undefined]]);
+    const rows = infoRows([["Abonnement", data.membership_name], ["Status", data.status || "Actief"], ["Credits", data.credits || data.credits_status], ["Volgende incasso", nlDate(data.next_payment_at)], ["Maandbedrag", data.amount ? formatEuro(data.amount) : undefined]]);
     const body = rows + noteBlock("Jouw voordelen", benefits);
-    return { subject: `${salonName} · welkom bij je membership`, preview: intro, html: shell({ ...base, title, intro, body, primaryAction: { label: "Membership beheren", url: firstFilled(data.membership_url, data.manage_membership_url, manageUrl) } }), text: `${title}\n${intro}\nMembership: ${String(data.membership_name || "")}` };
+    return { subject: `${salonName} · welkom bij je abonnement`, preview: intro, html: shell({ ...base, title, intro, body, primaryAction: { label: "Abonnement beheren", url: membershipUrl }, secondaryAction: { label: "Nieuwe afspraak boeken", url: bookingUrl } }), text: `${title}\n${intro}\nAbonnement: ${String(data.membership_name || "")}` };
   }
 
   const title = "Dank je wel voor je bezoek";
   const intro = `${firstName ? `${firstName}, bedankt` : "Bedankt"} voor je bezoek aan ${salonName}. We hopen dat je tevreden bent met je behandeling.`;
-  const body = infoRows([["Behandeling", data.service_name], ["Datum", nlDate(data.appointment_date || data.completed_at || data.date)], ["Medewerker", data.employee || data.staff_name]]) + `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.65;">Je review helpt ons om de salonervaring nog beter te maken en helpt nieuwe klanten kiezen met vertrouwen.</p>`;
-  return { subject: `${salonName} · hoe was je ervaring?`, preview: intro, html: shell({ ...base, title, intro, body, primaryAction: { label: "Review achterlaten", url: firstFilled(data.review_url, data.google_review_url) }, secondaryAction: { label: "Opnieuw boeken", url: firstFilled(data.rebook_url, data.booking_url) } }), text: `${title}\n${intro}` };
+  const body = infoRows([["Behandeling", data.service_name], ["Datum", nlDate(data.appointment_date || data.completed_at || data.date)], ["Medewerker", data.employee || data.staff_name]]) + `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.65;">Met je review help je ons de salonervaring nog beter te maken. Ook help je nieuwe klanten kiezen met vertrouwen.</p>`;
+  return { subject: `${salonName} · hoe was je ervaring?`, preview: intro, html: shell({ ...base, title, intro, body, primaryAction: { label: "Review schrijven", url: reviewUrl }, secondaryAction: { label: "Nieuwe afspraak boeken", url: absoluteUrl(data.rebook_url, "/boeken", publicBaseUrl) } }), text: `${title}\n${intro}` };
 }
 
 async function logEmail(admin: ReturnType<typeof createClient>, row: Record<string, unknown>) {
