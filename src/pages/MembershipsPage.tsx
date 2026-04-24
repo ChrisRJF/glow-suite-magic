@@ -195,6 +195,24 @@ export default function MembershipsPage() {
     if (result) { toast.success(message); refetchMemberships(); }
   };
 
+  const activeMembersForPlan = (planId: string) => activeMembers.filter((member: any) => member.membership_plan_id === planId).length;
+
+  const updatePlanStatus = async (planId: string, isActive: boolean, message: string) => {
+    setBusyId(planId);
+    const result = await planCrud.update(planId, { is_active: isActive });
+    setBusyId(null);
+    if (result) { toast.success(message); refetchPlans(); }
+  };
+
+  const removePlan = async () => {
+    if (!deletePlan) return;
+    if (activeMembersForPlan(deletePlan.id) > 0) { toast.error("Verwijderen kan alleen zonder actieve leden"); return; }
+    setBusyId(deletePlan.id);
+    const removed = await planCrud.remove(deletePlan.id);
+    setBusyId(null);
+    if (removed) { toast.success("Membership verwijderd"); setDeletePlan(null); setShowPlanForm(false); resetPlanForm(); refetchPlans(); }
+  };
+
   const resetCredits = async () => {
     if (!features.credits_system) return;
     setBusyId("reset");
