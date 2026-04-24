@@ -38,6 +38,19 @@ function renderTemplate(body: string, vars: Record<string, string>) {
   return body.replace(/{{\s*([a-zA-Z0-9_]+)\s*}}/g, (_, key) => vars[key] ?? "");
 }
 
+async function sendWhiteLabelEmail(admin: ReturnType<typeof createClient>, body: Record<string, unknown>) {
+  const { error } = await admin.functions.invoke("send-white-label-email", { body });
+  if (error) console.error("White-label email failed", error.message);
+}
+
+function emailTemplateForTrigger(trigger: string) {
+  if (trigger.includes("reminder")) return "appointment_reminder";
+  if (trigger.includes("review") || trigger.includes("feedback")) return "review_request";
+  if (trigger.includes("membership") || trigger.includes("credits") || trigger.includes("renewal") || trigger.includes("trial")) return "membership_notification";
+  if (trigger.includes("cancel")) return "booking_cancellation";
+  return "appointment_reminder";
+}
+
 function providerAvailable(channel: string, settings: any) {
   if (channel === "email") return Boolean(settings?.email_enabled);
   if (channel === "whatsapp") return Boolean(settings?.whatsapp_enabled);
@@ -81,7 +94,21 @@ async function insertRun(admin: any, rule: Rule, settings: any, candidate: any, 
     status: providerAvailable(channel, settings) ? "scheduled" : "skipped",
     scheduled_for: scheduledFor.toISOString(),
     idempotency_key: idempotencyKey,
-    payload: { message: body, reason, action_type: rule.action_type },
+    payload: {
+      message: body,
+      reason,
+      action_type: rule.action_type,
+      salon_name: salonName,
+      salon_slug: settings?.public_slug || salonName,
+      customer_name: customer?.name || "",
+      service_name: candidate.service?.name || "",
+      appointment_date: candidate.appointment?.appointment_date || "",
+      time: candidate.appointment?.start_time || "",
+      employee: candidate.appointment?.employee_id || "",
+      membership_name: candidate.plan?.name || "",
+      credits: candidate.membership?.credits_available ?? "",
+      template_key: emailTemplateForTrigger(rule.trigger_type),
+    },
     error_message: providerAvailable(channel, settings) ? null : "Provider vereist",
     is_demo: rule.is_demo,
   }).select("id, status").single();
@@ -166,7 +193,7 @@ Deno.serve(async (req) => {
     let duplicates = 0;
 
     for (const rule of (rules || []) as Rule[]) {
-      const { data: settings } = await admin.from("settings").select("salon_name, timezone, email_enabled, whatsapp_enabled").eq("user_id", rule.user_id).eq("is_demo", rule.is_demo).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      const { data: settings } = await admin.from("settings").select("salon_name, public_slug, timezone, email_enabled, whatsapp_enabled").eq("user_id", rule.user_id).eq("is_demo", rule.is_demo).order("created_at", { ascending: false }).limit(1).maybeSingle();
       const candidates = await candidatesForRule(admin, rule);
       for (const candidate of candidates) {
         const { data: preferences } = candidate.customer?.id ? await admin.from("customer_message_preferences").select("*").eq("user_id", rule.user_id).eq("customer_id", candidate.customer.id).maybeSingle() : { data: null };
@@ -177,8 +204,21 @@ Deno.serve(async (req) => {
       }
     }
 
-    const { data: dueRuns } = await admin.from("automation_runs").select("id, user_id, automation_rule_id").eq("status", "scheduled").lte("scheduled_for", new Date().toISOString()).limit(100);
+    const { data: dueRuns } = await admin.from("automation_runs").select("id, user_id, automation_rule_id, channel, recipient, idempotency_key, payload").eq("status", "scheduled").lte("scheduled_for", new Date().toISOString()).limit(100);
     for (const run of dueRuns || []) {
+      if (run.channel === "email" && run.recipient) {
+        const payload = run.payload || {};
+        await sendWhiteLabelEmail(admin, {
+          user_id: run.user_id,
+          salon_slug: payload.salon_slug,
+          salon_name: payload.salon_name,
+          recipient_email: run.recipient,
+          recipient_name: payload.customer_name,
+          template_key: payload.template_key || "appointment_reminder",
+          idempotency_key: `automation-${run.id}-${run.idempotency_key}`,
+          template_data: payload,
+        });
+      }
       await admin.from("automation_runs").update({ status: "sent", processed_at: new Date().toISOString() }).eq("id", run.id);
       await admin.from("automation_rules").update({ last_triggered_at: new Date().toISOString() }).eq("id", run.automation_rule_id);
       await admin.from("automation_logs").insert({ user_id: run.user_id, automation_rule_id: run.automation_rule_id, automation_run_id: run.id, event_type: "message_sent", status: "sent", message: "Bericht verwerkt door automation engine", is_demo: false });
