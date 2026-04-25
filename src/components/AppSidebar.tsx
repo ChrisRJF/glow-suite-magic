@@ -111,9 +111,10 @@ export function AppSidebar() {
 
       <aside
         className={cn(
-          "fixed lg:sticky top-0 left-0 z-50 h-screen w-[260px] flex flex-col bg-card/60 backdrop-blur-xl border-r border-border transition-transform duration-300 overflow-y-auto",
+          "fixed lg:sticky top-0 left-0 z-50 h-[100dvh] w-[86vw] max-w-[300px] lg:w-[260px] flex flex-col bg-card/95 lg:bg-card/60 backdrop-blur-xl border-r border-border transition-transform duration-300 overflow-y-auto overscroll-contain",
           mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
+        style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         <button
           onClick={() => setMobileOpen(false)}
