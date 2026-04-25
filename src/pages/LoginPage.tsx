@@ -3,11 +3,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import logoFull from "@/assets/logo-full.png";
 import { toast } from "sonner";
-import { Play, Loader2 } from "lucide-react";
+import { Play, Loader2, Check, Sparkles, ShieldCheck, Clock } from "lucide-react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [salonName, setSalonName] = useState("");
+  const [fullName, setFullName] = useState("");
   const [isSignUp, setIsSignUp] = useState(() => {
     if (typeof window === "undefined") return false;
     return new URLSearchParams(window.location.search).get("mode") === "signup";
