@@ -129,9 +129,49 @@
     @apply border-border;
   }
 
+  html, body {
+    /* Prevent any rogue horizontal scroll on mobile */
+    overflow-x: hidden;
+    max-width: 100%;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
   body {
     @apply bg-background text-foreground antialiased;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Avoid iOS auto-zoom on focus by ensuring inputs are at least 16px on small screens */
+  @media (max-width: 640px) {
+    input:not([type="checkbox"]):not([type="radio"]),
+    select,
+    textarea {
+      font-size: 16px;
+    }
+
+    /* Minimum 44px tap targets on touch devices */
+    button,
+    [role="button"],
+    a.btn,
+    .tap-target {
+      min-height: 44px;
+    }
+  }
+
+  /* Honor reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 

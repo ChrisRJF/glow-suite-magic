@@ -120,10 +120,16 @@ export default function LoginPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4 sm:p-6">
+    <div
+      className="min-h-[100dvh] bg-background flex items-start sm:items-center justify-center p-4 sm:p-6"
+      style={{
+        paddingTop: "max(1rem, env(safe-area-inset-top))",
+        paddingBottom: "max(1rem, env(safe-area-inset-bottom))",
+      }}
+    >
       <div className="w-full max-w-md">
-        <div className="flex flex-col items-center mb-6 sm:mb-8">
-          <img src={logoFull} alt="GlowSuite" className="h-11 sm:h-12 w-auto mb-3" />
+        <div className="flex flex-col items-center mb-5 sm:mb-8">
+          <img src={logoFull} alt="GlowSuite" className="h-10 sm:h-12 w-auto mb-2 sm:mb-3" />
           <p className="text-sm text-muted-foreground">Salon business system</p>
         </div>
 
@@ -139,11 +145,11 @@ export default function LoginPage() {
                 className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                 placeholder="jouw@email.nl" />
             </div>
-            <Button type="submit" variant="gradient" className="w-full" disabled={forgotLoading}>
+            <Button type="submit" variant="gradient" className="w-full h-11" disabled={forgotLoading}>
               {forgotLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {forgotLoading ? "Versturen..." : "Reset-link versturen"}
             </Button>
-            <button type="button" onClick={() => setForgotOpen(false)} className="text-xs text-primary hover:underline w-full text-center">
+            <button type="button" onClick={() => setForgotOpen(false)} className="text-xs text-primary hover:underline w-full text-center py-2">
               Terug naar inloggen
             </button>
           </form>
@@ -232,11 +238,11 @@ export default function LoginPage() {
                 className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                 placeholder="••••••••" autoComplete="current-password" />
             </div>
-            <Button type="submit" variant="gradient" className="w-full" disabled={loading}>
+            <Button type="submit" variant="gradient" className="w-full h-11" disabled={loading}>
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {loading ? "Even geduld..." : "Inloggen"}
             </Button>
-            <button type="button" onClick={() => setForgotOpen(true)} className="text-xs text-primary hover:underline w-full text-center">
+            <button type="button" onClick={() => setForgotOpen(true)} className="text-xs text-primary hover:underline w-full text-center py-2">
               Wachtwoord vergeten?
             </button>
             <p className="text-xs text-center text-muted-foreground">
@@ -253,7 +259,7 @@ export default function LoginPage() {
             <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
             <div className="relative flex justify-center"><span className="bg-background px-3 text-xs text-muted-foreground">of</span></div>
           </div>
-          <Button variant="outline" className="w-full border-primary/30 hover:bg-primary/5" onClick={handleDemoLogin} disabled={demoLoading}>
+          <Button variant="outline" className="w-full h-11 border-primary/30 hover:bg-primary/5" onClick={handleDemoLogin} disabled={demoLoading}>
             {demoLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
             {demoLoading ? "Demo laden..." : "Bekijk live demo"}
           </Button>
