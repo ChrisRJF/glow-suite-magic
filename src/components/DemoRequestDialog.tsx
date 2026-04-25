@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle2, Loader2, Mail, PlayCircle, Clock, ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -105,22 +105,69 @@ export function DemoRequestDialog({ open, onOpenChange, source = "landing" }: Pr
         if (!v) setTimeout(reset, 200);
       }}
     >
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         {done ? (
-          <div className="text-center py-6">
-            <div className="mx-auto w-14 h-14 rounded-full bg-success/10 text-success flex items-center justify-center mb-4">
-              <CheckCircle2 className="w-7 h-7" />
+          <div className="py-2">
+            <div className="text-center">
+              <div className="mx-auto w-16 h-16 rounded-full bg-success/10 text-success flex items-center justify-center mb-4 ring-8 ring-success/5">
+                <CheckCircle2 className="w-8 h-8" />
+              </div>
+              <DialogTitle className="text-2xl">Bedankt {form.name ? form.name.split(" ")[0] : ""}! 🎉</DialogTitle>
+              <DialogDescription className="mt-2 text-base">
+                Je aanvraag is binnen. Een GlowSuite-specialist neemt persoonlijk contact op.
+              </DialogDescription>
+
+              <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium">
+                <Clock className="w-4 h-4" />
+                We bellen of mailen binnen 1 werkdag
+              </div>
             </div>
-            <DialogTitle className="text-2xl">Bedankt voor je aanvraag!</DialogTitle>
-            <DialogDescription className="mt-2 text-base">
-              We nemen binnen 1 werkdag contact met je op om een demo in te plannen.
-              In de tussentijd kun je vrijblijvend rondkijken in de live demo-omgeving.
-            </DialogDescription>
-            <div className="mt-6 flex gap-2 justify-center">
-              <Button variant="outline" onClick={() => onOpenChange(false)}>Sluiten</Button>
-              <Button asChild>
-                <a href="/login?demo=1">Open demo</a>
-              </Button>
+
+            <div className="mt-6 space-y-3">
+              <p className="text-sm font-semibold text-foreground">Wat gebeurt er nu?</p>
+              <ol className="space-y-3">
+                <li className="flex gap-3 items-start p-3 rounded-lg border bg-card">
+                  <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">1</div>
+                  <div className="text-sm">
+                    <div className="font-medium">Check je inbox</div>
+                    <div className="text-muted-foreground">We sturen direct een bevestiging naar <span className="font-medium text-foreground">{form.email}</span></div>
+                  </div>
+                </li>
+                <li className="flex gap-3 items-start p-3 rounded-lg border bg-card">
+                  <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">2</div>
+                  <div className="text-sm">
+                    <div className="font-medium">Persoonlijk gesprek (15 min)</div>
+                    <div className="text-muted-foreground">We laten GlowSuite zien op basis van jouw salon en beantwoorden je vragen.</div>
+                  </div>
+                </li>
+                <li className="flex gap-3 items-start p-3 rounded-lg border bg-card">
+                  <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">3</div>
+                  <div className="text-sm">
+                    <div className="font-medium">Gratis proefperiode</div>
+                    <div className="text-muted-foreground">Bij interesse krijg je direct toegang tot je eigen omgeving.</div>
+                  </div>
+                </li>
+              </ol>
+            </div>
+
+            <div className="mt-6 p-4 rounded-lg bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20">
+              <div className="flex items-start gap-3">
+                <PlayCircle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <div className="font-semibold text-sm">Niet wachten? Bekijk de demo nu</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    Klik direct door naar de live demo-omgeving met echte voorbeelddata.
+                  </div>
+                </div>
+              </div>
+              <div className="mt-3 flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
+                <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>Sluiten</Button>
+                <Button asChild size="sm" variant="gradient">
+                  <a href="/login?demo=1">
+                    Open live demo <ArrowRight className="w-4 h-4 ml-1" />
+                  </a>
+                </Button>
+              </div>
             </div>
           </div>
         ) : (
