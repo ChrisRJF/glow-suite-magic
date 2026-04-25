@@ -70,6 +70,63 @@ function Shot({ src, alt }: { src: string; alt: string }) {
   );
 }
 
+/**
+ * Realistic iPhone frame, pure CSS. Wraps any image/screenshot.
+ * Use a portrait-friendly screenshot (will be cover-cropped).
+ */
+function IPhoneFrame({
+  src,
+  alt,
+  caption,
+}: {
+  src: string;
+  alt: string;
+  caption?: string;
+}) {
+  return (
+    <div className="flex flex-col items-center">
+      <div
+        className="relative mx-auto"
+        style={{
+          width: "min(280px, 78vw)",
+          aspectRatio: "9 / 19",
+        }}
+      >
+        {/* Outer frame */}
+        <div
+          className="absolute inset-0 rounded-[2.6rem] bg-[#0b0b0d] p-[10px]"
+          style={{
+            boxShadow:
+              "0 30px 60px -20px hsl(var(--primary) / 0.25), 0 8px 24px -8px rgba(0,0,0,0.35), inset 0 0 0 1.5px rgba(255,255,255,0.08)",
+          }}
+        >
+          {/* Screen */}
+          <div className="relative h-full w-full overflow-hidden rounded-[2.1rem] bg-background">
+            <img
+              src={src}
+              alt={alt}
+              loading="lazy"
+              draggable={false}
+              className="absolute inset-0 h-full w-full object-cover object-top select-none"
+            />
+            {/* Dynamic island */}
+            <div className="absolute top-2.5 left-1/2 -translate-x-1/2 h-6 w-[38%] rounded-full bg-black z-10" />
+          </div>
+        </div>
+        {/* Side buttons */}
+        <span className="absolute -left-[3px] top-[22%] h-10 w-[3px] rounded-l-md bg-[#1a1a1c]" />
+        <span className="absolute -left-[3px] top-[34%] h-14 w-[3px] rounded-l-md bg-[#1a1a1c]" />
+        <span className="absolute -right-[3px] top-[28%] h-16 w-[3px] rounded-r-md bg-[#1a1a1c]" />
+      </div>
+      {caption && (
+        <div className="mt-4 text-xs sm:text-sm text-muted-foreground text-center max-w-[16rem]">
+          {caption}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CTAButton({
   to, variant = "gradient", size = "lg", children, className = "",
 }: {
