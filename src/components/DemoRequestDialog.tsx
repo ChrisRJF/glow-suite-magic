@@ -105,7 +105,7 @@ export function DemoRequestDialog({ open, onOpenChange, source = "landing" }: Pr
         if (!v) setTimeout(reset, 200);
       }}
     >
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         {done ? (
           <div className="py-2">
             <div className="text-center">
