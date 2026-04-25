@@ -199,6 +199,13 @@ export default function PricingPage() {
         onOpenChange={setDemoOpen}
         source={demoSource}
       />
+      <DirectCheckoutDialog
+        open={checkoutOpen}
+        onOpenChange={setCheckoutOpen}
+        planSlug={checkoutPlan?.slug ?? null}
+        planName={checkoutPlan?.name}
+        planPrice={checkoutPlan?.price}
+      />
     </div>
   );
 }
