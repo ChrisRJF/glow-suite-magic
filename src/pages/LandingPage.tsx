@@ -368,7 +368,7 @@ export default function LandingPage() {
           }}
         />
         <div className="text-center max-w-3xl mx-auto">
-          <Eyebrow icon={Brain}>AI-powered salon platform</Eyebrow>
+          <Eyebrow icon={Brain}>Slim salonplatform met AI</Eyebrow>
           <h1 className="text-4xl sm:text-6xl font-bold tracking-tight leading-[1.05]">
             Laat je salon groeien op{" "}
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--accent))]">
@@ -376,7 +376,7 @@ export default function LandingPage() {
             </span>
           </h1>
           <p className="mt-6 text-lg sm:text-xl text-muted-foreground leading-relaxed">
-            GlowSuite automatiseert boekingen, betalingen, herinneringen, klantopvolging en AI-gestuurde groei — zodat jij meer omzet draait met minder stress.
+            GlowSuite automatiseert boekingen, betalingen, klantopvolging en slimme AI taken. Zo verdien je meer en houd je meer tijd over.
           </p>
           <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 max-w-md sm:max-w-none mx-auto">
             <CTADemoRequest onClick={() => openDemo("hero-start")} variant="gradient">
@@ -385,7 +385,7 @@ export default function LandingPage() {
             <CTADemoRequest onClick={() => openDemo("hero-demo")}>Vraag demo aan</CTADemoRequest>
           </div>
           <p className="mt-5 text-sm text-muted-foreground">
-            Binnen minuten live • Geen technische kennis nodig • Gebouwd voor salons
+            Binnen enkele minuten live • Geen technische kennis nodig • Gemaakt voor salons
           </p>
         </div>
 
