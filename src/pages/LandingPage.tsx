@@ -10,7 +10,7 @@ import {
   Zap, Globe, Shield,
   CheckCircle2, ArrowRight, Menu, X, Star, Clock, TrendingUp,
   Smartphone, Lock, Brain, Bot, Wand2, LineChart, Bell, Target,
-  AlertTriangle,
+  AlertTriangle, MessageCircle, UserCheck, MoveRight, Heart, Coins, ShieldCheck,
 } from "lucide-react";
 import logoFull from "@/assets/logo-full.png";
 import logoIcon from "@/assets/logo-icon.png";
@@ -67,6 +67,63 @@ function Shot({ src, alt }: { src: string; alt: string }) {
       className="block w-full h-auto select-none"
       draggable={false}
     />
+  );
+}
+
+/**
+ * Realistic iPhone frame, pure CSS. Wraps any image/screenshot.
+ * Use a portrait-friendly screenshot (will be cover-cropped).
+ */
+function IPhoneFrame({
+  src,
+  alt,
+  caption,
+}: {
+  src: string;
+  alt: string;
+  caption?: string;
+}) {
+  return (
+    <div className="flex flex-col items-center">
+      <div
+        className="relative mx-auto"
+        style={{
+          width: "min(280px, 78vw)",
+          aspectRatio: "9 / 19",
+        }}
+      >
+        {/* Outer frame */}
+        <div
+          className="absolute inset-0 rounded-[2.6rem] bg-[#0b0b0d] p-[10px]"
+          style={{
+            boxShadow:
+              "0 30px 60px -20px hsl(var(--primary) / 0.25), 0 8px 24px -8px rgba(0,0,0,0.35), inset 0 0 0 1.5px rgba(255,255,255,0.08)",
+          }}
+        >
+          {/* Screen */}
+          <div className="relative h-full w-full overflow-hidden rounded-[2.1rem] bg-background">
+            <img
+              src={src}
+              alt={alt}
+              loading="lazy"
+              draggable={false}
+              className="absolute inset-0 h-full w-full object-cover object-top select-none"
+            />
+            {/* Dynamic island */}
+            <div className="absolute top-2.5 left-1/2 -translate-x-1/2 h-6 w-[38%] rounded-full bg-black z-10" />
+          </div>
+        </div>
+        {/* Side buttons */}
+        <span className="absolute -left-[3px] top-[22%] h-10 w-[3px] rounded-l-md bg-[#1a1a1c]" />
+        <span className="absolute -left-[3px] top-[34%] h-14 w-[3px] rounded-l-md bg-[#1a1a1c]" />
+        <span className="absolute -right-[3px] top-[28%] h-16 w-[3px] rounded-r-md bg-[#1a1a1c]" />
+      </div>
+      {caption && (
+        <div className="mt-4 text-xs sm:text-sm text-muted-foreground text-center max-w-[16rem]">
+          {caption}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -311,7 +368,7 @@ export default function LandingPage() {
           }}
         />
         <div className="text-center max-w-3xl mx-auto">
-          <Eyebrow icon={Brain}>AI-powered salon platform</Eyebrow>
+          <Eyebrow icon={Brain}>Slim salonplatform met AI</Eyebrow>
           <h1 className="text-4xl sm:text-6xl font-bold tracking-tight leading-[1.05]">
             Laat je salon groeien op{" "}
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--accent))]">
@@ -319,7 +376,7 @@ export default function LandingPage() {
             </span>
           </h1>
           <p className="mt-6 text-lg sm:text-xl text-muted-foreground leading-relaxed">
-            GlowSuite automatiseert boekingen, betalingen, herinneringen, klantopvolging en AI-gestuurde groei — zodat jij meer omzet draait met minder stress.
+            GlowSuite automatiseert boekingen, betalingen, klantopvolging en slimme AI taken. Zo verdien je meer en houd je meer tijd over.
           </p>
           <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 max-w-md sm:max-w-none mx-auto">
             <CTADemoRequest onClick={() => openDemo("hero-start")} variant="gradient">
@@ -328,7 +385,7 @@ export default function LandingPage() {
             <CTADemoRequest onClick={() => openDemo("hero-demo")}>Vraag demo aan</CTADemoRequest>
           </div>
           <p className="mt-5 text-sm text-muted-foreground">
-            Binnen minuten live • Geen technische kennis nodig • Gebouwd voor salons
+            Binnen enkele minuten live • Geen technische kennis nodig • Gemaakt voor salons
           </p>
         </div>
 
@@ -355,12 +412,33 @@ export default function LandingPage() {
         </div>
       </Section>
 
-      {/* PROBLEM */}
+      {/* === IPHONE SHOWCASE === */}
+      <Section className="border-t border-border/60">
+        <div className="max-w-3xl mx-auto text-center">
+          <Eyebrow icon={Smartphone}>Mobiel gemaakt</Eyebrow>
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+            GlowSuite werkt overal. Ook in je broekzak.
+          </h2>
+          <p className="mt-4 text-muted-foreground text-lg">
+            Beheer je salon vanaf je telefoon. Snel, helder en altijd bij de hand.
+          </p>
+        </div>
+        <div className="mt-14 grid grid-cols-2 sm:grid-cols-3 gap-y-12 gap-x-4 sm:gap-x-8">
+          <IPhoneFrame src={shotAgenda} alt="Online boeken via mobiel" caption="Online boeken" />
+          <IPhoneFrame src={shotDashboard} alt="Agenda op je telefoon" caption="Agenda" />
+          <IPhoneFrame src={shotBetalingen} alt="Betalingen via Mollie" caption="Betalingen" />
+          <IPhoneFrame src={shotAbonnementen} alt="Klantprofiel met geschiedenis" caption="Klantprofiel" />
+          <IPhoneFrame src={shotRapportage} alt="Dashboard met omzet en boekingen" caption="Dashboard" />
+          <IPhoneFrame src={shotAgenda} alt="Slimme herinneringen via WhatsApp en e-mail" caption="Herinneringen" />
+        </div>
+      </Section>
+
+
       <Section id="voor-wie" className="border-t border-border/60">
         <div className="max-w-2xl">
           <Eyebrow icon={AlertTriangle}>Herken je dit?</Eyebrow>
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-            Je salon draait hard. Maar oude software houdt je klein.
+            Jouw salon verdient software die met je meegroeit.
           </h2>
           <p className="mt-4 text-muted-foreground text-lg">
             De meeste salons verliezen elke week omzet door dingen die slimmer geregeld kunnen worden.
@@ -494,6 +572,108 @@ export default function LandingPage() {
                 </div>
                 <h3 className="font-semibold text-lg leading-tight">{b.t}</h3>
                 <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{b.d}</p>
+              </Card>
+            );
+          })}
+        </div>
+      </Section>
+
+      {/* === MIGRATION TRUST === */}
+      <Section className="border-y border-border/60">
+        <div className="grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
+          <div>
+            <Eyebrow icon={MoveRight}>Overstappen</Eyebrow>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+              Stap eenvoudig over van je oude systeem.
+            </h2>
+            <p className="mt-4 text-muted-foreground text-lg">
+              Zet klanten, afspraken en gegevens met één klik over naar GlowSuite. Geen gedoe. Geen verlies van data.
+            </p>
+            <ul className="mt-6 grid sm:grid-cols-2 gap-2.5 text-sm">
+              {[
+                "Snelle overstap",
+                "Begeleiding mogelijk",
+                "Veilig overzetten",
+                "Geen technische kennis nodig",
+                "Direct verder werken",
+                "Hulp bij eerste week",
+              ].map((i) => (
+                <li key={i} className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
+                  {i}
+                </li>
+              ))}
+            </ul>
+            <div className="mt-7">
+              <CTADemoRequest onClick={() => openDemo("migration-help")} variant="gradient">
+                Vraag hulp bij overstappen
+              </CTADemoRequest>
+            </div>
+          </div>
+          <div className="relative">
+            <div className="rounded-3xl border border-border/60 bg-card p-6 sm:p-8 shadow-[0_24px_60px_-30px_hsl(var(--primary)/0.3)]">
+              <div className="flex items-center gap-3 mb-5">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="font-semibold">Begeleide overstap</div>
+                  <div className="text-xs text-muted-foreground">Wij regelen het samen met je mee</div>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {[
+                  { t: "Klanten importeren", d: "Vanuit je huidige systeem of uit een Excel." },
+                  { t: "Afspraken overzetten", d: "Bestaande boekingen blijven gewoon staan." },
+                  { t: "Online boeken activeren", d: "Je boekingspagina staat dezelfde dag live." },
+                ].map((s, idx) => (
+                  <div
+                    key={s.t}
+                    className="flex items-start gap-3 p-3 rounded-xl bg-muted/40 border border-border/50"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center shrink-0">
+                      {idx + 1}
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold">{s.t}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">{s.d}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </Section>
+
+      {/* === RESULT SECTION === */}
+      <Section className="bg-muted/30 border-y border-border/60">
+        <div className="max-w-2xl">
+          <Eyebrow icon={TrendingUp}>Wat het oplevert</Eyebrow>
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+            Concrete resultaten voor je salon.
+          </h2>
+          <p className="mt-4 text-muted-foreground text-lg">
+            Geen vage beloftes. Dit merken salons binnen de eerste maanden.
+          </p>
+        </div>
+        <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[
+            { icon: Calendar, t: "Meer boekingen", d: "Klanten boeken zelf, ook 's avonds en in het weekend." },
+            { icon: Bell, t: "Minder no-shows", d: "Slimme herinneringen via WhatsApp en e-mail." },
+            { icon: Heart, t: "Meer herhaalklanten", d: "Automatische opvolging op het juiste moment." },
+            { icon: Clock, t: "Meer rust in je planning", d: "Geen losse appjes en mailtjes meer." },
+            { icon: TrendingUp, t: "Meer omzetkansen", d: "AI laat zien waar geld blijft liggen." },
+            { icon: Coins, t: "Terugkerende inkomsten", d: "Bouw vaste maandinkomsten op met abonnementen." },
+          ].map((r) => {
+            const Icon = r.icon;
+            return (
+              <Card key={r.t} className="p-6">
+                <div className="w-11 h-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-4">
+                  <Icon className="w-5 h-5" />
+                </div>
+                <h3 className="font-semibold text-lg">{r.t}</h3>
+                <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">{r.d}</p>
               </Card>
             );
           })}
@@ -715,13 +895,13 @@ export default function LandingPage() {
         />
         <div className="max-w-2xl mx-auto">
           <h2 className="text-3xl sm:text-5xl font-bold tracking-tight">
-            Klaar om{" "}
+            Klaar voor meer groei en{" "}
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--accent))]">
-              slimmer te groeien?
+              minder gedoe?
             </span>
           </h2>
           <p className="mt-5 text-lg text-muted-foreground">
-            Laat GlowSuite boekingen automatiseren, omzet verhogen en rust terugbrengen in je salon.
+            Werk slimmer met GlowSuite. Meer rust, meer boekingen en meer omzet in je salon.
           </p>
           <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 max-w-md sm:max-w-none mx-auto">
             <CTADemoRequest onClick={() => openDemo("final-cta-start")} variant="gradient">
@@ -730,7 +910,7 @@ export default function LandingPage() {
             <CTADemoRequest onClick={() => openDemo("final-cta-demo")}>Vraag demo aan</CTADemoRequest>
           </div>
           <p className="mt-5 text-xs text-muted-foreground">
-            Binnen minuten live • Geen creditcard nodig • Maandelijks opzegbaar
+            Binnen enkele minuten live • Geen creditcard nodig • Maandelijks opzegbaar
           </p>
         </div>
       </Section>
