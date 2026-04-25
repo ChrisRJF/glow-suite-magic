@@ -58,6 +58,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error) console.error("Account bootstrap mislukt", error);
       setBootstrapReady(!error);
       setBootstrapping(false);
+
+      // Day 0 welcome email — idempotent server-side, safe to call on every login
+      if (!error) {
+        supabase.functions.invoke("send-welcome-email").catch((e) => {
+          console.warn("welcome email trigger failed", e);
+        });
+      }
     };
 
     runBootstrap();
