@@ -240,41 +240,50 @@ export default function LandingPage() {
 
   const plans = [
     {
+      slug: "starter",
       name: "Starter",
       price: "€39",
-      tagline: "Voor zelfstandige salons",
+      tagline: "Voor solo professionals die net beginnen.",
       featured: false,
+      requiresDemo: false,
       features: [
         "Online agenda & boekingen",
-        "White-label boekingswidget",
-        "E-mailbevestigingen & reminders",
-        "Klantenbeheer",
+        "Klantendatabase",
+        "WhatsApp herinneringen",
+        "1 medewerker",
+        "Basis rapportages",
       ],
     },
     {
-      name: "Pro",
+      slug: "growth",
+      name: "Growth",
       price: "€79",
-      tagline: "Voor groeiende salons",
+      tagline: "Voor groeiende salons die meer omzet willen halen.",
       featured: true,
+      requiresDemo: false,
       features: [
         "Alles uit Starter",
-        "Mollie betalingen & aanbetalingen",
-        "AI automatiseringen & reminders",
-        "Rapportages & inzichten",
         "Tot 5 medewerkers",
+        "GlowPay online betalingen",
+        "Cadeaubonnen & memberships",
+        "AI omzet-inzichten",
+        "Marketing automations",
       ],
     },
     {
-      name: "Elite",
-      price: "€149",
-      tagline: "Teams, AI groei en abonnementen",
+      slug: "premium",
+      name: "Premium",
+      price: "€129",
+      tagline: "Voor salons met meerdere vestigingen en hoge volumes.",
       featured: false,
+      requiresDemo: true,
       features: [
-        "Alles uit Pro",
-        "Abonnementen & memberships",
-        "AI groei- & marketing automations",
+        "Alles uit Growth",
         "Onbeperkt medewerkers",
-        "Prioriteitssupport",
+        "Multi-vestiging",
+        "White-label boekingspagina",
+        "AI Auto Revenue Engine",
+        "Persoonlijke onboarding",
       ],
     },
   ];
@@ -780,21 +789,36 @@ export default function LandingPage() {
               <div className="mt-6 flex flex-col gap-2">
                 <Button
                   type="button"
-                  variant={p.featured ? "gradient" : "outline"}
+                  variant={p.featured ? "gradient" : "default"}
                   className="w-full whitespace-normal"
-                  onClick={() => openDemo(`pricing-${p.name.toLowerCase()}`)}
+                  onClick={() => {
+                    if (p.requiresDemo) {
+                      openDemo(`pricing-${p.slug}-trial`);
+                    } else {
+                      window.location.href = `/login?mode=signup&plan=${p.slug}`;
+                    }
+                  }}
                 >
-                  Start gratis proefperiode
+                  {p.requiresDemo ? "Vraag demo aan" : "Start 14 dagen gratis"}
                 </Button>
-                {p.featured && (
-                  <button
+                {!p.requiresDemo && (
+                  <Button
                     type="button"
-                    onClick={() => openDemo(`pricing-${p.name.toLowerCase()}-demo`)}
-                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    variant="outline"
+                    className="w-full whitespace-normal"
+                    onClick={() => {
+                      window.location.href = `/login?mode=signup&plan=${p.slug}&checkout=1`;
+                    }}
                   >
-                    of vraag een persoonlijke demo aan
-                  </button>
+                    Start direct betaald
+                  </Button>
                 )}
+                <Link
+                  to="/pricing"
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors text-center mt-1"
+                >
+                  Bekijk alle details →
+                </Link>
               </div>
             </Card>
           ))}

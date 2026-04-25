@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { AppSidebar } from "./AppSidebar";
 import { MobileTopbar } from "./MobileTopbar";
+import { TrialBanner } from "./TrialBanner";
 import logoIcon from "@/assets/logo-icon.png";
 import { useDemoMode } from "@/hooks/useDemoMode";
 
@@ -18,6 +19,7 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
     <div className="flex min-h-screen w-full bg-background">
       <AppSidebar />
       <main className="flex-1 min-w-0">
+        <TrialBanner />
         <MobileTopbar
           title={title}
           onMenuOpen={() => window.dispatchEvent(new Event("glowsuite:open-sidebar"))}
