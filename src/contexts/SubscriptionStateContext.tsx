@@ -9,8 +9,13 @@ interface SubscriptionStateValue {
   isTrialing: boolean;
   isExpired: boolean;
   isActive: boolean;
+  isPastDue: boolean;
+  pastDueDays: number | null;
+  isCanceledScheduled: boolean;
   refresh: () => Promise<void>;
 }
+
+const PAST_DUE_GRACE_DAYS = 7;
 
 const Ctx = createContext<SubscriptionStateValue | null>(null);
 
@@ -27,11 +32,44 @@ export function SubscriptionStateProvider({ children }: { children: ReactNode })
     status === "expired" ||
     status === "canceled" ||
     (status === "trialing" && trialEndPassed);
-  const isReadOnly = !!sub && !isActive && isExpired;
+  const isPastDue = status === "past_due";
+
+  // Days since past_due began
+  const pastDueDays =
+    isPastDue && sub?.past_due_since
+      ? Math.floor(
+          (Date.now() - new Date(sub.past_due_since).getTime()) /
+            (1000 * 60 * 60 * 24),
+        )
+      : isPastDue
+        ? 0
+        : null;
+
+  // Read-only triggers:
+  // - hard expired/canceled
+  // - past_due longer than grace period
+  const pastDueReadOnly =
+    isPastDue && (pastDueDays ?? 0) >= PAST_DUE_GRACE_DAYS;
+  const isReadOnly = !!sub && !isActive && (isExpired || pastDueReadOnly);
+
+  const isCanceledScheduled =
+    !!sub && sub.cancel_at_period_end === true && status !== "canceled";
 
   return (
     <Ctx.Provider
-      value={{ sub, loading, daysLeft, isReadOnly, isTrialing, isExpired, isActive, refresh }}
+      value={{
+        sub,
+        loading,
+        daysLeft,
+        isReadOnly,
+        isTrialing,
+        isExpired,
+        isActive,
+        isPastDue,
+        pastDueDays,
+        isCanceledScheduled,
+        refresh,
+      }}
     >
       {children}
     </Ctx.Provider>
@@ -49,6 +87,9 @@ export function useSubscriptionState(): SubscriptionStateValue {
       isTrialing: false,
       isExpired: false,
       isActive: false,
+      isPastDue: false,
+      pastDueDays: null,
+      isCanceledScheduled: false,
       refresh: async () => {},
     };
   }
