@@ -417,7 +417,7 @@ export default function LandingPage() {
         <div className="max-w-2xl">
           <Eyebrow icon={AlertTriangle}>Herken je dit?</Eyebrow>
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-            Je salon draait hard. Maar oude software houdt je klein.
+            Jouw salon verdient software die met je meegroeit.
           </h2>
           <p className="mt-4 text-muted-foreground text-lg">
             De meeste salons verliezen elke week omzet door dingen die slimmer geregeld kunnen worden.
