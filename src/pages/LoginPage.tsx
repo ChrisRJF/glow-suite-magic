@@ -120,10 +120,16 @@ export default function LoginPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4 sm:p-6">
+    <div
+      className="min-h-[100dvh] bg-background flex items-start sm:items-center justify-center p-4 sm:p-6"
+      style={{
+        paddingTop: "max(1rem, env(safe-area-inset-top))",
+        paddingBottom: "max(1rem, env(safe-area-inset-bottom))",
+      }}
+    >
       <div className="w-full max-w-md">
-        <div className="flex flex-col items-center mb-6 sm:mb-8">
-          <img src={logoFull} alt="GlowSuite" className="h-11 sm:h-12 w-auto mb-3" />
+        <div className="flex flex-col items-center mb-5 sm:mb-8">
+          <img src={logoFull} alt="GlowSuite" className="h-10 sm:h-12 w-auto mb-2 sm:mb-3" />
           <p className="text-sm text-muted-foreground">Salon business system</p>
         </div>
 
