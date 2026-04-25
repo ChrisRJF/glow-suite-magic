@@ -340,10 +340,10 @@ export default function LandingPage() {
             <CTAButton to={SIGNUP}>
               Start gratis proefperiode <ArrowRight className="w-4 h-4 ml-1 inline shrink-0" />
             </CTAButton>
-            <CTAButton to={DEMO} variant="outline">Bekijk demo</CTAButton>
+            <CTADemoRequest onClick={() => openDemo("hero")}>Plan een persoonlijke demo</CTADemoRequest>
           </div>
           <p className="mt-5 text-sm text-muted-foreground">
-            Geen technische kennis nodig. Binnen enkele minuten live.
+            Geen technische kennis nodig. Of <button type="button" onClick={() => window.location.assign(DEMO)} className="underline hover:text-foreground">open de live demo</button>.
           </p>
         </div>
 
@@ -753,7 +753,7 @@ export default function LandingPage() {
             <CTAButton to={SIGNUP}>
               Start gratis proefperiode <ArrowRight className="w-4 h-4 ml-1 inline shrink-0" />
             </CTAButton>
-            <CTAButton to={DEMO} variant="outline">Bekijk demo</CTAButton>
+            <CTADemoRequest onClick={() => openDemo("final-cta")}>Plan een persoonlijke demo</CTADemoRequest>
           </div>
         </div>
       </Section>
