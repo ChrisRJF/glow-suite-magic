@@ -273,14 +273,14 @@ export default function LandingPage() {
             <a href="#features" className="hover:text-foreground transition-colors">Features</a>
             <a href="#voor-wie" className="hover:text-foreground transition-colors">Voor wie</a>
             <a href="#prijzen" onClick={scrollToPricing} className="hover:text-foreground transition-colors">Prijzen</a>
-            <Link to={DEMO} className="hover:text-foreground transition-colors">Demo</Link>
+            <button type="button" onClick={() => openDemo("nav")} className="hover:text-foreground transition-colors">Demo</button>
             <Link to={LOGIN} className="hover:text-foreground transition-colors">Login</Link>
           </nav>
 
           <div className="hidden md:flex items-center gap-3">
-            <Link to={SIGNUP}>
-              <Button variant="gradient" size="sm">Start gratis</Button>
-            </Link>
+            <Button type="button" variant="gradient" size="sm" onClick={() => openDemo("nav-cta")}>
+              Start gratis
+            </Button>
           </div>
 
           <button
@@ -304,11 +304,22 @@ export default function LandingPage() {
               >
                 Prijzen
               </a>
-              <Link to={DEMO} onClick={() => setMenuOpen(false)} className="py-3 text-foreground/80">Demo</Link>
+              <button
+                type="button"
+                onClick={() => { setMenuOpen(false); openDemo("mobile-nav"); }}
+                className="py-3 text-foreground/80 text-left"
+              >
+                Demo
+              </button>
               <Link to={LOGIN} onClick={() => setMenuOpen(false)} className="py-3 text-foreground/80">Login</Link>
-              <Link to={SIGNUP} onClick={() => setMenuOpen(false)} className="mt-2">
-                <Button variant="gradient" className="w-full">Start gratis</Button>
-              </Link>
+              <Button
+                type="button"
+                variant="gradient"
+                className="w-full mt-2"
+                onClick={() => { setMenuOpen(false); openDemo("mobile-cta"); }}
+              >
+                Start gratis
+              </Button>
             </nav>
           </div>
         )}
@@ -337,13 +348,13 @@ export default function LandingPage() {
             GlowSuite helpt salons groeien met online boekingen, betalingen, abonnementen en slimme automatisering — alles in één premium systeem.
           </p>
           <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 max-w-md sm:max-w-none mx-auto">
-            <CTAButton to={SIGNUP}>
+            <CTADemoRequest onClick={() => openDemo("hero-start")} variant="gradient">
               Start gratis proefperiode <ArrowRight className="w-4 h-4 ml-1 inline shrink-0" />
-            </CTAButton>
-            <CTADemoRequest onClick={() => openDemo("hero")}>Plan een persoonlijke demo</CTADemoRequest>
+            </CTADemoRequest>
+            <CTADemoRequest onClick={() => openDemo("hero-demo")}>Plan een persoonlijke demo</CTADemoRequest>
           </div>
           <p className="mt-5 text-sm text-muted-foreground">
-            Geen technische kennis nodig. Of <button type="button" onClick={() => window.location.assign(DEMO)} className="underline hover:text-foreground">open de live demo</button>.
+            Geen technische kennis nodig. We nemen binnen 1 werkdag contact op.
           </p>
         </div>
 
@@ -676,14 +687,14 @@ export default function LandingPage() {
                   ))}
                 </ul>
                 <div className="mt-6">
-                  <Link to={SIGNUP} className="block w-full">
-                    <Button
-                      variant={p.featured ? "gradient" : "outline"}
-                      className="w-full whitespace-normal"
-                    >
-                      Start gratis
-                    </Button>
-                  </Link>
+                  <Button
+                    type="button"
+                    variant={p.featured ? "gradient" : "outline"}
+                    className="w-full whitespace-normal"
+                    onClick={() => openDemo(`pricing-${p.name.toLowerCase()}`)}
+                  >
+                    Start gratis
+                  </Button>
                 </div>
               </Card>
             );
@@ -750,10 +761,10 @@ export default function LandingPage() {
             Start vandaag met online boeken, betalingen en meer overzicht.
           </p>
           <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 max-w-md sm:max-w-none mx-auto">
-            <CTAButton to={SIGNUP}>
+            <CTADemoRequest onClick={() => openDemo("final-cta-start")} variant="gradient">
               Start gratis proefperiode <ArrowRight className="w-4 h-4 ml-1 inline shrink-0" />
-            </CTAButton>
-            <CTADemoRequest onClick={() => openDemo("final-cta")}>Plan een persoonlijke demo</CTADemoRequest>
+            </CTADemoRequest>
+            <CTADemoRequest onClick={() => openDemo("final-cta-demo")}>Plan een persoonlijke demo</CTADemoRequest>
           </div>
         </div>
       </Section>
@@ -781,11 +792,14 @@ export default function LandingPage() {
         style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.75rem)" }}
       >
         <div className="mx-3 mb-2 rounded-2xl border border-border/60 bg-background/95 backdrop-blur-xl p-2.5 shadow-2xl">
-          <Link to={SIGNUP} className="block">
-            <Button variant="gradient" className="w-full whitespace-normal">
-              Start gratis proefperiode <ArrowRight className="w-4 h-4 ml-1 inline shrink-0" />
-            </Button>
-          </Link>
+          <Button
+            type="button"
+            variant="gradient"
+            className="w-full whitespace-normal"
+            onClick={() => openDemo("sticky-mobile")}
+          >
+            Start gratis proefperiode <ArrowRight className="w-4 h-4 ml-1 inline shrink-0" />
+          </Button>
         </div>
       </div>
 
