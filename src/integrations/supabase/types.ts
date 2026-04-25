@@ -1863,6 +1863,10 @@ export type Database = {
           created_at: string
           current_period_end: string | null
           current_period_start: string | null
+          day10_sent_at: string | null
+          day14_sent_at: string | null
+          day3_sent_at: string | null
+          day7_sent_at: string | null
           id: string
           last_payment_id: string | null
           mollie_customer_id: string | null
@@ -1874,12 +1878,17 @@ export type Database = {
           trial_started_at: string
           updated_at: string
           user_id: string
+          welcome_sent_at: string | null
         }
         Insert: {
           canceled_at?: string | null
           created_at?: string
           current_period_end?: string | null
           current_period_start?: string | null
+          day10_sent_at?: string | null
+          day14_sent_at?: string | null
+          day3_sent_at?: string | null
+          day7_sent_at?: string | null
           id?: string
           last_payment_id?: string | null
           mollie_customer_id?: string | null
@@ -1891,12 +1900,17 @@ export type Database = {
           trial_started_at?: string
           updated_at?: string
           user_id: string
+          welcome_sent_at?: string | null
         }
         Update: {
           canceled_at?: string | null
           created_at?: string
           current_period_end?: string | null
           current_period_start?: string | null
+          day10_sent_at?: string | null
+          day14_sent_at?: string | null
+          day3_sent_at?: string | null
+          day7_sent_at?: string | null
           id?: string
           last_payment_id?: string | null
           mollie_customer_id?: string | null
@@ -1908,6 +1922,7 @@ export type Database = {
           trial_started_at?: string
           updated_at?: string
           user_id?: string
+          welcome_sent_at?: string | null
         }
         Relationships: []
       }
