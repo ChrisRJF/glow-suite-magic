@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.saas-subscribe-webhook]
 verify_jwt = false
+
+[functions.trial-lifecycle-scheduler]
+verify_jwt = false

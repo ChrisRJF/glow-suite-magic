@@ -386,3 +386,12 @@
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
+
+/* Read-only mode for expired trials — visually indicate locked state.
+   The TrialExpiredModal blocks interaction; this just dims the underlying app. */
+.saas-readonly main > div:not([data-readonly-allow]) {
+  position: relative;
+}
+.saas-readonly main {
+  filter: saturate(0.85);
+}

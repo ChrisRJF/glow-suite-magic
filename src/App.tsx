@@ -49,6 +49,8 @@ import { OnboardingGate } from "@/components/OnboardingGate";
 import { GuidedTour } from "@/components/GuidedTour";
 import { CheckoutIntentHandler } from "@/components/CheckoutIntentHandler";
 import { SubscriptionConfirmHandler } from "@/components/SubscriptionConfirmHandler";
+import { SubscriptionStateProvider } from "@/contexts/SubscriptionStateContext";
+import { TrialExpiredModal } from "@/components/TrialExpiredModal";
 
 function RootRoute() {
   const { user, loading } = useAuth();
@@ -75,6 +77,7 @@ const App = () => (
   <ThemeProvider>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+        <SubscriptionStateProvider>
         <TooltipProvider>
           <Toaster />
           <Sonner />
@@ -84,6 +87,7 @@ const App = () => (
             <GuidedTour />
             <CheckoutIntentHandler />
             <SubscriptionConfirmHandler />
+            <TrialExpiredModal />
             <Routes>
               <Route path="/login" element={<AuthRoute><LoginPage /></AuthRoute>} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
@@ -137,6 +141,7 @@ const App = () => (
             </Routes>
           </BrowserRouter>
         </TooltipProvider>
+        </SubscriptionStateProvider>
       </AuthProvider>
     </QueryClientProvider>
   </ThemeProvider>
