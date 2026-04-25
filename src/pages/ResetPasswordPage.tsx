@@ -42,10 +42,16 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-6">
+    <div
+      className="min-h-[100dvh] bg-background flex items-start sm:items-center justify-center p-4 sm:p-6"
+      style={{
+        paddingTop: "max(1rem, env(safe-area-inset-top))",
+        paddingBottom: "max(1rem, env(safe-area-inset-bottom))",
+      }}
+    >
       <div className="w-full max-w-sm">
-        <div className="flex flex-col items-center mb-8">
-          <img src={logoFull} alt="GlowSuite" className="h-12 w-auto mb-3" />
+        <div className="flex flex-col items-center mb-6 sm:mb-8">
+          <img src={logoFull} alt="GlowSuite" className="h-11 sm:h-12 w-auto mb-3" />
           <p className="text-sm text-muted-foreground">Nieuw wachtwoord instellen</p>
         </div>
         <form onSubmit={handleSubmit} className="glass-card p-6 space-y-4">
@@ -65,7 +71,7 @@ export default function ResetPasswordPage() {
             <input type="password" required minLength={6} value={confirm} onChange={(e) => setConfirm(e.target.value)}
               className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
           </div>
-          <Button type="submit" variant="gradient" className="w-full" disabled={loading || !ready}>
+          <Button type="submit" variant="gradient" className="w-full h-11" disabled={loading || !ready}>
             {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             {loading ? "Opslaan..." : "Wachtwoord opslaan"}
           </Button>
