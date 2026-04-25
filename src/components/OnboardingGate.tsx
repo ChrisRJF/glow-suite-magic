@@ -15,8 +15,8 @@ export function OnboardingGate() {
     const status = localStorage.getItem(key);
     if (status) return; // already done or skipped
     if (services.length === 0) {
-      // Empty salon → show wizard
-      const t = setTimeout(() => setOpen(true), 600);
+      // Empty salon → show fullscreen wizard immediately
+      const t = setTimeout(() => setOpen(true), 250);
       return () => clearTimeout(t);
     } else {
       // Has services → mark done so we don't bother again
