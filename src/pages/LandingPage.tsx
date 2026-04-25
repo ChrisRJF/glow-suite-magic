@@ -15,6 +15,7 @@ import {
 import logoFull from "@/assets/logo-full.png";
 import logoIcon from "@/assets/logo-icon.png";
 import { DemoRequestDialog } from "@/components/DemoRequestDialog";
+import { DirectCheckoutDialog } from "@/components/DirectCheckoutDialog";
 import shotDashboard from "@/assets/landing/dashboard.png";
 import shotAgenda from "@/assets/landing/agenda.png";
 import shotBetalingen from "@/assets/landing/betalingen.png";
@@ -181,6 +182,12 @@ export default function LandingPage() {
   const [demoOpen, setDemoOpen] = useState(false);
   const [demoSource, setDemoSource] = useState<string>("landing");
   const openDemo = (source: string) => { setDemoSource(source); setDemoOpen(true); };
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [checkoutPlan, setCheckoutPlan] = useState<{ slug: string; name: string; price: string } | null>(null);
+  const openCheckout = (slug: string, name: string, price: string) => {
+    setCheckoutPlan({ slug, name, price });
+    setCheckoutOpen(true);
+  };
 
   useEffect(() => {
     document.documentElement.classList.add("light");
@@ -807,9 +814,7 @@ export default function LandingPage() {
                       type="button"
                       variant="outline"
                       className="w-full whitespace-normal"
-                      onClick={() => {
-                        window.location.href = `/login?mode=signup&plan=${p.slug}&checkout=1`;
-                      }}
+                      onClick={() => openCheckout(p.slug, p.name, p.price)}
                     >
                       Nu live starten
                     </Button>
@@ -977,6 +982,13 @@ export default function LandingPage() {
       </div>
 
       <DemoRequestDialog open={demoOpen} onOpenChange={setDemoOpen} source={demoSource} />
+      <DirectCheckoutDialog
+        open={checkoutOpen}
+        onOpenChange={setCheckoutOpen}
+        planSlug={checkoutPlan?.slug ?? null}
+        planName={checkoutPlan?.name}
+        planPrice={checkoutPlan?.price}
+      />
     </div>
   );
 }
