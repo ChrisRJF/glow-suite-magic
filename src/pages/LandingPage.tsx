@@ -20,6 +20,7 @@ import shotAgenda from "@/assets/landing/agenda.png";
 import shotBetalingen from "@/assets/landing/betalingen.png";
 import shotAbonnementen from "@/assets/landing/abonnementen.png";
 import shotRapportage from "@/assets/landing/rapportage.png";
+import heroPhones from "@/assets/glowsuite-hero-phones.png";
 
 const SIGNUP = "/login?mode=signup";
 const LOGIN = "/login";
