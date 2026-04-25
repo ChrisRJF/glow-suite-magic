@@ -368,37 +368,46 @@ export default function LandingPage() {
               "radial-gradient(60% 50% at 50% 0%, hsl(var(--primary) / 0.14), transparent 70%), radial-gradient(40% 40% at 90% 10%, hsl(var(--accent) / 0.10), transparent 70%)",
           }}
         />
-        <div className="text-center max-w-3xl mx-auto">
-          <Eyebrow icon={Brain}>Slim salonplatform met AI</Eyebrow>
-          <h1 className="text-4xl sm:text-6xl font-bold tracking-tight leading-[1.05]">
-            Laat je salon groeien op{" "}
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--accent))]">
-              automatische piloot.
-            </span>
-          </h1>
-          <p className="mt-6 text-lg sm:text-xl text-muted-foreground leading-relaxed">
-            GlowSuite automatiseert boekingen, betalingen, klantopvolging en slimme AI taken. Zo verdien je meer en houd je meer tijd over.
-          </p>
-          <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 max-w-md sm:max-w-none mx-auto">
-            <CTADemoRequest onClick={() => openDemo("hero-start")} variant="gradient">
-              Start gratis proefperiode <ArrowRight className="w-4 h-4 ml-1 inline shrink-0" />
-            </CTADemoRequest>
-            <CTADemoRequest onClick={() => openDemo("hero-demo")}>Vraag demo aan</CTADemoRequest>
+        <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+          {/* LEFT: copy + CTA */}
+          <div className="text-center lg:text-left max-w-xl mx-auto lg:mx-0">
+            <Eyebrow icon={Brain}>Slim salonplatform met AI</Eyebrow>
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.05]">
+              Laat je salon groeien op{" "}
+              <span className="bg-clip-text text-transparent bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--accent))]">
+                automatische piloot.
+              </span>
+            </h1>
+            <p className="mt-6 text-lg sm:text-xl text-muted-foreground leading-relaxed">
+              GlowSuite automatiseert boekingen, betalingen, klantopvolging en slimme AI taken. Zo verdien je meer en houd je meer tijd over.
+            </p>
+            <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center lg:justify-start gap-3 max-w-md sm:max-w-none mx-auto lg:mx-0">
+              <CTADemoRequest onClick={() => openDemo("hero-start")} variant="gradient">
+                Start gratis proefperiode <ArrowRight className="w-4 h-4 ml-1 inline shrink-0" />
+              </CTADemoRequest>
+              <CTADemoRequest onClick={() => openDemo("hero-demo")}>Vraag demo aan</CTADemoRequest>
+            </div>
+            <p className="mt-5 text-sm text-muted-foreground">
+              Binnen enkele minuten live • Geen technische kennis nodig • Gemaakt voor salons
+            </p>
           </div>
-          <p className="mt-5 text-sm text-muted-foreground">
-            Binnen enkele minuten live • Geen technische kennis nodig • Gemaakt voor salons
-          </p>
-        </div>
 
-        {/* Hero visual */}
-        <div className="mt-14 sm:mt-20 max-w-5xl mx-auto">
-          <MockWindow url="salon.glowsuite.nl/dashboard">
-            <Shot src={shotDashboard} alt="GlowSuite dashboard met dagomzet, AI inzichten en planning" />
-          </MockWindow>
+          {/* RIGHT: hero visual (single premium image) */}
+          <div className="w-full">
+            <img
+              src={heroPhones}
+              alt="GlowSuite app op iPhone: dashboard, agenda en klantgroei"
+              loading="eager"
+              decoding="async"
+              draggable={false}
+              className="block w-full h-auto max-w-[640px] mx-auto select-none"
+              style={{ filter: "drop-shadow(0 30px 50px hsl(var(--primary) / 0.18)) drop-shadow(0 10px 20px rgba(0,0,0,0.08))" }}
+            />
+          </div>
         </div>
 
         {/* TRUST STRIP */}
-        <div className="mt-10 sm:mt-14 max-w-5xl mx-auto">
+        <div className="mt-14 sm:mt-20 max-w-5xl mx-auto">
           <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-xs sm:text-sm text-muted-foreground">
             {trustItems.slice(0, 5).map((t) => {
               const Icon = t.icon;
@@ -410,27 +419,6 @@ export default function LandingPage() {
               );
             })}
           </div>
-        </div>
-      </Section>
-
-      {/* === IPHONE SHOWCASE === */}
-      <Section className="border-t border-border/60">
-        <div className="max-w-3xl mx-auto text-center">
-          <Eyebrow icon={Smartphone}>Mobiel gemaakt</Eyebrow>
-          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-            GlowSuite werkt overal. Ook in je broekzak.
-          </h2>
-          <p className="mt-4 text-muted-foreground text-lg">
-            Beheer je salon vanaf je telefoon. Snel, helder en altijd bij de hand.
-          </p>
-        </div>
-        <div className="mt-14 grid grid-cols-2 sm:grid-cols-3 gap-y-12 gap-x-4 sm:gap-x-8">
-          <IPhoneFrame src={shotAgenda} alt="Online boeken via mobiel" caption="Online boeken" />
-          <IPhoneFrame src={shotDashboard} alt="Agenda op je telefoon" caption="Agenda" />
-          <IPhoneFrame src={shotBetalingen} alt="Betalingen via Mollie" caption="Betalingen" />
-          <IPhoneFrame src={shotAbonnementen} alt="Klantprofiel met geschiedenis" caption="Klantprofiel" />
-          <IPhoneFrame src={shotRapportage} alt="Dashboard met omzet en boekingen" caption="Dashboard" />
-          <IPhoneFrame src={shotAgenda} alt="Slimme herinneringen via WhatsApp en e-mail" caption="Herinneringen" />
         </div>
       </Section>
 
