@@ -267,10 +267,10 @@ export function DemoRequestDialog({ open, onOpenChange, source = "landing" }: Pr
               </p>
 
               <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
-                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
                   Annuleren
                 </Button>
-                <Button type="submit" disabled={submitting}>
+                <Button type="submit" disabled={submitting} className="w-full sm:w-auto">
                   {submitting && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
                   Vraag demo aan
                 </Button>
