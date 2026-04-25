@@ -154,22 +154,27 @@ export default function PricingPage() {
                         : "Start 14 dagen gratis"}
                     </Button>
                     {!p.requires_demo && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="w-full"
-                        disabled={busy === p.slug}
-                        onClick={() => onPaid(p.slug, p.requires_demo)}
-                      >
-                        {busy === p.slug ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Bezig...
-                          </>
-                        ) : (
-                          "Start direct betaald"
-                        )}
-                      </Button>
+                      <>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="w-full"
+                          disabled={busy === p.slug}
+                          onClick={() => onPaid(p.slug, p.requires_demo)}
+                        >
+                          {busy === p.slug ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              Bezig...
+                            </>
+                          ) : (
+                            "Nu live starten"
+                          )}
+                        </Button>
+                        <p className="text-[11px] text-muted-foreground text-center mt-1 leading-snug">
+                          Veilig betalen via Mollie. Maandelijks opzegbaar.
+                        </p>
+                      </>
                     )}
                   </div>
                 </Card>
