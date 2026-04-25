@@ -1803,6 +1803,114 @@ export type Database = {
           },
         ]
       }
+      subscription_plans: {
+        Row: {
+          created_at: string
+          currency: string
+          description: string | null
+          features: Json
+          id: string
+          interval: string
+          is_active: boolean
+          is_highlighted: boolean
+          name: string
+          price_cents: number
+          price_eur: number
+          requires_demo: boolean
+          slug: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          description?: string | null
+          features?: Json
+          id?: string
+          interval?: string
+          is_active?: boolean
+          is_highlighted?: boolean
+          name: string
+          price_cents: number
+          price_eur: number
+          requires_demo?: boolean
+          slug: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          description?: string | null
+          features?: Json
+          id?: string
+          interval?: string
+          is_active?: boolean
+          is_highlighted?: boolean
+          name?: string
+          price_cents?: number
+          price_eur?: number
+          requires_demo?: boolean
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          canceled_at: string | null
+          created_at: string
+          current_period_end: string | null
+          current_period_start: string | null
+          id: string
+          last_payment_id: string | null
+          mollie_customer_id: string | null
+          mollie_mandate_id: string | null
+          mollie_subscription_id: string | null
+          plan_slug: string
+          status: string
+          trial_ends_at: string
+          trial_started_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          canceled_at?: string | null
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          last_payment_id?: string | null
+          mollie_customer_id?: string | null
+          mollie_mandate_id?: string | null
+          mollie_subscription_id?: string | null
+          plan_slug: string
+          status?: string
+          trial_ends_at?: string
+          trial_started_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          canceled_at?: string | null
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          last_payment_id?: string | null
+          mollie_customer_id?: string | null
+          mollie_mandate_id?: string | null
+          mollie_subscription_id?: string | null
+          plan_slug?: string
+          status?: string
+          trial_ends_at?: string
+          trial_started_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_access: {
         Row: {
           created_at: string
