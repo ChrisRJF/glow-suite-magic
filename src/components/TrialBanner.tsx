@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Sparkles, X, Loader2, AlertTriangle, Lock } from "lucide-react";
+import { Sparkles, X, Loader2, AlertTriangle, Lock, CreditCard } from "lucide-react";
 import { startMollieCheckout } from "@/hooks/useSubscription";
 import { useSubscriptionState } from "@/contexts/SubscriptionStateContext";
 import { toast } from "@/hooks/use-toast";
