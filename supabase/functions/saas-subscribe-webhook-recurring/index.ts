@@ -39,7 +39,7 @@ async function mollie(path: string, method: string): Promise<any> {
 }
 
 async function writeAudit(
-  admin: ReturnType<typeof createClient>,
+  admin: any,
   userId: string | null,
   action: string,
   targetId: string | null,
