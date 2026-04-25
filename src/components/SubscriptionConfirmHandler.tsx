@@ -41,19 +41,17 @@ export function SubscriptionConfirmHandler() {
     const maxAttempts = 12; // ~24s
 
     const fetchSub = async () => {
-      const { data } = await supabase
-        .from("subscriptions" as any)
+      const { data } = await (supabase as any)
+        .from("subscriptions")
         .select("plan_slug,status,current_period_start,current_period_end")
         .eq("user_id", user.id)
         .maybeSingle();
-      return (data as unknown) as
-        | {
-            plan_slug: string;
-            status: string;
-            current_period_start: string | null;
-            current_period_end: string | null;
-          }
-        | null;
+      return (data ?? null) as {
+        plan_slug: string;
+        status: string;
+        current_period_start: string | null;
+        current_period_end: string | null;
+      } | null;
     };
 
     const showSuccess = (sub: {
