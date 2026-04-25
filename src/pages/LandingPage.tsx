@@ -412,7 +412,28 @@ export default function LandingPage() {
         </div>
       </Section>
 
-      {/* PROBLEM */}
+      {/* === IPHONE SHOWCASE === */}
+      <Section className="border-t border-border/60">
+        <div className="max-w-3xl mx-auto text-center">
+          <Eyebrow icon={Smartphone}>Mobiel gemaakt</Eyebrow>
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+            GlowSuite werkt overal. Ook in je broekzak.
+          </h2>
+          <p className="mt-4 text-muted-foreground text-lg">
+            Beheer je salon vanaf je telefoon. Snel, helder en altijd bij de hand.
+          </p>
+        </div>
+        <div className="mt-14 grid grid-cols-2 sm:grid-cols-3 gap-y-12 gap-x-4 sm:gap-x-8">
+          <IPhoneFrame src={shotAgenda} alt="Online boeken via mobiel" caption="Online boeken" />
+          <IPhoneFrame src={shotDashboard} alt="Agenda op je telefoon" caption="Agenda" />
+          <IPhoneFrame src={shotBetalingen} alt="Betalingen via Mollie" caption="Betalingen" />
+          <IPhoneFrame src={shotAbonnementen} alt="Klantprofiel met geschiedenis" caption="Klantprofiel" />
+          <IPhoneFrame src={shotRapportage} alt="Dashboard met omzet en boekingen" caption="Dashboard" />
+          <IPhoneFrame src={shotAgenda} alt="Slimme herinneringen via WhatsApp en e-mail" caption="Herinneringen" />
+        </div>
+      </Section>
+
+
       <Section id="voor-wie" className="border-t border-border/60">
         <div className="max-w-2xl">
           <Eyebrow icon={AlertTriangle}>Herken je dit?</Eyebrow>
