@@ -323,9 +323,10 @@ export default function MijnAbonnementPage() {
 
           {/* Action buttons */}
           {sub?.status === "trialing" && (
-            <div className="mt-6 pt-5 border-t flex flex-wrap gap-2">
+            <div className="mt-6 pt-5 border-t flex flex-col sm:flex-row sm:flex-wrap gap-2">
               <Button
                 variant="gradient"
+                className="w-full sm:w-auto h-11"
                 onClick={() => sub && handleCheckout(sub.plan_slug)}
                 disabled={!!busy}
               >
@@ -335,16 +336,17 @@ export default function MijnAbonnementPage() {
                   "Activeer abonnement nu"
                 )}
               </Button>
-              <Button asChild variant="ghost">
+              <Button asChild variant="ghost" className="w-full sm:w-auto h-11">
                 <Link to="/pricing">Bekijk alle plannen</Link>
               </Button>
             </div>
           )}
 
           {sub?.status === "active" && !isCanceledScheduled && (
-            <div className="mt-6 pt-5 border-t flex flex-wrap gap-2">
+            <div className="mt-6 pt-5 border-t flex flex-col sm:flex-row sm:flex-wrap gap-2">
               <Button
                 variant="outline"
+                className="w-full sm:w-auto h-11"
                 onClick={() => setCancelOpen(true)}
                 disabled={!!busy}
               >
@@ -358,6 +360,7 @@ export default function MijnAbonnementPage() {
             <div className="mt-6 pt-5 border-t">
               <Button
                 variant="gradient"
+                className="w-full sm:w-auto h-11"
                 onClick={() => sub && handleCheckout(sub.plan_slug)}
                 disabled={!!busy}
               >
