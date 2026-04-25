@@ -165,7 +165,7 @@ export default function PricingPage() {
                           variant="outline"
                           className="w-full"
                           disabled={busy === p.slug}
-                          onClick={() => onPaid(p.slug, p.requires_demo)}
+                          onClick={() => onPaid(p.slug, p.requires_demo, p.name, Number(p.price_eur))}
                         >
                           {busy === p.slug ? (
                             <>
