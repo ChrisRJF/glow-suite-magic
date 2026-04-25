@@ -43,6 +43,7 @@ import MembershipPortalPage from "./pages/MembershipPortalPage";
 import RefundsPage from "./pages/RefundsPage";
 import PublicActionPage from "./pages/PublicActionPage";
 import LandingPage from "./pages/LandingPage";
+import PricingPage from "./pages/PricingPage";
 import { useLeadAutomation } from "@/hooks/useLeadAutomation";
 import { OnboardingGate } from "@/components/OnboardingGate";
 import { GuidedTour } from "@/components/GuidedTour";
@@ -98,6 +99,8 @@ const App = () => (
               <Route path="/review" element={<PublicActionPage />} />
               <Route path="/review/:templateKey" element={<PublicActionPage />} />
               <Route path="/" element={<RootRoute />} />
+              <Route path="/pricing" element={<PricingPage />} />
+              <Route path="/prijzen" element={<PricingPage />} />
               <Route path="/agenda" element={<RoleProtectedRoute><CalendarPage /></RoleProtectedRoute>} />
               <Route path="/klanten" element={<RoleProtectedRoute><CustomersPage /></RoleProtectedRoute>} />
               <Route path="/behandelingen" element={<RoleProtectedRoute><ServicesPage /></RoleProtectedRoute>} />
