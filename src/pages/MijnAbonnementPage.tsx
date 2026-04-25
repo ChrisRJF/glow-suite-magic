@@ -192,7 +192,7 @@ export default function MijnAbonnementPage() {
                 <Button
                   size="sm"
                   variant="gradient"
-                  className="mt-3"
+                  className="mt-3 w-full sm:w-auto"
                   onClick={() => sub && handleCheckout(sub.plan_slug)}
                   disabled={!!busy}
                 >
