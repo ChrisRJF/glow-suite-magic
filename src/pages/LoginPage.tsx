@@ -145,11 +145,11 @@ export default function LoginPage() {
                 className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                 placeholder="jouw@email.nl" />
             </div>
-            <Button type="submit" variant="gradient" className="w-full" disabled={forgotLoading}>
+            <Button type="submit" variant="gradient" className="w-full h-11" disabled={forgotLoading}>
               {forgotLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {forgotLoading ? "Versturen..." : "Reset-link versturen"}
             </Button>
-            <button type="button" onClick={() => setForgotOpen(false)} className="text-xs text-primary hover:underline w-full text-center">
+            <button type="button" onClick={() => setForgotOpen(false)} className="text-xs text-primary hover:underline w-full text-center py-2">
               Terug naar inloggen
             </button>
           </form>
