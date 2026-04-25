@@ -48,6 +48,7 @@ import { useLeadAutomation } from "@/hooks/useLeadAutomation";
 import { OnboardingGate } from "@/components/OnboardingGate";
 import { GuidedTour } from "@/components/GuidedTour";
 import { CheckoutIntentHandler } from "@/components/CheckoutIntentHandler";
+import { SubscriptionConfirmHandler } from "@/components/SubscriptionConfirmHandler";
 
 function RootRoute() {
   const { user, loading } = useAuth();
@@ -82,6 +83,7 @@ const App = () => (
             <OnboardingGate />
             <GuidedTour />
             <CheckoutIntentHandler />
+            <SubscriptionConfirmHandler />
             <Routes>
               <Route path="/login" element={<AuthRoute><LoginPage /></AuthRoute>} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
