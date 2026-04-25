@@ -175,6 +175,7 @@ Deno.serve(async (req) => {
 
     if (kind === "saas_first_public" && payment.status === "paid") {
       const email = String(meta.email || "").toLowerCase();
+      const fullName = String(meta.full_name || "").trim();
       if (email) {
         // Find existing user
         const { data: list } = await admin.auth.admin.listUsers({
@@ -194,25 +195,45 @@ Deno.serve(async (req) => {
               user_metadata: {
                 plan: planSlug,
                 salon_name: meta.salon_name || "",
-                full_name: meta.full_name || "",
+                full_name: fullName,
               },
             });
           if (createErr) {
             console.error("createUser failed", createErr);
           } else {
             userId = created?.user?.id;
-            // Send magic link so the user can sign in without a password
-            const origin =
-              payment.redirectUrl?.split("/").slice(0, 3).join("/") ||
-              "https://glowsuite.nl";
-            await admin.auth.admin
-              .generateLink({
+          }
+        }
+
+        // Generate magic link + send branded login email (new + existing users)
+        if (userId) {
+          const origin =
+            payment.redirectUrl?.split("/").slice(0, 3).join("/") ||
+            "https://glowsuite.nl";
+          let loginUrl = `${origin}/login?subscribed=1&email=${encodeURIComponent(email)}`;
+          try {
+            const { data: linkData, error: linkErr } =
+              await admin.auth.admin.generateLink({
                 type: "magiclink",
                 email,
                 options: { redirectTo: `${origin}/?subscribed=1` },
-              })
-              .catch((e) => console.error("magic link gen failed", e));
+              });
+            if (linkErr) {
+              console.error("magic link gen failed", linkErr);
+            } else if (linkData?.properties?.action_link) {
+              loginUrl = linkData.properties.action_link;
+            }
+          } catch (e) {
+            console.error("magic link gen threw", e);
           }
+          await sendLoginEmail(
+            admin,
+            userId,
+            email,
+            plan?.name || planSlug,
+            loginUrl,
+            fullName || undefined,
+          );
         }
       }
     }
