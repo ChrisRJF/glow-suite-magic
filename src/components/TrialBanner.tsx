@@ -38,7 +38,7 @@ export function TrialBanner() {
 
   return (
     <div
-      className={`relative px-4 py-2.5 text-sm flex flex-wrap items-center justify-center gap-3 border-b ${
+      className={`relative px-4 py-2.5 text-sm flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center justify-center gap-2 sm:gap-3 border-b ${
         critical
           ? "bg-destructive/10 border-destructive/30"
           : urgent
@@ -46,21 +46,23 @@ export function TrialBanner() {
             : "bg-primary/5 border-primary/20"
       }`}
     >
-      {critical ? (
-        <AlertTriangle className="w-4 h-4 shrink-0 text-destructive" />
-      ) : (
-        <Sparkles className="w-4 h-4 shrink-0" />
-      )}
-      <span className="font-medium">
-        {urgent
-          ? `Nog ${daysLeft} ${daysLeft === 1 ? "dag" : "dagen"} gratis over — activeer je abonnement`
-          : `Nog ${daysLeft} ${daysLeft === 1 ? "dag" : "dagen"} gratis proefperiode.`}
-      </span>
-      <div className="flex items-center gap-2">
-        <Button size="sm" variant="gradient" onClick={upgrade} disabled={busy}>
+      <div className="flex items-center gap-2 justify-center text-center">
+        {critical ? (
+          <AlertTriangle className="w-4 h-4 shrink-0 text-destructive" />
+        ) : (
+          <Sparkles className="w-4 h-4 shrink-0" />
+        )}
+        <span className="font-medium leading-tight">
+          {urgent
+            ? `Nog ${daysLeft} ${daysLeft === 1 ? "dag" : "dagen"} gratis over — activeer je abonnement`
+            : `Nog ${daysLeft} ${daysLeft === 1 ? "dag" : "dagen"} gratis proefperiode.`}
+        </span>
+      </div>
+      <div className="flex items-center gap-2 sm:gap-2 w-full sm:w-auto justify-center">
+        <Button size="sm" variant="gradient" className="flex-1 sm:flex-none" onClick={upgrade} disabled={busy}>
           {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Activeer abonnement"}
         </Button>
-        <Button size="sm" variant="ghost" onClick={() => navigate("/pricing")}>
+        <Button size="sm" variant="ghost" className="flex-1 sm:flex-none" onClick={() => navigate("/pricing")}>
           Plan bekijken
         </Button>
       </div>
@@ -68,7 +70,7 @@ export function TrialBanner() {
         <button
           type="button"
           onClick={() => setDismissed(true)}
-          className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-foreground/5"
+          className="absolute right-2 top-2 sm:top-1/2 sm:-translate-y-1/2 p-2 rounded-md hover:bg-foreground/5"
           aria-label="Sluiten"
         >
           <X className="w-3.5 h-3.5" />
