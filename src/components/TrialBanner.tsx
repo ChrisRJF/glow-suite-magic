@@ -89,3 +89,28 @@ export function ReadOnlyBanner() {
     </div>
   );
 }
+
+/** Banner for past_due subscriptions (before grace period expires). */
+export function PastDueBanner() {
+  const { isPastDue, isReadOnly, pastDueDays } = useSubscriptionState();
+  const navigate = useNavigate();
+  if (!isPastDue || isReadOnly) return null;
+  const daysLeftInGrace = Math.max(0, 7 - (pastDueDays ?? 0));
+  return (
+    <div className="bg-warning/10 border-b border-warning/30 px-4 py-2.5 text-sm flex flex-wrap items-center justify-center gap-3">
+      <AlertTriangle className="w-4 h-4 shrink-0 text-warning" />
+      <span className="font-medium">
+        Betaling niet gelukt — los dit binnen {daysLeftInGrace}{" "}
+        {daysLeftInGrace === 1 ? "dag" : "dagen"} op om alleen-lezen te voorkomen.
+      </span>
+      <Button
+        size="sm"
+        variant="gradient"
+        onClick={() => navigate("/mijn-abonnement")}
+      >
+        <CreditCard className="w-3.5 h-3.5 mr-1.5" />
+        Beheer abonnement
+      </Button>
+    </div>
+  );
+}
