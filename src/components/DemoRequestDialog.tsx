@@ -105,64 +105,68 @@ export function DemoRequestDialog({ open, onOpenChange, source = "landing" }: Pr
         if (!v) setTimeout(reset, 200);
       }}
     >
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[calc(100vw-1.5rem)] max-w-[calc(100vw-1.5rem)] sm:max-w-lg max-h-[calc(100vh-2rem)] sm:max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-xl">
         {done ? (
-          <div className="py-2">
+          <div className="py-1">
             <div className="text-center">
-              <div className="mx-auto w-16 h-16 rounded-full bg-success/10 text-success flex items-center justify-center mb-4 ring-8 ring-success/5">
-                <CheckCircle2 className="w-8 h-8" />
+              <div className="mx-auto w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-success/10 text-success flex items-center justify-center mb-3 sm:mb-4 ring-4 sm:ring-8 ring-success/5">
+                <CheckCircle2 className="w-7 h-7 sm:w-8 sm:h-8" />
               </div>
-              <DialogTitle className="text-2xl">Bedankt {form.name ? form.name.split(" ")[0] : ""}! 🎉</DialogTitle>
-              <DialogDescription className="mt-2 text-base">
+              <DialogTitle className="text-xl sm:text-2xl break-words">
+                Bedankt {form.name ? form.name.split(" ")[0] : ""}! 🎉
+              </DialogTitle>
+              <DialogDescription className="mt-2 text-sm sm:text-base">
                 Je aanvraag is binnen. Een GlowSuite-specialist neemt persoonlijk contact op.
               </DialogDescription>
 
-              <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium">
-                <Clock className="w-4 h-4" />
-                We bellen of mailen binnen 1 werkdag
+              <div className="mt-3 sm:mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs sm:text-sm font-medium max-w-full">
+                <Clock className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate">We bellen of mailen binnen 1 werkdag</span>
               </div>
             </div>
 
-            <div className="mt-6 space-y-3">
+            <div className="mt-5 sm:mt-6 space-y-3">
               <p className="text-sm font-semibold text-foreground">Wat gebeurt er nu?</p>
-              <ol className="space-y-3">
-                <li className="flex gap-3 items-start p-3 rounded-lg border bg-card">
-                  <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">1</div>
-                  <div className="text-sm">
+              <ol className="space-y-2 sm:space-y-3">
+                <li className="flex gap-3 items-start p-2.5 sm:p-3 rounded-lg border bg-card">
+                  <div className="flex-shrink-0 w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">1</div>
+                  <div className="text-sm min-w-0 flex-1">
                     <div className="font-medium">Check je inbox</div>
-                    <div className="text-muted-foreground">We sturen direct een bevestiging naar <span className="font-medium text-foreground">{form.email}</span></div>
+                    <div className="text-muted-foreground break-words">
+                      Bevestiging naar <span className="font-medium text-foreground break-all">{form.email}</span>
+                    </div>
                   </div>
                 </li>
-                <li className="flex gap-3 items-start p-3 rounded-lg border bg-card">
-                  <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">2</div>
-                  <div className="text-sm">
+                <li className="flex gap-3 items-start p-2.5 sm:p-3 rounded-lg border bg-card">
+                  <div className="flex-shrink-0 w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">2</div>
+                  <div className="text-sm min-w-0 flex-1">
                     <div className="font-medium">Persoonlijk gesprek (15 min)</div>
-                    <div className="text-muted-foreground">We laten GlowSuite zien op basis van jouw salon en beantwoorden je vragen.</div>
+                    <div className="text-muted-foreground">We laten GlowSuite zien op basis van jouw salon.</div>
                   </div>
                 </li>
-                <li className="flex gap-3 items-start p-3 rounded-lg border bg-card">
-                  <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">3</div>
-                  <div className="text-sm">
+                <li className="flex gap-3 items-start p-2.5 sm:p-3 rounded-lg border bg-card">
+                  <div className="flex-shrink-0 w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">3</div>
+                  <div className="text-sm min-w-0 flex-1">
                     <div className="font-medium">Gratis proefperiode</div>
-                    <div className="text-muted-foreground">Bij interesse krijg je direct toegang tot je eigen omgeving.</div>
+                    <div className="text-muted-foreground">Bij interesse direct toegang tot je eigen omgeving.</div>
                   </div>
                 </li>
               </ol>
             </div>
 
-            <div className="mt-6 p-4 rounded-lg bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20">
+            <div className="mt-5 sm:mt-6 p-3 sm:p-4 rounded-lg bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20">
               <div className="flex items-start gap-3">
                 <PlayCircle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <div className="font-semibold text-sm">Niet wachten? Bekijk de demo nu</div>
                   <div className="text-xs text-muted-foreground mt-0.5">
-                    Klik direct door naar de live demo-omgeving met echte voorbeelddata.
+                    Direct door naar de live demo-omgeving.
                   </div>
                 </div>
               </div>
               <div className="mt-3 flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
-                <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>Sluiten</Button>
-                <Button asChild size="sm" variant="gradient">
+                <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">Sluiten</Button>
+                <Button asChild size="sm" variant="gradient" className="w-full sm:w-auto">
                   <a href="/login?demo=1">
                     Open live demo <ArrowRight className="w-4 h-4 ml-1" />
                   </a>
@@ -263,10 +267,10 @@ export function DemoRequestDialog({ open, onOpenChange, source = "landing" }: Pr
               </p>
 
               <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
-                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
                   Annuleren
                 </Button>
-                <Button type="submit" disabled={submitting}>
+                <Button type="submit" disabled={submitting} className="w-full sm:w-auto">
                   {submitting && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
                   Vraag demo aan
                 </Button>
