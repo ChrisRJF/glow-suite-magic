@@ -305,7 +305,7 @@ export default function LandingPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-background text-foreground antialiased selection:bg-primary/20 overflow-x-hidden">
+    <div className="min-h-[100dvh] bg-background text-foreground antialiased selection:bg-primary/20 overflow-x-hidden md:pb-0 pb-24">
       {/* NAV */}
       <header
         className={`sticky top-0 z-50 w-full transition-all ${
