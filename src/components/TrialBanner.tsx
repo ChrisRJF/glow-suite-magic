@@ -99,15 +99,18 @@ export function PastDueBanner() {
   if (!isPastDue || isReadOnly) return null;
   const daysLeftInGrace = Math.max(0, 7 - (pastDueDays ?? 0));
   return (
-    <div className="bg-warning/10 border-b border-warning/30 px-4 py-2.5 text-sm flex flex-wrap items-center justify-center gap-3">
-      <AlertTriangle className="w-4 h-4 shrink-0 text-warning" />
-      <span className="font-medium">
-        Betaling niet gelukt — los dit binnen {daysLeftInGrace}{" "}
-        {daysLeftInGrace === 1 ? "dag" : "dagen"} op om alleen-lezen te voorkomen.
-      </span>
+    <div className="bg-warning/10 border-b border-warning/30 px-4 py-2.5 text-sm flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center justify-center gap-2 sm:gap-3">
+      <div className="flex items-center gap-2 justify-center text-center">
+        <AlertTriangle className="w-4 h-4 shrink-0 text-warning" />
+        <span className="font-medium leading-tight">
+          Betaling niet gelukt — los dit binnen {daysLeftInGrace}{" "}
+          {daysLeftInGrace === 1 ? "dag" : "dagen"} op om alleen-lezen te voorkomen.
+        </span>
+      </div>
       <Button
         size="sm"
         variant="gradient"
+        className="w-full sm:w-auto"
         onClick={() => navigate("/mijn-abonnement")}
       >
         <CreditCard className="w-3.5 h-3.5 mr-1.5" />
