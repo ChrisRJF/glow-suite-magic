@@ -10,7 +10,7 @@ import {
   Zap, Globe, Shield,
   CheckCircle2, ArrowRight, Menu, X, Star, Clock, TrendingUp,
   Smartphone, Lock, Brain, Bot, Wand2, LineChart, Bell, Target,
-  AlertTriangle,
+  AlertTriangle, MessageCircle, UserCheck, MoveRight, Heart, Coins, ShieldCheck,
 } from "lucide-react";
 import logoFull from "@/assets/logo-full.png";
 import logoIcon from "@/assets/logo-icon.png";
