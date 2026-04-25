@@ -238,11 +238,11 @@ export default function LoginPage() {
                 className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                 placeholder="••••••••" autoComplete="current-password" />
             </div>
-            <Button type="submit" variant="gradient" className="w-full" disabled={loading}>
+            <Button type="submit" variant="gradient" className="w-full h-11" disabled={loading}>
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {loading ? "Even geduld..." : "Inloggen"}
             </Button>
-            <button type="button" onClick={() => setForgotOpen(true)} className="text-xs text-primary hover:underline w-full text-center">
+            <button type="button" onClick={() => setForgotOpen(true)} className="text-xs text-primary hover:underline w-full text-center py-2">
               Wachtwoord vergeten?
             </button>
             <p className="text-xs text-center text-muted-foreground">
