@@ -23,10 +23,16 @@ export default function LoginPage() {
     if (loading) return;
     setLoading(true);
     try {
+      const params = new URLSearchParams(window.location.search);
+      const plan = params.get("plan") || undefined;
+      const wantsCheckout = params.get("checkout") === "1";
       if (isSignUp) {
         const { error } = await supabase.auth.signUp({
           email, password,
-          options: { emailRedirectTo: `${window.location.origin}/` },
+          options: {
+            emailRedirectTo: `${window.location.origin}/${wantsCheckout && plan ? `?checkout=1&plan=${plan}` : ""}`,
+            data: plan ? { plan } : undefined,
+          },
         });
         if (error) throw error;
         toast.success("Account aangemaakt! Je kunt nu inloggen.");
@@ -34,6 +40,10 @@ export default function LoginPage() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast.success("Welkom terug!");
+        if (wantsCheckout && plan) {
+          window.location.href = `/?checkout=1&plan=${plan}`;
+          return;
+        }
       }
     } catch (err: any) {
       toast.error(err.message || "Er ging iets mis");
