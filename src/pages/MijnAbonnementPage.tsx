@@ -223,7 +223,7 @@ export default function MijnAbonnementPage() {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="mt-3"
+                  className="mt-3 w-full sm:w-auto"
                   onClick={handleReactivate}
                   disabled={!!busy}
                 >
