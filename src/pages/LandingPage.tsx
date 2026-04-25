@@ -788,6 +788,8 @@ export default function LandingPage() {
           </Link>
         </div>
       </div>
+
+      <DemoRequestDialog open={demoOpen} onOpenChange={setDemoOpen} source={demoSource} />
     </div>
   );
 }
