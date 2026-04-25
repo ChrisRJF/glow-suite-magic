@@ -59,29 +59,77 @@ Deno.serve(async (req) => {
 
     const payment = await mollie(`/payments/${paymentId}`, "GET");
     const meta = payment.metadata || {};
-    if (meta.kind !== "saas_first") {
+    const kind = meta.kind;
+    if (kind !== "saas_first" && kind !== "saas_first_public") {
       return new Response("ok", { status: 200, headers: corsHeaders });
     }
 
-    const userId = meta.user_id as string;
     const planSlug = meta.plan_slug as string;
+    const { data: plan } = await admin
+      .from("subscription_plans")
+      .select("*")
+      .eq("slug", planSlug)
+      .maybeSingle();
 
-    const { data: sub } = await admin
+    // ----- Resolve user_id (existing flow uses meta.user_id, public flow creates user from email) -----
+    let userId = meta.user_id as string | undefined;
+
+    if (kind === "saas_first_public" && payment.status === "paid") {
+      const email = String(meta.email || "").toLowerCase();
+      if (email) {
+        // Find existing user
+        const { data: list } = await admin.auth.admin.listUsers({
+          page: 1,
+          perPage: 200,
+        });
+        const existing = list?.users?.find(
+          (u: any) => (u.email || "").toLowerCase() === email,
+        );
+        if (existing) {
+          userId = existing.id;
+        } else {
+          const { data: created, error: createErr } =
+            await admin.auth.admin.createUser({
+              email,
+              email_confirm: true,
+              user_metadata: {
+                plan: planSlug,
+                salon_name: meta.salon_name || "",
+                full_name: meta.full_name || "",
+              },
+            });
+          if (createErr) {
+            console.error("createUser failed", createErr);
+          } else {
+            userId = created?.user?.id;
+            // Send magic link so the user can sign in without a password
+            const origin =
+              payment.redirectUrl?.split("/").slice(0, 3).join("/") ||
+              "https://glowsuite.nl";
+            await admin.auth.admin
+              .generateLink({
+                type: "magiclink",
+                email,
+                options: { redirectTo: `${origin}/?subscribed=1` },
+              })
+              .catch((e) => console.error("magic link gen failed", e));
+          }
+        }
+      }
+    }
+
+    if (!userId) {
+      return new Response("ok", { status: 200, headers: corsHeaders });
+    }
+
+    // ----- Find / create subscription row -----
+    const { data: subRow } = await admin
       .from("subscriptions")
       .select("*")
       .eq("user_id", userId)
       .maybeSingle();
-    if (!sub) {
-      return new Response("ok", { status: 200, headers: corsHeaders });
-    }
 
     if (payment.status === "paid" && payment.customerId && payment.mandateId) {
-      const { data: plan } = await admin
-        .from("subscription_plans")
-        .select("*")
-        .eq("slug", planSlug)
-        .maybeSingle();
-
       // Create recurring subscription with Mollie
       const subscription = await mollie(
         `/customers/${payment.customerId}/subscriptions`,
@@ -103,25 +151,36 @@ Deno.serve(async (req) => {
       const periodEnd = new Date();
       periodEnd.setMonth(periodEnd.getMonth() + 1);
 
-      await admin
-        .from("subscriptions")
-        .update({
-          status: "active",
-          mollie_mandate_id: payment.mandateId,
-          mollie_subscription_id: subscription.id,
-          current_period_start: periodStart.toISOString(),
-          current_period_end: periodEnd.toISOString(),
-        })
-        .eq("id", sub.id);
+      const update = {
+        status: "active",
+        plan_slug: planSlug,
+        mollie_customer_id: payment.customerId,
+        mollie_mandate_id: payment.mandateId,
+        mollie_subscription_id: subscription.id,
+        last_payment_id: payment.id,
+        current_period_start: periodStart.toISOString(),
+        current_period_end: periodEnd.toISOString(),
+        trial_ends_at: null,
+      } as Record<string, unknown>;
+
+      if (subRow) {
+        await admin.from("subscriptions").update(update).eq("id", subRow.id);
+      } else {
+        await admin
+          .from("subscriptions")
+          .insert({ user_id: userId, ...update });
+      }
     } else if (
       payment.status === "failed" ||
       payment.status === "canceled" ||
       payment.status === "expired"
     ) {
-      await admin
-        .from("subscriptions")
-        .update({ status: "past_due" })
-        .eq("id", sub.id);
+      if (subRow) {
+        await admin
+          .from("subscriptions")
+          .update({ status: "past_due" })
+          .eq("id", subRow.id);
+      }
     }
 
     return new Response("ok", { status: 200, headers: corsHeaders });
