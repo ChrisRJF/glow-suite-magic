@@ -86,6 +86,12 @@ export function DemoRequestDialog({ open, onOpenChange, source = "landing" }: Pr
       if (error) throw error;
       setDone(true);
       toast({ title: "Bedankt!", description: "We nemen snel contact met je op." });
+
+      // Fire-and-forget email automation. Failures are logged silently
+      // and never affect the success flow.
+      supabase.functions
+        .invoke("send-lead-emails", { body: payload })
+        .catch((e) => console.error("send-lead-emails failed:", e));
     } catch (err: any) {
       toast({
         title: "Verzenden mislukt",
