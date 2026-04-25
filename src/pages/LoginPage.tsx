@@ -33,11 +33,15 @@ export default function LoginPage() {
           email, password,
           options: {
             emailRedirectTo: `${window.location.origin}/${wantsCheckout && plan ? `?checkout=1&plan=${plan}` : ""}`,
-            data: plan ? { plan } : undefined,
+            data: {
+              ...(plan ? { plan } : {}),
+              ...(salonName.trim() ? { salon_name: salonName.trim() } : {}),
+              ...(fullName.trim() ? { full_name: fullName.trim() } : {}),
+            },
           },
         });
         if (error) throw error;
-        toast.success("Account aangemaakt! Je kunt nu inloggen.");
+        toast.success("Account aangemaakt! Check je e-mail om te bevestigen.");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
