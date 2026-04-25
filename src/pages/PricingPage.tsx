@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { CheckCircle2, Sparkles, ArrowLeft, Loader2 } from "lucide-react";
 import logoFull from "@/assets/logo-full.png";
 import { DemoRequestDialog } from "@/components/DemoRequestDialog";
+import { DirectCheckoutDialog } from "@/components/DirectCheckoutDialog";
 import { useSubscriptionPlans, startMollieCheckout } from "@/hooks/useSubscription";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
@@ -16,6 +17,8 @@ export default function PricingPage() {
   const [demoOpen, setDemoOpen] = useState(false);
   const [demoSource, setDemoSource] = useState("pricing-premium");
   const [busy, setBusy] = useState<string | null>(null);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [checkoutPlan, setCheckoutPlan] = useState<{ slug: string; name: string; price: string } | null>(null);
 
   const onTrial = (slug: string, requiresDemo: boolean) => {
     if (requiresDemo) {
@@ -26,14 +29,16 @@ export default function PricingPage() {
     navigate(`/login?mode=signup&plan=${slug}`);
   };
 
-  const onPaid = async (slug: string, requiresDemo: boolean) => {
+  const onPaid = async (slug: string, requiresDemo: boolean, name: string, priceEur: number) => {
     if (requiresDemo) {
       setDemoSource(`pricing-${slug}-paid`);
       setDemoOpen(true);
       return;
     }
     if (!user) {
-      navigate(`/login?mode=signup&plan=${slug}&checkout=1`);
+      // Open public checkout dialog — no login required
+      setCheckoutPlan({ slug, name, price: `€${Math.round(priceEur)}` });
+      setCheckoutOpen(true);
       return;
     }
     try {
