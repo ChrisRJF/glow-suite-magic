@@ -119,7 +119,7 @@ export function AppSidebar() {
         <button
           onClick={() => setMobileOpen(false)}
           aria-label="Menu sluiten"
-          className="absolute top-4 right-4 lg:hidden p-1.5 rounded-lg hover:bg-secondary"
+          className="absolute top-3 right-3 lg:hidden inline-flex items-center justify-center h-11 w-11 rounded-xl hover:bg-secondary active:scale-95 transition"
         >
           <X className="w-5 h-5" />
         </button>
