@@ -1859,6 +1859,7 @@ export type Database = {
       }
       subscriptions: {
         Row: {
+          cancel_at_period_end: boolean
           canceled_at: string | null
           created_at: string
           current_period_end: string | null
@@ -1872,7 +1873,10 @@ export type Database = {
           mollie_customer_id: string | null
           mollie_mandate_id: string | null
           mollie_subscription_id: string | null
+          past_due_since: string | null
+          payment_failure_email_sent_at: string | null
           plan_slug: string
+          retry_attempted_at: string | null
           status: string
           trial_ends_at: string
           trial_started_at: string
@@ -1881,6 +1885,7 @@ export type Database = {
           welcome_sent_at: string | null
         }
         Insert: {
+          cancel_at_period_end?: boolean
           canceled_at?: string | null
           created_at?: string
           current_period_end?: string | null
@@ -1894,7 +1899,10 @@ export type Database = {
           mollie_customer_id?: string | null
           mollie_mandate_id?: string | null
           mollie_subscription_id?: string | null
+          past_due_since?: string | null
+          payment_failure_email_sent_at?: string | null
           plan_slug: string
+          retry_attempted_at?: string | null
           status?: string
           trial_ends_at?: string
           trial_started_at?: string
@@ -1903,6 +1911,7 @@ export type Database = {
           welcome_sent_at?: string | null
         }
         Update: {
+          cancel_at_period_end?: boolean
           canceled_at?: string | null
           created_at?: string
           current_period_end?: string | null
@@ -1916,7 +1925,10 @@ export type Database = {
           mollie_customer_id?: string | null
           mollie_mandate_id?: string | null
           mollie_subscription_id?: string | null
+          past_due_since?: string | null
+          payment_failure_email_sent_at?: string | null
           plan_slug?: string
+          retry_attempted_at?: string | null
           status?: string
           trial_ends_at?: string
           trial_started_at?: string
