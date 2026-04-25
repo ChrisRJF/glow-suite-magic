@@ -11,7 +11,8 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
-const FROM_EMAIL = "GlowSuite <onboarding@resend.dev>";
+const FROM_EMAIL = "GlowSuite <onboarding@email.glowsuite.nl>";
+const REPLY_TO = "support@email.glowsuite.nl";
 const APP_URL = "https://glowsuite.nl";
 
 interface Sub {
@@ -54,7 +55,7 @@ async function sendEmail(to: string, subject: string, html: string) {
       "Authorization": `Bearer ${LOVABLE_API_KEY}`,
       "X-Connection-Api-Key": RESEND_API_KEY,
     },
-    body: JSON.stringify({ from: FROM_EMAIL, to: [to], subject, html }),
+    body: JSON.stringify({ from: FROM_EMAIL, to: [to], subject, html, reply_to: REPLY_TO }),
   });
   if (!res.ok) {
     const text = await res.text();
