@@ -21,8 +21,16 @@ export interface UserSubscription {
   status: string;
   trial_started_at: string;
   trial_ends_at: string;
+  current_period_start: string | null;
   current_period_end: string | null;
   mollie_subscription_id: string | null;
+  mollie_customer_id: string | null;
+  mollie_mandate_id: string | null;
+  cancel_at_period_end: boolean;
+  canceled_at: string | null;
+  past_due_since: string | null;
+  payment_failure_email_sent_at: string | null;
+  retry_attempted_at: string | null;
 }
 
 export function useSubscriptionPlans() {
@@ -97,4 +105,17 @@ export async function startMollieCheckout(planSlug: string): Promise<string> {
   if (error) throw error;
   if (!data?.checkout_url) throw new Error("Geen checkout-url ontvangen");
   return data.checkout_url as string;
+}
+
+export async function manageSubscription(
+  action: "cancel" | "reactivate" | "change_plan",
+  planSlug?: string,
+): Promise<any> {
+  const { data, error } = await supabase.functions.invoke(
+    "saas-subscription-manage",
+    { body: { action, plan_slug: planSlug } },
+  );
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
 }

@@ -162,6 +162,33 @@ Deno.serve(async (req) => {
       return new Response("ok", { status: 200, headers: corsHeaders });
     }
 
+    // ⚠️ "Cancel at period end" enforcement:
+    // If user requested cancel and Mollie tries another renewal, cancel the
+    // Mollie subscription NOW and mark canceled. This is the natural execution
+    // point of the user's earlier opt-out.
+    if (subRow.cancel_at_period_end && payment.customerId && mollieSubscriptionId) {
+      try {
+        await mollie(
+          `/customers/${payment.customerId}/subscriptions/${mollieSubscriptionId}`,
+          "DELETE",
+        );
+      } catch (e) {
+        console.error("Failed to delete Mollie subscription on period-end cancel:", e);
+      }
+      await admin
+        .from("subscriptions")
+        .update({
+          status: "canceled",
+          canceled_at: new Date().toISOString(),
+          last_payment_id: paymentId,
+        })
+        .eq("id", subRow.id);
+      await writeAudit(admin, userId, "saas_subscription_canceled_at_period_end", paymentId, {
+        mollie_subscription_id: mollieSubscriptionId,
+      });
+      return new Response("ok", { status: 200, headers: corsHeaders });
+    }
+
     // 5b. Payment paid → renew period, ensure active
     if (payment.status === "paid") {
       const periodStart = payment.paidAt ? new Date(payment.paidAt) : new Date();
@@ -179,7 +206,11 @@ Deno.serve(async (req) => {
         current_period_start: periodStart.toISOString(),
         current_period_end: periodEnd.toISOString(),
         last_payment_id: paymentId,
-        canceled_at: null,
+        canceled_at: subRow.cancel_at_period_end ? subRow.canceled_at : null,
+        // Reset dunning state on successful payment
+        past_due_since: null,
+        payment_failure_email_sent_at: null,
+        retry_attempted_at: null,
       };
       await admin.from("subscriptions").update(update).eq("id", subRow.id);
 
@@ -192,7 +223,7 @@ Deno.serve(async (req) => {
       return new Response("ok", { status: 200, headers: corsHeaders });
     }
 
-    // 5c. Payment failed/canceled/expired → past_due
+    // 5c. Payment failed/canceled/expired → past_due (set past_due_since on first failure)
     if (
       payment.status === "failed" ||
       payment.status === "canceled" ||
@@ -202,6 +233,10 @@ Deno.serve(async (req) => {
         status: "past_due",
         last_payment_id: paymentId,
       };
+      // Only set past_due_since on transition into past_due
+      if (subRow.status !== "past_due" || !subRow.past_due_since) {
+        update.past_due_since = new Date().toISOString();
+      }
       await admin.from("subscriptions").update(update).eq("id", subRow.id);
 
       await writeAudit(admin, userId, "saas_recurring_payment_failed", paymentId, {

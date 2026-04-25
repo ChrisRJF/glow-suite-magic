@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Sparkles, X, Loader2, AlertTriangle, Lock } from "lucide-react";
+import { Sparkles, X, Loader2, AlertTriangle, Lock, CreditCard } from "lucide-react";
 import { startMollieCheckout } from "@/hooks/useSubscription";
 import { useSubscriptionState } from "@/contexts/SubscriptionStateContext";
 import { toast } from "@/hooks/use-toast";
@@ -86,6 +86,31 @@ export function ReadOnlyBanner() {
     <div className="bg-destructive/10 border-b border-destructive/30 text-destructive px-4 py-2 text-xs flex items-center justify-center gap-2 font-medium">
       <Lock className="w-3.5 h-3.5" />
       Alleen-lezen modus — activeer een abonnement om wijzigingen te maken.
+    </div>
+  );
+}
+
+/** Banner for past_due subscriptions (before grace period expires). */
+export function PastDueBanner() {
+  const { isPastDue, isReadOnly, pastDueDays } = useSubscriptionState();
+  const navigate = useNavigate();
+  if (!isPastDue || isReadOnly) return null;
+  const daysLeftInGrace = Math.max(0, 7 - (pastDueDays ?? 0));
+  return (
+    <div className="bg-warning/10 border-b border-warning/30 px-4 py-2.5 text-sm flex flex-wrap items-center justify-center gap-3">
+      <AlertTriangle className="w-4 h-4 shrink-0 text-warning" />
+      <span className="font-medium">
+        Betaling niet gelukt — los dit binnen {daysLeftInGrace}{" "}
+        {daysLeftInGrace === 1 ? "dag" : "dagen"} op om alleen-lezen te voorkomen.
+      </span>
+      <Button
+        size="sm"
+        variant="gradient"
+        onClick={() => navigate("/mijn-abonnement")}
+      >
+        <CreditCard className="w-3.5 h-3.5 mr-1.5" />
+        Beheer abonnement
+      </Button>
     </div>
   );
 }

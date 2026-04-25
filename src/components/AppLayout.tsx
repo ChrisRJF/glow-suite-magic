@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import { AppSidebar } from "./AppSidebar";
 import { MobileTopbar } from "./MobileTopbar";
-import { TrialBanner, ReadOnlyBanner } from "./TrialBanner";
+import { TrialBanner, ReadOnlyBanner, PastDueBanner } from "./TrialBanner";
 import logoIcon from "@/assets/logo-icon.png";
 import { useDemoMode } from "@/hooks/useDemoMode";
 import { useSubscriptionState } from "@/contexts/SubscriptionStateContext";
@@ -22,6 +22,7 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
       <AppSidebar />
       <main className="flex-1 min-w-0">
         <ReadOnlyBanner />
+        <PastDueBanner />
         <TrialBanner />
         <MobileTopbar
           title={title}
