@@ -982,6 +982,13 @@ export default function LandingPage() {
       </div>
 
       <DemoRequestDialog open={demoOpen} onOpenChange={setDemoOpen} source={demoSource} />
+      <DirectCheckoutDialog
+        open={checkoutOpen}
+        onOpenChange={setCheckoutOpen}
+        planSlug={checkoutPlan?.slug ?? null}
+        planName={checkoutPlan?.name}
+        planPrice={checkoutPlan?.price}
+      />
     </div>
   );
 }
