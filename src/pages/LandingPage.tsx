@@ -14,6 +14,7 @@ import {
 import logoFull from "@/assets/logo-full.png";
 import logoIcon from "@/assets/logo-icon.png";
 import { PaymentMethodLogo } from "@/components/PaymentMethodLogo";
+import { DemoRequestDialog } from "@/components/DemoRequestDialog";
 import shotDashboard from "@/assets/landing/dashboard.png";
 import shotAgenda from "@/assets/landing/agenda.png";
 import shotBetalingen from "@/assets/landing/betalingen.png";
@@ -101,10 +102,37 @@ function CTAButton({
   );
 }
 
+function CTADemoRequest({
+  onClick, variant = "outline", size = "lg", children, className = "",
+}: {
+  onClick: () => void;
+  variant?: "gradient" | "outline" | "default";
+  size?: "lg" | "default" | "sm";
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={`w-full sm:w-auto max-w-full ${className}`}>
+      <Button
+        type="button"
+        onClick={onClick}
+        variant={variant as any}
+        size={size}
+        className="w-full sm:w-auto max-w-full whitespace-normal break-words text-center leading-tight px-5"
+      >
+        {children}
+      </Button>
+    </div>
+  );
+}
+
 export default function LandingPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [showStickyCta, setShowStickyCta] = useState(false);
+  const [demoOpen, setDemoOpen] = useState(false);
+  const [demoSource, setDemoSource] = useState<string>("landing");
+  const openDemo = (source: string) => { setDemoSource(source); setDemoOpen(true); };
 
   useEffect(() => {
     document.documentElement.classList.add("light");
@@ -312,10 +340,10 @@ export default function LandingPage() {
             <CTAButton to={SIGNUP}>
               Start gratis proefperiode <ArrowRight className="w-4 h-4 ml-1 inline shrink-0" />
             </CTAButton>
-            <CTAButton to={DEMO} variant="outline">Bekijk demo</CTAButton>
+            <CTADemoRequest onClick={() => openDemo("hero")}>Plan een persoonlijke demo</CTADemoRequest>
           </div>
           <p className="mt-5 text-sm text-muted-foreground">
-            Geen technische kennis nodig. Binnen enkele minuten live.
+            Geen technische kennis nodig. Of <button type="button" onClick={() => window.location.assign(DEMO)} className="underline hover:text-foreground">open de live demo</button>.
           </p>
         </div>
 
@@ -725,7 +753,7 @@ export default function LandingPage() {
             <CTAButton to={SIGNUP}>
               Start gratis proefperiode <ArrowRight className="w-4 h-4 ml-1 inline shrink-0" />
             </CTAButton>
-            <CTAButton to={DEMO} variant="outline">Bekijk demo</CTAButton>
+            <CTADemoRequest onClick={() => openDemo("final-cta")}>Plan een persoonlijke demo</CTADemoRequest>
           </div>
         </div>
       </Section>
@@ -760,6 +788,8 @@ export default function LandingPage() {
           </Link>
         </div>
       </div>
+
+      <DemoRequestDialog open={demoOpen} onOpenChange={setDemoOpen} source={demoSource} />
     </div>
   );
 }
