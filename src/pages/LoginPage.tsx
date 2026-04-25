@@ -259,7 +259,7 @@ export default function LoginPage() {
             <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
             <div className="relative flex justify-center"><span className="bg-background px-3 text-xs text-muted-foreground">of</span></div>
           </div>
-          <Button variant="outline" className="w-full border-primary/30 hover:bg-primary/5" onClick={handleDemoLogin} disabled={demoLoading}>
+          <Button variant="outline" className="w-full h-11 border-primary/30 hover:bg-primary/5" onClick={handleDemoLogin} disabled={demoLoading}>
             {demoLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
             {demoLoading ? "Demo laden..." : "Bekijk live demo"}
           </Button>
