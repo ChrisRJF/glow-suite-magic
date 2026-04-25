@@ -165,7 +165,7 @@ function buildEmail(payload: AuthEmailPayload): { subject: string; html: string 
           preheader: "Gebruik deze code om door te gaan.",
           intro: `Je verificatiecode is: <strong style="font-size:20px;letter-spacing:2px;">${email_data.token}</strong>`,
           ctaLabel: "Open GlowSuite",
-          ctaUrl: base,
+          ctaUrl: siteBase,
           helper: "Deel deze code nooit met anderen.",
         }),
       };
