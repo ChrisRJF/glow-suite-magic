@@ -388,13 +388,13 @@ export default function LandingPage() {
           {/* LEFT: copy + CTA */}
           <div className="text-center lg:text-left max-w-xl mx-auto lg:mx-0">
             <Eyebrow icon={Brain}>Slim salonplatform met AI</Eyebrow>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.05]">
+            <h1 className="text-[34px] sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.05] text-balance">
               Laat je salon groeien op{" "}
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--accent))]">
                 automatische piloot.
               </span>
             </h1>
-            <p className="mt-6 text-lg sm:text-xl text-muted-foreground leading-relaxed">
+            <p className="mt-5 sm:mt-6 text-base sm:text-xl text-muted-foreground leading-relaxed">
               GlowSuite automatiseert boekingen, betalingen, klantopvolging en slimme AI taken. Zo verdien je meer en houd je meer tijd over.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center lg:justify-start gap-3 max-w-md sm:max-w-none mx-auto lg:mx-0">
