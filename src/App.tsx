@@ -44,6 +44,7 @@ import RefundsPage from "./pages/RefundsPage";
 import PublicActionPage from "./pages/PublicActionPage";
 import LandingPage from "./pages/LandingPage";
 import PricingPage from "./pages/PricingPage";
+import MijnAbonnementPage from "./pages/MijnAbonnementPage";
 import { useLeadAutomation } from "@/hooks/useLeadAutomation";
 import { OnboardingGate } from "@/components/OnboardingGate";
 import { GuidedTour } from "@/components/GuidedTour";
@@ -133,6 +134,7 @@ const App = () => (
               <Route path="/leads" element={<RoleProtectedRoute><LeadsPage /></RoleProtectedRoute>} />
               <Route path="/eigenaar" element={<RoleProtectedRoute allow={["eigenaar","manager"]}><EigenaarPage /></RoleProtectedRoute>} />
               <Route path="/support" element={<RoleProtectedRoute><SupportPage /></RoleProtectedRoute>} />
+              <Route path="/mijn-abonnement" element={<RoleProtectedRoute><MijnAbonnementPage /></RoleProtectedRoute>} />
               <Route path="/launch-status" element={<RoleProtectedRoute allow={["eigenaar"]}><LaunchStatusPage /></RoleProtectedRoute>} />
               <Route path="/qa-status" element={<RoleProtectedRoute allow={["eigenaar","manager","admin"]}><QAStatusPage /></RoleProtectedRoute>} />
               <Route path="/admin/email-templates" element={<RoleProtectedRoute allow={["eigenaar","manager","admin"]}><AdminEmailTemplatesPage /></RoleProtectedRoute>} />

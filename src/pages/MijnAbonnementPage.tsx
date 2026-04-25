@@ -160,7 +160,7 @@ export default function MijnAbonnementPage() {
 
   if (loading) {
     return (
-      <AppLayout>
+      <AppLayout title="Mijn abonnement">
         <div className="flex items-center justify-center py-20">
           <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
         </div>
@@ -169,16 +169,11 @@ export default function MijnAbonnementPage() {
   }
 
   return (
-    <AppLayout>
-      <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-6">
-        <header>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-            Mijn abonnement
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Beheer je GlowSuite abonnement, betaalstatus en plan.
-          </p>
-        </header>
+    <AppLayout
+      title="Mijn abonnement"
+      subtitle="Beheer je GlowSuite abonnement, betaalstatus en plan."
+    >
+      <div className="max-w-3xl mx-auto space-y-6">
 
         {/* Past due alert */}
         {isPastDue && (
