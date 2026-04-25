@@ -1,9 +1,10 @@
 import { ReactNode } from "react";
 import { AppSidebar } from "./AppSidebar";
 import { MobileTopbar } from "./MobileTopbar";
-import { TrialBanner } from "./TrialBanner";
+import { TrialBanner, ReadOnlyBanner } from "./TrialBanner";
 import logoIcon from "@/assets/logo-icon.png";
 import { useDemoMode } from "@/hooks/useDemoMode";
+import { useSubscriptionState } from "@/contexts/SubscriptionStateContext";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -14,11 +15,13 @@ interface AppLayoutProps {
 
 export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps) {
   const { demoMode } = useDemoMode();
+  const { isReadOnly } = useSubscriptionState();
 
   return (
-    <div className="flex min-h-screen w-full bg-background">
+    <div className={`flex min-h-screen w-full bg-background ${isReadOnly ? "saas-readonly" : ""}`}>
       <AppSidebar />
       <main className="flex-1 min-w-0">
+        <ReadOnlyBanner />
         <TrialBanner />
         <MobileTopbar
           title={title}
