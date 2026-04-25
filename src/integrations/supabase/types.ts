@@ -653,6 +653,57 @@ export type Database = {
         }
         Relationships: []
       }
+      demo_requests: {
+        Row: {
+          created_at: string
+          email: string
+          follow_up_notes: string | null
+          followed_up_at: string | null
+          id: string
+          message: string | null
+          name: string
+          phone: string | null
+          salon_name: string | null
+          salon_type: string | null
+          source: string
+          status: string
+          updated_at: string
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          follow_up_notes?: string | null
+          followed_up_at?: string | null
+          id?: string
+          message?: string | null
+          name: string
+          phone?: string | null
+          salon_name?: string | null
+          salon_type?: string | null
+          source?: string
+          status?: string
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          follow_up_notes?: string | null
+          followed_up_at?: string | null
+          id?: string
+          message?: string | null
+          name?: string
+          phone?: string | null
+          salon_name?: string | null
+          salon_type?: string | null
+          source?: string
+          status?: string
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       discounts: {
         Row: {
           created_at: string
