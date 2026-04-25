@@ -1,1 +1,7 @@
 project_id = "ueqhckkuuwdsrjrdczbb"
+
+[functions.saas-checkout-public]
+verify_jwt = false
+
+[functions.saas-subscribe-webhook]
+verify_jwt = false
