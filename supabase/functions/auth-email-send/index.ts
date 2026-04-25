@@ -16,7 +16,7 @@ const FROM = "GlowSuite <onboarding@email.glowsuite.nl>";
 const REPLY_TO = "support@email.glowsuite.nl";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
-const HOOK_SECRET = Deno.env.get("SUPABASE_AUTH_HOOK_SECRET") ?? "";
+const HOOK_SECRET = Deno.env.get("AUTH_HOOK_WEBHOOK_SECRET") ?? "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
