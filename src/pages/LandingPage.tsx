@@ -7,13 +7,13 @@ import {
 } from "@/components/ui/accordion";
 import {
   Calendar, CreditCard, Repeat, Users, Sparkles, BarChart3,
-  Zap, ShoppingBag, RefreshCcw, Globe, Shield,
+  Zap, Globe, Shield,
   CheckCircle2, ArrowRight, Menu, X, Star, Clock, TrendingUp,
-  Mail, Smartphone, Lock, Wallet, Receipt, Crown,
+  Smartphone, Lock, Brain, Bot, Wand2, LineChart, Bell, Target,
+  AlertTriangle,
 } from "lucide-react";
 import logoFull from "@/assets/logo-full.png";
 import logoIcon from "@/assets/logo-icon.png";
-import { PaymentMethodLogo } from "@/components/PaymentMethodLogo";
 import { DemoRequestDialog } from "@/components/DemoRequestDialog";
 import shotDashboard from "@/assets/landing/dashboard.png";
 import shotAgenda from "@/assets/landing/agenda.png";
@@ -22,7 +22,6 @@ import shotAbonnementen from "@/assets/landing/abonnementen.png";
 import shotRapportage from "@/assets/landing/rapportage.png";
 
 const SIGNUP = "/login?mode=signup";
-const DEMO = "/login?demo=1";
 const LOGIN = "/login";
 
 function Section({ id, className = "", children }: { id?: string; className?: string; children: React.ReactNode }) {
@@ -33,10 +32,10 @@ function Section({ id, className = "", children }: { id?: string; className?: st
   );
 }
 
-function Eyebrow({ children }: { children: React.ReactNode }) {
+function Eyebrow({ children, icon: Icon = Sparkles }: { children: React.ReactNode; icon?: any }) {
   return (
     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold tracking-wide uppercase mb-4">
-      <Sparkles className="w-3.5 h-3.5" />
+      <Icon className="w-3.5 h-3.5" />
       {children}
     </div>
   );
@@ -71,15 +70,6 @@ function Shot({ src, alt }: { src: string; alt: string }) {
   );
 }
 
-function DemoBadge() {
-  return (
-    <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide font-semibold text-muted-foreground bg-muted/60 px-2 py-0.5 rounded">
-      Echte demo-omgeving
-    </span>
-  );
-}
-
-// CTA helper — guarantees no overflow on mobile
 function CTAButton({
   to, variant = "gradient", size = "lg", children, className = "",
 }: {
@@ -149,57 +139,45 @@ export default function LandingPage() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Smooth scroll to pricing
   const scrollToPricing = (e: React.MouseEvent) => {
     e.preventDefault();
     const el = document.getElementById("prijzen");
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  const features = [
-    { icon: Calendar, title: "Online agenda", desc: "Realtime overzicht van al je afspraken." },
-    { icon: Globe, title: "White-label widget", desc: "Online boekingen op je eigen website." },
-    { icon: CreditCard, title: "Mollie betalingen", desc: "iDEAL, Bancontact, Apple Pay en meer." },
-    { icon: Repeat, title: "Abonnementen", desc: "Terugkerende omzet op autopiloot." },
-    { icon: Users, title: "Klantenbeheer", desc: "Profielen, geschiedenis en voorkeuren." },
-    { icon: Zap, title: "Automatiseringen", desc: "Reminders, herboekingen en winbacks." },
-    { icon: BarChart3, title: "Rapportages", desc: "Slimme inzichten in omzet en team." },
-    { icon: Shield, title: "Team & rollen", desc: "Veilige toegang per medewerker." },
-    { icon: ShoppingBag, title: "Productshop widget", desc: "Verkoop producten online en in salon." },
-    { icon: RefreshCcw, title: "Refunds & beheer", desc: "Terugbetalingen in één klik." },
-  ];
-
   const problems = [
-    "Gaten in je agenda kosten omzet",
-    "Klanten vergeten afspraken",
-    "Betalingen en aanbetalingen zijn omslachtig",
-    "Herhaalboekingen worden vergeten",
-    "Alles zit verspreid over losse tools",
+    { icon: Calendar, t: "Gaten in je agenda kosten omzet" },
+    { icon: Bell, t: "Klanten vergeten hun afspraken" },
+    { icon: Clock, t: "Te veel handmatig werk" },
+    { icon: BarChart3, t: "Geen overzicht in je cijfers" },
+    { icon: Repeat, t: "Geen slimme klantopvolging" },
+    { icon: Globe, t: "Losse tools die tijd opslokken" },
   ];
 
-  const benefits = [
-    "Online boeken op je eigen website",
-    "Aanbetalingen via Mollie",
-    "Automatische afspraakbevestigingen",
-    "Abonnementen voor terugkerende omzet",
-    "Slimme rapportages en omzetinzichten",
-    "Minder handwerk voor jou en je team",
+  const valueCards = [
+    { icon: Calendar, title: "24/7 online boekingen", desc: "Klanten boeken terwijl jij aan het werk — of slaapt." },
+    { icon: Bot, title: "Slimme AI herinneringen", desc: "Minder no-shows, zonder dat jij iets hoeft te doen." },
+    { icon: CreditCard, title: "Betalingen & aanbetalingen", desc: "Meer zekerheid vooraf via Mollie." },
+    { icon: Repeat, title: "Abonnementen", desc: "Terugkerende omzet, iedere maand opnieuw." },
+    { icon: TrendingUp, title: "AI klantgroei tools", desc: "Meer herhaalboekingen en slimme upsells." },
+    { icon: LineChart, title: "Realtime inzicht", desc: "Zie direct waar geld blijft liggen in je salon." },
+  ];
+
+  const aiBlocks = [
+    { icon: Wand2, t: "Vult lege momenten slimmer op", d: "AI herkent dalmomenten en stelt acties voor om ze te vullen." },
+    { icon: Users, t: "Herkent klanten die bijna terug moeten komen", d: "Automatische winback-suggesties op het juiste moment." },
+    { icon: Target, t: "Geeft omzetkansen aan", d: "Slimme upsells, herboekingen en doelgerichte campagnes." },
+    { icon: Zap, t: "Bespaart tijd met automatisering", d: "Reminders, bevestigingen, opvolging — allemaal automatisch." },
+    { icon: Brain, t: "Laat je slimmer werken", d: "AI inzichten die jou helpen betere keuzes te maken." },
   ];
 
   const trustItems = [
-    { icon: CreditCard, label: "Mollie betalingen" },
-    { icon: Globe, label: "White-label widget" },
-    { icon: Mail, label: "E-mails vanuit salonnaam" },
-    { icon: Smartphone, label: "Mobiel geoptimaliseerd" },
+    { icon: CreditCard, label: "Veilige betalingen via Mollie" },
     { icon: Lock, label: "AVG-bewust gebouwd" },
-  ];
-
-  const proofCards = [
-    { icon: Clock, title: "Minder no-shows", desc: "Door reminders en aanbetalingen via Mollie." },
-    { icon: Repeat, title: "Meer herhaalboekingen", desc: "Slimme opvolging houdt klanten betrokken." },
-    { icon: TrendingUp, title: "Terugkerende omzet", desc: "Bouw een voorspelbare basis met abonnementen." },
-    { icon: Receipt, title: "Direct betaalbewijs", desc: "Bevestigingen automatisch per e-mail." },
-    { icon: BarChart3, title: "Realtime inzicht", desc: "Omzet en planning altijd actueel." },
+    { icon: Globe, label: "White-label boekingspagina" },
+    { icon: Smartphone, label: "Werkt mobiel perfect" },
+    { icon: Shield, label: "Slimme support" },
+    { icon: Brain, label: "Moderne AI technologie" },
   ];
 
   const plans = [
@@ -207,12 +185,11 @@ export default function LandingPage() {
       name: "Starter",
       price: "€39",
       tagline: "Voor zelfstandige salons",
-      icon: Sparkles,
       featured: false,
       features: [
         "Online agenda & boekingen",
         "White-label boekingswidget",
-        "E-mailbevestigingen",
+        "E-mailbevestigingen & reminders",
         "Klantenbeheer",
       ],
     },
@@ -220,26 +197,24 @@ export default function LandingPage() {
       name: "Pro",
       price: "€79",
       tagline: "Voor groeiende salons",
-      icon: Zap,
       featured: true,
       features: [
         "Alles uit Starter",
         "Mollie betalingen & aanbetalingen",
-        "Automatiseringen & reminders",
-        "Rapportages",
+        "AI automatiseringen & reminders",
+        "Rapportages & inzichten",
         "Tot 5 medewerkers",
       ],
     },
     {
       name: "Elite",
       price: "€149",
-      tagline: "Teams, automatisering en abonnementen",
-      icon: Crown,
+      tagline: "Teams, AI groei en abonnementen",
       featured: false,
       features: [
         "Alles uit Pro",
         "Abonnementen & memberships",
-        "Geavanceerde automatiseringen",
+        "AI groei- & marketing automations",
         "Onbeperkt medewerkers",
         "Prioriteitssupport",
       ],
@@ -248,10 +223,10 @@ export default function LandingPage() {
 
   const faqs = [
     { q: "Is GlowSuite geschikt voor kleine salons?", a: "Ja. GlowSuite werkt voor solo-professionals én teams. Je betaalt alleen voor wat je nodig hebt en je kunt op elk moment opschalen." },
+    { q: "Hoe werkt de AI van GlowSuite precies?", a: "Onze AI kijkt mee in je agenda, klantgedrag en omzetdata. Zo krijg je suggesties voor lege plekken, herhaalboekingen, upsells en marketing — zonder dat jij dashboards hoeft te lezen." },
     { q: "Kan ik Mollie koppelen?", a: "Ja. Je koppelt je Mollie-account in een paar klikken en ontvangt direct online betalingen, aanbetalingen en abonnementen." },
     { q: "Kan ik GlowSuite op mijn eigen website plaatsen?", a: "Ja. Onze white-label boekingswidget plaats je met één regel code op elke website — van WordPress tot Squarespace." },
     { q: "Werkt dit ook mobiel?", a: "GlowSuite is volledig mobiel geoptimaliseerd. Jij én je klanten werken vanaf elk apparaat." },
-    { q: "Kan mijn team meekijken?", a: "Ja. Je voegt teamleden toe met eigen rollen en rechten — van eigenaar tot medewerker." },
     { q: "Kan ik later upgraden?", a: "Altijd. Je begint klein en breidt features of teamleden uit wanneer je salon groeit." },
   ];
 
@@ -264,14 +239,14 @@ export default function LandingPage() {
         }`}
       >
         <div className="max-w-6xl mx-auto px-5 sm:px-8 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <img src={logoIcon} alt="GlowSuite" className="w-8 h-8 rounded-lg" />
+          <Link to="/" className="flex items-center gap-2 min-w-0">
+            <img src={logoIcon} alt="GlowSuite" className="w-8 h-8 rounded-lg shrink-0" />
             <img src={logoFull} alt="GlowSuite" className="h-5 w-auto hidden sm:block" />
           </Link>
 
           <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-muted-foreground">
+            <a href="#ai" className="hover:text-foreground transition-colors">AI</a>
             <a href="#features" className="hover:text-foreground transition-colors">Features</a>
-            <a href="#voor-wie" className="hover:text-foreground transition-colors">Voor wie</a>
             <a href="#prijzen" onClick={scrollToPricing} className="hover:text-foreground transition-colors">Prijzen</a>
             <button type="button" onClick={() => openDemo("nav")} className="hover:text-foreground transition-colors">Demo</button>
             <Link to={LOGIN} className="hover:text-foreground transition-colors">Login</Link>
@@ -279,7 +254,7 @@ export default function LandingPage() {
 
           <div className="hidden md:flex items-center gap-3">
             <Button type="button" variant="gradient" size="sm" onClick={() => openDemo("nav-cta")}>
-              Start gratis
+              Start gratis proefperiode
             </Button>
           </div>
 
@@ -295,8 +270,8 @@ export default function LandingPage() {
         {menuOpen && (
           <div className="md:hidden border-t border-border/60 bg-background/95 backdrop-blur-xl">
             <nav className="flex flex-col px-5 py-4 gap-1 text-base">
+              <a href="#ai" onClick={() => setMenuOpen(false)} className="py-3 text-foreground/80">AI</a>
               <a href="#features" onClick={() => setMenuOpen(false)} className="py-3 text-foreground/80">Features</a>
-              <a href="#voor-wie" onClick={() => setMenuOpen(false)} className="py-3 text-foreground/80">Voor wie</a>
               <a
                 href="#prijzen"
                 onClick={(e) => { setMenuOpen(false); scrollToPricing(e); }}
@@ -318,7 +293,7 @@ export default function LandingPage() {
                 className="w-full mt-2"
                 onClick={() => { setMenuOpen(false); openDemo("mobile-cta"); }}
               >
-                Start gratis
+                Start gratis proefperiode
               </Button>
             </nav>
           </div>
@@ -332,81 +307,42 @@ export default function LandingPage() {
           className="absolute inset-0 -z-10 opacity-70"
           style={{
             background:
-              "radial-gradient(60% 50% at 50% 0%, hsl(var(--primary) / 0.12), transparent 70%), radial-gradient(40% 40% at 90% 10%, hsl(var(--accent) / 0.08), transparent 70%)",
+              "radial-gradient(60% 50% at 50% 0%, hsl(var(--primary) / 0.14), transparent 70%), radial-gradient(40% 40% at 90% 10%, hsl(var(--accent) / 0.10), transparent 70%)",
           }}
         />
         <div className="text-center max-w-3xl mx-auto">
-          <Eyebrow>Premium salonsoftware</Eyebrow>
+          <Eyebrow icon={Brain}>AI-powered salon platform</Eyebrow>
           <h1 className="text-4xl sm:text-6xl font-bold tracking-tight leading-[1.05]">
-            Meer boekingen.<br />
-            Minder no-shows.<br />
+            Laat je salon groeien op{" "}
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--accent))]">
-              Meer rust in je salon.
+              automatische piloot.
             </span>
           </h1>
           <p className="mt-6 text-lg sm:text-xl text-muted-foreground leading-relaxed">
-            GlowSuite helpt salons groeien met online boekingen, betalingen, abonnementen en slimme automatisering — alles in één premium systeem.
+            GlowSuite automatiseert boekingen, betalingen, herinneringen, klantopvolging en AI-gestuurde groei — zodat jij meer omzet draait met minder stress.
           </p>
           <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 max-w-md sm:max-w-none mx-auto">
             <CTADemoRequest onClick={() => openDemo("hero-start")} variant="gradient">
               Start gratis proefperiode <ArrowRight className="w-4 h-4 ml-1 inline shrink-0" />
             </CTADemoRequest>
-            <CTADemoRequest onClick={() => openDemo("hero-demo")}>Plan een persoonlijke demo</CTADemoRequest>
+            <CTADemoRequest onClick={() => openDemo("hero-demo")}>Vraag demo aan</CTADemoRequest>
           </div>
           <p className="mt-5 text-sm text-muted-foreground">
-            Geen technische kennis nodig. We nemen binnen 1 werkdag contact op.
+            Binnen minuten live • Geen technische kennis nodig • Gebouwd voor salons
           </p>
         </div>
 
-        {/* Hero visual mock */}
+        {/* Hero visual */}
         <div className="mt-14 sm:mt-20 max-w-5xl mx-auto">
-          <MockWindow url="salon.glowsuite.nl/agenda">
-            <div className="grid grid-cols-12 gap-3 sm:gap-4">
-              <div className="col-span-3 hidden sm:block space-y-2">
-                {["Dashboard", "Agenda", "Klanten", "Behandelingen", "Abonnementen", "Rapporten"].map((l, i) => (
-                  <div key={l} className={`px-3 py-2 rounded-lg text-xs ${i === 1 ? "bg-primary/10 text-primary font-semibold" : "text-muted-foreground"}`}>
-                    {l}
-                  </div>
-                ))}
-              </div>
-              <div className="col-span-12 sm:col-span-9 space-y-3">
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { l: "Omzet vandaag", v: "€1.247", t: "+12%" },
-                    { l: "Boekingen", v: "23", t: "+5" },
-                    { l: "No-shows", v: "0", t: "-100%" },
-                  ].map((k) => (
-                    <div key={k.l} className="rounded-xl border border-border/60 bg-card p-3">
-                      <div className="text-[10px] sm:text-xs text-muted-foreground">{k.l}</div>
-                      <div className="text-sm sm:text-lg font-semibold mt-0.5">{k.v}</div>
-                      <div className="text-[10px] text-success font-medium">{k.t}</div>
-                    </div>
-                  ))}
-                </div>
-                <div className="rounded-xl border border-border/60 bg-card p-3 space-y-2">
-                  {[
-                    { t: "09:00", c: "Sophie · Knippen & föhnen", b: "from-primary to-accent" },
-                    { t: "10:30", c: "Lisa · Balayage", b: "from-accent to-primary" },
-                    { t: "13:00", c: "Mark · Baard trim", b: "from-primary/80 to-accent/80" },
-                    { t: "15:30", c: "Eva · Gel manicure", b: "from-accent/80 to-primary/80" },
-                  ].map((a) => (
-                    <div key={a.t} className="flex items-center gap-3">
-                      <div className="text-[10px] sm:text-xs text-muted-foreground w-10 sm:w-12 shrink-0">{a.t}</div>
-                      <div className={`flex-1 min-w-0 rounded-lg px-3 py-2 text-white text-[11px] sm:text-xs font-medium bg-gradient-to-r ${a.b} truncate`}>
-                        {a.c}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+          <MockWindow url="salon.glowsuite.nl/dashboard">
+            <Shot src={shotDashboard} alt="GlowSuite dashboard met dagomzet, AI inzichten en planning" />
           </MockWindow>
         </div>
 
         {/* TRUST STRIP */}
         <div className="mt-10 sm:mt-14 max-w-5xl mx-auto">
           <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-xs sm:text-sm text-muted-foreground">
-            {trustItems.map((t) => {
+            {trustItems.slice(0, 5).map((t) => {
               const Icon = t.icon;
               return (
                 <div key={t.label} className="inline-flex items-center gap-1.5">
@@ -422,115 +358,156 @@ export default function LandingPage() {
       {/* PROBLEM */}
       <Section id="voor-wie" className="border-t border-border/60">
         <div className="max-w-2xl">
-          <Eyebrow>Herken je dit?</Eyebrow>
-          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Je salon draait goed, maar het kan slimmer.</h2>
-        </div>
-        <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {problems.map((p) => (
-            <Card key={p} className="p-5 flex items-start gap-3">
-              <div className="w-9 h-9 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center shrink-0">
-                <X className="w-4 h-4" />
-              </div>
-              <p className="text-sm sm:text-base font-medium leading-snug">{p}</p>
-            </Card>
-          ))}
-        </div>
-      </Section>
-
-      {/* SOLUTION */}
-      <Section className="bg-muted/30 border-y border-border/60">
-        <div className="max-w-2xl">
-          <Eyebrow>Eén systeem</Eyebrow>
-          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">GlowSuite brengt alles samen.</h2>
+          <Eyebrow icon={AlertTriangle}>Herken je dit?</Eyebrow>
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+            Je salon draait hard. Maar oude software houdt je klein.
+          </h2>
           <p className="mt-4 text-muted-foreground text-lg">
-            Geen losse tools, geen gedoe. Eén plek voor je agenda, klanten, betalingen en groei.
+            De meeste salons verliezen elke week omzet door dingen die slimmer geregeld kunnen worden.
           </p>
         </div>
-        <div className="mt-10 grid sm:grid-cols-2 gap-3">
-          {benefits.map((b) => (
-            <div key={b} className="flex items-start gap-3 p-4 rounded-xl bg-card border border-border/60">
-              <CheckCircle2 className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-              <span className="font-medium">{b}</span>
+        <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {problems.map((p) => {
+            const Icon = p.icon;
+            return (
+              <Card key={p.t} className="p-5 flex items-start gap-3">
+                <div className="w-9 h-9 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center shrink-0">
+                  <Icon className="w-4 h-4" />
+                </div>
+                <p className="text-sm sm:text-base font-medium leading-snug">{p.t}</p>
+              </Card>
+            );
+          })}
+        </div>
+        <div className="mt-10 p-6 rounded-2xl border border-primary/30 bg-primary/5 flex items-start gap-4">
+          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--accent))] text-white flex items-center justify-center shrink-0">
+            <Sparkles className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="font-semibold text-lg">GlowSuite lost dit automatisch op.</div>
+            <div className="text-muted-foreground text-sm mt-1">
+              Slimme AI-tools die met je salon meewerken — dag en nacht.
             </div>
-          ))}
+          </div>
         </div>
       </Section>
 
-      {/* === PRODUCT PROOF A — DASHBOARD === */}
+      {/* VALUE / OUTCOMES */}
+      <Section className="bg-muted/30 border-y border-border/60">
+        <div className="max-w-2xl">
+          <Eyebrow>Wat je krijgt</Eyebrow>
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+            Eén platform. Zes manieren om meer omzet te draaien.
+          </h2>
+          <p className="mt-4 text-muted-foreground text-lg">
+            Geen losse tools meer. GlowSuite combineert agenda, betalingen en AI in één premium systeem.
+          </p>
+        </div>
+        <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {valueCards.map((v) => {
+            const Icon = v.icon;
+            return (
+              <Card key={v.title} className="p-6 hover:border-primary/40 transition-colors group">
+                <div className="w-11 h-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
+                  <Icon className="w-5 h-5" />
+                </div>
+                <h3 className="font-semibold text-lg">{v.title}</h3>
+                <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">{v.desc}</p>
+              </Card>
+            );
+          })}
+        </div>
+      </Section>
+
+      {/* === PRODUCT PROOF — AGENDA === */}
       <Section>
         <div className="grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
           <div>
-            <Eyebrow>Dashboard</Eyebrow>
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Zie direct wat je salon vandaag oplevert.</h2>
+            <Eyebrow icon={Calendar}>Agenda</Eyebrow>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+              Een agenda die salons echt begrijpen.
+            </h2>
             <p className="mt-4 text-muted-foreground text-lg">
-              Eén overzicht voor omzet, boekingen, vrije plekken en no-show risico — zonder spreadsheets.
+              Plan per medewerker, zie bezetting in één oogopslag en laat AI vrije plekken slim opvullen.
             </p>
             <ul className="mt-6 space-y-2.5 text-sm">
-              {["Omzet en boekingen vandaag", "Open plekken in je agenda", "No-show risico per afspraak", "Omzetkansen en upsells"].map((i) => (
+              {["Dagplanning per medewerker", "Realtime bezetting & vrije plekken", "AI suggereert dalmoment-acties", "Drag & drop afspraken"].map((i) => (
                 <li key={i} className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-primary shrink-0" />{i}</li>
               ))}
             </ul>
-            <div className="mt-3"><DemoBadge /></div>
           </div>
-          <MockWindow url="salon.glowsuite.nl/dashboard">
-            <Shot src={shotDashboard} alt="GlowSuite dashboard met dagomzet, planning en omzetkansen" />
-          </MockWindow>
-        </div>
-      </Section>
-
-      {/* === PRODUCT PROOF B — AGENDA === */}
-      <Section className="bg-muted/30 border-y border-border/60">
-        <div className="grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
           <MockWindow url="salon.glowsuite.nl/agenda">
             <Shot src={shotAgenda} alt="GlowSuite agenda met dagplanning per medewerker" />
           </MockWindow>
-          <div>
-            <Eyebrow>Agenda</Eyebrow>
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Een agenda die salons echt begrijpen.</h2>
-            <p className="mt-4 text-muted-foreground text-lg">
-              Plan per medewerker, zie bezetting in één oogopslag en vul vrije plekken slim op.
-            </p>
-            <ul className="mt-6 space-y-2.5 text-sm">
-              {["Dagplanning per medewerker", "Realtime bezetting", "Vrije plekken zichtbaar", "Drag & drop afspraken"].map((i) => (
-                <li key={i} className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-primary shrink-0" />{i}</li>
-              ))}
-            </ul>
-            <div className="mt-3"><DemoBadge /></div>
-          </div>
         </div>
       </Section>
 
-      {/* === PRODUCT PROOF C — BETALINGEN === */}
-      <Section>
+      {/* === PRODUCT PROOF — BETALINGEN === */}
+      <Section className="bg-muted/30 border-y border-border/60">
         <div className="grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
+          <MockWindow url="salon.glowsuite.nl/betalingen">
+            <Shot src={shotBetalingen} alt="GlowPay betalingen overzicht met live betaalstatussen" />
+          </MockWindow>
           <div>
-            <Eyebrow>Betalingen</Eyebrow>
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Ontvang aanbetalingen en betalingen via Mollie.</h2>
+            <Eyebrow icon={CreditCard}>Betalingen</Eyebrow>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+              Ontvang aanbetalingen en betalingen via Mollie.
+            </h2>
             <p className="mt-4 text-muted-foreground text-lg">
-              Veilige online betalingen, automatische bevestigingen en refunds in één klik.
+              Veilige online betalingen, automatische bevestigingen en refunds in één klik. Meer zekerheid vooraf.
             </p>
             <ul className="mt-6 space-y-2.5 text-sm">
               {["Mollie verbonden in 2 minuten", "iDEAL, Wero, Bancontact, kaart", "Live betaalstatussen", "Refunds direct vanuit GlowSuite"].map((i) => (
                 <li key={i} className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-primary shrink-0" />{i}</li>
               ))}
             </ul>
-            <div className="mt-3"><DemoBadge /></div>
           </div>
-          <MockWindow url="salon.glowsuite.nl/betalingen">
-            <Shot src={shotBetalingen} alt="GlowPay betalingen overzicht met live betaalstatussen" />
-          </MockWindow>
         </div>
       </Section>
 
-      {/* === PRODUCT PROOF D — ABONNEMENTEN === */}
+      {/* === AI FEATURE SECTION === */}
+      <Section id="ai" className="relative overflow-hidden">
+        <div
+          aria-hidden
+          className="absolute inset-0 -z-10 opacity-60"
+          style={{
+            background:
+              "radial-gradient(50% 40% at 20% 20%, hsl(var(--primary) / 0.10), transparent 70%), radial-gradient(50% 40% at 80% 80%, hsl(var(--accent) / 0.08), transparent 70%)",
+          }}
+        />
+        <div className="max-w-2xl">
+          <Eyebrow icon={Brain}>AI binnen GlowSuite</Eyebrow>
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+            AI die geld voor je terugverdient.
+          </h2>
+          <p className="mt-4 text-muted-foreground text-lg">
+            Geen gimmicks. Slimme AI-tools die met je salon meewerken en concrete omzet opleveren.
+          </p>
+        </div>
+        <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {aiBlocks.map((b) => {
+            const Icon = b.icon;
+            return (
+              <Card key={b.t} className="p-6 border-primary/20">
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--accent))] text-white flex items-center justify-center mb-4">
+                  <Icon className="w-5 h-5" />
+                </div>
+                <h3 className="font-semibold text-lg leading-tight">{b.t}</h3>
+                <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{b.d}</p>
+              </Card>
+            );
+          })}
+        </div>
+      </Section>
+
+      {/* === PRODUCT PROOF — ABONNEMENTEN === */}
       <Section className="bg-muted/30 border-y border-border/60">
         <div className="grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
-          <MockWindow url="salon.glowsuite.nl/abonnementen">
-            <Shot src={shotAbonnementen} alt="Abonnementen dashboard met MRR, leden en churn" />
-          </MockWindow>
           <div>
-            <Eyebrow>Abonnementen</Eyebrow>
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Bouw terugkerende omzet met abonnementen.</h2>
+            <Eyebrow icon={Repeat}>Abonnementen</Eyebrow>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+              Bouw terugkerende omzet met abonnementen.
+            </h2>
             <p className="mt-4 text-muted-foreground text-lg">
               Verkoop maandpakketten met credits en houd MRR, leden en churn realtime in beeld.
             </p>
@@ -539,83 +516,33 @@ export default function LandingPage() {
                 <li key={i} className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-primary shrink-0" />{i}</li>
               ))}
             </ul>
-            <div className="mt-3"><DemoBadge /></div>
           </div>
-        </div>
-      </Section>
-
-      {/* === PRODUCT PROOF E — RAPPORTAGE === */}
-      <Section>
-        <div className="grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
-          <div>
-            <Eyebrow>Rapportage</Eyebrow>
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Eerlijke cijfers voor betere beslissingen.</h2>
-            <p className="mt-4 text-muted-foreground text-lg">
-              Zie omzettrends, top behandelingen en klantenwaarde — exporteer in één klik naar PDF, Excel of CSV.
-            </p>
-            <ul className="mt-6 space-y-2.5 text-sm">
-              {["Omzettrend per periode", "Top behandelingen & medewerkers", "Klantenwaarde (LTV)", "Refunds & exports"].map((i) => (
-                <li key={i} className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-primary shrink-0" />{i}</li>
-              ))}
-            </ul>
-            <div className="mt-3"><DemoBadge /></div>
-          </div>
-          <MockWindow url="salon.glowsuite.nl/rapporten">
-            <Shot src={shotRapportage} alt="Rapportage met omzetcijfers, maanddoel en klantenwaarde" />
+          <MockWindow url="salon.glowsuite.nl/abonnementen">
+            <Shot src={shotAbonnementen} alt="Abonnementen dashboard met MRR, leden en churn" />
           </MockWindow>
         </div>
       </Section>
 
-      {/* === DATA PROOF CARDS === */}
-      <Section className="bg-muted/30 border-y border-border/60">
-        <div className="max-w-2xl">
-          <Eyebrow>Bewijs</Eyebrow>
-          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Wat GlowSuite je salon oplevert.</h2>
-          <p className="mt-3 text-muted-foreground">Concrete uitkomsten die het verschil maken in dagelijkse omzet en rust.</p>
-        </div>
-        <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {proofCards.map((c) => {
-            const Icon = c.icon;
-            return (
-              <Card key={c.title} className="p-6">
-                <div className="w-11 h-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center"><Icon className="w-5 h-5" /></div>
-                <h3 className="mt-4 font-semibold text-lg">{c.title}</h3>
-                <p className="text-sm text-muted-foreground mt-1">{c.desc}</p>
-              </Card>
-            );
-          })}
-        </div>
-      </Section>
-
-      {/* FEATURES */}
+      {/* === PRODUCT PROOF — RAPPORTAGE === */}
       <Section id="features">
-        <div className="max-w-2xl">
-          <Eyebrow>Alles wat je nodig hebt</Eyebrow>
-          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Krachtige features, simpel in gebruik.</h2>
-        </div>
-        <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {features.map((f) => {
-            const Icon = f.icon;
-            return (
-              <Card key={f.title} className="p-5 hover:border-primary/40 transition-colors group">
-                <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
-                  <Icon className="w-5 h-5" />
-                </div>
-                <h3 className="font-semibold">{f.title}</h3>
-                <p className="text-sm text-muted-foreground mt-1">{f.desc}</p>
-              </Card>
-            );
-          })}
-        </div>
-        <div className="mt-10 text-center flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 max-w-md sm:max-w-none mx-auto">
-          <CTAButton to={SIGNUP}>
-            Ik wil mijn salon slimmer laten groeien <ArrowRight className="w-4 h-4 ml-1 inline shrink-0" />
-          </CTAButton>
-          <Link to="#prijzen" onClick={scrollToPricing} className="w-full sm:w-auto">
-            <Button variant="outline" size="lg" className="w-full sm:w-auto whitespace-normal">
-              Bekijk prijzen
-            </Button>
-          </Link>
+        <div className="grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
+          <MockWindow url="salon.glowsuite.nl/rapporten">
+            <Shot src={shotRapportage} alt="Rapportage met omzetcijfers, maanddoel en klantenwaarde" />
+          </MockWindow>
+          <div>
+            <Eyebrow icon={LineChart}>Rapportage & inzicht</Eyebrow>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+              Eerlijke cijfers. Slimme beslissingen.
+            </h2>
+            <p className="mt-4 text-muted-foreground text-lg">
+              AI vertaalt je data naar concrete omzetkansen — zonder dat jij dashboards hoeft te lezen.
+            </p>
+            <ul className="mt-6 space-y-2.5 text-sm">
+              {["Omzettrend per periode", "Top behandelingen & medewerkers", "Klantenwaarde (LTV)", "AI inzichten & exports"].map((i) => (
+                <li key={i} className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-primary shrink-0" />{i}</li>
+              ))}
+            </ul>
+          </div>
         </div>
       </Section>
 
@@ -627,9 +554,9 @@ export default function LandingPage() {
         </div>
         <div className="mt-10 grid md:grid-cols-3 gap-5">
           {[
-            { n: "01", t: "Stel je salon in", d: "Voeg behandelingen, tijden en medewerkers toe." },
-            { n: "02", t: "Zet online boeken live", d: "Plaats de widget op je website of deel je boekingslink." },
-            { n: "03", t: "Laat GlowSuite meewerken", d: "Bevestigingen, betalingen, rapportages en automatiseringen draaien mee." },
+            { n: "01", t: "Stel je salon in", d: "Voeg behandelingen, tijden en medewerkers toe — binnen minuten." },
+            { n: "02", t: "Zet online boeken live", d: "Plaats de white-label widget op je website of deel je boekingslink." },
+            { n: "03", t: "Laat de AI meewerken", d: "Bevestigingen, betalingen en groei-suggesties draaien automatisch." },
           ].map((s) => (
             <div key={s.n} className="relative p-6 rounded-2xl border border-border/60 bg-card">
               <div className="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-br from-primary/30 to-accent/20">
@@ -642,80 +569,108 @@ export default function LandingPage() {
         </div>
       </Section>
 
-      {/* PRICING — 3 TIERS */}
+      {/* PRICING */}
       <Section id="prijzen">
         <div className="max-w-3xl mx-auto text-center">
           <Eyebrow>Prijzen</Eyebrow>
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-            Eerlijke prijzen. Geen verborgen kosten.
+            Betaalbaar voor kleine salons. Krachtig genoeg voor groei.
           </h2>
-          <p className="mt-4 text-muted-foreground text-lg">Start klein, schaal mee wanneer je salon groeit.</p>
+          <p className="mt-4 text-muted-foreground text-lg">
+            Vanaf <span className="font-semibold text-foreground">€39 / maand</span>. Groei wanneer jij groeit. Geen verborgen kosten.
+          </p>
         </div>
         <div className="mt-12 grid md:grid-cols-3 gap-5 items-stretch">
-          {plans.map((p) => {
-            const Icon = p.icon;
-            return (
-              <Card
-                key={p.name}
-                className={`p-6 sm:p-7 flex flex-col relative ${
-                  p.featured ? "border-primary/60 ring-1 ring-primary/30" : ""
-                }`}
-                style={p.featured ? { boxShadow: "0 24px 60px -24px hsl(var(--primary) / 0.35)" } : undefined}
-              >
+          {plans.map((p) => (
+            <Card
+              key={p.name}
+              className={`p-6 sm:p-7 flex flex-col relative ${
+                p.featured ? "border-primary/60 ring-1 ring-primary/30 md:scale-[1.02]" : ""
+              }`}
+              style={p.featured ? { boxShadow: "0 24px 60px -24px hsl(var(--primary) / 0.35)" } : undefined}
+            >
+              {p.featured && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--accent))] text-white text-[10px] font-semibold uppercase tracking-wide whitespace-nowrap">
+                  Meest gekozen
+                </div>
+              )}
+              <div className="font-semibold text-lg">{p.name}</div>
+              <div className="text-xs text-muted-foreground">{p.tagline}</div>
+              <div className="mt-5 flex items-baseline gap-1">
+                <span className="text-4xl font-bold">{p.price}</span>
+                <span className="text-muted-foreground">/maand</span>
+              </div>
+              <ul className="mt-5 space-y-2.5 text-sm flex-1">
+                {p.features.map((f) => (
+                  <li key={f} className="flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                    <span>{f}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-6 flex flex-col gap-2">
+                <Button
+                  type="button"
+                  variant={p.featured ? "gradient" : "outline"}
+                  className="w-full whitespace-normal"
+                  onClick={() => openDemo(`pricing-${p.name.toLowerCase()}`)}
+                >
+                  Start gratis proefperiode
+                </Button>
                 {p.featured && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--accent))] text-white text-[10px] font-semibold uppercase tracking-wide">
-                    Meest gekozen
-                  </div>
-                )}
-                <div className="flex items-center gap-2">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center"><Icon className="w-5 h-5" /></div>
-                  <div>
-                    <div className="font-semibold text-lg">{p.name}</div>
-                    <div className="text-xs text-muted-foreground">{p.tagline}</div>
-                  </div>
-                </div>
-                <div className="mt-5 flex items-baseline gap-1">
-                  <span className="text-4xl font-bold">{p.price}</span>
-                  <span className="text-muted-foreground">/maand</span>
-                </div>
-                <ul className="mt-5 space-y-2.5 text-sm flex-1">
-                  {p.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                      <span>{f}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-6">
-                  <Button
+                  <button
                     type="button"
-                    variant={p.featured ? "gradient" : "outline"}
-                    className="w-full whitespace-normal"
-                    onClick={() => openDemo(`pricing-${p.name.toLowerCase()}`)}
+                    onClick={() => openDemo(`pricing-${p.name.toLowerCase()}-demo`)}
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    Start gratis
-                  </Button>
-                </div>
-              </Card>
-            );
-          })}
+                    of vraag een persoonlijke demo aan
+                  </button>
+                )}
+              </div>
+            </Card>
+          ))}
         </div>
         <p className="mt-6 text-center text-xs text-muted-foreground">
           Prijzen excl. btw. Maandelijks opzegbaar. Geen setup-kosten.
         </p>
       </Section>
 
-      {/* TESTIMONIALS */}
+      {/* TRUST */}
       <Section className="bg-muted/30 border-y border-border/60">
         <div className="max-w-2xl">
-          <Eyebrow>Wat salons zeggen</Eyebrow>
+          <Eyebrow icon={Shield}>Waarom GlowSuite</Eyebrow>
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+            Gebouwd op vertrouwen, ontworpen voor groei.
+          </h2>
+        </div>
+        <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {trustItems.map((t) => {
+            const Icon = t.icon;
+            return (
+              <div key={t.label} className="flex items-start gap-3 p-5 rounded-2xl bg-card border border-border/60">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                  <Icon className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="font-semibold">{t.label}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Section>
+
+      {/* TESTIMONIALS */}
+      <Section>
+        <div className="max-w-2xl">
+          <Eyebrow icon={Star}>Wat salons zeggen</Eyebrow>
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Salons die kiezen voor rust en groei.</h2>
         </div>
         <div className="mt-10 grid md:grid-cols-3 gap-4">
           {[
             { q: "Eindelijk één systeem voor boekingen, betalingen en klanten.", a: "Salon eigenaar" },
-            { q: "GlowSuite voelt veel moderner dan wat we hiervoor gebruikten.", a: "Beauty studio" },
-            { q: "Onze afspraken en betalingen zijn veel overzichtelijker.", a: "Barbershop" },
+            { q: "De AI-suggesties leveren mij elke week extra boekingen op.", a: "Beauty studio" },
+            { q: "GlowSuite voelt veel moderner dan wat we hiervoor gebruikten.", a: "Barbershop" },
           ].map((t) => (
             <Card key={t.a} className="p-6">
               <div className="flex gap-0.5 text-primary">
@@ -731,7 +686,7 @@ export default function LandingPage() {
       </Section>
 
       {/* FAQ */}
-      <Section>
+      <Section className="bg-muted/30 border-y border-border/60">
         <div className="max-w-2xl mx-auto">
           <div className="text-center">
             <Eyebrow>Veelgestelde vragen</Eyebrow>
@@ -749,23 +704,34 @@ export default function LandingPage() {
       </Section>
 
       {/* FINAL CTA */}
-      <Section className="text-center bg-muted/30 border-t border-border/60">
+      <Section className="text-center relative overflow-hidden">
+        <div
+          aria-hidden
+          className="absolute inset-0 -z-10 opacity-70"
+          style={{
+            background:
+              "radial-gradient(60% 60% at 50% 50%, hsl(var(--primary) / 0.14), transparent 70%), radial-gradient(40% 40% at 20% 80%, hsl(var(--accent) / 0.10), transparent 70%)",
+          }}
+        />
         <div className="max-w-2xl mx-auto">
           <h2 className="text-3xl sm:text-5xl font-bold tracking-tight">
-            Klaar om je salon{" "}
+            Klaar om{" "}
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--accent))]">
-              slimmer te laten draaien?
+              slimmer te groeien?
             </span>
           </h2>
           <p className="mt-5 text-lg text-muted-foreground">
-            Start vandaag met online boeken, betalingen en meer overzicht.
+            Laat GlowSuite boekingen automatiseren, omzet verhogen en rust terugbrengen in je salon.
           </p>
           <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 max-w-md sm:max-w-none mx-auto">
             <CTADemoRequest onClick={() => openDemo("final-cta-start")} variant="gradient">
               Start gratis proefperiode <ArrowRight className="w-4 h-4 ml-1 inline shrink-0" />
             </CTADemoRequest>
-            <CTADemoRequest onClick={() => openDemo("final-cta-demo")}>Plan een persoonlijke demo</CTADemoRequest>
+            <CTADemoRequest onClick={() => openDemo("final-cta-demo")}>Vraag demo aan</CTADemoRequest>
           </div>
+          <p className="mt-5 text-xs text-muted-foreground">
+            Binnen minuten live • Geen creditcard nodig • Maandelijks opzegbaar
+          </p>
         </div>
       </Section>
 
@@ -777,6 +743,7 @@ export default function LandingPage() {
             <span className="text-sm text-muted-foreground">© {new Date().getFullYear()} GlowSuite</span>
           </div>
           <div className="flex items-center gap-6 text-sm text-muted-foreground">
+            <a href="#ai" className="hover:text-foreground">AI</a>
             <a href="#features" className="hover:text-foreground">Features</a>
             <a href="#prijzen" onClick={scrollToPricing} className="hover:text-foreground">Prijzen</a>
             <Link to={LOGIN} className="hover:text-foreground">Login</Link>
@@ -791,14 +758,22 @@ export default function LandingPage() {
         }`}
         style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.75rem)" }}
       >
-        <div className="mx-3 mb-2 rounded-2xl border border-border/60 bg-background/95 backdrop-blur-xl p-2.5 shadow-2xl">
+        <div className="mx-3 mb-2 rounded-2xl border border-border/60 bg-background/95 backdrop-blur-xl p-2.5 shadow-2xl flex gap-2">
           <Button
             type="button"
             variant="gradient"
-            className="w-full whitespace-normal"
-            onClick={() => openDemo("sticky-mobile")}
+            className="flex-1 whitespace-normal"
+            onClick={() => openDemo("sticky-mobile-start")}
           >
-            Start gratis proefperiode <ArrowRight className="w-4 h-4 ml-1 inline shrink-0" />
+            Start gratis
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="flex-1 whitespace-normal"
+            onClick={() => openDemo("sticky-mobile-demo")}
+          >
+            Demo
           </Button>
         </div>
       </div>
