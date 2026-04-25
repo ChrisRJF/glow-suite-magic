@@ -578,6 +578,108 @@ export default function LandingPage() {
         </div>
       </Section>
 
+      {/* === MIGRATION TRUST === */}
+      <Section className="border-y border-border/60">
+        <div className="grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
+          <div>
+            <Eyebrow icon={MoveRight}>Overstappen</Eyebrow>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+              Stap eenvoudig over van je oude systeem.
+            </h2>
+            <p className="mt-4 text-muted-foreground text-lg">
+              Zet klanten, afspraken en gegevens met één klik over naar GlowSuite. Geen gedoe. Geen verlies van data.
+            </p>
+            <ul className="mt-6 grid sm:grid-cols-2 gap-2.5 text-sm">
+              {[
+                "Snelle overstap",
+                "Begeleiding mogelijk",
+                "Veilig overzetten",
+                "Geen technische kennis nodig",
+                "Direct verder werken",
+                "Hulp bij eerste week",
+              ].map((i) => (
+                <li key={i} className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
+                  {i}
+                </li>
+              ))}
+            </ul>
+            <div className="mt-7">
+              <CTADemoRequest onClick={() => openDemo("migration-help")} variant="gradient">
+                Vraag hulp bij overstappen
+              </CTADemoRequest>
+            </div>
+          </div>
+          <div className="relative">
+            <div className="rounded-3xl border border-border/60 bg-card p-6 sm:p-8 shadow-[0_24px_60px_-30px_hsl(var(--primary)/0.3)]">
+              <div className="flex items-center gap-3 mb-5">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="font-semibold">Begeleide overstap</div>
+                  <div className="text-xs text-muted-foreground">Wij regelen het samen met je mee</div>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {[
+                  { t: "Klanten importeren", d: "Vanuit je huidige systeem of uit een Excel." },
+                  { t: "Afspraken overzetten", d: "Bestaande boekingen blijven gewoon staan." },
+                  { t: "Online boeken activeren", d: "Je boekingspagina staat dezelfde dag live." },
+                ].map((s, idx) => (
+                  <div
+                    key={s.t}
+                    className="flex items-start gap-3 p-3 rounded-xl bg-muted/40 border border-border/50"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center shrink-0">
+                      {idx + 1}
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold">{s.t}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">{s.d}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </Section>
+
+      {/* === RESULT SECTION === */}
+      <Section className="bg-muted/30 border-y border-border/60">
+        <div className="max-w-2xl">
+          <Eyebrow icon={TrendingUp}>Wat het oplevert</Eyebrow>
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+            Concrete resultaten voor je salon.
+          </h2>
+          <p className="mt-4 text-muted-foreground text-lg">
+            Geen vage beloftes. Dit merken salons binnen de eerste maanden.
+          </p>
+        </div>
+        <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[
+            { icon: Calendar, t: "Meer boekingen", d: "Klanten boeken zelf, ook 's avonds en in het weekend." },
+            { icon: Bell, t: "Minder no-shows", d: "Slimme herinneringen via WhatsApp en e-mail." },
+            { icon: Heart, t: "Meer herhaalklanten", d: "Automatische opvolging op het juiste moment." },
+            { icon: Clock, t: "Meer rust in je planning", d: "Geen losse appjes en mailtjes meer." },
+            { icon: TrendingUp, t: "Meer omzetkansen", d: "AI laat zien waar geld blijft liggen." },
+            { icon: Coins, t: "Terugkerende inkomsten", d: "Bouw vaste maandinkomsten op met abonnementen." },
+          ].map((r) => {
+            const Icon = r.icon;
+            return (
+              <Card key={r.t} className="p-6">
+                <div className="w-11 h-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-4">
+                  <Icon className="w-5 h-5" />
+                </div>
+                <h3 className="font-semibold text-lg">{r.t}</h3>
+                <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">{r.d}</p>
+              </Card>
+            );
+          })}
+        </div>
+      </Section>
+
       {/* === PRODUCT PROOF — ABONNEMENTEN === */}
       <Section className="bg-muted/30 border-y border-border/60">
         <div className="grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
