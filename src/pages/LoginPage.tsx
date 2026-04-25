@@ -120,10 +120,10 @@ export default function LoginPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-6">
-      <div className="w-full max-w-sm">
-        <div className="flex flex-col items-center mb-8">
-          <img src={logoFull} alt="GlowSuite" className="h-12 w-auto mb-3" />
+    <div className="min-h-screen bg-background flex items-center justify-center p-4 sm:p-6">
+      <div className="w-full max-w-md">
+        <div className="flex flex-col items-center mb-6 sm:mb-8">
+          <img src={logoFull} alt="GlowSuite" className="h-11 sm:h-12 w-auto mb-3" />
           <p className="text-sm text-muted-foreground">Salon business system</p>
         </div>
 
@@ -147,36 +147,102 @@ export default function LoginPage() {
               Terug naar inloggen
             </button>
           </form>
+        ) : isSignUp ? (
+          <form onSubmit={handleSubmit} className="glass-card p-6 sm:p-7 space-y-4">
+            <div className="text-center space-y-1.5">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-[11px] font-medium mb-1">
+                <Sparkles className="w-3 h-3" /> 14 dagen gratis
+              </div>
+              <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">
+                Start je 14 dagen gratis proefperiode
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Geen betaalkaart nodig. Binnen 2 minuten live.
+              </p>
+            </div>
+
+            <div className="space-y-3 pt-1">
+              <div>
+                <label className="text-xs text-muted-foreground">Salonnaam</label>
+                <input type="text" required value={salonName} onChange={(e) => setSalonName(e.target.value)}
+                  className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  placeholder="Bijv. Studio Nova" autoComplete="organization" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground">Jouw naam</label>
+                <input type="text" required value={fullName} onChange={(e) => setFullName(e.target.value)}
+                  className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  placeholder="Voor- en achternaam" autoComplete="name" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground">E-mailadres</label>
+                <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
+                  className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  placeholder="jouw@email.nl" autoComplete="email" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground">Wachtwoord</label>
+                <input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)}
+                  className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  placeholder="Min. 6 tekens" autoComplete="new-password" />
+              </div>
+            </div>
+
+            <Button type="submit" variant="gradient" className="w-full h-11 text-base font-semibold" disabled={loading}>
+              {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {loading ? "Account aanmaken..." : "Start 14 dagen gratis"}
+            </Button>
+
+            <ul className="grid grid-cols-1 gap-1.5 pt-1">
+              {[
+                { icon: ShieldCheck, text: "Geen betaalkaart nodig" },
+                { icon: Clock, text: "Binnen 2 minuten live" },
+                { icon: Check, text: "Gratis overstap hulp" },
+              ].map(({ icon: Icon, text }) => (
+                <li key={text} className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Icon className="w-3.5 h-3.5 text-primary shrink-0" />
+                  {text}
+                </li>
+              ))}
+            </ul>
+
+            <p className="text-[11px] text-center text-muted-foreground/80 pt-1">
+              Door te starten ga je akkoord met onze voorwaarden. Je kunt op elk moment opzeggen.
+            </p>
+
+            <p className="text-xs text-center text-muted-foreground">
+              Al een account?{" "}
+              <button type="button" onClick={() => setIsSignUp(false)} className="text-primary hover:underline font-medium">
+                Inloggen
+              </button>
+            </p>
+          </form>
         ) : (
           <form onSubmit={handleSubmit} className="glass-card p-6 space-y-4">
-            <h2 className="text-lg font-semibold text-center">
-              {isSignUp ? "Account aanmaken" : "Inloggen"}
-            </h2>
+            <h2 className="text-lg font-semibold text-center">Inloggen</h2>
             <div>
               <label className="text-xs text-muted-foreground">E-mail</label>
               <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
                 className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                placeholder="jouw@email.nl" />
+                placeholder="jouw@email.nl" autoComplete="email" />
             </div>
             <div>
               <label className="text-xs text-muted-foreground">Wachtwoord</label>
               <input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)}
                 className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                placeholder="••••••••" />
+                placeholder="••••••••" autoComplete="current-password" />
             </div>
             <Button type="submit" variant="gradient" className="w-full" disabled={loading}>
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {loading ? "Even geduld..." : isSignUp ? "Registreren" : "Inloggen"}
+              {loading ? "Even geduld..." : "Inloggen"}
             </Button>
-            {!isSignUp && (
-              <button type="button" onClick={() => setForgotOpen(true)} className="text-xs text-primary hover:underline w-full text-center">
-                Wachtwoord vergeten?
-              </button>
-            )}
+            <button type="button" onClick={() => setForgotOpen(true)} className="text-xs text-primary hover:underline w-full text-center">
+              Wachtwoord vergeten?
+            </button>
             <p className="text-xs text-center text-muted-foreground">
-              {isSignUp ? "Al een account?" : "Nog geen account?"}{" "}
-              <button type="button" onClick={() => setIsSignUp(!isSignUp)} className="text-primary hover:underline">
-                {isSignUp ? "Inloggen" : "Registreren"}
+              Nog geen account?{" "}
+              <button type="button" onClick={() => setIsSignUp(true)} className="text-primary hover:underline font-medium">
+                Start gratis proefperiode
               </button>
             </p>
           </form>
@@ -189,7 +255,7 @@ export default function LoginPage() {
           </div>
           <Button variant="outline" className="w-full border-primary/30 hover:bg-primary/5" onClick={handleDemoLogin} disabled={demoLoading}>
             {demoLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
-            {demoLoading ? "Demo laden..." : "Bekijk demo"}
+            {demoLoading ? "Demo laden..." : "Bekijk live demo"}
           </Button>
           <p className="text-[11px] text-center text-muted-foreground/60 mt-2">
             Ontdek GlowSuite met realistische voorbeelddata
