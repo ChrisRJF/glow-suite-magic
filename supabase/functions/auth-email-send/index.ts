@@ -84,8 +84,12 @@ function shell(opts: {
 
 function buildEmail(payload: AuthEmailPayload): { subject: string; html: string } | null {
   const { email_data } = payload;
-  const base = email_data.site_url?.replace(/\/$/, "") || "https://glowsuite.nl";
-  const verifyUrl = `${base}/auth/v1/verify?token=${email_data.token_hash}&type=${email_data.email_action_type}&redirect_to=${encodeURIComponent(email_data.redirect_to || base)}`;
+  const siteBase = (email_data.site_url || "https://glowsuite.nl").replace(/\/$/, "");
+  // IMPORTANT: /auth/v1/verify lives on the Supabase project, NOT on the frontend.
+  // Using site_url here would 404 on the SPA (or worse: hit a route with no apikey).
+  const supabaseBase = SUPABASE_URL.replace(/\/$/, "");
+  const redirectTo = email_data.redirect_to || siteBase;
+  const verifyUrl = `${supabaseBase}/auth/v1/verify?token=${email_data.token_hash}&type=${email_data.email_action_type}&redirect_to=${encodeURIComponent(redirectTo)}`;
 
   switch (email_data.email_action_type) {
     case "signup":
