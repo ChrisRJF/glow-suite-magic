@@ -15,6 +15,7 @@ import {
 import logoFull from "@/assets/logo-full.png";
 import logoIcon from "@/assets/logo-icon.png";
 import { DemoRequestDialog } from "@/components/DemoRequestDialog";
+import { DirectCheckoutDialog } from "@/components/DirectCheckoutDialog";
 import shotDashboard from "@/assets/landing/dashboard.png";
 import shotAgenda from "@/assets/landing/agenda.png";
 import shotBetalingen from "@/assets/landing/betalingen.png";
@@ -181,6 +182,12 @@ export default function LandingPage() {
   const [demoOpen, setDemoOpen] = useState(false);
   const [demoSource, setDemoSource] = useState<string>("landing");
   const openDemo = (source: string) => { setDemoSource(source); setDemoOpen(true); };
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [checkoutPlan, setCheckoutPlan] = useState<{ slug: string; name: string; price: string } | null>(null);
+  const openCheckout = (slug: string, name: string, price: string) => {
+    setCheckoutPlan({ slug, name, price });
+    setCheckoutOpen(true);
+  };
 
   useEffect(() => {
     document.documentElement.classList.add("light");
