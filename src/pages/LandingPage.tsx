@@ -802,16 +802,21 @@ export default function LandingPage() {
                   {p.requiresDemo ? "Vraag demo aan" : "Start 14 dagen gratis"}
                 </Button>
                 {!p.requiresDemo && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full whitespace-normal"
-                    onClick={() => {
-                      window.location.href = `/login?mode=signup&plan=${p.slug}&checkout=1`;
-                    }}
-                  >
-                    Start direct betaald
-                  </Button>
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full whitespace-normal"
+                      onClick={() => {
+                        window.location.href = `/login?mode=signup&plan=${p.slug}&checkout=1`;
+                      }}
+                    >
+                      Nu live starten
+                    </Button>
+                    <p className="text-[11px] text-muted-foreground text-center leading-snug">
+                      Veilig betalen via Mollie. Maandelijks opzegbaar.
+                    </p>
+                  </>
                 )}
                 <Link
                   to="/pricing"
