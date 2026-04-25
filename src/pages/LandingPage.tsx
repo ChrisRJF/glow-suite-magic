@@ -814,9 +814,7 @@ export default function LandingPage() {
                       type="button"
                       variant="outline"
                       className="w-full whitespace-normal"
-                      onClick={() => {
-                        window.location.href = `/login?mode=signup&plan=${p.slug}&checkout=1`;
-                      }}
+                      onClick={() => openCheckout(p.slug, p.name, p.price)}
                     >
                       Nu live starten
                     </Button>
