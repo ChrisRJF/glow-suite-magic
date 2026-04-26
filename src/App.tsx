@@ -52,6 +52,7 @@ import { CheckoutIntentHandler } from "@/components/CheckoutIntentHandler";
 import { SubscriptionConfirmHandler } from "@/components/SubscriptionConfirmHandler";
 import { SubscriptionStateProvider } from "@/contexts/SubscriptionStateContext";
 import { TrialExpiredModal } from "@/components/TrialExpiredModal";
+import { ReviewPromptModal } from "@/components/ReviewPromptModal";
 
 function RootRoute() {
   const { user, loading } = useAuth();
@@ -89,6 +90,7 @@ const App = () => (
             <CheckoutIntentHandler />
             <SubscriptionConfirmHandler />
             <TrialExpiredModal />
+            <ReviewPromptModal />
             <Routes>
               <Route path="/login" element={<AuthRoute><LoginPage /></AuthRoute>} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
