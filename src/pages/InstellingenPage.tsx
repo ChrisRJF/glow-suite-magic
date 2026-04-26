@@ -485,7 +485,20 @@ export default function InstellingenPage() {
               <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><Building className="w-4 h-4 text-primary" /> Salon</h3>
               <div className="space-y-4">
                 <div><label className="text-xs text-muted-foreground">Salonnaam</label><input value={salonName} onChange={(e) => setSalonName(e.target.value)} className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" /></div>
+                <div><label className="text-xs text-muted-foreground">Stad</label><input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Bijv. Amsterdam" className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" /></div>
                 <div><label className="text-xs text-muted-foreground">Telefoon</label><input value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" /></div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Google review URL</label>
+                  <input
+                    value={googleReviewUrl}
+                    onChange={(e) => setGoogleReviewUrl(e.target.value)}
+                    placeholder="https://g.page/r/..."
+                    type="url"
+                    inputMode="url"
+                    className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                  <p className="text-[11px] text-muted-foreground mt-1">Wordt getoond aan klanten die een 5-sterren review geven.</p>
+                </div>
               </div>
             </div>
             <div className="glass-card p-6">
