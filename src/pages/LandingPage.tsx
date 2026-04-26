@@ -191,6 +191,8 @@ export default function LandingPage() {
     setCheckoutOpen(true);
   };
 
+  useTrackOnMount("landing_visit");
+
   useEffect(() => {
     document.documentElement.classList.add("light");
   }, []);
