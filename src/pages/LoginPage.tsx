@@ -193,6 +193,16 @@ export default function LoginPage() {
               </p>
             </div>
 
+            {refCode && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-success/10 border border-success/30 text-success text-xs">
+                <Gift className="w-4 h-4 shrink-0" />
+                <span>
+                  <strong>Welkomstcadeau:</strong> 30 extra dagen gratis met code{" "}
+                  <span className="font-mono font-semibold">{refCode}</span>
+                </span>
+              </div>
+            )}
+
             <div className="space-y-3 pt-1">
               <div>
                 <label className="text-xs text-muted-foreground">Salonnaam</label>
