@@ -15,6 +15,8 @@ import {
 import logoFull from "@/assets/logo-full.png";
 import logoIcon from "@/assets/logo-icon.png";
 import { DemoRequestDialog } from "@/components/DemoRequestDialog";
+import { TestimonialsSection } from "@/components/TestimonialsSection";
+import { useTrackOnMount } from "@/hooks/useAnalytics";
 import { DirectCheckoutDialog } from "@/components/DirectCheckoutDialog";
 import shotDashboard from "@/assets/landing/dashboard.png";
 import shotAgenda from "@/assets/landing/agenda.png";
