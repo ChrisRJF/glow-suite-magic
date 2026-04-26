@@ -50,6 +50,8 @@ export default function InstellingenPage() {
   const [salonName, setSalonName] = useState("Mijn Salon");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [city, setCity] = useState("");
+  const [googleReviewUrl, setGoogleReviewUrl] = useState("");
   const [notifications, setNotifications] = useState({ email: true, whatsapp: false, push: false });
   const [demoMode, setDemoMode] = useState(false);
   const [mollieMode, setMollieMode] = useState("test");
