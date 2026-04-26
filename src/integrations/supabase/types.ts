@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      analytics_events: {
+        Row: {
+          created_at: string
+          event_name: string
+          id: string
+          properties: Json
+          referrer: string | null
+          session_id: string | null
+          url: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_name: string
+          id?: string
+          properties?: Json
+          referrer?: string | null
+          session_id?: string | null
+          url?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_name?: string
+          id?: string
+          properties?: Json
+          referrer?: string | null
+          session_id?: string | null
+          url?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       appointments: {
         Row: {
           amount_paid: number | null
@@ -1347,24 +1383,30 @@ export type Database = {
       }
       profiles: {
         Row: {
+          city: string | null
           created_at: string
           email: string | null
+          google_review_url: string | null
           id: string
           salon_name: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          city?: string | null
           created_at?: string
           email?: string | null
+          google_review_url?: string | null
           id?: string
           salon_name?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          city?: string | null
           created_at?: string
           email?: string | null
+          google_review_url?: string | null
           id?: string
           salon_name?: string | null
           updated_at?: string
@@ -1409,6 +1451,75 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      referral_codes: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          total_converted: number
+          total_credit_months: number
+          total_referred: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          total_converted?: number
+          total_credit_months?: number
+          total_referred?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          total_converted?: number
+          total_credit_months?: number
+          total_referred?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      referrals: {
+        Row: {
+          code: string
+          converted_at: string | null
+          credit_months: number
+          credited_at: string | null
+          id: string
+          referred_user_id: string
+          referrer_user_id: string
+          signed_up_at: string
+          status: string
+        }
+        Insert: {
+          code: string
+          converted_at?: string | null
+          credit_months?: number
+          credited_at?: string | null
+          id?: string
+          referred_user_id: string
+          referrer_user_id: string
+          signed_up_at?: string
+          status?: string
+        }
+        Update: {
+          code?: string
+          converted_at?: string | null
+          credit_months?: number
+          credited_at?: string | null
+          id?: string
+          referred_user_id?: string
+          referrer_user_id?: string
+          signed_up_at?: string
+          status?: string
+        }
+        Relationships: []
       }
       refund_approvals: {
         Row: {
@@ -1579,6 +1690,39 @@ export type Database = {
           requested_at?: string
           requested_by?: string | null
           status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      review_prompts: {
+        Row: {
+          created_at: string
+          dismissed_at: string | null
+          id: string
+          rating: number | null
+          responded_at: string | null
+          shown_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dismissed_at?: string | null
+          id?: string
+          rating?: number | null
+          responded_at?: string | null
+          shown_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dismissed_at?: string | null
+          id?: string
+          rating?: number | null
+          responded_at?: string | null
+          shown_at?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -1862,6 +2006,7 @@ export type Database = {
           cancel_at_period_end: boolean
           canceled_at: string | null
           created_at: string
+          credit_months_balance: number
           current_period_end: string | null
           current_period_start: string | null
           day10_sent_at: string | null
@@ -1888,6 +2033,7 @@ export type Database = {
           cancel_at_period_end?: boolean
           canceled_at?: string | null
           created_at?: string
+          credit_months_balance?: number
           current_period_end?: string | null
           current_period_start?: string | null
           day10_sent_at?: string | null
@@ -1914,6 +2060,7 @@ export type Database = {
           cancel_at_period_end?: boolean
           canceled_at?: string | null
           created_at?: string
+          credit_months_balance?: number
           current_period_end?: string | null
           current_period_start?: string | null
           day10_sent_at?: string | null
@@ -1935,6 +2082,45 @@ export type Database = {
           updated_at?: string
           user_id?: string
           welcome_sent_at?: string | null
+        }
+        Relationships: []
+      }
+      testimonials: {
+        Row: {
+          city: string | null
+          created_at: string
+          featured: boolean
+          id: string
+          quote: string
+          rating: number
+          salon_name: string
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          city?: string | null
+          created_at?: string
+          featured?: boolean
+          id?: string
+          quote: string
+          rating?: number
+          salon_name: string
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          city?: string | null
+          created_at?: string
+          featured?: boolean
+          id?: string
+          quote?: string
+          rating?: number
+          salon_name?: string
+          status?: string
+          updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -2191,6 +2377,7 @@ export type Database = {
       can_manage_users: { Args: { _user_id: string }; Returns: boolean }
       can_view_finance: { Args: { _user_id: string }; Returns: boolean }
       current_account_is_demo: { Args: never; Returns: boolean }
+      ensure_referral_code: { Args: { _user_id: string }; Returns: string }
       has_any_role: {
         Args: {
           _roles: Database["public"]["Enums"]["app_role"][]
