@@ -758,6 +758,9 @@ export default function LandingPage() {
         </div>
       </Section>
 
+      {/* TESTIMONIALS */}
+      <TestimonialsSection />
+
       {/* PRICING */}
       <Section id="prijzen">
         <div className="max-w-3xl mx-auto text-center">
