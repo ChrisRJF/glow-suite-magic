@@ -284,6 +284,20 @@ export default function InstellingenPage() {
       } else {
         await insert(data);
       }
+      // Persist profile fields (city + google review url)
+      if (user) {
+        const trimmedUrl = googleReviewUrl.trim();
+        if (trimmedUrl && !/^https?:\/\//i.test(trimmedUrl)) {
+          toast.error("Google review URL moet beginnen met https://");
+        } else {
+          await supabase
+            .from('profiles')
+            .upsert(
+              { user_id: user.id, city: city.trim() || null, google_review_url: trimmedUrl || null },
+              { onConflict: 'user_id' }
+            );
+        }
+      }
       toast.success("Instellingen opgeslagen!");
       refetch();
     } finally {
