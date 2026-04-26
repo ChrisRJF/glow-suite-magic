@@ -31,6 +31,7 @@ import {
   useSubscriptionPlans,
 } from "@/hooks/useSubscription";
 import { toast } from "@/hooks/use-toast";
+import { ReferralCard } from "@/components/ReferralCard";
 
 const PLAN_LABEL: Record<string, string> = {
   starter: "Starter",
@@ -428,6 +429,9 @@ export default function MijnAbonnementPage() {
             </div>
           </Card>
         )}
+
+        {/* Referral program */}
+        <ReferralCard />
       </div>
 
       <AlertDialog open={cancelOpen} onOpenChange={setCancelOpen}>

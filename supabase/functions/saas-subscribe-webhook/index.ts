@@ -290,6 +290,78 @@ Deno.serve(async (req) => {
           .from("subscriptions")
           .insert({ user_id: userId, ...update });
       }
+
+      // ─── Referral conversion: credit referrer with 1 free month ───
+      try {
+        const { data: ref } = await admin
+          .from("referrals")
+          .select("id, referrer_user_id, status, credit_months")
+          .eq("referred_user_id", userId)
+          .maybeSingle();
+        if (ref && ref.status === "signed_up") {
+          const credit = ref.credit_months ?? 1;
+          await admin
+            .from("referrals")
+            .update({
+              status: "credited",
+              converted_at: new Date().toISOString(),
+              credited_at: new Date().toISOString(),
+            })
+            .eq("id", ref.id);
+
+          // Bump referrer subscription credit balance
+          const { data: refSub } = await admin
+            .from("subscriptions")
+            .select("id, credit_months_balance")
+            .eq("user_id", ref.referrer_user_id)
+            .maybeSingle();
+          if (refSub) {
+            await admin
+              .from("subscriptions")
+              .update({
+                credit_months_balance:
+                  (refSub.credit_months_balance ?? 0) + credit,
+              })
+              .eq("id", refSub.id);
+          }
+
+          // Bump aggregate stats on referral_codes
+          const { data: rc } = await admin
+            .from("referral_codes")
+            .select("total_converted, total_credit_months")
+            .eq("user_id", ref.referrer_user_id)
+            .maybeSingle();
+          await admin
+            .from("referral_codes")
+            .update({
+              total_converted: (rc?.total_converted ?? 0) + 1,
+              total_credit_months: (rc?.total_credit_months ?? 0) + credit,
+            })
+            .eq("user_id", ref.referrer_user_id);
+
+          // Analytics
+          await admin.from("analytics_events").insert({
+            event_name: "referral_signup",
+            user_id: ref.referrer_user_id,
+            properties: {
+              kind: "converted_to_paid",
+              referred_user_id: userId,
+              credit_months: credit,
+            },
+          });
+        }
+      } catch (refErr) {
+        console.error("referral credit step failed", refErr);
+      }
+
+      // Track paid_conversion
+      try {
+        await admin.from("analytics_events").insert({
+          event_name: "paid_conversion",
+          user_id: userId,
+          properties: { plan_slug: planSlug, payment_id: payment.id },
+        });
+      } catch (_e) { /* noop */ }
     } else if (
       payment.status === "failed" ||
       payment.status === "canceled" ||

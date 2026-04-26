@@ -201,6 +201,45 @@ Deno.serve(async (req) => {
         periodEnd.setMonth(periodEnd.getMonth() + 1);
       }
 
+      // ─── Referral credit redemption ───
+      // If user has a free-month balance, refund this charge and decrement.
+      let creditRedeemed = false;
+      if ((subRow.credit_months_balance ?? 0) > 0 && payment.customerId) {
+        try {
+          const refundRes = await fetch(
+            `${MOLLIE_API}/payments/${paymentId}/refunds`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${getMollieKey()}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                amount: payment.amount,
+                description: "GlowSuite referral free month credit",
+              }),
+            },
+          );
+          if (refundRes.ok) {
+            creditRedeemed = true;
+            await admin
+              .from("subscriptions")
+              .update({
+                credit_months_balance: (subRow.credit_months_balance ?? 0) - 1,
+              })
+              .eq("id", subRow.id);
+            await writeAudit(admin, userId, "saas_referral_credit_redeemed", paymentId, {
+              previous_balance: subRow.credit_months_balance,
+              amount: payment.amount,
+            });
+          } else {
+            console.error("refund failed", await refundRes.text());
+          }
+        } catch (e) {
+          console.error("referral credit refund threw", e);
+        }
+      }
+
       const update: Record<string, unknown> = {
         status: "active",
         current_period_start: periodStart.toISOString(),
@@ -219,6 +258,7 @@ Deno.serve(async (req) => {
         amount: payment.amount,
         method: payment.method,
         period_end: periodEnd.toISOString(),
+        credit_redeemed: creditRedeemed,
       });
       return new Response("ok", { status: 200, headers: corsHeaders });
     }

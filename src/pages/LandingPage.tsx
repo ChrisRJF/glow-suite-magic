@@ -15,6 +15,8 @@ import {
 import logoFull from "@/assets/logo-full.png";
 import logoIcon from "@/assets/logo-icon.png";
 import { DemoRequestDialog } from "@/components/DemoRequestDialog";
+import { TestimonialsSection } from "@/components/TestimonialsSection";
+import { useTrackOnMount } from "@/hooks/useAnalytics";
 import { DirectCheckoutDialog } from "@/components/DirectCheckoutDialog";
 import shotDashboard from "@/assets/landing/dashboard.png";
 import shotAgenda from "@/assets/landing/agenda.png";
@@ -188,6 +190,8 @@ export default function LandingPage() {
     setCheckoutPlan({ slug, name, price });
     setCheckoutOpen(true);
   };
+
+  useTrackOnMount("landing_visit");
 
   useEffect(() => {
     document.documentElement.classList.add("light");
@@ -753,6 +757,9 @@ export default function LandingPage() {
           ))}
         </div>
       </Section>
+
+      {/* TESTIMONIALS */}
+      <TestimonialsSection />
 
       {/* PRICING */}
       <Section id="prijzen">

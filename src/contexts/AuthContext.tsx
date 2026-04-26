@@ -59,11 +59,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setBootstrapReady(!error);
       setBootstrapping(false);
 
-      // Day 0 welcome email — idempotent server-side, safe to call on every login
       if (!error) {
+        // Day 0 welcome email — idempotent server-side, safe to call on every login
         supabase.functions.invoke("send-welcome-email").catch((e) => {
           console.warn("welcome email trigger failed", e);
         });
+
+        // Attach pending referral code (set during signup before email confirm)
+        try {
+          const stored = localStorage.getItem("gs_ref_code");
+          if (stored) {
+            await supabase.functions.invoke("referral-attach", { body: { code: stored } });
+            localStorage.removeItem("gs_ref_code");
+          }
+        } catch (_e) { /* noop */ }
       }
     };
 
