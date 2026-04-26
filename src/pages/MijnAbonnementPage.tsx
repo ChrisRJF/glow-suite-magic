@@ -429,6 +429,9 @@ export default function MijnAbonnementPage() {
             </div>
           </Card>
         )}
+
+        {/* Referral program */}
+        <ReferralCard />
       </div>
 
       <AlertDialog open={cancelOpen} onOpenChange={setCancelOpen}>
