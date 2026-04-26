@@ -50,6 +50,8 @@ export default function InstellingenPage() {
   const [salonName, setSalonName] = useState("Mijn Salon");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [city, setCity] = useState("");
+  const [googleReviewUrl, setGoogleReviewUrl] = useState("");
   const [notifications, setNotifications] = useState({ email: true, whatsapp: false, push: false });
   const [demoMode, setDemoMode] = useState(false);
   const [mollieMode, setMollieMode] = useState("test");
@@ -113,6 +115,22 @@ export default function InstellingenPage() {
     }
     if (user) setEmail(user.email || '');
   }, [settings, user]);
+
+  // Load profile (city + google review url)
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('city, google_review_url')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (data) {
+        setCity((data as any).city || '');
+        setGoogleReviewUrl((data as any).google_review_url || '');
+      }
+    })();
+  }, [user]);
 
   // Fetch team members / roles
   useEffect(() => {
@@ -265,6 +283,20 @@ export default function InstellingenPage() {
         await update(settings[0].id, data);
       } else {
         await insert(data);
+      }
+      // Persist profile fields (city + google review url)
+      if (user) {
+        const trimmedUrl = googleReviewUrl.trim();
+        if (trimmedUrl && !/^https?:\/\//i.test(trimmedUrl)) {
+          toast.error("Google review URL moet beginnen met https://");
+        } else {
+          await supabase
+            .from('profiles')
+            .upsert(
+              { user_id: user.id, city: city.trim() || null, google_review_url: trimmedUrl || null },
+              { onConflict: 'user_id' }
+            );
+        }
       }
       toast.success("Instellingen opgeslagen!");
       refetch();
@@ -453,7 +485,20 @@ export default function InstellingenPage() {
               <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><Building className="w-4 h-4 text-primary" /> Salon</h3>
               <div className="space-y-4">
                 <div><label className="text-xs text-muted-foreground">Salonnaam</label><input value={salonName} onChange={(e) => setSalonName(e.target.value)} className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" /></div>
+                <div><label className="text-xs text-muted-foreground">Stad</label><input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Bijv. Amsterdam" className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" /></div>
                 <div><label className="text-xs text-muted-foreground">Telefoon</label><input value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" /></div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Google review URL</label>
+                  <input
+                    value={googleReviewUrl}
+                    onChange={(e) => setGoogleReviewUrl(e.target.value)}
+                    placeholder="https://g.page/r/..."
+                    type="url"
+                    inputMode="url"
+                    className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                  <p className="text-[11px] text-muted-foreground mt-1">Wordt getoond aan klanten die een 5-sterren review geven.</p>
+                </div>
               </div>
             </div>
             <div className="glass-card p-6">
