@@ -116,6 +116,22 @@ export default function InstellingenPage() {
     if (user) setEmail(user.email || '');
   }, [settings, user]);
 
+  // Load profile (city + google review url)
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('city, google_review_url')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (data) {
+        setCity((data as any).city || '');
+        setGoogleReviewUrl((data as any).google_review_url || '');
+      }
+    })();
+  }, [user]);
+
   // Fetch team members / roles
   useEffect(() => {
     if (!user) return;
