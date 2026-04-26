@@ -3,7 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import logoFull from "@/assets/logo-full.png";
 import { toast } from "sonner";
-import { Play, Loader2, Check, Sparkles, ShieldCheck, Clock } from "lucide-react";
+import { Play, Loader2, Check, Sparkles, ShieldCheck, Clock, Gift } from "lucide-react";
+import { trackEvent } from "@/hooks/useAnalytics";
+
+const REF_STORAGE_KEY = "gs_ref_code";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -13,6 +16,15 @@ export default function LoginPage() {
   const [isSignUp, setIsSignUp] = useState(() => {
     if (typeof window === "undefined") return false;
     return new URLSearchParams(window.location.search).get("mode") === "signup";
+  });
+  const [refCode, setRefCode] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    const fromUrl = new URLSearchParams(window.location.search).get("ref");
+    if (fromUrl) {
+      try { localStorage.setItem(REF_STORAGE_KEY, fromUrl.toUpperCase()); } catch (_e) { /* */ }
+      return fromUrl.toUpperCase();
+    }
+    try { return localStorage.getItem(REF_STORAGE_KEY); } catch (_e) { return null; }
   });
   const [loading, setLoading] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
@@ -29,6 +41,7 @@ export default function LoginPage() {
       const plan = params.get("plan") || undefined;
       const wantsCheckout = params.get("checkout") === "1";
       if (isSignUp) {
+        trackEvent("signup_started", { plan, ref_code: refCode });
         const { error } = await supabase.auth.signUp({
           email, password,
           options: {
@@ -37,10 +50,23 @@ export default function LoginPage() {
               ...(plan ? { plan } : {}),
               ...(salonName.trim() ? { salon_name: salonName.trim() } : {}),
               ...(fullName.trim() ? { full_name: fullName.trim() } : {}),
+              ...(refCode ? { ref_code: refCode } : {}),
             },
           },
         });
         if (error) throw error;
+        trackEvent("signup_completed", { plan, ref_code: refCode });
+        // Attach referral as soon as session exists (after email confirm OR auto-confirm)
+        if (refCode) {
+          try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+              await supabase.functions.invoke("referral-attach", { body: { code: refCode } });
+              trackEvent("referral_signup", { ref_code: refCode });
+              try { localStorage.removeItem(REF_STORAGE_KEY); } catch (_e) { /* */ }
+            }
+          } catch (_e) { /* noop */ }
+        }
         toast.success("Account aangemaakt! Check je e-mail om te bevestigen.");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
