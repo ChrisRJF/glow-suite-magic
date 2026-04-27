@@ -758,6 +758,72 @@ export default function LandingPage() {
         </div>
       </Section>
 
+      {/* WHATSAPP AUTOMATISERING */}
+      <Section id="whatsapp-automatisering" className="bg-gradient-to-b from-background via-primary/[0.03] to-background">
+        <div className="max-w-3xl mx-auto text-center">
+          <Eyebrow icon={MessageCircle}>WhatsApp Automatisering voor salons</Eyebrow>
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">
+            Nooit meer no-shows met automatische WhatsApp reminders.
+          </h2>
+          <p className="mt-4 text-muted-foreground text-lg leading-relaxed">
+            GlowSuite stuurt automatisch afspraakbevestigingen, reminders en no-show opvolging via WhatsApp.
+          </p>
+        </div>
+
+        <div className="mt-12 grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {[
+            {
+              icon: CheckCircle2,
+              tag: "Direct na boeking",
+              title: "Bevestiging",
+              desc: "Klant krijgt meteen een persoonlijke WhatsApp-bevestiging met datum, tijd en locatie.",
+            },
+            {
+              icon: Bell,
+              tag: "24 uur vooraf",
+              title: "Reminder",
+              desc: "Automatische herinnering een dag voor de afspraak — drastisch minder no-shows.",
+            },
+            {
+              icon: Repeat,
+              tag: "Gemiste afspraak",
+              title: "Automatische follow-up",
+              desc: "Klant niet verschenen? GlowSuite stuurt direct een vriendelijk bericht om opnieuw te boeken.",
+            },
+          ].map((c) => (
+            <Card
+              key={c.title}
+              className="p-6 sm:p-7 flex flex-col gap-4 relative overflow-hidden hover:border-primary/40 transition-all duration-300"
+              style={{ boxShadow: "0 12px 40px -20px hsl(var(--primary) / 0.18)" }}
+            >
+              <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-gradient-to-br from-primary/15 to-accent/10 blur-2xl pointer-events-none" />
+              <div className="relative w-12 h-12 rounded-xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--accent))] flex items-center justify-center text-white shadow-lg">
+                <c.icon className="w-6 h-6" />
+              </div>
+              <div className="relative">
+                <div className="text-xs font-semibold uppercase tracking-wide text-primary/80">{c.tag}</div>
+                <h3 className="mt-1 text-xl font-semibold tracking-tight">{c.title}</h3>
+                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{c.desc}</p>
+              </div>
+            </Card>
+          ))}
+        </div>
+
+        <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-3">
+          <Link to={SIGNUP} className="w-full sm:w-auto">
+            <Button
+              size="lg"
+              className="w-full sm:w-auto h-12 px-8 text-base font-semibold bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--accent))] hover:opacity-95 text-white border-0"
+              style={{ boxShadow: "0 16px 40px -12px hsl(var(--primary) / 0.45)" }}
+            >
+              Start gratis proefperiode
+              <ArrowRight className="ml-2 w-4 h-4" />
+            </Button>
+          </Link>
+          <p className="text-xs text-muted-foreground">14 dagen gratis · geen creditcard nodig</p>
+        </div>
+      </Section>
+
       {/* TESTIMONIALS */}
       <TestimonialsSection />
 
