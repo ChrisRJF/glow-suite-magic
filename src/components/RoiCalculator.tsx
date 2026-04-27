@@ -134,7 +134,7 @@ export function RoiCalculator() {
                   Jouw besparing
                 </div>
                 <p className="mt-4 text-base leading-relaxed opacity-95">
-                  Als GlowSuite 3 no-shows voorkomt, bespaar je
+                  Als GlowSuite {preventedNoShows} {preventedNoShows === 1 ? "no-show" : "no-shows"} voorkomt, bespaar je
                 </p>
                 <div className="mt-2 text-4xl sm:text-5xl font-bold tracking-tight tabular-nums">
                   {formatEuro(savings)}
