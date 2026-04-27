@@ -10,8 +10,9 @@ const SIGNUP = "/login?mode=signup";
 
 // Average revenue per appointment in EUR (industry avg salon ticket)
 const AVG_TICKET = 55;
-// We assume GlowSuite prevents 3 no-shows per month via WhatsApp reminders
-const PREVENTED_NO_SHOWS = 3;
+// Industry: ~8% of appointments end as no-show. GlowSuite prevents ~70% via WhatsApp reminders.
+const NO_SHOW_RATE = 0.08;
+const PREVENTION_RATE = 0.7;
 
 function formatEuro(value: number) {
   return new Intl.NumberFormat("nl-NL", {
@@ -24,9 +25,16 @@ function formatEuro(value: number) {
 export function RoiCalculator() {
   const [appointments, setAppointments] = useState<number>(120);
 
-  const { savings, yearly } = useMemo(() => {
-    const monthly = PREVENTED_NO_SHOWS * AVG_TICKET;
-    return { savings: monthly, yearly: monthly * 12 };
+  const { estimatedNoShows, preventedNoShows, savings, yearly } = useMemo(() => {
+    const estimated = Math.round(appointments * NO_SHOW_RATE);
+    const prevented = Math.max(1, Math.round(estimated * PREVENTION_RATE));
+    const monthly = prevented * AVG_TICKET;
+    return {
+      estimatedNoShows: estimated,
+      preventedNoShows: prevented,
+      savings: monthly,
+      yearly: monthly * 12,
+    };
   }, [appointments]);
 
   return (
@@ -96,11 +104,21 @@ export function RoiCalculator() {
                 </div>
               </div>
 
-              <div className="mt-6 flex items-start gap-2 text-xs text-muted-foreground">
+              <div className="mt-6 grid grid-cols-2 gap-3">
+                <div className="rounded-xl border border-border/60 bg-background/60 p-3">
+                  <div className="text-xs text-muted-foreground">Geschatte no-shows per maand</div>
+                  <div className="mt-1 text-2xl font-bold tabular-nums">{estimatedNoShows}</div>
+                </div>
+                <div className="rounded-xl border border-primary/30 bg-primary/5 p-3">
+                  <div className="text-xs text-primary font-semibold">Voorkomen door GlowSuite</div>
+                  <div className="mt-1 text-2xl font-bold tabular-nums text-primary">{preventedNoShows}</div>
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-start gap-2 text-xs text-muted-foreground">
                 <Sparkles className="w-3.5 h-3.5 mt-0.5 text-primary shrink-0" />
                 <p>
-                  Berekening op basis van gemiddelde behandelwaarde van {formatEuro(AVG_TICKET)} en
-                  3 voorkomen no-shows per maand met automatische WhatsApp reminders.
+                  Berekening op basis van gemiddelde behandelwaarde van {formatEuro(AVG_TICKET)}, ~8% no-show ratio en 70% preventie via automatische WhatsApp reminders.
                 </p>
               </div>
             </div>
@@ -116,7 +134,7 @@ export function RoiCalculator() {
                   Jouw besparing
                 </div>
                 <p className="mt-4 text-base leading-relaxed opacity-95">
-                  Als GlowSuite 3 no-shows voorkomt, bespaar je
+                  Als GlowSuite {preventedNoShows} {preventedNoShows === 1 ? "no-show" : "no-shows"} voorkomt, bespaar je
                 </p>
                 <div className="mt-2 text-4xl sm:text-5xl font-bold tracking-tight tabular-nums">
                   {formatEuro(savings)}
