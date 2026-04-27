@@ -104,11 +104,21 @@ export function RoiCalculator() {
                 </div>
               </div>
 
-              <div className="mt-6 flex items-start gap-2 text-xs text-muted-foreground">
+              <div className="mt-6 grid grid-cols-2 gap-3">
+                <div className="rounded-xl border border-border/60 bg-background/60 p-3">
+                  <div className="text-xs text-muted-foreground">Geschatte no-shows per maand</div>
+                  <div className="mt-1 text-2xl font-bold tabular-nums">{estimatedNoShows}</div>
+                </div>
+                <div className="rounded-xl border border-primary/30 bg-primary/5 p-3">
+                  <div className="text-xs text-primary font-semibold">Voorkomen door GlowSuite</div>
+                  <div className="mt-1 text-2xl font-bold tabular-nums text-primary">{preventedNoShows}</div>
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-start gap-2 text-xs text-muted-foreground">
                 <Sparkles className="w-3.5 h-3.5 mt-0.5 text-primary shrink-0" />
                 <p>
-                  Berekening op basis van gemiddelde behandelwaarde van {formatEuro(AVG_TICKET)} en
-                  3 voorkomen no-shows per maand met automatische WhatsApp reminders.
+                  Berekening op basis van gemiddelde behandelwaarde van {formatEuro(AVG_TICKET)}, ~8% no-show ratio en 70% preventie via automatische WhatsApp reminders.
                 </p>
               </div>
             </div>
