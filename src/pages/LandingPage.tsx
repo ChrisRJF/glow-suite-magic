@@ -16,6 +16,7 @@ import logoFull from "@/assets/logo-full.png";
 import logoIcon from "@/assets/logo-icon.png";
 import { DemoRequestDialog } from "@/components/DemoRequestDialog";
 import { TestimonialsSection } from "@/components/TestimonialsSection";
+import { RoiCalculator } from "@/components/RoiCalculator";
 import { useTrackOnMount } from "@/hooks/useAnalytics";
 import { DirectCheckoutDialog } from "@/components/DirectCheckoutDialog";
 import shotDashboard from "@/assets/landing/dashboard.png";
@@ -823,6 +824,9 @@ export default function LandingPage() {
           <p className="text-xs text-muted-foreground">14 dagen gratis · geen creditcard nodig</p>
         </div>
       </Section>
+
+      {/* ROI CALCULATOR */}
+      <RoiCalculator />
 
       {/* TESTIMONIALS */}
       <TestimonialsSection />
