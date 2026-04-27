@@ -10,8 +10,9 @@ const SIGNUP = "/login?mode=signup";
 
 // Average revenue per appointment in EUR (industry avg salon ticket)
 const AVG_TICKET = 55;
-// We assume GlowSuite prevents 3 no-shows per month via WhatsApp reminders
-const PREVENTED_NO_SHOWS = 3;
+// Industry: ~8% of appointments end as no-show. GlowSuite prevents ~70% via WhatsApp reminders.
+const NO_SHOW_RATE = 0.08;
+const PREVENTION_RATE = 0.7;
 
 function formatEuro(value: number) {
   return new Intl.NumberFormat("nl-NL", {
@@ -24,9 +25,16 @@ function formatEuro(value: number) {
 export function RoiCalculator() {
   const [appointments, setAppointments] = useState<number>(120);
 
-  const { savings, yearly } = useMemo(() => {
-    const monthly = PREVENTED_NO_SHOWS * AVG_TICKET;
-    return { savings: monthly, yearly: monthly * 12 };
+  const { estimatedNoShows, preventedNoShows, savings, yearly } = useMemo(() => {
+    const estimated = Math.round(appointments * NO_SHOW_RATE);
+    const prevented = Math.max(1, Math.round(estimated * PREVENTION_RATE));
+    const monthly = prevented * AVG_TICKET;
+    return {
+      estimatedNoShows: estimated,
+      preventedNoShows: prevented,
+      savings: monthly,
+      yearly: monthly * 12,
+    };
   }, [appointments]);
 
   return (
