@@ -355,7 +355,15 @@ Deno.serve(async (req) => {
       .from("appointments")
       .insert(appointmentsToInsert)
       .select("id, booking_token, booking_reference, appointment_date, start_time, end_time, employee_id, service_id, payment_status, status");
-    if (appointmentError) throw appointmentError;
+    if (appointmentError) {
+      // Postgres unique violation (23505) on the slot index = race-condition double-book.
+      if ((appointmentError as any).code === "23505") {
+        console.error("Slot taken (race condition)", { user_id: ctx.settings.user_id, date: data.date, time: data.time, detail: appointmentError.message });
+        return json({ error: "Dit tijdslot is net geboekt. Kies een andere tijd.", code: "slot_unavailable" }, 409);
+      }
+      console.error("appointment insert error", appointmentError);
+      return json({ error: "Boeking kon niet worden opgeslagen. Probeer het opnieuw of kies een ander tijdstip." }, 500);
+    }
 
     const primaryAppointment = appointments?.[0];
     let checkoutUrl: string | null = null;
@@ -519,6 +527,12 @@ Deno.serve(async (req) => {
       },
     });
   } catch (error) {
-    return json({ error: (error as Error).message || "Boeking kon niet worden opgeslagen." }, 500);
+    console.error("public-booking unexpected error", error);
+    const msg = (error as Error)?.message || "";
+    // Map common DB errors to friendly Dutch text — never leak constraint names.
+    if (/duplicate key|23505|idx_appointments_unique/i.test(msg)) {
+      return json({ error: "Dit tijdslot is net geboekt. Kies een andere tijd.", code: "slot_unavailable" }, 409);
+    }
+    return json({ error: "Er ging iets mis bij het opslaan van je boeking. Probeer het opnieuw." }, 500);
   }
 });
