@@ -1,210 +1,422 @@
 import { AppLayout } from "@/components/AppLayout";
-import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/contexts/AuthContext";
-import { useDemoMode } from "@/hooks/useDemoMode";
 import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
-import { formatEuro } from "@/lib/data";
 import { cn } from "@/lib/utils";
-import { Activity, BarChart3, Bell, Bot, CalendarClock, CheckCircle2, Clock, FileText, MessageCircle, Plus, Settings, ShieldAlert, Sparkles, ToggleLeft, ToggleRight, Trash2, Zap } from "lucide-react";
+import { DEFAULT_WHATSAPP_TEMPLATES, type WhatsAppTemplateType } from "@/lib/whatsappTemplates";
+import {
+  AlertCircle,
+  Bell,
+  CalendarCheck,
+  Cake,
+  CheckCircle2,
+  Clock,
+  Gift,
+  MessageCircle,
+  Sparkles,
+  UserX,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
-type Rule = {
-  id: string;
-  name?: string | null;
-  description?: string | null;
-  template_key?: string | null;
-  trigger_type: string;
-  action_type: string;
-  is_active: boolean;
-  config?: Record<string, any> | null;
-  conditions?: Record<string, any> | null;
-  message_templates?: Record<string, string> | null;
-  channel?: string | null;
-  delay_value?: number | null;
-  delay_unit?: string | null;
-  provider_required?: boolean | null;
-  last_triggered_at: string | null;
-  created_at?: string;
+type Status = "live" | "soon" | "off";
+
+type AutoDef = {
+  key: string;
+  title: string;
+  description: string;
+  trigger: string;
+  action: string;
+  templateLabel: string;
+  templateType?: WhatsAppTemplateType;
+  /** Which whatsapp_settings boolean column controls master enable */
+  settingsFlag?: "send_booking_confirmation" | "send_reminders" | "send_review_request";
+  /** Which whatsapp_logs.kind to count for "last sent" */
+  logKind?: "confirmation" | "reminder" | "review";
+  status: Status;
+  comingSoonReason?: string;
+  icon: any;
 };
 
-type Run = { id: string; automation_rule_id: string; status: string; scheduled_for: string; processed_at: string | null; revenue_attributed: number; channel: string; error_message: string | null; created_at: string };
-type Log = { id: string; automation_rule_id: string | null; status: string; event_type: string; message: string; revenue_attributed: number; created_at: string };
-
-const TEMPLATES = [
-  { key: "appointment_reminder_24h", group: "Bookings", name: "Afspraak reminder 24u vooraf", trigger: "appointment_reminder_24h", action: "send_email", delay: 0, unit: "instant", channel: "email", nl: "Hi {{first_name}}, morgen staat je afspraak bij {{salon_name}} gepland: {{appointment_date}}.", en: "Hi {{first_name}}, your appointment at {{salon_name}} is tomorrow: {{appointment_date}}." },
-  { key: "appointment_reminder_2h", group: "Bookings", name: "Afspraak reminder 2u vooraf", trigger: "appointment_reminder_2h", action: "send_email", delay: 0, unit: "instant", channel: "email", nl: "Hi {{first_name}}, je afspraak bij {{salon_name}} start over ongeveer 2 uur.", en: "Hi {{first_name}}, your appointment at {{salon_name}} starts in about 2 hours." },
-  { key: "rebook_30_days", group: "Bookings", name: "Herboek reminder na bezoek", trigger: "rebook_30_days", action: "send_email", delay: 30, unit: "days", channel: "email", nl: "Hi {{first_name}}, tijd voor je volgende behandeling bij {{salon_name}}?", en: "Hi {{first_name}}, ready for your next treatment at {{salon_name}}?" },
-  { key: "missed_booking", group: "Bookings", name: "Gemiste boeking reminder", trigger: "inactive_60_days", action: "send_email", delay: 0, unit: "instant", channel: "email", nl: "Hi {{first_name}}, we hebben je al even niet gezien. Plan makkelijk je volgende afspraak.", en: "Hi {{first_name}}, we have not seen you for a while. Book your next visit easily." },
-  { key: "inactive_60_days", group: "Retention", name: "We missen je 60 dagen", trigger: "inactive_60_days", action: "send_email", delay: 0, unit: "instant", channel: "email", nl: "Hi {{first_name}}, we missen je bij {{salon_name}}. Zullen we iets voor je inplannen?", en: "Hi {{first_name}}, we miss you at {{salon_name}}. Shall we book your next visit?" },
-  { key: "winback_90_days", group: "Retention", name: "Win-back korting na 90 dagen", trigger: "inactive_90_days", action: "create_voucher", delay: 0, unit: "instant", channel: "email", nl: "Hi {{first_name}}, speciaal voor jou: een comeback voordeel bij {{salon_name}}.", en: "Hi {{first_name}}, a special comeback offer is waiting at {{salon_name}}." },
-  { key: "birthday_voucher", group: "Retention", name: "Verjaardag voucher", trigger: "birthday", action: "create_voucher", delay: 0, unit: "instant", channel: "email", nl: "Gefeliciteerd {{first_name}}! Je verjaardagscadeau van {{salon_name}} staat klaar.", en: "Happy birthday {{first_name}}! Your gift from {{salon_name}} is ready." },
-  { key: "loyalty_reward", group: "Retention", name: "Loyalty reward na X bezoeken", trigger: "visits_threshold", action: "add_loyalty_points", delay: 0, unit: "instant", channel: "email", nl: "Hi {{first_name}}, je hebt een loyaliteitsbeloning verdiend bij {{salon_name}}.", en: "Hi {{first_name}}, you earned a loyalty reward at {{salon_name}}." },
-  { key: "no_show_followup", group: "No-show / Failed", name: "No-show follow-up", trigger: "no_show", action: "send_email", delay: 0, unit: "instant", channel: "email", nl: "Hi {{first_name}}, we hebben je gemist. Neem contact op om opnieuw te plannen.", en: "Hi {{first_name}}, we missed you. Contact us to reschedule." },
-  { key: "payment_failed", group: "No-show / Failed", name: "Betaling mislukt reminder", trigger: "payment_failed", action: "send_email", delay: 0, unit: "instant", channel: "email", nl: "Hi {{first_name}}, je betaling is niet gelukt. Rond deze opnieuw af om je plek te behouden.", en: "Hi {{first_name}}, your payment failed. Please retry to keep your booking." },
-  { key: "membership_payment_failed", group: "No-show / Failed", name: "Abonnement betaling mislukt", trigger: "membership_payment_failed", action: "send_email", delay: 0, unit: "instant", channel: "email", nl: "Hi {{first_name}}, je abonnementsbetaling is mislukt. Werk je betaling bij om actief te blijven.", en: "Hi {{first_name}}, your membership payment failed. Update your payment to stay active." },
-  { key: "credits_almost_finished", group: "Abonnementen", name: "Credits bijna op", trigger: "credits_almost_finished", action: "send_email", delay: 0, unit: "instant", channel: "email", nl: "Hi {{first_name}}, je hebt nog {{credits_left}} credits binnen {{membership_name}}.", en: "Hi {{first_name}}, you have {{credits_left}} credits left in {{membership_name}}." },
-  { key: "renewal_reminder", group: "Abonnementen", name: "Verlenging reminder", trigger: "renewal_reminder", action: "send_email", delay: 0, unit: "instant", channel: "email", nl: "Hi {{first_name}}, je abonnement bij {{salon_name}} wordt binnenkort verlengd.", en: "Hi {{first_name}}, your membership at {{salon_name}} renews soon." },
-  { key: "trial_ending_soon", group: "Abonnementen", name: "Trial eindigt binnenkort", trigger: "trial_ending_soon", action: "send_email", delay: 0, unit: "instant", channel: "email", nl: "Hi {{first_name}}, je proefperiode eindigt binnenkort.", en: "Hi {{first_name}}, your trial ends soon." },
-  { key: "cancel_winback", group: "Abonnementen", name: "Opzeg win-back aanbod", trigger: "cancel_winback", action: "send_email", delay: 7, unit: "days", channel: "email", nl: "Hi {{first_name}}, we willen je graag terug verwelkomen bij {{salon_name}}.", en: "Hi {{first_name}}, we would love to welcome you back at {{salon_name}}." },
-  { key: "review_after_appointment", group: "Reviews", name: "Review vragen na afspraak", trigger: "ask_review_after_appointment", action: "send_email", delay: 1, unit: "days", channel: "email", nl: "Hi {{first_name}}, hoe was je behandeling bij {{salon_name}}?", en: "Hi {{first_name}}, how was your treatment at {{salon_name}}?" },
-  { key: "google_review_5_star", group: "Reviews", name: "Google review na 5 sterren", trigger: "five_star_feedback", action: "send_email", delay: 0, unit: "instant", channel: "email", nl: "Dankjewel {{first_name}}! Wil je je ervaring ook delen via Google?", en: "Thank you {{first_name}}! Would you share your experience on Google too?" },
+const AUTOMATIONS: AutoDef[] = [
+  {
+    key: "booking_confirmation",
+    title: "Boekingsbevestiging",
+    description: "Klant ontvangt direct na boeking of betaling een WhatsApp-bevestiging.",
+    trigger: "Nieuwe afspraak aangemaakt",
+    action: "WhatsApp bevestiging versturen",
+    templateLabel: "Boekingsbevestiging",
+    templateType: "booking_confirmation",
+    settingsFlag: "send_booking_confirmation",
+    logKind: "confirmation",
+    status: "live",
+    icon: CheckCircle2,
+  },
+  {
+    key: "reminder",
+    title: "Afspraakherinnering",
+    description: "Automatische herinnering ruim voor de afspraak (standaard 24 uur vooraf).",
+    trigger: "X uur voor de afspraak",
+    action: "WhatsApp herinnering versturen",
+    templateLabel: "Herinnering",
+    templateType: "reminder",
+    settingsFlag: "send_reminders",
+    logKind: "reminder",
+    status: "live",
+    icon: Clock,
+  },
+  {
+    key: "review",
+    title: "Na-afspraak bedankje",
+    description: "Bedank-bericht met reviewverzoek nadat de afspraak is afgerond.",
+    trigger: "Status afspraak: voltooid (of eindtijd voorbij)",
+    action: "WhatsApp bedankje + review-link",
+    templateLabel: "Review verzoek",
+    templateType: "review",
+    settingsFlag: "send_review_request",
+    logKind: "review",
+    status: "live",
+    icon: Sparkles,
+  },
+  {
+    key: "no_show",
+    title: "No-show follow-up",
+    description: "Bericht naar klanten die niet zijn verschenen.",
+    trigger: "Status afspraak: no-show",
+    action: "WhatsApp follow-up",
+    templateLabel: "No-show",
+    status: "soon",
+    comingSoonReason: "No-show status wordt nog niet gebruikt in de agenda.",
+    icon: UserX,
+  },
+  {
+    key: "reactivation",
+    title: "Heractivering",
+    description: "Win-back bericht voor klanten zonder afspraak in 6 weken.",
+    trigger: "Klant inactief 6+ weken",
+    action: "WhatsApp heractiveringsbericht",
+    templateLabel: "Heractivering",
+    status: "soon",
+    comingSoonReason: "Komt binnenkort — vereist aparte scheduler.",
+    icon: Gift,
+  },
+  {
+    key: "birthday",
+    title: "Verjaardagskorting",
+    description: "Felicitatie en kortingscode op de verjaardag van de klant.",
+    trigger: "Verjaardag van klant",
+    action: "WhatsApp verjaardagsbericht",
+    templateLabel: "Verjaardag",
+    status: "soon",
+    comingSoonReason: "Verjaardagsveld op klant ontbreekt nog.",
+    icon: Cake,
+  },
 ];
 
-const TRIGGERS = ["appointment_booked", "appointment_completed", "appointment_cancelled", "no_show", "birthday", "new_customer", "inactive_60_days", "membership_created", "membership_cancelled", "payment_failed", "payment_succeeded"];
-const ACTIONS = ["send_email", "send_sms", "send_whatsapp", "create_voucher", "add_loyalty_points", "internal_notification", "staff_task", "add_tag"];
+type WaSettings = {
+  enabled: boolean;
+  send_booking_confirmation: boolean;
+  send_reminders: boolean;
+  send_review_request: boolean;
+} | null;
 
 export default function AutomatiseringenPage() {
   const { user } = useAuth();
-  const { demoMode } = useDemoMode();
   const { hasAny } = useUserRole();
   const canManage = hasAny("eigenaar", "manager", "admin");
-  const canDelete = hasAny("eigenaar");
-  const [activeTab, setActiveTab] = useState("hub");
-  const [rules, setRules] = useState<Rule[]>([]);
-  const [runs, setRuns] = useState<Run[]>([]);
-  const [logs, setLogs] = useState<Log[]>([]);
-  const [settings, setSettings] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [showBuilder, setShowBuilder] = useState(false);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", trigger_type: "inactive_60_days", action_type: "send_email", channel: "email", delay_value: 0, delay_unit: "instant", nl: "Hi {{first_name}}, ", en: "Hi {{first_name}}, " });
 
-  const fetchData = useCallback(async () => {
+  const [waSettings, setWaSettings] = useState<WaSettings>(null);
+  const [tplActive, setTplActive] = useState<Partial<Record<WhatsAppTemplateType, boolean>>>({});
+  const [lastSent, setLastSent] = useState<Partial<Record<string, string>>>({});
+  const [lastRun, setLastRun] = useState<{ started_at: string; sent: number } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
     if (!user) return;
     setLoading(true);
-    const [rulesRes, runsRes, logsRes, settingsRes] = await Promise.all([
-      (supabase as any).from("automation_rules").select("*").order("created_at", { ascending: false }),
-      (supabase as any).from("automation_runs").select("*").order("created_at", { ascending: false }).limit(200),
-      (supabase as any).from("automation_logs").select("*").order("created_at", { ascending: false }).limit(200),
-      supabase.from("settings").select("*").eq("user_id", user.id).eq("is_demo", demoMode).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    const [waRes, tplRes, logsRes, runsRes] = await Promise.all([
+      supabase
+        .from("whatsapp_settings")
+        .select("enabled, send_booking_confirmation, send_reminders, send_review_request")
+        .eq("user_id", user.id)
+        .maybeSingle(),
+      supabase
+        .from("whatsapp_templates")
+        .select("template_type, is_active")
+        .eq("user_id", user.id),
+      supabase
+        .from("whatsapp_logs")
+        .select("kind, created_at, status")
+        .eq("user_id", user.id)
+        .eq("status", "sent")
+        .order("created_at", { ascending: false })
+        .limit(50),
+      supabase
+        .from("whatsapp_scheduler_runs")
+        .select("started_at, sent")
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     ]);
-    setRules(rulesRes.data || []);
-    setRuns(runsRes.data || []);
-    setLogs(logsRes.data || []);
-    setSettings(settingsRes.data || null);
+    setWaSettings((waRes.data as any) || null);
+    const tplMap: Partial<Record<WhatsAppTemplateType, boolean>> = {};
+    for (const r of (tplRes.data as any[]) || []) tplMap[r.template_type as WhatsAppTemplateType] = r.is_active;
+    setTplActive(tplMap);
+    const lastByKind: Record<string, string> = {};
+    for (const l of (logsRes.data as any[]) || []) {
+      if (!lastByKind[l.kind]) lastByKind[l.kind] = l.created_at;
+    }
+    setLastSent(lastByKind);
+    setLastRun((runsRes.data as any) || null);
     setLoading(false);
-  }, [user, demoMode]);
+  }, [user]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
-  const thisMonth = useMemo(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1), []);
+  const isOn = (def: AutoDef): boolean => {
+    if (def.status !== "live") return false;
+    if (!waSettings?.enabled) return false;
+    const flagOn = def.settingsFlag ? !!waSettings[def.settingsFlag] : true;
+    const tplOn = def.templateType ? tplActive[def.templateType] !== false : true;
+    return flagOn && tplOn;
+  };
+
+  const toggle = async (def: AutoDef, next: boolean) => {
+    if (!user || !canManage || def.status !== "live") return;
+    setBusy(def.key);
+    try {
+      // 1) ensure whatsapp_settings row + flag
+      if (def.settingsFlag) {
+        const patch: any = { [def.settingsFlag]: next };
+        const { data: existing } = await supabase
+          .from("whatsapp_settings")
+          .select("id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (existing) {
+          await supabase.from("whatsapp_settings").update(patch).eq("user_id", user.id);
+        } else {
+          await supabase.from("whatsapp_settings").insert({ user_id: user.id, ...patch });
+        }
+      }
+      // 2) sync template is_active
+      if (def.templateType) {
+        const { data: tpl } = await supabase
+          .from("whatsapp_templates")
+          .update({ is_active: next })
+          .eq("user_id", user.id)
+          .eq("template_type", def.templateType)
+          .select("id");
+        if (!tpl || tpl.length === 0) {
+          await supabase.from("whatsapp_templates").insert({
+            user_id: user.id,
+            template_type: def.templateType,
+            is_active: next,
+            content: DEFAULT_WHATSAPP_TEMPLATES[def.templateType],
+          });
+        }
+      }
+      toast.success(next ? "Automatisering aangezet" : "Automatisering uitgezet");
+      await load();
+    } catch (e: any) {
+      toast.error(e?.message || "Kon niet opslaan");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const formatRelative = (iso?: string) => {
+    if (!iso) return "Nog niet verstuurd";
+    const d = new Date(iso);
+    const diffMin = Math.round((Date.now() - d.getTime()) / 60000);
+    if (diffMin < 1) return "Zojuist";
+    if (diffMin < 60) return `${diffMin} min geleden`;
+    if (diffMin < 60 * 24) return `${Math.round(diffMin / 60)} uur geleden`;
+    return d.toLocaleDateString("nl-NL", { day: "numeric", month: "short" });
+  };
+
   const stats = useMemo(() => {
-    const monthlyRuns = runs.filter((r) => new Date(r.created_at) >= thisMonth);
-    const today = new Date().toDateString();
+    const live = AUTOMATIONS.filter((a) => a.status === "live");
     return {
-      active: rules.filter((r) => r.is_active).length,
-      sent: monthlyRuns.filter((r) => r.status === "sent").length,
-      booked: monthlyRuns.filter((r) => Number(r.revenue_attributed || 0) > 0).length,
-      revenue: monthlyRuns.reduce((sum, r) => sum + Number(r.revenue_attributed || 0), 0),
-      upcoming: runs.filter((r) => r.status === "scheduled" && new Date(r.scheduled_for).toDateString() === today).length,
+      total: AUTOMATIONS.length,
+      liveCount: live.length,
+      activeCount: live.filter((a) => isOn(a)).length,
     };
-  }, [rules, runs, thisMonth]);
-
-  const addTemplate = async (template: typeof TEMPLATES[number]) => {
-    if (!user || !canManage) return;
-    const exists = rules.some((rule) => rule.template_key === template.key);
-    if (exists) return;
-    const { error } = await (supabase as any).from("automation_rules").insert({
-      user_id: user.id,
-      is_demo: demoMode,
-      name: template.name,
-      description: template.group,
-      template_key: template.key,
-      trigger_type: template.trigger,
-      action_type: template.action,
-      delay_value: template.delay,
-      delay_unit: template.unit,
-      channel: template.channel,
-      message_templates: { nl: template.nl, en: template.en },
-      provider_required: ["sms", "whatsapp"].includes(template.channel),
-      is_active: true,
-    });
-    if (error) { toast.error(error.message); return; }
-    toast.success("Automatisering geactiveerd");
-    fetchData();
-  };
-
-  const addCustom = async () => {
-    if (!user || !canManage) return;
-    const { error } = await (supabase as any).from("automation_rules").insert({
-      user_id: user.id,
-      is_demo: demoMode,
-      name: form.name || "Custom automation",
-      trigger_type: form.trigger_type,
-      action_type: form.action_type,
-      channel: form.channel,
-      delay_value: Number(form.delay_value || 0),
-      delay_unit: form.delay_unit,
-      message_templates: { nl: form.nl, en: form.en },
-      conditions: {},
-      provider_required: ["sms", "whatsapp"].includes(form.channel),
-      is_active: true,
-    });
-    if (error) { toast.error(error.message); return; }
-    toast.success("Automation opgeslagen");
-    setShowBuilder(false);
-    fetchData();
-  };
-
-  const toggleRule = async (rule: Rule) => {
-    if (!canManage) return;
-    await (supabase as any).from("automation_rules").update({ is_active: !rule.is_active }).eq("id", rule.id);
-    toast.success(rule.is_active ? "Automation gepauzeerd" : "Automation actief");
-    fetchData();
-  };
-
-  const deleteRule = async (id: string) => {
-    if (!canDelete) return;
-    await (supabase as any).from("automation_rules").delete().eq("id", id);
-    toast.success("Automation verwijderd");
-    fetchData();
-  };
-
-  const groupedTemplates = TEMPLATES.reduce<Record<string, typeof TEMPLATES>>((acc, template) => {
-    acc[template.group] = [...(acc[template.group] || []), template];
-    return acc;
-  }, {});
+  }, [waSettings, tplActive]);
 
   return (
-    <AppLayout title="Automations" subtitle="Live omzet-automatiseringen voor boekingen, retention en memberships" actions={canManage && <Button variant="gradient" size="sm" onClick={() => setShowBuilder(true)}><Plus className="w-4 h-4" /> Nieuwe automation</Button>}>
-      <ConfirmDialog open={!!confirmDeleteId} onOpenChange={(open) => !open && setConfirmDeleteId(null)} title="Automation verwijderen?" description="Deze automation en geplande runs worden verwijderd." confirmLabel="Verwijderen" destructive onConfirm={async () => { if (confirmDeleteId) await deleteRule(confirmDeleteId); }} />
-
-      {showBuilder && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-background/80 backdrop-blur-sm p-3" onClick={() => setShowBuilder(false)}>
-          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-card p-4 sm:p-6" onClick={(event) => event.stopPropagation()}>
-            <div className="flex items-start justify-between gap-3 mb-5"><div><h2 className="text-lg font-semibold">Automation builder</h2><p className="text-sm text-muted-foreground">Maak een eigen regel met echte triggers en providerstatus.</p></div><Button variant="ghost" size="sm" onClick={() => setShowBuilder(false)}>Sluiten</Button></div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="space-y-1 sm:col-span-2"><span className="text-xs font-medium text-muted-foreground">Naam</span><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full rounded-xl border border-border bg-secondary/30 px-3 py-2 text-sm" placeholder="Bijv. We missen je 60 dagen" /></label>
-              <label className="space-y-1"><span className="text-xs font-medium text-muted-foreground">Trigger</span><select value={form.trigger_type} onChange={(e) => setForm({ ...form, trigger_type: e.target.value })} className="w-full rounded-xl border border-border bg-secondary/30 px-3 py-2 text-sm">{TRIGGERS.map((trigger) => <option key={trigger} value={trigger}>{trigger}</option>)}</select></label>
-              <label className="space-y-1"><span className="text-xs font-medium text-muted-foreground">Actie</span><select value={form.action_type} onChange={(e) => setForm({ ...form, action_type: e.target.value })} className="w-full rounded-xl border border-border bg-secondary/30 px-3 py-2 text-sm">{ACTIONS.map((action) => <option key={action} value={action}>{action}</option>)}</select></label>
-              <label className="space-y-1"><span className="text-xs font-medium text-muted-foreground">Kanaal</span><select value={form.channel} onChange={(e) => setForm({ ...form, channel: e.target.value })} className="w-full rounded-xl border border-border bg-secondary/30 px-3 py-2 text-sm"><option value="email">Email</option><option value="whatsapp">WhatsApp — provider required</option><option value="sms">SMS — provider required</option></select></label>
-              <div className="grid grid-cols-2 gap-2"><label className="space-y-1"><span className="text-xs font-medium text-muted-foreground">Delay</span><input type="number" min="0" value={form.delay_value} onChange={(e) => setForm({ ...form, delay_value: Number(e.target.value) })} className="w-full rounded-xl border border-border bg-secondary/30 px-3 py-2 text-sm" /></label><label className="space-y-1"><span className="text-xs font-medium text-muted-foreground">Eenheid</span><select value={form.delay_unit} onChange={(e) => setForm({ ...form, delay_unit: e.target.value })} className="w-full rounded-xl border border-border bg-secondary/30 px-3 py-2 text-sm"><option value="instant">Direct</option><option value="hours">Uren</option><option value="days">Dagen</option></select></label></div>
-              <label className="space-y-1 sm:col-span-2"><span className="text-xs font-medium text-muted-foreground">Bericht NL</span><textarea value={form.nl} onChange={(e) => setForm({ ...form, nl: e.target.value })} className="min-h-24 w-full rounded-xl border border-border bg-secondary/30 px-3 py-2 text-sm" /></label>
-              <label className="space-y-1 sm:col-span-2"><span className="text-xs font-medium text-muted-foreground">Bericht EN</span><textarea value={form.en} onChange={(e) => setForm({ ...form, en: e.target.value })} className="min-h-24 w-full rounded-xl border border-border bg-secondary/30 px-3 py-2 text-sm" /></label>
+    <AppLayout
+      title="Automatiseringen"
+      subtitle="Slimme WhatsApp-automatiseringen die voor je werken"
+    >
+      {/* Master state banner */}
+      {!loading && !waSettings?.enabled && (
+        <Card className="mb-4 border-amber-200 bg-amber-50/50 dark:bg-amber-950/20">
+          <CardContent className="flex items-start gap-3 p-4">
+            <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium">WhatsApp staat nog uit</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Activeer WhatsApp om automatiseringen te laten lopen.
+              </p>
             </div>
-            <p className="mt-3 text-xs text-muted-foreground">Variabelen: {"{{first_name}}, {{last_name}}, {{salon_name}}, {{appointment_date}}, {{service_name}}, {{credits_left}}, {{membership_name}}, {{voucher_code}}"}</p>
-            <div className="mt-5 flex gap-2"><Button variant="outline" className="flex-1" onClick={() => setShowBuilder(false)}>Annuleren</Button><Button variant="gradient" className="flex-1" onClick={addCustom}>Opslaan</Button></div>
-          </div>
-        </div>
+            <Button asChild variant="outline" size="sm">
+              <Link to="/whatsapp">Naar WhatsApp</Link>
+            </Button>
+          </CardContent>
+        </Card>
       )}
 
-      <div className="flex gap-2 overflow-x-auto pb-2">
-        {[['hub','Hub',Bot],['templates','Templates',Sparkles],['builder','Regels',Zap],['logs','Logs',FileText],['settings','Settings',Settings]].map(([key, label, Icon]: any) => <button key={key} onClick={() => setActiveTab(key)} className={cn("flex items-center gap-2 rounded-xl px-3 py-2 text-sm whitespace-nowrap transition-colors", activeTab === key ? "bg-primary text-primary-foreground" : "bg-secondary/50 text-muted-foreground hover:text-foreground")}><Icon className="h-4 w-4" />{label}</button>)}
+      {/* Summary */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4">
+        <SummaryTile label="Actief" value={`${stats.activeCount}/${stats.liveCount}`} icon={Bell} />
+        <SummaryTile
+          label="Laatste boekings­bevestiging"
+          value={formatRelative(lastSent.confirmation)}
+          icon={CheckCircle2}
+        />
+        <SummaryTile
+          label="Laatste herinnering"
+          value={formatRelative(lastSent.reminder)}
+          icon={Clock}
+        />
+        <SummaryTile
+          label="Scheduler laatste run"
+          value={lastRun?.started_at ? formatRelative(lastRun.started_at) : "—"}
+          icon={CalendarCheck}
+        />
       </div>
 
-      {activeTab === "hub" && <div className="grid gap-4"><div className="grid grid-cols-2 lg:grid-cols-5 gap-3">{[["Actief", stats.active, CheckCircle2], ["Verstuurd", stats.sent, MessageCircle], ["Boekingen", stats.booked, CalendarClock], ["Omzet", formatEuro(stats.revenue), BarChart3], ["Vandaag", stats.upcoming, Clock]].map(([label, value, Icon]: any) => <Card key={label}><CardContent className="p-4"><Icon className="mb-3 h-5 w-5 text-primary" /><p className="text-xl font-semibold">{value}</p><p className="text-xs text-muted-foreground">{label}</p></CardContent></Card>)}</div><Card><CardHeader><CardTitle className="text-base">Snel activeren</CardTitle></CardHeader><CardContent className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{TEMPLATES.slice(0, 6).map((template) => { const exists = rules.some((rule) => rule.template_key === template.key); return <button key={template.key} disabled={!canManage || exists} onClick={() => addTemplate(template)} className={cn("rounded-xl border border-border p-3 text-left text-sm transition-colors", exists ? "bg-success/10 text-success" : "bg-secondary/20 hover:bg-secondary/50")}><span className="font-medium">{template.name}</span><span className="mt-1 block text-xs text-muted-foreground">{exists ? "Actief" : template.group}</span></button>; })}</CardContent></Card></div>}
+      {/* Automations list */}
+      <div className="space-y-3">
+        {AUTOMATIONS.map((def) => {
+          const on = isOn(def);
+          const live = def.status === "live";
+          const Icon = def.icon;
+          const lastIso = def.logKind ? lastSent[def.logKind] : undefined;
+          return (
+            <Card
+              key={def.key}
+              className={cn(
+                "overflow-hidden transition-shadow",
+                live && on && "ring-1 ring-primary/30",
+              )}
+            >
+              <CardContent className="p-4 sm:p-5">
+                <div className="flex items-start gap-3">
+                  <div
+                    className={cn(
+                      "rounded-xl p-2.5 shrink-0",
+                      live && on
+                        ? "bg-gradient-to-br from-primary to-accent text-primary-foreground"
+                        : "bg-secondary text-muted-foreground",
+                    )}
+                  >
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-semibold text-sm sm:text-base">{def.title}</h3>
+                          <StatusBadge status={def.status} on={on} />
+                        </div>
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                          {def.description}
+                        </p>
+                      </div>
+                      <Switch
+                        checked={on}
+                        disabled={!live || !canManage || busy === def.key || !waSettings?.enabled}
+                        onCheckedChange={(v) => toggle(def, v)}
+                      />
+                    </div>
 
-      {activeTab === "templates" && <div className="grid gap-4">{Object.entries(groupedTemplates).map(([group, templates]) => <Card key={group}><CardHeader><CardTitle className="text-base">{group}</CardTitle></CardHeader><CardContent className="grid gap-2 sm:grid-cols-2">{templates.map((template) => { const exists = rules.some((rule) => rule.template_key === template.key); const providerMissing = ["sms", "whatsapp"].includes(template.channel) && !settings?.[template.channel === "whatsapp" ? "whatsapp_enabled" : "sms_enabled"]; return <button key={template.key} disabled={!canManage || exists} onClick={() => addTemplate(template)} className={cn("rounded-xl border border-border p-3 text-left transition-colors", exists ? "bg-success/10" : "bg-secondary/20 hover:bg-secondary/50")}><div className="flex items-start justify-between gap-2"><span className="text-sm font-medium">{template.name}</span>{exists && <span className="text-xs text-success">Actief</span>}</div><p className="mt-1 text-xs text-muted-foreground">{providerMissing ? "Provider vereist" : `${template.trigger} → ${template.action}`}</p></button>; })}</CardContent></Card>)}</div>}
+                    <dl className="mt-3 grid gap-1.5 text-xs sm:grid-cols-2">
+                      <Row label="Trigger" value={def.trigger} />
+                      <Row label="Actie" value={def.action} />
+                      <Row label="Template" value={def.templateLabel} />
+                      <Row
+                        label="Laatst verstuurd"
+                        value={live ? formatRelative(lastIso) : "—"}
+                      />
+                    </dl>
 
-      {activeTab === "builder" && <Card><CardHeader><CardTitle className="text-base">Actieve regels ({rules.filter((rule) => rule.is_active).length})</CardTitle></CardHeader><CardContent className="space-y-2">{loading ? <p className="py-8 text-center text-sm text-muted-foreground">Laden...</p> : rules.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">Nog geen automations. Activeer “We missen je 60 dagen” vanuit Templates.</p> : rules.map((rule) => <div key={rule.id} className="flex items-center gap-3 rounded-xl bg-secondary/25 p-3"><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10"><Zap className="h-4 w-4 text-primary" /></div><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{rule.name || `${rule.trigger_type} → ${rule.action_type}`}</p><p className="text-xs text-muted-foreground">{rule.channel || "email"} · {rule.is_active ? "actief" : "gepauzeerd"}{["sms", "whatsapp"].includes(rule.channel || "") ? " · provider required" : ""}</p></div>{canManage && <button onClick={() => toggleRule(rule)} className="rounded-lg p-2 hover:bg-secondary">{rule.is_active ? <ToggleRight className="h-5 w-5 text-success" /> : <ToggleLeft className="h-5 w-5 text-muted-foreground" />}</button>}{canDelete && <button onClick={() => setConfirmDeleteId(rule.id)} className="rounded-lg p-2 hover:bg-destructive/10"><Trash2 className="h-4 w-4 text-destructive" /></button>}</div>)}</CardContent></Card>}
+                    {!live && def.comingSoonReason && (
+                      <p className="mt-3 text-xs text-muted-foreground italic">
+                        {def.comingSoonReason}
+                      </p>
+                    )}
 
-      {activeTab === "logs" && <div className="grid gap-4"><div className="grid grid-cols-2 sm:grid-cols-4 gap-3">{["sent", "scheduled", "failed", "skipped"].map((status) => <Card key={status}><CardContent className="p-4"><p className="text-xl font-semibold">{runs.filter((run) => run.status === status).length + logs.filter((log) => log.status === status).length}</p><p className="text-xs capitalize text-muted-foreground">{status}</p></CardContent></Card>)}</div><Card><CardHeader><CardTitle className="text-base">Automation logs</CardTitle></CardHeader><CardContent className="space-y-2">{logs.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">Nog geen logs.</p> : logs.map((log) => <div key={log.id} className="rounded-xl bg-secondary/25 p-3"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-medium">{log.message || log.event_type}</p><p className="text-xs text-muted-foreground">{new Date(log.created_at).toLocaleString("nl-NL")}</p></div><span className={cn("rounded-full px-2 py-1 text-xs", log.status === "sent" ? "bg-success/10 text-success" : log.status === "failed" ? "bg-destructive/10 text-destructive" : "bg-secondary text-muted-foreground")}>{log.status}</span></div></div>)}</CardContent></Card></div>}
-
-      {activeTab === "settings" && <Card><CardHeader><CardTitle className="text-base">Provider status</CardTitle></CardHeader><CardContent className="grid gap-3 sm:grid-cols-3"><div className="rounded-xl bg-secondary/25 p-4"><Bell className="mb-2 h-5 w-5 text-primary" /><p className="font-medium">Email</p><p className="text-sm text-muted-foreground">{settings?.email_enabled ? "Actief" : "Provider vereist"}</p></div><div className="rounded-xl bg-secondary/25 p-4"><MessageCircle className="mb-2 h-5 w-5 text-primary" /><p className="font-medium">WhatsApp</p><p className="text-sm text-muted-foreground">{settings?.whatsapp_enabled ? "Actief" : "Provider vereist"}</p></div><div className="rounded-xl bg-secondary/25 p-4"><ShieldAlert className="mb-2 h-5 w-5 text-primary" /><p className="font-medium">SMS</p><p className="text-sm text-muted-foreground">Provider vereist</p></div></CardContent></Card>}
+                    {live && def.templateType && (
+                      <div className="mt-3">
+                        <Button asChild variant="ghost" size="sm" className="h-8 px-2 text-xs">
+                          <Link to="/whatsapp">
+                            <MessageCircle className="h-3.5 w-3.5 mr-1.5" />
+                            Bewerk template
+                          </Link>
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
     </AppLayout>
+  );
+}
+
+function StatusBadge({ status, on }: { status: Status; on: boolean }) {
+  if (status === "soon") {
+    return (
+      <span className="inline-flex items-center rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+        Binnenkort
+      </span>
+    );
+  }
+  if (on) {
+    return (
+      <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+        Live
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+      Uitgeschakeld
+    </span>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex gap-2">
+      <dt className="text-muted-foreground min-w-[5.5rem]">{label}</dt>
+      <dd className="font-medium text-foreground/90 truncate">{value}</dd>
+    </div>
+  );
+}
+
+function SummaryTile({ label, value, icon: Icon }: { label: string; value: string; icon: any }) {
+  return (
+    <Card>
+      <CardContent className="p-3">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Icon className="h-3.5 w-3.5" />
+          <span className="text-[10px] uppercase tracking-wide">{label}</span>
+        </div>
+        <div className="mt-1 text-sm font-semibold truncate">{value}</div>
+      </CardContent>
+    </Card>
   );
 }
