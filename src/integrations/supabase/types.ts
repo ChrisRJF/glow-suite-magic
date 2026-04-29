@@ -2325,6 +2325,7 @@ export type Database = {
           id: string
           kind: string
           message: string
+          meta: Json
           status: string
           to_number: string
           twilio_sid: string | null
@@ -2338,6 +2339,7 @@ export type Database = {
           id?: string
           kind?: string
           message: string
+          meta?: Json
           status?: string
           to_number: string
           twilio_sid?: string | null
@@ -2351,6 +2353,7 @@ export type Database = {
           id?: string
           kind?: string
           message?: string
+          meta?: Json
           status?: string
           to_number?: string
           twilio_sid?: string | null
