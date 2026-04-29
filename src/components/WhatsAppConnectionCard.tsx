@@ -230,6 +230,21 @@ export function WhatsAppConnectionCard() {
       </div>
 
       <div className="border-t border-border pt-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium">Reminder scheduler</p>
+            <p className="text-[11px] text-muted-foreground">
+              Draait automatisch elke 15 min. Test handmatig met de knop hiernaast.
+            </p>
+          </div>
+          <Button onClick={runSchedulerNow} disabled={runningScheduler} variant="outline" size="sm">
+            {runningScheduler ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+            Run nu
+          </Button>
+        </div>
+      </div>
+
+      <div className="border-t border-border pt-4">
         <p className="text-sm font-medium mb-2">Recente WhatsApp activiteit</p>
         {logs.length === 0 ? (
           <p className="text-xs text-muted-foreground">Nog geen berichten verstuurd.</p>
