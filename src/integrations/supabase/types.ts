@@ -2398,33 +2398,42 @@ export type Database = {
         Row: {
           created_at: string
           enabled: boolean
-          from_number: string
+          from_number: string | null
           id: string
+          monthly_included_messages: number
+          overage_enabled: boolean
           reminder_hours_before: number
           send_booking_confirmation: boolean
           send_reminders: boolean
+          send_review_request: boolean
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
           enabled?: boolean
-          from_number?: string
+          from_number?: string | null
           id?: string
+          monthly_included_messages?: number
+          overage_enabled?: boolean
           reminder_hours_before?: number
           send_booking_confirmation?: boolean
           send_reminders?: boolean
+          send_review_request?: boolean
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
           enabled?: boolean
-          from_number?: string
+          from_number?: string | null
           id?: string
+          monthly_included_messages?: number
+          overage_enabled?: boolean
           reminder_hours_before?: number
           send_booking_confirmation?: boolean
           send_reminders?: boolean
+          send_review_request?: boolean
           updated_at?: string
           user_id?: string
         }
@@ -2455,6 +2464,45 @@ export type Database = {
           id?: string
           is_active?: boolean
           template_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      whatsapp_usage_monthly: {
+        Row: {
+          billable_count: number
+          created_at: string
+          failed_count: number
+          id: string
+          included_limit: number
+          month: string
+          overage_count: number
+          sent_count: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          billable_count?: number
+          created_at?: string
+          failed_count?: number
+          id?: string
+          included_limit?: number
+          month: string
+          overage_count?: number
+          sent_count?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          billable_count?: number
+          created_at?: string
+          failed_count?: number
+          id?: string
+          included_limit?: number
+          month?: string
+          overage_count?: number
+          sent_count?: number
           updated_at?: string
           user_id?: string
         }
@@ -2538,6 +2586,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      increment_whatsapp_usage: {
+        Args: { _failed: number; _sent: number; _user_id: string }
+        Returns: undefined
       }
       prevent_live_demo_reset: { Args: { _user_id: string }; Returns: boolean }
       process_paid_webshop_order_stock: {
