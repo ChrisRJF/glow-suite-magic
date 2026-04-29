@@ -39,10 +39,24 @@ type Usage = {
 };
 
 const SANDBOX_FROM = "whatsapp:+14155238886";
+const IS_DEV = import.meta.env.DEV;
 
 function currentMonth(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+// Map technical errors to salon-friendly Dutch messages
+function friendlyError(error: string | null | undefined): string {
+  if (!error) return "Onbekende fout";
+  const e = error.toLowerCase();
+  if (/sandbox|not.*joined|join.*code|63007|21608|63015/.test(e)) {
+    return "Bericht kon nog niet worden afgeleverd. Probeer het later opnieuw of neem contact op met support.";
+  }
+  if (/invalid.*number|not.*valid|21211/.test(e)) return "Telefoonnummer is niet geldig.";
+  if (/rate.limit|too many/.test(e)) return "Even rustig — te veel berichten in korte tijd.";
+  if (/unverified|not.*verified/.test(e)) return "Ontvanger heeft WhatsApp nog niet bevestigd.";
+  return "Bericht kon niet worden afgeleverd.";
 }
 
 export function WhatsAppConnectionCard() {
@@ -56,7 +70,7 @@ export function WhatsAppConnectionCard() {
   const [sending, setSending] = useState(false);
   const [runningScheduler, setRunningScheduler] = useState(false);
   const [lastRun, setLastRun] = useState<{ started_at: string; finished_at: string | null; sent: number; checked: number } | null>(null);
-  const [lastTestResult, setLastTestResult] = useState<{ ok: boolean; message: string; sandbox?: boolean } | null>(null);
+  const [lastTestResult, setLastTestResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   const refreshLogs = async (uid: string) => {
     const { data: l } = await supabase
@@ -154,31 +168,32 @@ export function WhatsAppConnectionCard() {
         body: {
           user_id: userId,
           to: testPhone,
-          message: "Test bericht vanuit GlowSuite ✅ — je WhatsApp koppeling werkt.",
+          message: "Test bericht vanuit GlowSuite ✅ — je WhatsApp werkt.",
           kind: "test",
           test: true,
         },
       });
       if (error) {
-        // Even on non-2xx, supabase-js puts response body in error.context
         const ctx: any = (error as any).context;
         let parsed: any = null;
         try { parsed = ctx ? await ctx.json() : null; } catch { /* ignore */ }
-        const msg = parsed?.error || error.message || "Verzenden mislukt";
-        setLastTestResult({ ok: false, message: msg, sandbox: parsed?.sandbox });
+        const msg = friendlyError(parsed?.error || error.message);
+        setLastTestResult({ ok: false, message: msg });
         toast.error(msg);
       } else if ((data as any)?.success) {
-        setLastTestResult({ ok: true, message: `Verzonden via Twilio (status: ${(data as any).twilio_status})`, sandbox: (data as any).sandbox });
+        setLastTestResult({ ok: true, message: "Testbericht verstuurd ✅" });
         toast.success("Testbericht verstuurd");
       } else {
         const d = data as any;
-        setLastTestResult({ ok: false, message: d?.error || "Verzenden mislukt", sandbox: d?.sandbox });
-        toast.error(d?.error || "Verzenden mislukt");
+        const msg = friendlyError(d?.error);
+        setLastTestResult({ ok: false, message: msg });
+        toast.error(msg);
       }
       await Promise.all([refreshLogs(userId), refreshUsage(userId)]);
     } catch (e: any) {
-      setLastTestResult({ ok: false, message: e.message || "Fout bij verzenden" });
-      toast.error(e.message || "Fout bij verzenden");
+      const msg = friendlyError(e.message);
+      setLastTestResult({ ok: false, message: msg });
+      toast.error(msg);
     } finally {
       setSending(false);
     }
@@ -192,13 +207,13 @@ export function WhatsAppConnectionCard() {
       if (error) throw error;
       const d = data as any;
       if (d?.success) {
-        toast.success(`Scheduler uitgevoerd — verzonden: ${d.sent ?? 0}, gecheckt: ${d.checked ?? 0}, overgeslagen: ${d.skipped ?? 0}, fouten: ${d.failed ?? 0}`);
+        toast.success(`Herinneringen verstuurd: ${d.sent ?? 0}`);
       } else {
-        toast.error("Scheduler fout: " + (d?.error || "onbekend"));
+        toast.error("Kon herinneringen niet versturen");
       }
       await Promise.all([refreshLogs(userId), refreshUsage(userId), refreshLastRun()]);
     } catch (e: any) {
-      toast.error(e.message || "Scheduler fout");
+      toast.error("Kon herinneringen niet versturen");
     } finally {
       setRunningScheduler(false);
     }
@@ -220,9 +235,9 @@ export function WhatsAppConnectionCard() {
   const pct = Math.min(100, Math.round((used / Math.max(1, limit)) * 100));
 
   return (
-    <div className="glass-card p-6 space-y-5 opacity-0 animate-fade-in-up">
+    <div className="glass-card p-4 sm:p-6 space-y-5 opacity-0 animate-fade-in-up max-w-full overflow-x-hidden">
       <div className="flex items-center justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <h2 className="text-lg font-semibold">WhatsApp</h2>
           <div className="flex items-center gap-2 mt-1 text-sm">
             {connected ? (
@@ -230,8 +245,6 @@ export function WhatsAppConnectionCard() {
             ) : (
               <><AlertCircle className="w-4 h-4 text-warning" /><span className="text-warning">Uitgeschakeld</span></>
             )}
-            <span className="text-muted-foreground">·</span>
-            <span className="text-muted-foreground">{isSandbox ? "Sandbox modus" : "Productie"}</span>
           </div>
         </div>
         <Switch
@@ -243,17 +256,22 @@ export function WhatsAppConnectionCard() {
       <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 text-xs text-muted-foreground flex gap-2">
         <Info className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
         <p>
-          <strong className="text-foreground">WhatsApp wordt beheerd via GlowSuite.</strong> Je hoeft zelf geen Twilio account aan te maken — wij regelen verbinding, afzender en levering.
-          {isSandbox && (
-            <> Sandbox werkt alleen naar nummers die eerst <code className="bg-secondary px-1 rounded">join &lt;code&gt;</code> hebben gestuurd naar de Twilio sandbox.</>
-          )}
+          <strong className="text-foreground">WhatsApp wordt mogelijk gemaakt door GlowSuite.</strong>{" "}
+          Je hoeft zelf niets te koppelen — berichten worden automatisch via GlowSuite verstuurd.
         </p>
       </div>
+
+      {/* Dev-only sandbox warning, hidden from salon users */}
+      {IS_DEV && isSandbox && (
+        <div className="p-2 rounded-lg bg-warning/10 border border-warning/30 text-[11px] text-warning">
+          [DEV] Sandbox actief — ontvanger moet eerst "join &lt;code&gt;" sturen.
+        </div>
+      )}
 
       {/* Usage */}
       <div className="p-4 rounded-xl bg-secondary/40">
         <div className="flex items-center justify-between text-sm mb-2">
-          <span className="font-medium">Verbruik deze maand</span>
+          <span className="font-medium">Berichten gebruikt deze maand</span>
           <span className="text-muted-foreground">{used} / {limit}</span>
         </div>
         <div className="h-2 rounded-full bg-secondary overflow-hidden">
@@ -264,106 +282,101 @@ export function WhatsAppConnectionCard() {
         </div>
         {overage > 0 && (
           <p className="text-[11px] text-warning mt-2">
-            +{overage} extra berichten. Je zit boven je inbegrepen WhatsApp berichten. Extra verbruik kan achteraf worden gefactureerd.
+            +{overage} extra berichten. Extra verbruik kan achteraf worden gefactureerd.
           </p>
-        )}
-        {usage && usage.failed_count > 0 && (
-          <p className="text-[11px] text-muted-foreground mt-1">{usage.failed_count} mislukt deze maand.</p>
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <label className="text-xs text-muted-foreground flex flex-col gap-1">
+      <div>
+        <label className="text-xs text-muted-foreground flex flex-col gap-1 max-w-xs">
           Reminder tijd (uren vooraf)
           <input
             type="number"
             min={1}
             max={168}
-            className="px-3 py-2 rounded-lg bg-background border border-border text-sm"
+            className="px-3 py-2 rounded-lg bg-background border border-border text-base sm:text-sm h-11"
             value={settings.reminder_hours_before}
             onChange={(e) => setSettings({ ...settings, reminder_hours_before: Number(e.target.value) })}
             onBlur={() => persist(settings)}
           />
         </label>
-        <div className="text-xs text-muted-foreground flex flex-col gap-1">
-          Afzender
-          <div className="px-3 py-2 rounded-lg bg-secondary/60 border border-border text-sm text-muted-foreground">
-            {usedFrom} {isSandbox && <span className="text-[10px]">(GlowSuite sandbox)</span>}
-          </div>
-        </div>
       </div>
 
       <div className="space-y-2">
-        <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/50">
+        <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/50 gap-3">
           <span className="text-sm font-medium">Boekingsbevestiging versturen</span>
           <Switch checked={settings.send_booking_confirmation} onCheckedChange={(v) => persist({ ...settings, send_booking_confirmation: v })} />
         </div>
-        <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/50">
+        <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/50 gap-3">
           <span className="text-sm font-medium">Herinneringen versturen</span>
           <Switch checked={settings.send_reminders} onCheckedChange={(v) => persist({ ...settings, send_reminders: v })} />
         </div>
-        <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/50">
+        <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/50 gap-3">
           <span className="text-sm font-medium">Reviewverzoek na bezoek</span>
           <Switch checked={settings.send_review_request} onCheckedChange={(v) => persist({ ...settings, send_review_request: v })} />
         </div>
       </div>
 
-      {/* Debug checklist */}
+      {/* Status (salon-friendly) */}
       <div className="border-t border-border pt-4 space-y-1">
-        <p className="text-sm font-medium mb-2">Status & checklist</p>
-        <Checkline ok={true} text="Twilio verbonden via GlowSuite" />
-        <Checkline ok={!isSandbox} text={isSandbox ? "Sandbox: ontvanger moet eerst 'join <code>' sturen" : "Productie modus actief"} warn={isSandbox} />
-        <Checkline ok={!!lastSent} text={lastSent ? `Laatste succesvolle verzending: ${new Date(lastSent.created_at).toLocaleString("nl-NL")}` : "Nog geen succesvolle verzending"} />
+        <p className="text-sm font-medium mb-2">Status</p>
+        <Checkline ok={true} text="WhatsApp klaar voor gebruik" />
+        {lastSent && (
+          <Checkline ok={true} text={`Laatste verzonden: ${new Date(lastSent.created_at).toLocaleString("nl-NL")}`} />
+        )}
+        {!lastSent && (
+          <Checkline ok={false} warn text="Nog geen berichten verstuurd" />
+        )}
         {lastFailed && (
-          <Checkline ok={false} text={`Laatste fout: ${lastFailed.error?.slice(0, 100) || "onbekend"}`} />
+          <Checkline ok={false} text={`Laatste fout: ${friendlyError(lastFailed.error)}`} />
         )}
       </div>
 
       <div className="border-t border-border pt-4">
         <p className="text-sm font-medium mb-2">Testbericht</p>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <input
-            className="flex-1 px-3 py-2 rounded-lg bg-background border border-border text-sm"
+            className="flex-1 px-3 py-2 rounded-lg bg-background border border-border text-base sm:text-sm h-11"
             placeholder="+31612345678"
             value={testPhone}
             onChange={(e) => setTestPhone(e.target.value)}
           />
-          <Button onClick={sendTest} disabled={sending || !testPhone} variant="gradient" size="sm">
+          <Button onClick={sendTest} disabled={sending || !testPhone} variant="gradient" size="sm" className="h-11 sm:h-9">
             {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             Test
           </Button>
         </div>
         <p className="text-[11px] text-muted-foreground mt-2">
-          Gebruik E.164 formaat (bv. +31612345678). {isSandbox && "Stuur eerst 'join <code>' naar de sandbox vanaf dit nummer."}
+          Gebruik internationaal formaat (bv. +31612345678).
         </p>
         {lastTestResult && (
           <div className={`mt-2 p-2 rounded-lg text-xs ${lastTestResult.ok ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}`}>
-            {lastTestResult.ok ? "✅ " : "❌ "}{lastTestResult.message}
+            {lastTestResult.message}
           </div>
         )}
       </div>
 
       <div className="border-t border-border pt-4">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-medium">Reminder scheduler</p>
-            <p className="text-[11px] text-muted-foreground">Draait automatisch elke 15 min.</p>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="min-w-0">
+            <p className="text-sm font-medium">Automatische herinneringen</p>
+            <p className="text-[11px] text-muted-foreground">Worden automatisch verstuurd door GlowSuite.</p>
             {lastRun && (
               <p className="text-[11px] text-muted-foreground mt-1">
-                Laatste run: {new Date(lastRun.started_at).toLocaleString("nl-NL")}
-                {lastRun.finished_at ? ` · ${lastRun.sent} verzonden / ${lastRun.checked} gecheckt` : " · loopt..."}
+                Laatste check: {new Date(lastRun.started_at).toLocaleString("nl-NL")}
+                {lastRun.finished_at ? ` · ${lastRun.sent} verzonden` : " · loopt..."}
               </p>
             )}
           </div>
-          <Button onClick={runSchedulerNow} disabled={runningScheduler} variant="outline" size="sm">
+          <Button onClick={runSchedulerNow} disabled={runningScheduler} variant="outline" size="sm" className="h-11 sm:h-9">
             {runningScheduler ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-            Run nu
+            Nu draaien
           </Button>
         </div>
       </div>
 
       <div className="border-t border-border pt-4">
-        <p className="text-sm font-medium mb-2">Recente activiteit (laatste 20)</p>
+        <p className="text-sm font-medium mb-2">Recente activiteit</p>
         {logs.length === 0 ? (
           <p className="text-xs text-muted-foreground">Nog geen berichten verstuurd.</p>
         ) : (
@@ -371,16 +384,15 @@ export function WhatsAppConnectionCard() {
             {logs.map((l) => (
               <div key={l.id} className="p-2 rounded-lg bg-secondary/40 text-xs">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium truncate">{l.to_number}</span>
+                  <span className="font-medium truncate">{l.to_number.replace(/^whatsapp:/, "")}</span>
                   <span className={`px-2 py-0.5 rounded text-[10px] ${l.status === "sent" ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"}`}>
-                    {l.status}
+                    {l.status === "sent" ? "verzonden" : "mislukt"}
                   </span>
                 </div>
-                <p className="text-muted-foreground line-clamp-2 mt-1">{l.message}</p>
-                {l.error && <p className="text-destructive mt-1">{l.error}</p>}
+                <p className="text-muted-foreground line-clamp-2 mt-1 break-words">{l.message}</p>
+                {l.error && <p className="text-destructive mt-1">{friendlyError(l.error)}</p>}
                 <p className="text-[10px] text-muted-foreground mt-1">
                   {new Date(l.created_at).toLocaleString("nl-NL")} · {l.kind}
-                  {l.meta?.twilio_status && ` · twilio: ${l.meta.twilio_status}`}
                 </p>
               </div>
             ))}
