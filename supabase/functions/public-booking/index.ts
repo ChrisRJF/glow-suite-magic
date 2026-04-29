@@ -435,6 +435,38 @@ Deno.serve(async (req) => {
           calendar_url: calendarUrl,
         },
       });
+
+      // Fire-and-forget WhatsApp confirmation (does not block booking flow)
+      try {
+        const { data: waSettings } = await supabase
+          .from("whatsapp_settings")
+          .select("enabled, send_booking_confirmation")
+          .eq("user_id", ctx.settings.user_id)
+          .maybeSingle();
+
+        if (waSettings?.enabled && waSettings?.send_booking_confirmation && data.customer.phone) {
+          const dateStr = new Date(data.date).toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric" });
+          const waMessage = `Hi ${data.customer.name}, je afspraak bij ${ctx.settings.salon_name || "ons salon"} is bevestigd op ${dateStr} om ${data.time}. Antwoord met JA om te bevestigen.`;
+          const fnUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/whatsapp-send`;
+          fetch(fnUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+            },
+            body: JSON.stringify({
+              user_id: ctx.settings.user_id,
+              to: data.customer.phone,
+              message: waMessage,
+              customer_id: customerId,
+              appointment_id: primaryAppointment.id,
+              kind: "confirmation",
+            }),
+          }).catch((e) => console.error("WhatsApp send failed", e));
+        }
+      } catch (waErr) {
+        console.error("WhatsApp dispatch error (non-blocking)", waErr);
+      }
     }
 
     return json({
