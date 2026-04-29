@@ -527,6 +527,12 @@ Deno.serve(async (req) => {
       },
     });
   } catch (error) {
-    return json({ error: (error as Error).message || "Boeking kon niet worden opgeslagen." }, 500);
+    console.error("public-booking unexpected error", error);
+    const msg = (error as Error)?.message || "";
+    // Map common DB errors to friendly Dutch text — never leak constraint names.
+    if (/duplicate key|23505|idx_appointments_unique/i.test(msg)) {
+      return json({ error: "Dit tijdslot is net geboekt. Kies een andere tijd.", code: "slot_unavailable" }, 409);
+    }
+    return json({ error: "Er ging iets mis bij het opslaan van je boeking. Probeer het opnieuw." }, 500);
   }
 });
