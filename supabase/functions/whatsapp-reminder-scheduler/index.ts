@@ -86,6 +86,14 @@ Deno.serve(async (req) => {
     windows: [] as Array<Record<string, unknown>>,
   };
 
+  // Record run start
+  const { data: runRow } = await admin
+    .from("whatsapp_scheduler_runs")
+    .insert({ started_at: new Date().toISOString() })
+    .select("id")
+    .maybeSingle();
+  const runId = runRow?.id || null;
+
   try {
     const { data: settingsList, error: sErr } = await admin
       .from("whatsapp_settings")
