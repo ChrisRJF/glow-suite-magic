@@ -1,5 +1,6 @@
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { useSettings, useCustomers, useAppointments, useServices } from "@/hooks/useSupabaseData";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCrud } from "@/hooks/useCrud";
