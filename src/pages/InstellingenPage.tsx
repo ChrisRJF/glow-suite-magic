@@ -419,9 +419,24 @@ export default function InstellingenPage() {
   };
 
   const ToggleSwitch = ({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) => (
-    <button onClick={() => onChange(!value)}
-      className={`w-10 h-6 rounded-full transition-colors ${value ? "bg-primary" : "bg-secondary"}`}>
-      <div className={`w-4 h-4 rounded-full bg-white transition-transform ${value ? "translate-x-5" : "translate-x-1"}`} />
+    <button
+      type="button"
+      role="switch"
+      aria-checked={value}
+      onClick={() => onChange(!value)}
+      style={{ width: 52, height: 28, flex: '0 0 52px' }}
+      className={`relative inline-flex shrink-0 grow-0 basis-[52px] rounded-full transition-colors duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
+        value
+          ? "bg-gradient-to-r from-[hsl(var(--primary))] to-[#C850C0] shadow-[0_2px_8px_-2px_hsl(var(--primary)/0.5)]"
+          : "bg-secondary border border-border/60"
+      }`}
+    >
+      <span
+        style={{ width: 24, height: 24 }}
+        className={`absolute top-1/2 -translate-y-1/2 rounded-full bg-white shadow-md transition-transform duration-200 ease-out ${
+          value ? "translate-x-[26px]" : "translate-x-[2px]"
+        }`}
+      />
     </button>
   );
 
