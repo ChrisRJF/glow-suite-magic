@@ -1,0 +1,2 @@
+REVOKE ALL ON FUNCTION public.increment_whatsapp_usage(uuid, integer, integer) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.increment_whatsapp_usage(uuid, integer, integer) TO service_role;
