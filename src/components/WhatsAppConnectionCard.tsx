@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, AlertCircle, Send, Loader2 } from "lucide-react";
+import { CheckCircle2, AlertCircle, Send, Loader2, Play } from "lucide-react";
 import { toast } from "sonner";
 
 type WaSettings = {
@@ -33,6 +33,7 @@ export function WhatsAppConnectionCard() {
   const [saving, setSaving] = useState(false);
   const [testPhone, setTestPhone] = useState("");
   const [sending, setSending] = useState(false);
+  const [runningScheduler, setRunningScheduler] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -111,6 +112,34 @@ export function WhatsAppConnectionCard() {
       toast.error(e.message || "Fout bij verzenden");
     } finally {
       setSending(false);
+    }
+  };
+
+  const runSchedulerNow = async () => {
+    if (!userId) return;
+    setRunningScheduler(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("whatsapp-reminder-scheduler", {
+        body: {},
+      });
+      if (error) throw error;
+      const d = data as any;
+      if (d?.success) {
+        toast.success(`Scheduler uitgevoerd — verzonden: ${d.sent ?? 0}, gecheckt: ${d.checked ?? 0}, overgeslagen: ${d.skipped ?? 0}, fouten: ${d.failed ?? 0}`);
+      } else {
+        toast.error("Scheduler fout: " + (d?.error || "onbekend"));
+      }
+      const { data: l } = await supabase
+        .from("whatsapp_logs")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      setLogs((l as LogRow[]) || []);
+    } catch (e: any) {
+      toast.error(e.message || "Scheduler fout");
+    } finally {
+      setRunningScheduler(false);
     }
   };
 
@@ -198,6 +227,21 @@ export function WhatsAppConnectionCard() {
         <p className="text-[11px] text-muted-foreground mt-2">
           Tip: gebruik je eigen nummer in E.164 formaat (bv. +31612345678).
         </p>
+      </div>
+
+      <div className="border-t border-border pt-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium">Reminder scheduler</p>
+            <p className="text-[11px] text-muted-foreground">
+              Draait automatisch elke 15 min. Test handmatig met de knop hiernaast.
+            </p>
+          </div>
+          <Button onClick={runSchedulerNow} disabled={runningScheduler} variant="outline" size="sm">
+            {runningScheduler ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+            Run nu
+          </Button>
+        </div>
       </div>
 
       <div className="border-t border-border pt-4">

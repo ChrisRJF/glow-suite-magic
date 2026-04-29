@@ -1,0 +1,1 @@
+ALTER TABLE public.whatsapp_logs ADD COLUMN IF NOT EXISTS meta jsonb NOT NULL DEFAULT '{}'::jsonb;
