@@ -16,9 +16,17 @@ const Switch = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SwitchPrimitives.Root
     ref={ref}
-    style={{ width: 48, height: 26, flex: "0 0 48px" }}
+    style={{
+      width: 48,
+      minWidth: 48,
+      maxWidth: 48,
+      height: 26,
+      minHeight: 26,
+      maxHeight: 26,
+      flex: "0 0 48px",
+    }}
     className={cn(
-      "relative inline-flex shrink-0 grow-0 cursor-pointer items-center rounded-full transition-colors duration-200 ease-in-out",
+      "relative inline-flex shrink-0 grow-0 basis-[48px] cursor-pointer items-center rounded-full p-0 transition-colors duration-200 ease-in-out",
       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
       "disabled:cursor-not-allowed disabled:opacity-50",
       "data-[state=unchecked]:bg-muted",
