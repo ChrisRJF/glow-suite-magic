@@ -241,6 +241,15 @@ export function WhatsAppConnectionCard() {
             <p className="text-[11px] text-muted-foreground">
               Draait automatisch elke 15 min. Test handmatig met de knop hiernaast.
             </p>
+            {lastRun && (
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Laatste run: {new Date(lastRun.started_at).toLocaleString("nl-NL")}
+                {lastRun.finished_at ? ` · ${lastRun.sent} verzonden / ${lastRun.checked} gecheckt` : " · loopt..."}
+                {lastRun.finished_at && (
+                  <> · Volgende run rond {new Date(new Date(lastRun.started_at).getTime() + 15 * 60 * 1000).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })}</>
+                )}
+              </p>
+            )}
           </div>
           <Button onClick={runSchedulerNow} disabled={runningScheduler} variant="outline" size="sm">
             {runningScheduler ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
