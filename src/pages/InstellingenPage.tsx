@@ -943,15 +943,11 @@ function MessagingSettingsCard() {
       <div className="space-y-4">
         <div className="flex items-center justify-between py-2">
           <div><span className="text-sm">WhatsApp automatisering</span><p className="text-[11px] text-muted-foreground">Verstuur automatische WhatsApp berichten</p></div>
-          <button onClick={() => upd({ whatsappEnabled: !s.whatsappEnabled })} className={`w-11 h-6 rounded-full relative transition-colors ${s.whatsappEnabled ? 'bg-primary' : 'bg-secondary'}`}>
-            <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${s.whatsappEnabled ? 'translate-x-[22px]' : 'translate-x-1'}`} />
-          </button>
+          <Switch checked={s.whatsappEnabled} onCheckedChange={(checked) => upd({ whatsappEnabled: checked })} />
         </div>
         <div className="flex items-center justify-between py-2">
           <div><span className="text-sm">SMS automatisering</span><p className="text-[11px] text-muted-foreground">Verstuur automatische SMS-berichten</p></div>
-          <button onClick={() => upd({ smsEnabled: !s.smsEnabled })} className={`w-11 h-6 rounded-full relative transition-colors ${s.smsEnabled ? 'bg-primary' : 'bg-secondary'}`}>
-            <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${s.smsEnabled ? 'translate-x-[22px]' : 'translate-x-1'}`} />
-          </button>
+          <Switch checked={s.smsEnabled} onCheckedChange={(checked) => upd({ smsEnabled: checked })} />
         </div>
         <div className="flex items-center justify-between py-2">
           <div><span className="text-sm">Voorkeurskanaal</span><p className="text-[11px] text-muted-foreground">Wat als beide actief zijn</p></div>
@@ -965,15 +961,11 @@ function MessagingSettingsCard() {
         </div>
         <div className="flex items-center justify-between py-2">
           <div><span className="text-sm">Afgebroken boeking opvolgen</span><p className="text-[11px] text-muted-foreground">Stuur reminders na 1u/24u</p></div>
-          <button onClick={() => upd({ abandonedFollowupEnabled: !s.abandonedFollowupEnabled })} className={`w-11 h-6 rounded-full relative transition-colors ${s.abandonedFollowupEnabled ? 'bg-primary' : 'bg-secondary'}`}>
-            <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${s.abandonedFollowupEnabled ? 'translate-x-[22px]' : 'translate-x-1'}`} />
-          </button>
+          <Switch checked={s.abandonedFollowupEnabled} onCheckedChange={(checked) => upd({ abandonedFollowupEnabled: checked })} />
         </div>
         <div className="flex items-center justify-between py-2">
           <div><span className="text-sm">Kortingsbericht (3 dagen)</span><p className="text-[11px] text-muted-foreground">Stuur 10% korting bij koude lead</p></div>
-          <button onClick={() => upd({ incentiveEnabled: !s.incentiveEnabled })} className={`w-11 h-6 rounded-full relative transition-colors ${s.incentiveEnabled ? 'bg-primary' : 'bg-secondary'}`}>
-            <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${s.incentiveEnabled ? 'translate-x-[22px]' : 'translate-x-1'}`} />
-          </button>
+          <Switch checked={s.incentiveEnabled} onCheckedChange={(checked) => upd({ incentiveEnabled: checked })} />
         </div>
       </div>
     </div>
