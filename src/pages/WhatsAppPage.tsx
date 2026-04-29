@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { WhatsAppConnectionCard } from "@/components/WhatsAppConnectionCard";
 import { WhatsAppTemplatesCard } from "@/components/WhatsAppTemplatesCard";
-import { WhatsAppTemplateType } from "@/lib/whatsappTemplates";
+import { WhatsAppTemplateType, DEFAULT_WHATSAPP_TEMPLATES } from "@/lib/whatsappTemplates";
 
 type AutomationKey = "booking_confirmation" | "reminder" | "review" | "reactivation" | "birthday";
 
@@ -68,20 +68,21 @@ export default function WhatsAppPage() {
   const setActive = async (type: WhatsAppTemplateType, next: boolean) => {
     setActiveMap((p) => ({ ...p, [type]: next }));
     if (!userId) return;
-    const { error } = await supabase
+    // Try update first (preserves existing content)
+    const { data: updated } = await supabase
       .from("whatsapp_templates")
-      .upsert(
-        { user_id: userId, template_type: type, is_active: next, content: "" } as any,
-        { onConflict: "user_id,template_type", ignoreDuplicates: false },
-      );
-    // If row already exists, content "" would overwrite — instead use update fallback
-    if (error) {
-      // Try update only
-      await supabase
-        .from("whatsapp_templates")
-        .update({ is_active: next })
-        .eq("user_id", userId)
-        .eq("template_type", type);
+      .update({ is_active: next })
+      .eq("user_id", userId)
+      .eq("template_type", type)
+      .select("id");
+    if (!updated || updated.length === 0) {
+      // No row yet — insert with default content
+      await supabase.from("whatsapp_templates").insert({
+        user_id: userId,
+        template_type: type,
+        is_active: next,
+        content: DEFAULT_WHATSAPP_TEMPLATES[type],
+      } as any);
     }
   };
 
