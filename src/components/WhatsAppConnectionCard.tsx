@@ -34,6 +34,27 @@ export function WhatsAppConnectionCard() {
   const [testPhone, setTestPhone] = useState("");
   const [sending, setSending] = useState(false);
   const [runningScheduler, setRunningScheduler] = useState(false);
+  const [lastRun, setLastRun] = useState<{ started_at: string; finished_at: string | null; sent: number; checked: number } | null>(null);
+
+  const refreshLogs = async (uid: string) => {
+    const { data: l } = await supabase
+      .from("whatsapp_logs")
+      .select("*")
+      .eq("user_id", uid)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    setLogs((l as LogRow[]) || []);
+  };
+
+  const refreshLastRun = async () => {
+    const { data } = await supabase
+      .from("whatsapp_scheduler_runs")
+      .select("started_at, finished_at, sent, checked")
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (data) setLastRun(data as any);
+  };
 
   useEffect(() => {
     (async () => {
@@ -61,13 +82,8 @@ export function WhatsAppConnectionCard() {
         setSettings(initial);
       }
 
-      const { data: l } = await supabase
-        .from("whatsapp_logs")
-        .select("*")
-        .eq("user_id", auth.user.id)
-        .order("created_at", { ascending: false })
-        .limit(20);
-      setLogs((l as LogRow[]) || []);
+      await refreshLogs(auth.user.id);
+      await refreshLastRun();
       setLoading(false);
     })();
   }, []);
