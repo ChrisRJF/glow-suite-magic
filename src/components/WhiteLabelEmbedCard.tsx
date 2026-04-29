@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Globe, Copy, Check, Eye, Palette, Upload, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { getBranding, fetchBranding, saveBranding, type WhiteLabelBranding } from "@/lib/whitelabel";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -196,12 +197,7 @@ export function WhiteLabelEmbedCard() {
             <span className="text-sm">Logo tonen in widget</span>
             <p className="text-[11px] text-muted-foreground">Toon je salonlogo in de embed</p>
           </div>
-          <button
-            onClick={() => update({ show_logo: !branding.show_logo })}
-            className={`w-10 h-6 rounded-full transition-colors ${branding.show_logo ? "bg-primary" : "bg-secondary"}`}
-          >
-            <div className={`w-4 h-4 rounded-full bg-white transition-transform ${branding.show_logo ? "translate-x-5" : "translate-x-1"}`} />
-          </button>
+          <Switch checked={branding.show_logo} onCheckedChange={(checked) => update({ show_logo: checked })} />
         </div>
 
         <div className="flex items-center justify-between py-2">
@@ -209,12 +205,7 @@ export function WhiteLabelEmbedCard() {
             <span className="text-sm">"Powered by GlowSuite" verbergen</span>
             <p className="text-[11px] text-muted-foreground">Volledig white-label</p>
           </div>
-          <button
-            onClick={() => update({ hide_glowsuite_branding: !branding.hide_glowsuite_branding })}
-            className={`w-10 h-6 rounded-full transition-colors ${branding.hide_glowsuite_branding ? "bg-primary" : "bg-secondary"}`}
-          >
-            <div className={`w-4 h-4 rounded-full bg-white transition-transform ${branding.hide_glowsuite_branding ? "translate-x-5" : "translate-x-1"}`} />
-          </button>
+          <Switch checked={branding.hide_glowsuite_branding} onCheckedChange={(checked) => update({ hide_glowsuite_branding: checked })} />
         </div>
       </div>
 
