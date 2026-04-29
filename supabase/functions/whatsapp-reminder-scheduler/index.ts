@@ -97,15 +97,18 @@ Deno.serve(async (req) => {
   try {
     const { data: settingsList, error: sErr } = await admin
       .from("whatsapp_settings")
-      .select("user_id, enabled, send_reminders, reminder_hours_before")
-      .eq("enabled", true)
-      .eq("send_reminders", true);
+      .select("user_id, enabled, send_reminders, send_review_request, reminder_hours_before")
+      .eq("enabled", true);
     if (sErr) throw sErr;
 
     const now = new Date();
     const WINDOW_MIN = 15; // ±15 minutes
 
     for (const s of settingsList || []) {
+      // -------- REMINDER PASS --------
+      if (!s.send_reminders) {
+        // skip reminder pass for this salon
+      } else {
       const hoursBefore = s.reminder_hours_before || 24;
 
       // Resolve salon timezone
@@ -266,6 +269,128 @@ Deno.serve(async (req) => {
         } catch (e) {
           stats.failed++;
           stats.errors.push(`appt ${appt.id}: ${e instanceof Error ? e.message : "unknown"}`);
+        }
+      }
+      } // end reminder else-block
+
+      // -------- REVIEW PASS --------
+      if (s.send_review_request) {
+        try {
+          const { data: salonSettings2 } = await admin
+            .from("settings")
+            .select("timezone")
+            .eq("user_id", s.user_id)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          const tz2 = salonSettings2?.timezone || DEFAULT_TZ;
+
+          // Look at appointments that ended between 2h and 26h ago, status voltooid/completed
+          const since = new Date(now.getTime() - 26 * 60 * 60 * 1000).toISOString();
+          const until = new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString();
+
+          const { data: doneAppts } = await admin
+            .from("appointments")
+            .select("id, customer_id, appointment_date, start_time, status, user_id")
+            .eq("user_id", s.user_id)
+            .gte("appointment_date", since)
+            .lte("appointment_date", until)
+            .in("status", ["voltooid", "completed"]);
+
+          // Load review template once
+          const { data: revTpl } = await admin
+            .from("whatsapp_templates")
+            .select("content, is_active")
+            .eq("user_id", s.user_id)
+            .eq("template_type", "review")
+            .maybeSingle();
+          if (revTpl?.is_active === false) {
+            // template disabled — skip review pass
+          } else {
+            const DEFAULT_REVIEW = `Bedankt voor je bezoek aan {{salon_name}}, {{customer_name}}!\n\nWe horen graag je ervaring. Laat hier een korte review achter:\n{{review_link}}`;
+            const reviewContent = revTpl?.content || DEFAULT_REVIEW;
+
+            const { data: profile2 } = await admin
+              .from("profiles")
+              .select("salon_name, google_review_url")
+              .eq("user_id", s.user_id)
+              .maybeSingle();
+            const salonName2 = profile2?.salon_name || "ons salon";
+            const reviewLink = (profile2 as any)?.google_review_url || "";
+
+            for (const appt of doneAppts || []) {
+              stats.checked++;
+              if (!appt.customer_id) { stats.skipped++; continue; }
+
+              const { data: existingLog } = await admin
+                .from("whatsapp_logs")
+                .select("id")
+                .eq("appointment_id", appt.id)
+                .eq("kind", "review")
+                .eq("status", "sent")
+                .limit(1)
+                .maybeSingle();
+              if (existingLog) { stats.skipped++; continue; }
+
+              const { data: customer } = await admin
+                .from("customers")
+                .select("id, name, phone, whatsapp_opt_in")
+                .eq("id", appt.customer_id)
+                .maybeSingle();
+              if (!customer || !customer.phone || customer.whatsapp_opt_in === false) {
+                stats.skipped++;
+                continue;
+              }
+
+              const apptInstant = new Date(appt.appointment_date);
+              const dateStr = new Intl.DateTimeFormat("nl-NL", {
+                timeZone: tz2, day: "numeric", month: "long",
+              }).format(apptInstant);
+              const timeStr = (appt.start_time as string | null)?.substring(0, 5)
+                || String(appt.appointment_date).substring(11, 16);
+
+              const message = reviewContent
+                .replace(/\{\{\s*customer_name\s*\}\}/g, customer.name || "")
+                .replace(/\{\{\s*salon_name\s*\}\}/g, salonName2)
+                .replace(/\{\{\s*appointment_date\s*\}\}/g, dateStr)
+                .replace(/\{\{\s*appointment_time\s*\}\}/g, timeStr)
+                .replace(/\{\{\s*services\s*\}\}/g, "")
+                .replace(/\{\{\s*reschedule_link\s*\}\}/g, "")
+                .replace(/\{\{\s*review_link\s*\}\}/g, reviewLink);
+
+              try {
+                const fnUrl = `${SUPABASE_URL}/functions/v1/whatsapp-send`;
+                const resp = await fetch(fnUrl, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${SERVICE_KEY}`,
+                  },
+                  body: JSON.stringify({
+                    user_id: s.user_id,
+                    to: customer.phone,
+                    message,
+                    customer_id: customer.id,
+                    appointment_id: appt.id,
+                    kind: "review",
+                    meta: { tz: tz2 },
+                  }),
+                });
+                const data = await resp.json();
+                if (resp.ok && (data.success || data.deduped)) {
+                  if (data.deduped) stats.skipped++; else stats.sent++;
+                } else {
+                  stats.failed++;
+                  stats.errors.push(`review ${appt.id}: ${data.error || resp.status}`);
+                }
+              } catch (e) {
+                stats.failed++;
+                stats.errors.push(`review ${appt.id}: ${e instanceof Error ? e.message : "unknown"}`);
+              }
+            }
+          }
+        } catch (e) {
+          stats.errors.push(`review pass ${s.user_id}: ${e instanceof Error ? e.message : "unknown"}`);
         }
       }
     }
