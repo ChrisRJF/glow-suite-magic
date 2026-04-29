@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Loader2, RotateCcw, Eye, Send, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -21,7 +24,13 @@ type TemplateRow = {
 
 const TYPES: WhatsAppTemplateType[] = ["booking_confirmation", "reminder", "review"];
 
-export function WhatsAppTemplatesCard() {
+export type WhatsAppTemplatesCardProps = {
+  /** Active map controlled from parent (automations card). If omitted, internal state used. */
+  activeMap?: Partial<Record<WhatsAppTemplateType, boolean>>;
+  onActiveChange?: (type: WhatsAppTemplateType, active: boolean) => void;
+};
+
+export function WhatsAppTemplatesCard({ activeMap, onActiveChange }: WhatsAppTemplatesCardProps = {}) {
   const [userId, setUserId] = useState<string | null>(null);
   const [templates, setTemplates] = useState<Record<WhatsAppTemplateType, TemplateRow>>(() => {
     const init = {} as Record<WhatsAppTemplateType, TemplateRow>;
@@ -58,15 +67,22 @@ export function WhatsAppTemplatesCard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const persist = async (type: WhatsAppTemplateType, content: string) => {
+  const isActive = (type: WhatsAppTemplateType) =>
+    activeMap && type in activeMap ? !!activeMap[type] : templates[type].is_active;
+
+  const persist = async (type: WhatsAppTemplateType, patch: Partial<TemplateRow>) => {
     if (!userId) return;
     setSaving(type);
+    const current = templates[type];
+    const merged = {
+      user_id: userId,
+      template_type: type,
+      content: patch.content ?? current.content,
+      is_active: patch.is_active ?? current.is_active,
+    };
     const { error } = await supabase
       .from("whatsapp_templates")
-      .upsert(
-        { user_id: userId, template_type: type, content, is_active: true },
-        { onConflict: "user_id,template_type" },
-      );
+      .upsert(merged, { onConflict: "user_id,template_type" });
     setSaving(null);
     if (error) toast.error("Opslaan mislukt: " + error.message);
     else toast.success("Template opgeslagen");
@@ -74,7 +90,13 @@ export function WhatsAppTemplatesCard() {
 
   const reset = (type: WhatsAppTemplateType) => {
     setTemplates((p) => ({ ...p, [type]: { ...p[type], content: DEFAULT_WHATSAPP_TEMPLATES[type] } }));
-    persist(type, DEFAULT_WHATSAPP_TEMPLATES[type]);
+    persist(type, { content: DEFAULT_WHATSAPP_TEMPLATES[type] });
+  };
+
+  const toggleActive = (type: WhatsAppTemplateType, next: boolean) => {
+    setTemplates((p) => ({ ...p, [type]: { ...p[type], is_active: next } }));
+    onActiveChange?.(type, next);
+    persist(type, { is_active: next });
   };
 
   const sendTest = async (type: WhatsAppTemplateType) => {
@@ -100,56 +122,93 @@ export function WhatsAppTemplatesCard() {
     return <div className="glass-card p-6"><Loader2 className="w-4 h-4 animate-spin" /></div>;
   }
 
+  const minHeightFor = (type: WhatsAppTemplateType) =>
+    type === "booking_confirmation" ? "min-h-[160px]" : "min-h-[120px]";
+
   return (
-    <div className="glass-card p-6 space-y-5 opacity-0 animate-fade-in-up">
+    <div className="glass-card p-4 sm:p-6 space-y-5 opacity-0 animate-fade-in-up w-full min-w-0 max-w-full overflow-hidden">
       <div className="flex items-center gap-2">
         <MessageSquare className="w-5 h-5 text-primary" />
         <h2 className="text-lg font-semibold">WhatsApp templates</h2>
       </div>
-      <p className="text-xs text-muted-foreground">
-        Beschikbare variabelen: <code>{`{{customer_name}}`}</code>, <code>{`{{salon_name}}`}</code>,{" "}
-        <code>{`{{appointment_date}}`}</code>, <code>{`{{appointment_time}}`}</code>,{" "}
-        <code>{`{{services}}`}</code>, <code>{`{{reschedule_link}}`}</code>, <code>{`{{review_link}}`}</code>.
+      <p className="text-xs text-muted-foreground break-words">
+        Beschikbare variabelen: <code className="break-all">{`{{customer_name}}`}</code>,{" "}
+        <code className="break-all">{`{{salon_name}}`}</code>,{" "}
+        <code className="break-all">{`{{appointment_date}}`}</code>,{" "}
+        <code className="break-all">{`{{appointment_time}}`}</code>,{" "}
+        <code className="break-all">{`{{services}}`}</code>,{" "}
+        <code className="break-all">{`{{reschedule_link}}`}</code>,{" "}
+        <code className="break-all">{`{{review_link}}`}</code>.
       </p>
 
-      <div className="flex gap-2 items-center">
-        <input
-          className="flex-1 px-3 py-2 rounded-lg bg-background border border-border text-sm"
-          placeholder="Testnummer (bv. +31612345678)"
-          value={testPhone}
-          onChange={(e) => setTestPhone(e.target.value)}
-        />
-      </div>
+      <Input
+        type="tel"
+        inputMode="tel"
+        className="w-full"
+        placeholder="Testnummer (bv. +31612345678)"
+        value={testPhone}
+        onChange={(e) => setTestPhone(e.target.value)}
+      />
 
       <div className="space-y-4">
         {TYPES.map((type) => {
           const t = templates[type];
+          const active = isActive(type);
           const sample = renderTemplate(t.content, SAMPLE_VARS);
           return (
-            <div key={type} className="rounded-xl border border-border p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium">{TEMPLATE_LABELS[type]}</h3>
-                <div className="flex gap-2">
-                  <Button variant="ghost" size="sm" onClick={() => setPreviewOpen(previewOpen === type ? null : type)}>
-                    <Eye className="w-4 h-4" /> {previewOpen === type ? "Verberg" : "Voorbeeld"}
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => reset(type)}>
-                    <RotateCcw className="w-4 h-4" /> Reset
-                  </Button>
-                  <Button variant="outline" size="sm" disabled={sendingTest === type || !testPhone} onClick={() => sendTest(type)}>
-                    {sendingTest === type ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                    Test
-                  </Button>
+            <div key={type} className="rounded-xl border border-border p-3 sm:p-4 space-y-3 w-full min-w-0">
+              {/* Header */}
+              <div className="flex items-start justify-between gap-3 min-w-0">
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-sm font-medium truncate">{TEMPLATE_LABELS[type]}</h3>
+                  <p className={`text-[11px] mt-0.5 ${active ? "text-success" : "text-muted-foreground"}`}>
+                    {active ? "Actief" : "Uitgeschakeld"}
+                  </p>
                 </div>
+                <Switch checked={active} onCheckedChange={(v) => toggleActive(type, v)} />
               </div>
-              <textarea
-                className="w-full px-3 py-2 rounded-lg bg-background border border-border text-sm min-h-[140px] font-mono"
+
+              {/* Editor */}
+              <Textarea
                 value={t.content}
                 onChange={(e) => setTemplates((p) => ({ ...p, [type]: { ...p[type], content: e.target.value } }))}
-                onBlur={() => persist(type, t.content)}
+                onBlur={() => persist(type, { content: t.content })}
+                className={`w-full font-sans text-base sm:text-sm ${minHeightFor(type)} resize-y whitespace-pre-wrap break-words`}
+                style={{ fontFamily: "inherit" }}
               />
+
+              {/* Actions: stacked on mobile, inline on desktop */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full min-h-[44px] sm:min-h-0"
+                  onClick={() => setPreviewOpen(previewOpen === type ? null : type)}
+                >
+                  <Eye className="w-4 h-4" /> {previewOpen === type ? "Verberg" : "Voorbeeld"}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full min-h-[44px] sm:min-h-0"
+                  onClick={() => reset(type)}
+                >
+                  <RotateCcw className="w-4 h-4" /> Reset
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full min-h-[44px] sm:min-h-0"
+                  disabled={sendingTest === type || !testPhone}
+                  onClick={() => sendTest(type)}
+                >
+                  {sendingTest === type ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  Test
+                </Button>
+              </div>
+
               {previewOpen === type && (
-                <div className="p-3 rounded-lg bg-secondary/50 text-xs whitespace-pre-wrap">
+                <div className="p-3 rounded-lg bg-secondary/50 text-xs whitespace-pre-wrap break-words">
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Voorbeeld</p>
                   {sample}
                 </div>
