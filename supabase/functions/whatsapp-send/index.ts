@@ -39,6 +39,7 @@ Deno.serve(async (req) => {
       appointment_id = null,
       kind = "manual",
       test = false,
+      meta = {},
     } = body;
 
     if (!user_id || !to || !message) {
@@ -100,6 +101,7 @@ Deno.serve(async (req) => {
       twilio_sid: twData?.sid ?? null,
       error: ok ? null : (twData?.message || JSON.stringify(twData)).slice(0, 500),
       kind,
+      meta,
     });
 
     if (!ok) {
