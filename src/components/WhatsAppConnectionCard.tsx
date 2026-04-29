@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, AlertCircle, Send, Loader2 } from "lucide-react";
+import { CheckCircle2, AlertCircle, Send, Loader2, Play } from "lucide-react";
 import { toast } from "sonner";
 
 type WaSettings = {
@@ -33,6 +33,7 @@ export function WhatsAppConnectionCard() {
   const [saving, setSaving] = useState(false);
   const [testPhone, setTestPhone] = useState("");
   const [sending, setSending] = useState(false);
+  const [runningScheduler, setRunningScheduler] = useState(false);
 
   useEffect(() => {
     (async () => {
