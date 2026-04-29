@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { services as fallbackServices, formatEuro } from "@/lib/data";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { Check, Clock, ArrowLeft, ArrowRight, Calendar, User, CreditCard, Loader2, Plus, Trash2, Users, Zap, AlertCircle, Mail, Shield, Sparkles, RotateCcw, Share2, CalendarPlus, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePaymentRules } from "@/hooks/usePaymentRules";
@@ -980,7 +979,22 @@ export default function BookingPage() {
                 <span className="font-medium">Groepsboeking</span>
                 <p className="text-[11px] text-muted-foreground">Boek voor meerdere personen tegelijk</p>
               </div>
-              <Switch checked={isGroupBooking} onCheckedChange={() => undefined} aria-hidden="true" tabIndex={-1} />
+              <span
+                aria-hidden="true"
+                style={{ width: 48, minWidth: 48, maxWidth: 48, height: 26, minHeight: 26, maxHeight: 26, flex: "0 0 48px" }}
+                className={cn(
+                  "relative inline-flex shrink-0 grow-0 basis-[48px] items-center rounded-full p-0 transition-colors duration-200 ease-in-out",
+                  isGroupBooking ? "bg-gradient-to-r from-primary to-accent shadow-[0_0_0_1px_hsl(var(--primary)/0.15),0_4px_12px_-2px_hsl(var(--primary)/0.35)]" : "bg-muted"
+                )}
+              >
+                <span
+                  style={{ width: 22, height: 22 }}
+                  className={cn(
+                    "block rounded-full bg-background shadow-[0_1px_3px_hsl(var(--foreground)/0.2)] transition-transform duration-200 ease-in-out",
+                    isGroupBooking ? "translate-x-[22px]" : "translate-x-[2px]"
+                  )}
+                />
+              </span>
             </button>
 
             <p className="text-xs text-muted-foreground mt-2 mb-1">{isGroupBooking ? "Hoofdpersoon — kies behandeling:" : ""}</p>
