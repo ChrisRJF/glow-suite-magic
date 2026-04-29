@@ -117,13 +117,7 @@ export function WhatsAppConnectionCard() {
       } else {
         toast.error("Verzenden mislukt: " + ((data as any)?.error || "onbekend"));
       }
-      const { data: l } = await supabase
-        .from("whatsapp_logs")
-        .select("*")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(20);
-      setLogs((l as LogRow[]) || []);
+      await refreshLogs(userId);
     } catch (e: any) {
       toast.error(e.message || "Fout bij verzenden");
     } finally {
@@ -145,13 +139,8 @@ export function WhatsAppConnectionCard() {
       } else {
         toast.error("Scheduler fout: " + (d?.error || "onbekend"));
       }
-      const { data: l } = await supabase
-        .from("whatsapp_logs")
-        .select("*")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(20);
-      setLogs((l as LogRow[]) || []);
+      await refreshLogs(userId);
+      await refreshLastRun();
     } catch (e: any) {
       toast.error(e.message || "Scheduler fout");
     } finally {
