@@ -97,15 +97,18 @@ Deno.serve(async (req) => {
   try {
     const { data: settingsList, error: sErr } = await admin
       .from("whatsapp_settings")
-      .select("user_id, enabled, send_reminders, reminder_hours_before")
-      .eq("enabled", true)
-      .eq("send_reminders", true);
+      .select("user_id, enabled, send_reminders, send_review_request, reminder_hours_before")
+      .eq("enabled", true);
     if (sErr) throw sErr;
 
     const now = new Date();
     const WINDOW_MIN = 15; // ±15 minutes
 
     for (const s of settingsList || []) {
+      // -------- REMINDER PASS --------
+      if (!s.send_reminders) {
+        // skip reminder pass for this salon
+      } else {
       const hoursBefore = s.reminder_hours_before || 24;
 
       // Resolve salon timezone
