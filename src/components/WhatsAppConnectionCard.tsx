@@ -115,6 +115,34 @@ export function WhatsAppConnectionCard() {
     }
   };
 
+  const runSchedulerNow = async () => {
+    if (!userId) return;
+    setRunningScheduler(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("whatsapp-reminder-scheduler", {
+        body: {},
+      });
+      if (error) throw error;
+      const d = data as any;
+      if (d?.success) {
+        toast.success(`Scheduler uitgevoerd — verzonden: ${d.sent ?? 0}, gecheckt: ${d.checked ?? 0}, overgeslagen: ${d.skipped ?? 0}, fouten: ${d.failed ?? 0}`);
+      } else {
+        toast.error("Scheduler fout: " + (d?.error || "onbekend"));
+      }
+      const { data: l } = await supabase
+        .from("whatsapp_logs")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      setLogs((l as LogRow[]) || []);
+    } catch (e: any) {
+      toast.error(e.message || "Scheduler fout");
+    } finally {
+      setRunningScheduler(false);
+    }
+  };
+
   if (loading || !settings) {
     return <div className="glass-card p-6"><Loader2 className="w-4 h-4 animate-spin" /></div>;
   }
