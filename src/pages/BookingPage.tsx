@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { services as fallbackServices, formatEuro } from "@/lib/data";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Check, Clock, ArrowLeft, ArrowRight, Calendar, User, CreditCard, Loader2, Plus, Trash2, Users, Zap, AlertCircle, Mail, Shield, Sparkles, RotateCcw, Share2, CalendarPlus, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePaymentRules } from "@/hooks/usePaymentRules";
@@ -979,9 +980,7 @@ export default function BookingPage() {
                 <span className="font-medium">Groepsboeking</span>
                 <p className="text-[11px] text-muted-foreground">Boek voor meerdere personen tegelijk</p>
               </div>
-              <div className={`w-10 h-6 rounded-full transition-colors ${isGroupBooking ? "bg-primary" : "bg-secondary"}`}>
-                <div className={`w-4 h-4 rounded-full bg-white transition-transform mt-1 ${isGroupBooking ? "translate-x-5" : "translate-x-1"}`} />
-              </div>
+              <Switch checked={isGroupBooking} onCheckedChange={() => undefined} aria-hidden="true" tabIndex={-1} />
             </button>
 
             <p className="text-xs text-muted-foreground mt-2 mb-1">{isGroupBooking ? "Hoofdpersoon — kies behandeling:" : ""}</p>
