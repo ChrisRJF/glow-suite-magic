@@ -45,6 +45,7 @@ const navGroups: NavGroup[] = [
       { label: "Leads", icon: UserPlus, path: "/leads" },
       { label: "Wachtlijst", icon: Clock, path: "/wachtlijst" },
       { label: "Herboekingen", icon: RefreshCw, path: "/herboekingen" },
+      { label: "WhatsApp", icon: MessageCircle, path: "/whatsapp" },
       { label: "Automations", icon: Bot, path: "/automatiseringen" },
     ],
   },
