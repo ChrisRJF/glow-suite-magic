@@ -650,6 +650,7 @@ export type Database = {
           total_spent: number | null
           updated_at: string
           user_id: string
+          whatsapp_opt_in: boolean | null
         }
         Insert: {
           cancellation_count?: number | null
@@ -668,6 +669,7 @@ export type Database = {
           total_spent?: number | null
           updated_at?: string
           user_id: string
+          whatsapp_opt_in?: boolean | null
         }
         Update: {
           cancellation_count?: number | null
@@ -686,6 +688,7 @@ export type Database = {
           total_spent?: number | null
           updated_at?: string
           user_id?: string
+          whatsapp_opt_in?: boolean | null
         }
         Relationships: []
       }
@@ -2308,6 +2311,84 @@ export type Database = {
           status?: string
           stock_processed_at?: string | null
           total_amount?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      whatsapp_logs: {
+        Row: {
+          appointment_id: string | null
+          created_at: string
+          customer_id: string | null
+          error: string | null
+          id: string
+          kind: string
+          message: string
+          status: string
+          to_number: string
+          twilio_sid: string | null
+          user_id: string
+        }
+        Insert: {
+          appointment_id?: string | null
+          created_at?: string
+          customer_id?: string | null
+          error?: string | null
+          id?: string
+          kind?: string
+          message: string
+          status?: string
+          to_number: string
+          twilio_sid?: string | null
+          user_id: string
+        }
+        Update: {
+          appointment_id?: string | null
+          created_at?: string
+          customer_id?: string | null
+          error?: string | null
+          id?: string
+          kind?: string
+          message?: string
+          status?: string
+          to_number?: string
+          twilio_sid?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      whatsapp_settings: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          from_number: string
+          id: string
+          reminder_hours_before: number
+          send_booking_confirmation: boolean
+          send_reminders: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          from_number?: string
+          id?: string
+          reminder_hours_before?: number
+          send_booking_confirmation?: boolean
+          send_reminders?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          from_number?: string
+          id?: string
+          reminder_hours_before?: number
+          send_booking_confirmation?: boolean
+          send_reminders?: boolean
           updated_at?: string
           user_id?: string
         }
