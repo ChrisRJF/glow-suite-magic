@@ -1,5 +1,6 @@
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { useCampaigns } from "@/hooks/useSupabaseData";
 import { useCrud } from "@/hooks/useCrud";
 import { MessageCircle, Send, Clock, Users, Sparkles, Zap, MessageSquare, Phone } from "lucide-react";
@@ -90,9 +91,7 @@ export default function WhatsAppPage() {
                 <div key={i} className="flex items-center gap-4 p-4 rounded-xl bg-secondary/50">
                   <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center"><a.icon className="w-5 h-5 text-muted-foreground" /></div>
                   <div className="flex-1 min-w-0"><p className="text-sm font-medium">{a.title}</p><p className="text-xs text-muted-foreground">{a.description}</p></div>
-                  <button onClick={() => toggleAutomation(i)} className={`w-11 h-6 rounded-full transition-colors duration-200 relative ${a.active ? 'bg-primary' : 'bg-secondary'}`}>
-                    <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform duration-200 ${a.active ? 'translate-x-[22px]' : 'translate-x-1'}`} />
-                  </button>
+                  <Switch checked={a.active} onCheckedChange={() => toggleAutomation(i)} />
                 </div>
               ))}
             </div>
