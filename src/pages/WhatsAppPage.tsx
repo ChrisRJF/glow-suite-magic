@@ -2,14 +2,21 @@ import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useCampaigns } from "@/hooks/useSupabaseData";
-import { useCrud } from "@/hooks/useCrud";
-import { MessageCircle, Send, Clock, Sparkles, Users, Zap, Phone, CheckCircle2 } from "lucide-react";
+import { MessageCircle, Send, Clock, Sparkles, Users, Zap, Phone, CheckCircle2, Pencil, Copy, Trash2, MoreVertical } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { WhatsAppConnectionCard } from "@/components/WhatsAppConnectionCard";
 import { WhatsAppTemplatesCard } from "@/components/WhatsAppTemplatesCard";
 import { WhatsAppTemplateType, DEFAULT_WHATSAPP_TEMPLATES } from "@/lib/whatsappTemplates";
+import { WhatsAppCampaignEditor, type AudienceType, type CampaignDraft } from "@/components/WhatsAppCampaignEditor";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type AutomationKey = "booking_confirmation" | "reminder" | "review" | "reactivation" | "birthday";
 
