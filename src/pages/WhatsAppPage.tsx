@@ -8,6 +8,7 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { getTemplates, saveTemplates, MessageTemplate } from "@/lib/messaging";
 import { WhatsAppConnectionCard } from "@/components/WhatsAppConnectionCard";
+import { WhatsAppTemplatesCard } from "@/components/WhatsAppTemplatesCard";
 
 export default function WhatsAppPage() {
   const { data: campaigns, refetch } = useCampaigns();
