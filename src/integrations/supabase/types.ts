@@ -2361,6 +2361,39 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_scheduler_runs: {
+        Row: {
+          checked: number
+          failed: number
+          finished_at: string | null
+          id: string
+          meta: Json
+          sent: number
+          skipped: number
+          started_at: string
+        }
+        Insert: {
+          checked?: number
+          failed?: number
+          finished_at?: string | null
+          id?: string
+          meta?: Json
+          sent?: number
+          skipped?: number
+          started_at?: string
+        }
+        Update: {
+          checked?: number
+          failed?: number
+          finished_at?: string | null
+          id?: string
+          meta?: Json
+          sent?: number
+          skipped?: number
+          started_at?: string
+        }
+        Relationships: []
+      }
       whatsapp_settings: {
         Row: {
           created_at: string
@@ -2392,6 +2425,36 @@ export type Database = {
           reminder_hours_before?: number
           send_booking_confirmation?: boolean
           send_reminders?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      whatsapp_templates: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          is_active: boolean
+          template_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          template_type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          template_type?: string
           updated_at?: string
           user_id?: string
         }
