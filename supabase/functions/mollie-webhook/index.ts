@@ -125,7 +125,7 @@ Deno.serve(async (req) => {
 
     if (status === "paid") {
       const { data: settings } = await supabase.from("settings").select("salon_name, public_slug").eq("user_id", payment.user_id).eq("is_demo", false).order("created_at", { ascending: false }).limit(1).maybeSingle();
-      const { data: customer } = payment.customer_id ? await supabase.from("customers").select("name, email").eq("id", payment.customer_id).eq("user_id", payment.user_id).maybeSingle() : { data: null };
+      const { data: customer } = payment.customer_id ? await supabase.from("customers").select("name, email, phone").eq("id", payment.customer_id).eq("user_id", payment.user_id).maybeSingle() : { data: null };
       if (customer?.email) {
         await sendWhiteLabelEmail(supabase, {
           user_id: payment.user_id,
@@ -137,6 +137,73 @@ Deno.serve(async (req) => {
           idempotency_key: `payment-${payment.id}-${status}`,
           template_data: { customer_name: customer.name, amount: payment.amount, method: molliePayment.method || payment.method, reference: payment.id, status: "Actief" },
         });
+      }
+
+      // WhatsApp booking confirmation after successful payment (deduped via unique index)
+      if (appointmentId && customer?.phone) {
+        try {
+          const { data: waSettings } = await supabase
+            .from("whatsapp_settings")
+            .select("enabled, send_booking_confirmation")
+            .eq("user_id", payment.user_id)
+            .maybeSingle();
+
+          if (waSettings?.enabled && waSettings?.send_booking_confirmation) {
+            const { data: appt } = await supabase
+              .from("appointments")
+              .select("id, appointment_date, start_time, booking_token, service_id")
+              .eq("id", appointmentId)
+              .maybeSingle();
+            if (appt) {
+              const { data: service } = appt.service_id
+                ? await supabase.from("services").select("name").eq("id", appt.service_id).maybeSingle()
+                : { data: null };
+              const { data: tpl } = await supabase
+                .from("whatsapp_templates")
+                .select("content, is_active")
+                .eq("user_id", payment.user_id)
+                .eq("template_type", "booking_confirmation")
+                .maybeSingle();
+
+              const DEFAULT_TPL = `Beste {{customer_name}},\n\nHierbij bevestigen we je afspraak op {{appointment_date}} om {{appointment_time}} voor de volgende behandeling(en):\n\n{{services}}\n\nLet op: de afspraak kan kosteloos tot uiterlijk 12 uur van tevoren worden verplaatst via deze link:\n{{reschedule_link}}\n\nTot dan!\n\n{{salon_name}}`;
+              const templateContent = (tpl?.is_active === false ? null : tpl?.content) || DEFAULT_TPL;
+
+              const apptInstant = new Date(appt.appointment_date as string);
+              const dateStr = apptInstant.toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Amsterdam" });
+              const timeStr = String(appt.start_time || "").substring(0, 5);
+              const rescheduleLink = appt.booking_token
+                ? `https://glowsuite.nl/afspraak/${appt.booking_token}`
+                : `https://glowsuite.nl/afspraak`;
+              if (!appt.booking_token) console.warn("WhatsApp: missing booking_token", appt.id);
+
+              const waMessage = templateContent
+                .replace(/\{\{\s*customer_name\s*\}\}/g, customer.name || "")
+                .replace(/\{\{\s*salon_name\s*\}\}/g, settings?.salon_name || "ons salon")
+                .replace(/\{\{\s*appointment_date\s*\}\}/g, dateStr)
+                .replace(/\{\{\s*appointment_time\s*\}\}/g, timeStr)
+                .replace(/\{\{\s*services\s*\}\}/g, service?.name ? `• ${service.name}` : "")
+                .replace(/\{\{\s*reschedule_link\s*\}\}/g, rescheduleLink)
+                .replace(/\{\{\s*review_link\s*\}\}/g, "");
+
+              const fnUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/whatsapp-send`;
+              fetch(fnUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+                body: JSON.stringify({
+                  user_id: payment.user_id,
+                  to: customer.phone,
+                  message: waMessage,
+                  customer_id: payment.customer_id,
+                  appointment_id: appointmentId,
+                  kind: "confirmation",
+                  meta: { trigger: "payment_paid" },
+                }),
+              }).catch((e) => console.error("WhatsApp send (mollie webhook) failed", e));
+            }
+          }
+        } catch (waErr) {
+          console.error("WhatsApp dispatch (mollie webhook) error", waErr);
+        }
       }
     }
 

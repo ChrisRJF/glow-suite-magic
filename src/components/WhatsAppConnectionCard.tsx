@@ -34,6 +34,27 @@ export function WhatsAppConnectionCard() {
   const [testPhone, setTestPhone] = useState("");
   const [sending, setSending] = useState(false);
   const [runningScheduler, setRunningScheduler] = useState(false);
+  const [lastRun, setLastRun] = useState<{ started_at: string; finished_at: string | null; sent: number; checked: number } | null>(null);
+
+  const refreshLogs = async (uid: string) => {
+    const { data: l } = await supabase
+      .from("whatsapp_logs")
+      .select("*")
+      .eq("user_id", uid)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    setLogs((l as LogRow[]) || []);
+  };
+
+  const refreshLastRun = async () => {
+    const { data } = await supabase
+      .from("whatsapp_scheduler_runs")
+      .select("started_at, finished_at, sent, checked")
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (data) setLastRun(data as any);
+  };
 
   useEffect(() => {
     (async () => {
@@ -61,13 +82,8 @@ export function WhatsAppConnectionCard() {
         setSettings(initial);
       }
 
-      const { data: l } = await supabase
-        .from("whatsapp_logs")
-        .select("*")
-        .eq("user_id", auth.user.id)
-        .order("created_at", { ascending: false })
-        .limit(20);
-      setLogs((l as LogRow[]) || []);
+      await refreshLogs(auth.user.id);
+      await refreshLastRun();
       setLoading(false);
     })();
   }, []);
@@ -101,13 +117,7 @@ export function WhatsAppConnectionCard() {
       } else {
         toast.error("Verzenden mislukt: " + ((data as any)?.error || "onbekend"));
       }
-      const { data: l } = await supabase
-        .from("whatsapp_logs")
-        .select("*")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(20);
-      setLogs((l as LogRow[]) || []);
+      await refreshLogs(userId);
     } catch (e: any) {
       toast.error(e.message || "Fout bij verzenden");
     } finally {
@@ -129,13 +139,8 @@ export function WhatsAppConnectionCard() {
       } else {
         toast.error("Scheduler fout: " + (d?.error || "onbekend"));
       }
-      const { data: l } = await supabase
-        .from("whatsapp_logs")
-        .select("*")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(20);
-      setLogs((l as LogRow[]) || []);
+      await refreshLogs(userId);
+      await refreshLastRun();
     } catch (e: any) {
       toast.error(e.message || "Scheduler fout");
     } finally {
@@ -236,6 +241,15 @@ export function WhatsAppConnectionCard() {
             <p className="text-[11px] text-muted-foreground">
               Draait automatisch elke 15 min. Test handmatig met de knop hiernaast.
             </p>
+            {lastRun && (
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Laatste run: {new Date(lastRun.started_at).toLocaleString("nl-NL")}
+                {lastRun.finished_at ? ` · ${lastRun.sent} verzonden / ${lastRun.checked} gecheckt` : " · loopt..."}
+                {lastRun.finished_at && (
+                  <> · Volgende run rond {new Date(new Date(lastRun.started_at).getTime() + 15 * 60 * 1000).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })}</>
+                )}
+              </p>
+            )}
           </div>
           <Button onClick={runSchedulerNow} disabled={runningScheduler} variant="outline" size="sm">
             {runningScheduler ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}

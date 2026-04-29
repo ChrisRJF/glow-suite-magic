@@ -436,7 +436,8 @@ Deno.serve(async (req) => {
         },
       });
 
-      // Fire-and-forget WhatsApp confirmation (does not block booking flow)
+      // Fire-and-forget WhatsApp confirmation (does not block booking flow).
+      // Skip if payment is required and not yet paid — confirmation is then sent by mollie-webhook.
       try {
         const { data: waSettings } = await supabase
           .from("whatsapp_settings")
@@ -444,9 +445,39 @@ Deno.serve(async (req) => {
           .eq("user_id", ctx.settings.user_id)
           .maybeSingle();
 
-        if (waSettings?.enabled && waSettings?.send_booking_confirmation && data.customer.phone) {
+        const shouldSendNow = !data.payment.required || paymentStatus === "paid";
+
+        if (shouldSendNow && waSettings?.enabled && waSettings?.send_booking_confirmation && data.customer.phone) {
+          // Load template
+          const { data: tpl } = await supabase
+            .from("whatsapp_templates")
+            .select("content, is_active")
+            .eq("user_id", ctx.settings.user_id)
+            .eq("template_type", "booking_confirmation")
+            .maybeSingle();
+
+          const DEFAULT_TPL = `Beste {{customer_name}},\n\nHierbij bevestigen we je afspraak op {{appointment_date}} om {{appointment_time}} voor de volgende behandeling(en):\n\n{{services}}\n\nLet op: de afspraak kan kosteloos tot uiterlijk 12 uur van tevoren worden verplaatst via deze link:\n{{reschedule_link}}\n\nTot dan!\n\n{{salon_name}}`;
+          const templateContent = (tpl?.is_active === false ? null : tpl?.content) || DEFAULT_TPL;
+
           const dateStr = new Date(data.date).toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric" });
-          const waMessage = `Hi ${data.customer.name}, je afspraak bij ${ctx.settings.salon_name || "ons salon"} is bevestigd op ${dateStr} om ${data.time}. Antwoord met JA om te bevestigen.`;
+          const servicesList = bookingRows.map((r) => `• ${r.service.name}`).join("\n");
+          const origin = req.headers.get("origin") || "https://glowsuite.nl";
+          const rescheduleLink = primaryAppointment.booking_token
+            ? `${origin}/afspraak/${primaryAppointment.booking_token}`
+            : `${origin}/afspraak`;
+          if (!primaryAppointment.booking_token) {
+            console.warn("WhatsApp: missing booking_token for reschedule link", primaryAppointment.id);
+          }
+
+          const waMessage = templateContent
+            .replace(/\{\{\s*customer_name\s*\}\}/g, data.customer.name)
+            .replace(/\{\{\s*salon_name\s*\}\}/g, ctx.settings.salon_name || "ons salon")
+            .replace(/\{\{\s*appointment_date\s*\}\}/g, dateStr)
+            .replace(/\{\{\s*appointment_time\s*\}\}/g, data.time)
+            .replace(/\{\{\s*services\s*\}\}/g, servicesList)
+            .replace(/\{\{\s*reschedule_link\s*\}\}/g, rescheduleLink)
+            .replace(/\{\{\s*review_link\s*\}\}/g, "");
+
           const fnUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/whatsapp-send`;
           fetch(fnUrl, {
             method: "POST",
@@ -461,6 +492,7 @@ Deno.serve(async (req) => {
               customer_id: customerId,
               appointment_id: primaryAppointment.id,
               kind: "confirmation",
+              meta: { trigger: "booking_created", payment_status: paymentStatus },
             }),
           }).catch((e) => console.error("WhatsApp send failed", e));
         }

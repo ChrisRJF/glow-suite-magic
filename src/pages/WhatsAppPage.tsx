@@ -8,6 +8,7 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { getTemplates, saveTemplates, MessageTemplate } from "@/lib/messaging";
 import { WhatsAppConnectionCard } from "@/components/WhatsAppConnectionCard";
+import { WhatsAppTemplatesCard } from "@/components/WhatsAppTemplatesCard";
 
 export default function WhatsAppPage() {
   const { data: campaigns, refetch } = useCampaigns();
@@ -54,8 +55,9 @@ export default function WhatsAppPage() {
 
   return (
     <AppLayout title="WhatsApp & SMS" subtitle="Automatische berichten, campagnes en logs.">
-      <div className="mb-6">
+      <div className="mb-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
         <WhatsAppConnectionCard />
+        <WhatsAppTemplatesCard />
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="glass-card p-6 opacity-0 animate-fade-in-up" style={{ animationDelay: '100ms' }}>

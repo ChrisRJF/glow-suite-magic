@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
     const twData = await twResp.json();
     const ok = twResp.ok;
 
-    await admin.from("whatsapp_logs").insert({
+    const { error: logErr } = await admin.from("whatsapp_logs").insert({
       user_id,
       customer_id,
       appointment_id,
@@ -103,6 +103,15 @@ Deno.serve(async (req) => {
       kind,
       meta,
     });
+
+    // Race-safe dedup: unique index on (appointment_id, kind) WHERE status='sent'
+    // If another worker already logged a successful send, treat this as a duplicate.
+    if (logErr && (logErr.code === "23505" || /duplicate key/i.test(logErr.message))) {
+      return new Response(
+        JSON.stringify({ success: true, deduped: true, sid: twData?.sid ?? null }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     if (!ok) {
       return new Response(

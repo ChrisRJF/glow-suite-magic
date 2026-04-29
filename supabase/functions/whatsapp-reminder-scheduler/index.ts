@@ -86,6 +86,14 @@ Deno.serve(async (req) => {
     windows: [] as Array<Record<string, unknown>>,
   };
 
+  // Record run start
+  const { data: runRow } = await admin
+    .from("whatsapp_scheduler_runs")
+    .insert({ started_at: new Date().toISOString() })
+    .select("id")
+    .maybeSingle();
+  const runId = runRow?.id || null;
+
   try {
     const { data: settingsList, error: sErr } = await admin
       .from("whatsapp_settings")
@@ -206,7 +214,25 @@ Deno.serve(async (req) => {
         const timeStr = startTime.substring(0, 5);
         const localApptStr = `${fmtDate(localApptParts)} ${timeStr} (${tz})`;
 
-        const message = `Hi ${customer.name}, herinnering: je afspraak bij ${salonName} is op ${dateStr} om ${timeStr}. Tot dan! Antwoord met JA om te bevestigen of NEE om te annuleren.`;
+        // Load reminder template (per-salon)
+        const { data: tpl } = await admin
+          .from("whatsapp_templates")
+          .select("content, is_active")
+          .eq("user_id", s.user_id)
+          .eq("template_type", "reminder")
+          .maybeSingle();
+
+        const DEFAULT_REMINDER = `Hi {{customer_name}} 👋\n\nHerinnering: je afspraak bij {{salon_name}} is op {{appointment_date}} om {{appointment_time}}.\n\nTot dan!`;
+        const templateContent = (tpl?.is_active === false ? null : tpl?.content) || DEFAULT_REMINDER;
+
+        const message = templateContent
+          .replace(/\{\{\s*customer_name\s*\}\}/g, customer.name || "")
+          .replace(/\{\{\s*salon_name\s*\}\}/g, salonName)
+          .replace(/\{\{\s*appointment_date\s*\}\}/g, dateStr)
+          .replace(/\{\{\s*appointment_time\s*\}\}/g, timeStr)
+          .replace(/\{\{\s*services\s*\}\}/g, "")
+          .replace(/\{\{\s*reschedule_link\s*\}\}/g, "")
+          .replace(/\{\{\s*review_link\s*\}\}/g, "");
 
         try {
           const fnUrl = `${SUPABASE_URL}/functions/v1/whatsapp-send`;
@@ -231,8 +257,8 @@ Deno.serve(async (req) => {
             }),
           });
           const data = await resp.json();
-          if (resp.ok && data.success) {
-            stats.sent++;
+          if (resp.ok && (data.success || data.deduped)) {
+            if (data.deduped) stats.skipped++; else stats.sent++;
           } else {
             stats.failed++;
             stats.errors.push(`appt ${appt.id}: ${data.error || resp.status}`);
@@ -244,11 +270,26 @@ Deno.serve(async (req) => {
       }
     }
 
+    if (runId) {
+      await admin.from("whatsapp_scheduler_runs").update({
+        finished_at: new Date().toISOString(),
+        checked: stats.checked, sent: stats.sent, skipped: stats.skipped, failed: stats.failed,
+        meta: { windows: stats.windows, errors: stats.errors.slice(0, 20) },
+      }).eq("id", runId);
+    }
+
     return new Response(JSON.stringify({ success: true, ...stats }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
     console.error("scheduler error", err);
+    if (runId) {
+      await admin.from("whatsapp_scheduler_runs").update({
+        finished_at: new Date().toISOString(),
+        checked: stats.checked, sent: stats.sent, skipped: stats.skipped, failed: stats.failed,
+        meta: { error: err instanceof Error ? err.message : "unknown" },
+      }).eq("id", runId);
+    }
     return new Response(
       JSON.stringify({ success: false, error: err instanceof Error ? err.message : "unknown", ...stats }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
