@@ -2,14 +2,21 @@ import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useCampaigns } from "@/hooks/useSupabaseData";
-import { useCrud } from "@/hooks/useCrud";
-import { MessageCircle, Send, Clock, Sparkles, Users, Zap, Phone, CheckCircle2 } from "lucide-react";
+import { MessageCircle, Send, Clock, Sparkles, Users, Zap, Phone, CheckCircle2, Pencil, Copy, Trash2, MoreVertical } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { WhatsAppConnectionCard } from "@/components/WhatsAppConnectionCard";
 import { WhatsAppTemplatesCard } from "@/components/WhatsAppTemplatesCard";
 import { WhatsAppTemplateType, DEFAULT_WHATSAPP_TEMPLATES } from "@/lib/whatsappTemplates";
+import { WhatsAppCampaignEditor, type AudienceType, type CampaignDraft } from "@/components/WhatsAppCampaignEditor";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type AutomationKey = "booking_confirmation" | "reminder" | "review" | "reactivation" | "birthday";
 
@@ -30,17 +37,33 @@ const AUTOMATIONS: AutomationDef[] = [
   { key: "birthday", icon: Zap, title: "Verjaardagskorting", description: "Automatisch op de verjaardag", comingSoon: true },
 ];
 
+const AUDIENCE_LABELS: Record<string, string> = {
+  all: "Alle klanten",
+  upcoming: "Klanten met komende afspraak",
+  inactive_4w: "Klanten zonder afspraak in 4 weken",
+  manual: "Handmatig",
+};
+
+const EMPTY_DRAFT: CampaignDraft = {
+  title: "",
+  message: "Hoi {naam}! We hebben een leuke actie voor je 💜",
+  audience: "all",
+};
+
 export default function WhatsAppPage() {
   const { data: campaigns, refetch } = useCampaigns();
-  const { insert } = useCrud("campaigns");
 
-  // active map for the three real automations (mirrors whatsapp_templates.is_active)
   const [activeMap, setActiveMap] = useState<Partial<Record<WhatsAppTemplateType, boolean>>>({
     booking_confirmation: true,
     reminder: true,
     review: true,
   });
   const [userId, setUserId] = useState<string | null>(null);
+
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editorDraft, setEditorDraft] = useState<CampaignDraft>(EMPTY_DRAFT);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [quickTestId, setQuickTestId] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -68,7 +91,6 @@ export default function WhatsAppPage() {
   const setActive = async (type: WhatsAppTemplateType, next: boolean) => {
     setActiveMap((p) => ({ ...p, [type]: next }));
     if (!userId) return;
-    // Try update first (preserves existing content)
     const { data: updated } = await supabase
       .from("whatsapp_templates")
       .update({ is_active: next })
@@ -76,7 +98,6 @@ export default function WhatsAppPage() {
       .eq("template_type", type)
       .select("id");
     if (!updated || updated.length === 0) {
-      // No row yet — insert with default content
       await supabase.from("whatsapp_templates").insert({
         user_id: userId,
         template_type: type,
@@ -100,14 +121,58 @@ export default function WhatsAppPage() {
     .filter((c) => c.type === "whatsapp" || c.type === "sms")
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-  const handleNewCampaign = async () => {
-    await insert({ title: "Nieuwe WhatsApp campagne", type: "whatsapp", status: "concept", message: "Hoi {naam}! We hebben een special voor je 💜" });
-    toast.success("Campagne aangemaakt");
-    refetch();
+  const handleNewCampaign = () => {
+    setEditorDraft(EMPTY_DRAFT);
+    setEditorOpen(true);
+  };
+
+  const handleEdit = (c: any) => {
+    setEditorDraft({
+      id: c.id,
+      title: c.title || "",
+      message: c.message || "",
+      audience: (c.audience as AudienceType) || "all",
+      status: c.status,
+    });
+    setEditorOpen(true);
+  };
+
+  const handleDuplicate = async (c: any) => {
+    if (!userId) return;
+    const { error } = await supabase.from("campaigns").insert({
+      user_id: userId,
+      title: (c.title || "Campagne") + " (kopie)",
+      message: c.message,
+      audience: c.audience,
+      type: "whatsapp",
+      status: "concept",
+    });
+    if (error) toast.error("Dupliceren mislukt");
+    else { toast.success("Campagne gedupliceerd"); refetch(); }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    const { error } = await supabase.from("campaigns").delete().eq("id", deleteId);
+    if (error) toast.error("Verwijderen mislukt");
+    else { toast.success("Campagne verwijderd"); refetch(); }
+    setDeleteId(null);
+  };
+
+  const handleQuickTest = async (c: any) => {
+    setEditorDraft({
+      id: c.id,
+      title: c.title || "",
+      message: c.message || "",
+      audience: (c.audience as AudienceType) || "all",
+      status: c.status,
+    });
+    setEditorOpen(true);
+    toast.info("Vul een testnummer in en klik 'Test versturen'");
   };
 
   const statusColor = (s: string | null) => {
-    if (s === "geboekt" || s === "verzonden" || s === "afgeleverd") return "bg-success/15 text-success";
+    if (s === "verzonden" || s === "afgeleverd") return "bg-success/15 text-success";
     if (s === "geklikt" || s === "geopend") return "bg-primary/15 text-primary";
     if (s === "mislukt") return "bg-destructive/15 text-destructive";
     return "bg-warning/15 text-warning";
@@ -116,7 +181,6 @@ export default function WhatsAppPage() {
   return (
     <AppLayout title="WhatsApp & SMS" subtitle="Automatische berichten, campagnes en logs.">
       <div className="w-full max-w-full overflow-x-hidden space-y-6">
-        {/* Top: Connection + Automations */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full min-w-0">
           <div className="min-w-0 w-full">
             <WhatsAppConnectionCard />
@@ -160,7 +224,6 @@ export default function WhatsAppPage() {
           </div>
         </div>
 
-        {/* Templates + Log */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full min-w-0">
           <div className="min-w-0 w-full">
             <WhatsAppTemplatesCard
@@ -171,33 +234,61 @@ export default function WhatsAppPage() {
 
           <div className="glass-card p-4 sm:p-6 opacity-0 animate-fade-in-up min-w-0 w-full" style={{ animationDelay: "200ms" }}>
             <div className="flex items-center justify-between mb-5 gap-3 flex-wrap">
-              <h2 className="text-lg font-semibold">Berichtenlog</h2>
-              <Button variant="gradient" size="sm" onClick={handleNewCampaign}>
-                <Send className="w-4 h-4" /> Nieuwe Campagne
+              <h2 className="text-lg font-semibold">Campagnes</h2>
+              <Button variant="gradient" size="sm" onClick={handleNewCampaign} className="h-11 sm:h-9">
+                <Send className="w-4 h-4" /> Nieuwe campagne
               </Button>
             </div>
             <div className="space-y-3 max-h-[520px] overflow-y-auto">
               {allMessages.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">Nog geen berichten verstuurd</p>
+                <p className="text-sm text-muted-foreground text-center py-4">Nog geen campagnes</p>
               ) : (
-                allMessages.map((c) => (
+                allMessages.map((c: any) => (
                   <div key={c.id} className="p-3 sm:p-4 rounded-xl bg-secondary/50 hover:bg-secondary transition-colors duration-200 min-w-0">
                     <div className="flex items-center justify-between mb-2 gap-2 min-w-0">
-                      <div className="flex items-center gap-2 min-w-0">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
                         {c.type === "sms" ? (
                           <Phone className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
                         ) : (
                           <MessageCircle className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
                         )}
-                        <h3 className="text-sm font-semibold truncate">{c.title}</h3>
+                        <h3 className="text-sm font-semibold truncate">{c.title || "Naamloze campagne"}</h3>
                       </div>
-                      <span className={`px-2.5 py-1 rounded-lg text-[11px] font-medium flex-shrink-0 ${statusColor(c.status)}`}>
-                        {c.status || "concept"}
-                      </span>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <span className={`px-2 py-0.5 rounded-lg text-[10px] font-medium ${statusColor(c.status)}`}>
+                          {c.status || "concept"}
+                        </span>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-9 w-9">
+                              <MoreVertical className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleEdit(c)}>
+                              <Pencil className="w-4 h-4 mr-2" /> Bewerken
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleQuickTest(c)}>
+                              <Send className="w-4 h-4 mr-2" /> Test versturen
+                            </DropdownMenuItem>
+                            {c.status !== "verzonden" && (
+                              <DropdownMenuItem onClick={() => handleEdit(c)}>
+                                <Send className="w-4 h-4 mr-2" /> Nu verzenden
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem onClick={() => handleDuplicate(c)}>
+                              <Copy className="w-4 h-4 mr-2" /> Dupliceren
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setDeleteId(c.id)} className="text-destructive">
+                              <Trash2 className="w-4 h-4 mr-2" /> Verwijderen
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </div>
                     {c.message && <p className="text-xs text-muted-foreground mb-2 leading-relaxed line-clamp-2 break-words">{c.message}</p>}
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                      {c.audience && <span className="truncate">→ {c.audience}</span>}
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+                      {c.audience && <span className="truncate">→ {AUDIENCE_LABELS[c.audience] || c.audience}</span>}
                       <span className="ml-auto flex-shrink-0">
                         {new Date(c.created_at).toLocaleString("nl-NL", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
                       </span>
@@ -209,6 +300,26 @@ export default function WhatsAppPage() {
           </div>
         </div>
       </div>
+
+      {userId && (
+        <WhatsAppCampaignEditor
+          open={editorOpen}
+          onOpenChange={setEditorOpen}
+          initial={editorDraft}
+          userId={userId}
+          onSaved={() => refetch()}
+        />
+      )}
+
+      <ConfirmDialog
+        open={!!deleteId}
+        onOpenChange={(o) => !o && setDeleteId(null)}
+        title="Campagne verwijderen?"
+        description="Deze actie kan niet ongedaan worden gemaakt."
+        confirmLabel="Verwijderen"
+        destructive
+        onConfirm={handleDelete}
+      />
     </AppLayout>
   );
 }
