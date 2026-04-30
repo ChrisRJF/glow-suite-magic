@@ -34,9 +34,9 @@ type AutoDef = {
   templateLabel: string;
   templateType?: WhatsAppTemplateType;
   /** Which whatsapp_settings boolean column controls master enable */
-  settingsFlag?: "send_booking_confirmation" | "send_reminders" | "send_review_request" | "send_no_show_followup";
+  settingsFlag?: "send_booking_confirmation" | "send_reminders" | "send_review_request" | "send_no_show_followup" | "send_revenue_boost";
   /** Which whatsapp_logs.kind to count for "last sent" */
-  logKind?: "confirmation" | "reminder" | "review" | "no_show";
+  logKind?: "confirmation" | "reminder" | "review" | "no_show" | "revenue_boost" | "waitlist_offer";
   status: Status;
   comingSoonReason?: string;
   icon: any;
@@ -96,14 +96,16 @@ const AUTOMATIONS: AutoDef[] = [
     icon: UserX,
   },
   {
-    key: "reactivation",
-    title: "Heractivering",
-    description: "Win-back bericht voor klanten zonder afspraak in 6 weken.",
-    trigger: "Klant inactief 6+ weken",
-    action: "WhatsApp heractiveringsbericht",
-    templateLabel: "Heractivering",
-    status: "soon",
-    comingSoonReason: "Komt binnenkort — vereist aparte scheduler.",
+    key: "revenue_boost",
+    title: "Revenue Boost",
+    description: "Win-back WhatsApp voor klanten die langer dan X dagen niet zijn geweest.",
+    trigger: "Klant inactief (standaard 42+ dagen)",
+    action: "WhatsApp reactivatiebericht",
+    templateLabel: "Revenue Boost",
+    templateType: "revenue_boost",
+    settingsFlag: "send_revenue_boost",
+    logKind: "revenue_boost",
+    status: "live",
     icon: Gift,
   },
   {
@@ -125,6 +127,7 @@ type WaSettings = {
   send_reminders: boolean;
   send_review_request: boolean;
   send_no_show_followup: boolean;
+  send_revenue_boost: boolean;
 } | null;
 
 export default function AutomatiseringenPage() {
@@ -145,7 +148,7 @@ export default function AutomatiseringenPage() {
     const [waRes, tplRes, logsRes, runsRes] = await Promise.all([
       supabase
         .from("whatsapp_settings")
-        .select("enabled, send_booking_confirmation, send_reminders, send_review_request, send_no_show_followup")
+        .select("enabled, send_booking_confirmation, send_reminders, send_review_request, send_no_show_followup, send_revenue_boost")
         .eq("user_id", user.id)
         .maybeSingle(),
       supabase

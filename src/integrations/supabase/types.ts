@@ -2287,6 +2287,8 @@ export type Database = {
           flexibility: string | null
           id: string
           is_demo: boolean
+          last_offer_sent_at: string | null
+          last_offered_slot: string | null
           notes: string | null
           preferred_day: string | null
           preferred_employee: string | null
@@ -2302,6 +2304,8 @@ export type Database = {
           flexibility?: string | null
           id?: string
           is_demo?: boolean
+          last_offer_sent_at?: string | null
+          last_offered_slot?: string | null
           notes?: string | null
           preferred_day?: string | null
           preferred_employee?: string | null
@@ -2317,6 +2321,8 @@ export type Database = {
           flexibility?: string | null
           id?: string
           is_demo?: boolean
+          last_offer_sent_at?: string | null
+          last_offered_slot?: string | null
           notes?: string | null
           preferred_day?: string | null
           preferred_employee?: string | null
@@ -2493,9 +2499,12 @@ export type Database = {
           monthly_included_messages: number
           overage_enabled: boolean
           reminder_hours_before: number
+          revenue_boost_after_days: number
+          revenue_boost_max_per_month: number
           send_booking_confirmation: boolean
           send_no_show_followup: boolean
           send_reminders: boolean
+          send_revenue_boost: boolean
           send_review_request: boolean
           updated_at: string
           user_id: string
@@ -2508,9 +2517,12 @@ export type Database = {
           monthly_included_messages?: number
           overage_enabled?: boolean
           reminder_hours_before?: number
+          revenue_boost_after_days?: number
+          revenue_boost_max_per_month?: number
           send_booking_confirmation?: boolean
           send_no_show_followup?: boolean
           send_reminders?: boolean
+          send_revenue_boost?: boolean
           send_review_request?: boolean
           updated_at?: string
           user_id: string
@@ -2523,9 +2535,12 @@ export type Database = {
           monthly_included_messages?: number
           overage_enabled?: boolean
           reminder_hours_before?: number
+          revenue_boost_after_days?: number
+          revenue_boost_max_per_month?: number
           send_booking_confirmation?: boolean
           send_no_show_followup?: boolean
           send_reminders?: boolean
+          send_revenue_boost?: boolean
           send_review_request?: boolean
           updated_at?: string
           user_id?: string

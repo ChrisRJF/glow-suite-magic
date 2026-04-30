@@ -97,7 +97,7 @@ Deno.serve(async (req) => {
   try {
     const { data: settingsList, error: sErr } = await admin
       .from("whatsapp_settings")
-      .select("user_id, enabled, send_reminders, send_review_request, send_no_show_followup, reminder_hours_before")
+      .select("user_id, enabled, send_reminders, send_review_request, send_no_show_followup, send_revenue_boost, revenue_boost_after_days, revenue_boost_max_per_month, reminder_hours_before")
       .eq("enabled", true);
     if (sErr) throw sErr;
 
@@ -501,6 +501,127 @@ Deno.serve(async (req) => {
           }
         } catch (e) {
           stats.errors.push(`no_show pass ${s.user_id}: ${e instanceof Error ? e.message : "unknown"}`);
+        }
+      }
+
+      // -------- REVENUE BOOST PASS --------
+      // Reactivation: customers who haven't visited in N days, no upcoming booking,
+      // and haven't received a revenue_boost message this calendar month.
+      if (s.send_revenue_boost) {
+        try {
+          const afterDays = Math.max(7, s.revenue_boost_after_days || 42);
+          const maxPerMonth = Math.max(1, s.revenue_boost_max_per_month || 1);
+          const cutoff = new Date(now.getTime() - afterDays * 24 * 60 * 60 * 1000).toISOString();
+          const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
+
+          const { data: rbTpl } = await admin
+            .from("whatsapp_templates")
+            .select("content, is_active")
+            .eq("user_id", s.user_id)
+            .eq("template_type", "revenue_boost")
+            .maybeSingle();
+
+          if (rbTpl?.is_active === false) {
+            // template disabled — skip
+          } else {
+            const DEFAULT_RB = `Hi {{customer_name}}, het is alweer even geleden sinds je laatste behandeling bij {{salon_name}}. Deze week hebben we nog enkele plekken vrij. Boek hier je afspraak: {{booking_link}}`;
+            const rbContent = rbTpl?.content || DEFAULT_RB;
+
+            const { data: profileRb } = await admin
+              .from("profiles")
+              .select("salon_name")
+              .eq("user_id", s.user_id)
+              .maybeSingle();
+            const salonNameRb = profileRb?.salon_name || "ons salon";
+            const bookingLink = `https://glowsuite.nl/`;
+
+            // Candidate customers for this salon
+            const { data: candidates } = await admin
+              .from("customers")
+              .select("id, name, phone, whatsapp_opt_in")
+              .eq("user_id", s.user_id)
+              .not("phone", "is", null)
+              .neq("phone", "")
+              .limit(500);
+
+            for (const c of candidates || []) {
+              if (c.whatsapp_opt_in === false) { stats.skipped++; continue; }
+
+              // Last appointment date
+              const { data: lastApt } = await admin
+                .from("appointments")
+                .select("id, appointment_date")
+                .eq("user_id", s.user_id)
+                .eq("customer_id", c.id)
+                .order("appointment_date", { ascending: false })
+                .limit(1)
+                .maybeSingle();
+              if (!lastApt) { stats.skipped++; continue; }
+              if (lastApt.appointment_date > cutoff) { stats.skipped++; continue; }
+
+              // Upcoming appointment? skip
+              const { data: upcoming } = await admin
+                .from("appointments")
+                .select("id")
+                .eq("user_id", s.user_id)
+                .eq("customer_id", c.id)
+                .gte("appointment_date", now.toISOString())
+                .in("status", ["gepland", "confirmed", "pending_confirmation", "voltooid"])
+                .limit(1)
+                .maybeSingle();
+              if (upcoming) { stats.skipped++; continue; }
+
+              // Already messaged this month? cap by maxPerMonth
+              const { data: recentLogs } = await admin
+                .from("whatsapp_logs")
+                .select("id")
+                .eq("user_id", s.user_id)
+                .eq("customer_id", c.id)
+                .eq("kind", "revenue_boost")
+                .eq("status", "sent")
+                .gte("created_at", monthStart);
+              if ((recentLogs?.length || 0) >= maxPerMonth) { stats.skipped++; continue; }
+
+              const message = rbContent
+                .replace(/\{\{\s*customer_name\s*\}\}/g, c.name || "")
+                .replace(/\{\{\s*salon_name\s*\}\}/g, salonNameRb)
+                .replace(/\{\{\s*booking_link\s*\}\}/g, bookingLink);
+
+              try {
+                const fnUrl = `${SUPABASE_URL}/functions/v1/whatsapp-send`;
+                const resp = await fetch(fnUrl, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${SERVICE_KEY}`,
+                  },
+                  body: JSON.stringify({
+                    user_id: s.user_id,
+                    to: c.phone,
+                    message,
+                    customer_id: c.id,
+                    kind: "revenue_boost",
+                    meta: {
+                      last_visit_date: lastApt.appointment_date,
+                      reason: `inactive_${afterDays}d`,
+                    },
+                  }),
+                });
+                const data = await resp.json();
+                if (resp.ok && (data.success || data.deduped)) {
+                  if (data.deduped) stats.skipped++; else stats.sent++;
+                } else {
+                  stats.failed++;
+                  stats.errors.push(`revenue_boost ${c.id}: ${data.error || resp.status}`);
+                }
+              } catch (e) {
+                stats.failed++;
+                stats.errors.push(`revenue_boost ${c.id}: ${e instanceof Error ? e.message : "unknown"}`);
+              }
+            }
+          }
+        } catch (e) {
+          stats.errors.push(`revenue_boost pass ${s.user_id}: ${e instanceof Error ? e.message : "unknown"}`);
         }
       }
     }

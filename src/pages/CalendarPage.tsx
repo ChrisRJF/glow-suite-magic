@@ -28,6 +28,8 @@ import { EmployeeColumnDayView } from "@/components/EmployeeColumnDayView";
 import { MoveAppointmentSheet, type MoveTarget } from "@/components/MoveAppointmentSheet";
 import { SmartReflowDialog, type ReflowAppointment } from "@/components/SmartReflowDialog";
 import { findConflict, snapToFine, timeToMinutes, minutesToTime } from "@/lib/agendaMove";
+import { useNavigate as useRouterNavigate } from "react-router-dom";
+
 
 type View = 'day' | 'columns' | 'week';
 
@@ -78,6 +80,7 @@ interface PlacementOption {
 
 export default function CalendarPage() {
   const { user } = useAuth();
+  const routerNavigate = useRouterNavigate();
   const { demoMode } = useDemoMode();
   const { data: appointments, refetch } = useAppointments();
   const { data: customers } = useCustomers();
@@ -586,6 +589,26 @@ export default function CalendarPage() {
     if (!result) return;
     await refetch();
     toast.success(`Status gewijzigd naar ${status}`);
+
+    // If a slot becomes free (cancel/no-show), suggest waitlist matches
+    if (status === "geannuleerd" || status === "no-show") {
+      const apt = appointments.find((a: any) => a.id === id);
+      if (apt) {
+        const dateStr = getAppointmentDate(apt);
+        const time = (apt.start_time || "10:00").toString().slice(0, 5);
+        const slotIso = `${dateStr}T${time}:00`;
+        const params = new URLSearchParams({ slot: slotIso });
+        if (apt.service_id) params.set("service_id", apt.service_id);
+        toast.info("Wachtlijst-suggesties beschikbaar", {
+          description: "Bekijk klanten die op dit slot wachten.",
+          duration: 8000,
+          action: {
+            label: "Bekijk",
+            onClick: () => routerNavigate(`/wachtlijst?${params.toString()}`),
+          },
+        });
+      }
+    }
   };
 
   const openAddModal = (date: string, time: string) => {
