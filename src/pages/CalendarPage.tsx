@@ -1295,7 +1295,24 @@ export default function CalendarPage() {
             </div>
           </div>
         )}
+        </DndContext>
       </div>
+
+      <MoveAppointmentSheet
+        open={moveSheetOpen}
+        onOpenChange={setMoveSheetOpen}
+        appointment={moveTargetAppt}
+        initialDate={moveSheetInitial.date}
+        initialTime={moveSheetInitial.time}
+        initialEmployeeId={moveSheetInitial.employeeId}
+        employees={displayEmployees as any}
+        allowEmployeeChange={activeDbEmployees.length > 0}
+        onConfirm={async (target) => {
+          if (!moveTargetAppt) return;
+          const ok = await applyMove(moveTargetAppt, target);
+          if (ok) setMoveSheetOpen(false);
+        }}
+      />
     </AppLayout>
   );
 }
