@@ -124,6 +124,7 @@ type WaSettings = {
   send_booking_confirmation: boolean;
   send_reminders: boolean;
   send_review_request: boolean;
+  send_no_show_followup: boolean;
 } | null;
 
 export default function AutomatiseringenPage() {
