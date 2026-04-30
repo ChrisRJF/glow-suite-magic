@@ -951,6 +951,15 @@ export default function CalendarPage() {
             </button>
             <button onClick={() => setView('week')} className={cn("px-3 py-2 text-sm font-medium transition-colors", view === 'week' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')}>Week</button>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setReflowOpen(true)}
+            className="gap-1"
+            title="Slim plannen — optimaliseer de dag"
+          >
+            <Sparkles className="w-4 h-4" /> Slim plannen
+          </Button>
           <Button variant="gradient" size="sm" onClick={() => openAddModal(dateStr, '09:00')}>
             <Plus className="w-4 h-4" /> Nieuwe Afspraak
           </Button>
