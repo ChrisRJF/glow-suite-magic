@@ -910,13 +910,24 @@ export default function CalendarPage() {
                         const svc = services.find(s => s.id === apt.service_id);
                         const cust = customers.find(c => c.id === apt.customer_id);
                         const time = getAppointmentTime(apt);
-                        const emp = apt.notes?.match(/Medewerker: (\w+)/)?.[1];
+                        const displayEmps = getDisplayEmployees(apt);
                         return (
                           <div key={apt.id} className="p-2.5 rounded-xl cursor-pointer transition-all duration-200 hover:scale-[1.02]"
                             style={{ backgroundColor: `${svc?.color || '#7B61FF'}12`, borderLeft: `2px solid ${svc?.color || '#7B61FF'}` }}>
-                            <p className="text-xs font-medium truncate">{cust?.name || 'Klant'}</p>
-                            <p className="text-[11px] text-muted-foreground">{time} · {svc?.name || ''}</p>
-                            {emp && <p className="text-[10px] text-foreground/60">👤 {emp}</p>}
+                            <div className="flex items-start gap-2">
+                              {displayEmps.length > 0 && (
+                                <div className="shrink-0 pt-0.5">
+                                  <EmployeeAvatarStack employees={displayEmps} size="xs" max={2} />
+                                </div>
+                              )}
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs font-medium truncate">{cust?.name || 'Klant'}</p>
+                                <p className="text-[11px] text-muted-foreground truncate">{time} · {svc?.name || ''}</p>
+                                {displayEmps.length > 0 && (
+                                  <p className="text-[10px] text-foreground/60 truncate">{displayEmps.map((e: any) => e.name).join(', ')}</p>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         );
                       })}
