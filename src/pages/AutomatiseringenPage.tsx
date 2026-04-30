@@ -127,6 +127,7 @@ type WaSettings = {
   send_reminders: boolean;
   send_review_request: boolean;
   send_no_show_followup: boolean;
+  send_revenue_boost: boolean;
 } | null;
 
 export default function AutomatiseringenPage() {
