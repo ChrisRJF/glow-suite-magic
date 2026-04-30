@@ -785,8 +785,11 @@ export default function CalendarPage() {
             </Button>
           )}
           <div className="flex rounded-xl border border-border overflow-hidden">
-            <button onClick={() => setView('day')} className={cn("px-4 py-2 text-sm font-medium transition-colors", view === 'day' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')}>Dag</button>
-            <button onClick={() => setView('week')} className={cn("px-4 py-2 text-sm font-medium transition-colors", view === 'week' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')}>Week</button>
+            <button onClick={() => setView('day')} className={cn("px-3 py-2 text-sm font-medium transition-colors", view === 'day' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')}>Dag</button>
+            <button onClick={() => setView('columns')} className={cn("px-3 py-2 text-sm font-medium transition-colors flex items-center gap-1", view === 'columns' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')} title="Kolommen per medewerker">
+              <Columns3 className="w-3.5 h-3.5" />Kolommen
+            </button>
+            <button onClick={() => setView('week')} className={cn("px-3 py-2 text-sm font-medium transition-colors", view === 'week' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')}>Week</button>
           </div>
           <Button variant="gradient" size="sm" onClick={() => openAddModal(dateStr, '09:00')}>
             <Plus className="w-4 h-4" /> Nieuwe Afspraak
