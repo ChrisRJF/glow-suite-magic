@@ -948,7 +948,7 @@ export default function CalendarPage() {
               const employeeName = apt?.notes?.match(/Medewerker: (\w+)/)?.[1];
 
               // Check if this slot is a pause for the selected employee
-              const selectedEmp = MEDEWERKERS.find(m => m.name === selectedEmployee);
+              const selectedEmp = displayEmployees.find((m: any) => m.id === selectedEmployee || m.name === selectedEmployee);
               const isPauzeSlot = selectedEmp && isSlotPauze(selectedEmp, slot);
 
               return (
@@ -957,7 +957,7 @@ export default function CalendarPage() {
                   <div className="flex-1 border-t border-border/50 relative">
                     {isPauzeSlot && !apt ? (
                       <div className="absolute inset-x-0 top-1 h-[40px] rounded-xl bg-accent/50 border border-border/30 flex items-center justify-center">
-                        <span className="text-[11px] text-muted-foreground">☕ Pauze — {selectedEmployee}</span>
+                        <span className="text-[11px] text-muted-foreground">☕ Pauze — {selectedEmp?.name || selectedEmployee}</span>
                       </div>
                     ) : apt ? (() => {
                       const displayEmps = getDisplayEmployees(apt);
