@@ -4,15 +4,24 @@ import { useAppointments, useCustomers, useServices, useEmployees, useAppointmen
 import { useCrud } from "@/hooks/useCrud";
 import { formatEuro } from "@/lib/data";
 import { useState, useMemo, useEffect } from "react";
-import { ChevronLeft, ChevronRight, Plus, Clock, Trash2, Sparkles, Users, AlertCircle, CheckCircle2, Zap, CalendarDays, Filter, User, UserPlus2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Clock, Trash2, Sparkles, Users, AlertCircle, CheckCircle2, Zap, CalendarDays, Filter, User, UserPlus2, Columns3, ArrowRightLeft, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoMode } from "@/hooks/useDemoMode";
 import { EmployeeAvatar, EmployeeAvatarStack } from "@/components/EmployeeAvatar";
+import {
+  DndContext, DragEndEvent, PointerSensor, TouchSensor, KeyboardSensor,
+  useSensor, useSensors, useDraggable, useDroppable as useDroppableImported,
+} from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { EmployeeColumnDayView } from "@/components/EmployeeColumnDayView";
+import { MoveAppointmentSheet, type MoveTarget } from "@/components/MoveAppointmentSheet";
+import { findConflict, snapToFine, timeToMinutes, minutesToTime } from "@/lib/agendaMove";
 
-type View = 'day' | 'week';
+type View = 'day' | 'columns' | 'week';
 
 const timeSlots = ['09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00'];
 
@@ -80,6 +89,18 @@ export default function CalendarPage() {
   const [selectedEmployee, setSelectedEmployee] = useState<string>('alle');
   const [showFilters, setShowFilters] = useState(false);
   const [filterAvailability, setFilterAvailability] = useState<string>('alle'); // alle, beschikbaar, afwezig
+
+  // Phase 3: drag/drop + move sheet state
+  const isMobile = useIsMobile();
+  const [moveSheetOpen, setMoveSheetOpen] = useState(false);
+  const [moveTargetAppt, setMoveTargetAppt] = useState<any | null>(null);
+
+  // dnd-kit sensors: long-press on touch (250ms), small distance on pointer (desktop)
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
+    useSensor(KeyboardSensor),
+  );
 
   // Active DB employees (preferred over hardcoded list when present)
   const activeDbEmployees = useMemo(
@@ -586,6 +607,211 @@ export default function CalendarPage() {
     muted: 'text-muted-foreground bg-secondary/50',
   };
 
+  // Phase 3 — drag/drop & move helpers ------------------------------------
+
+  // Determine which column an appointment belongs to in the column view.
+  // Returns the DB employee id (preferred), then a name match against display employees,
+  // else 'unassigned'.
+  const getColumnIdForAppointment = (apt: any): string => {
+    const link = (apptEmployees || []).find((l: any) => l.appointment_id === apt.id && l.is_primary !== false);
+    if (link?.employee_id) {
+      const emp = displayEmployees.find((e: any) => e.id === link.employee_id);
+      if (emp) return emp.id;
+    }
+    const linkAny = (apptEmployees || []).find((l: any) => l.appointment_id === apt.id);
+    if (linkAny?.employee_id) {
+      const emp = displayEmployees.find((e: any) => e.id === linkAny.employee_id);
+      if (emp) return emp.id;
+    }
+    const legacyName = apt?.notes?.match(/Medewerker: (\w+)/)?.[1];
+    if (legacyName) {
+      const emp = displayEmployees.find((e: any) => e.name?.toLowerCase() === legacyName.toLowerCase());
+      if (emp) return emp.id;
+    }
+    return 'unassigned';
+  };
+
+  const isPauseSlotForEmpId = (empId: string, slot: string) => {
+    const emp = displayEmployees.find((e: any) => e.id === empId);
+    if (!emp) return false;
+    return isSlotPauze(emp, slot);
+  };
+
+  // Apply a move target to an appointment. Validates conflict, snaps to 15-min,
+  // then updates appointment + appointment_employees link.
+  const applyMove = async (apt: any, target: MoveTarget) => {
+    const svc = services.find(s => s.id === apt.service_id);
+    const duration = svc?.duration_minutes || 30;
+    const start = snapToFine(target.time);
+    const end = minutesToTime(timeToMinutes(start) + duration);
+
+    // Resolve target employee
+    const targetEmp = target.employeeId
+      ? displayEmployees.find((e: any) => e.id === target.employeeId)
+      : null;
+    const targetEmpName = targetEmp?.name || null;
+    // Only treat as DB employee when matching activeDbEmployees
+    const isDbEmployee = !!(target.employeeId && activeDbEmployees.find((e: any) => e.id === target.employeeId));
+
+    const conflict = findConflict({
+      movingId: apt.id,
+      date: target.date,
+      startTime: start,
+      durationMinutes: duration,
+      targetEmployeeId: isDbEmployee ? target.employeeId : null,
+      targetEmployeeName: targetEmpName,
+      appointments,
+      apptEmployees: apptEmployees || [],
+      services,
+    });
+    if (conflict) {
+      toast.error(conflict);
+      return false;
+    }
+
+    // Build updated notes for legacy "Medewerker: X" if no DB employee in use.
+    let nextNotes: string | undefined = apt.notes ?? '';
+    if (!isDbEmployee && targetEmpName) {
+      if (nextNotes.match(/Medewerker: (\w+)/)) {
+        nextNotes = nextNotes.replace(/Medewerker: \w+/, `Medewerker: ${targetEmpName}`);
+      } else {
+        nextNotes = nextNotes ? `${nextNotes} | Medewerker: ${targetEmpName}` : `Medewerker: ${targetEmpName}`;
+      }
+    }
+
+    const dt = `${target.date}T${start}:00`;
+    const result = await update(apt.id, {
+      appointment_date: dt,
+      start_time: start,
+      end_time: end,
+      ...(nextNotes !== apt.notes ? { notes: nextNotes } : {}),
+    });
+    if (!result) {
+      // useCrud already showed a toast on failure
+      return false;
+    }
+
+    // Update appointment_employees link if a DB employee was chosen.
+    if (isDbEmployee && user) {
+      try {
+        // Replace primary link
+        await (supabase.from('appointment_employees') as any)
+          .delete()
+          .eq('appointment_id', apt.id);
+        await (supabase.from('appointment_employees') as any).insert({
+          appointment_id: apt.id,
+          employee_id: target.employeeId,
+          user_id: user.id,
+          is_primary: true,
+          is_demo: (apt as any).is_demo === true,
+        });
+        refetchApptEmps();
+      } catch (e) {
+        console.error('reassign employee link failed', e);
+      }
+    } else if (target.employeeId === null) {
+      // unassign: remove links
+      try {
+        await (supabase.from('appointment_employees') as any)
+          .delete()
+          .eq('appointment_id', apt.id);
+        refetchApptEmps();
+      } catch (e) {
+        console.error('unassign failed', e);
+      }
+    }
+
+    toast.success('Afspraak verplaatst');
+    refetch();
+    return true;
+  };
+
+  const openMoveSheet = (apt: any) => {
+    setMoveTargetAppt(apt);
+    setMoveSheetOpen(true);
+  };
+
+  // Drag end handler — applies an immediate move when dropped on a slot/cell.
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+    const apptId = active.data.current?.appointmentId as string | undefined;
+    const overData = over.data.current as { slot?: string; employeeId?: string; type?: string } | undefined;
+    if (!apptId || !overData?.slot) return;
+    const apt = appointments.find(a => a.id === apptId);
+    if (!apt) return;
+
+    const targetSlot = overData.slot;
+    const targetEmployeeId = overData.employeeId && overData.employeeId !== 'unassigned'
+      ? overData.employeeId
+      : (overData.employeeId === 'unassigned' ? null : null);
+
+    // For day view (no employee column), keep current employee.
+    let resolvedEmpId: string | null = targetEmployeeId;
+    if (view === 'day') {
+      const currentColId = getColumnIdForAppointment(apt);
+      resolvedEmpId = currentColId === 'unassigned' ? null : currentColId;
+    }
+
+    await applyMove(apt, {
+      date: dateStr,
+      time: targetSlot,
+      employeeId: resolvedEmpId,
+    });
+  };
+
+  // Initial values for the move sheet
+  const moveSheetInitial = useMemo(() => {
+    if (!moveTargetAppt) return { date: dateStr, time: '09:00', employeeId: null as string | null };
+    const t = getAppointmentTime(moveTargetAppt) || '09:00';
+    const d = getAppointmentDate(moveTargetAppt) || dateStr;
+    const colId = getColumnIdForAppointment(moveTargetAppt);
+    return {
+      date: d,
+      time: snapToFine(t),
+      employeeId: colId === 'unassigned' ? null : colId,
+    };
+  }, [moveTargetAppt, dateStr, apptEmployees, displayEmployees]);
+
+  // Inline draggable wrapper for day view appointment block
+  const DayApptDraggable = ({ apt, children }: { apt: any; children: (handleProps: any) => React.ReactNode }) => {
+    const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+      id: `day-apt-${apt.id}`,
+      data: { appointmentId: apt.id, type: 'appointment' },
+      disabled: isMobile, // mobile uses move sheet only
+    });
+    return (
+      <div
+        ref={setNodeRef}
+        style={{
+          transform: CSS.Translate.toString(transform),
+          opacity: isDragging ? 0.5 : 1,
+        }}
+        className="absolute inset-x-0 top-1"
+      >
+        {children({ attributes, listeners })}
+      </div>
+    );
+  };
+
+  // Inline droppable wrapper for an empty day-view slot
+  const DaySlotDroppable = ({ slot, children }: { slot: string; children: React.ReactNode }) => {
+    const { setNodeRef, isOver } = useDroppableImported({
+      id: `day-slot-${slot}`,
+      data: { slot, employeeId: undefined, type: 'slot' },
+    });
+    return (
+      <div
+        ref={setNodeRef}
+        className={cn("absolute inset-0 transition-colors rounded-xl", isOver && "bg-primary/10 ring-1 ring-primary/40")}
+      >
+        {children}
+      </div>
+    );
+  };
+
+  // -----------------------------------------------------------------------
+
   return (
     <AppLayout title="Agenda" subtitle="Beheer je afspraken en vind lege plekken."
       actions={
@@ -596,8 +822,11 @@ export default function CalendarPage() {
             </Button>
           )}
           <div className="flex rounded-xl border border-border overflow-hidden">
-            <button onClick={() => setView('day')} className={cn("px-4 py-2 text-sm font-medium transition-colors", view === 'day' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')}>Dag</button>
-            <button onClick={() => setView('week')} className={cn("px-4 py-2 text-sm font-medium transition-colors", view === 'week' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')}>Week</button>
+            <button onClick={() => setView('day')} className={cn("px-3 py-2 text-sm font-medium transition-colors", view === 'day' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')}>Dag</button>
+            <button onClick={() => setView('columns')} className={cn("px-3 py-2 text-sm font-medium transition-colors flex items-center gap-1", view === 'columns' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')} title="Kolommen per medewerker">
+              <Columns3 className="w-3.5 h-3.5" />Kolommen
+            </button>
+            <button onClick={() => setView('week')} className={cn("px-3 py-2 text-sm font-medium transition-colors", view === 'week' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')}>Week</button>
           </div>
           <Button variant="gradient" size="sm" onClick={() => openAddModal(dateStr, '09:00')}>
             <Plus className="w-4 h-4" /> Nieuwe Afspraak
@@ -947,6 +1176,7 @@ export default function CalendarPage() {
           </span>
         </div>
 
+        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
         {view === 'day' ? (
           <div className="relative">
             {timeSlots.map((slot) => {
@@ -973,64 +1203,111 @@ export default function CalendarPage() {
                     ) : apt ? (() => {
                       const displayEmps = getDisplayEmployees(apt);
                       return (
-                      <div className="absolute inset-x-0 top-1 rounded-xl p-3 transition-all duration-200 hover:scale-[1.01] cursor-pointer"
-                        style={{ backgroundColor: `${svc?.color || '#7B61FF'}15`, borderLeft: `3px solid ${svc?.color || '#7B61FF'}`, minHeight: `${((svc?.duration_minutes || 30) / 30) * 48 - 8}px` }}>
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-start gap-2.5 min-w-0 flex-1">
-                            {displayEmps.length > 0 && (
-                              <div className="pt-0.5 shrink-0">
-                                <EmployeeAvatarStack employees={displayEmps} size="md" max={3} />
+                      <DayApptDraggable apt={apt}>
+                        {({ attributes, listeners }) => (
+                          <div
+                            className="rounded-xl p-3 transition-all duration-200 cursor-pointer"
+                            style={{
+                              backgroundColor: `${svc?.color || '#7B61FF'}15`,
+                              borderLeft: `3px solid ${svc?.color || '#7B61FF'}`,
+                              minHeight: `${((svc?.duration_minutes || 30) / 30) * 48 - 8}px`,
+                              touchAction: 'none',
+                            }}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                                {!isMobile && (
+                                  <button
+                                    {...listeners}
+                                    {...attributes}
+                                    className="p-1 rounded hover:bg-secondary/60 cursor-grab active:cursor-grabbing shrink-0"
+                                    aria-label="Sleep om te verplaatsen"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <GripVertical className="w-3.5 h-3.5 text-muted-foreground" />
+                                  </button>
+                                )}
+                                {displayEmps.length > 0 && (
+                                  <div className="pt-0.5 shrink-0">
+                                    <EmployeeAvatarStack employees={displayEmps} size="md" max={3} />
+                                  </div>
+                                )}
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm font-medium truncate">{cust?.name || 'Klant'}</p>
+                                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                    <p className="text-xs text-muted-foreground truncate">{svc?.name || 'Behandeling'}</p>
+                                    <span className="text-xs text-muted-foreground flex items-center gap-0.5"><Clock className="w-3 h-3" />{svc?.duration_minutes || 30} min</span>
+                                  </div>
+                                  {displayEmps.length > 0 && (
+                                    <span className="text-[11px] text-foreground/70 mt-0.5 block truncate">
+                                      {displayEmps.map((e: any) => e.name).join(', ')}
+                                    </span>
+                                  )}
+                                  {isGroupBooking && (
+                                    <span className="text-[10px] text-primary flex items-center gap-0.5 mt-0.5"><Users className="w-3 h-3" />Groepsboeking</span>
+                                  )}
+                                </div>
                               </div>
-                            )}
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm font-medium truncate">{cust?.name || 'Klant'}</p>
-                              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                                <p className="text-xs text-muted-foreground truncate">{svc?.name || 'Behandeling'}</p>
-                                <span className="text-xs text-muted-foreground flex items-center gap-0.5"><Clock className="w-3 h-3" />{svc?.duration_minutes || 30} min</span>
+                              <div className="flex items-center gap-1 shrink-0">
+                                {(apt as any).payment_status && (apt as any).payment_status !== 'none' && (
+                                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                                    (apt as any).payment_status === 'betaald' ? 'bg-primary/15 text-primary' :
+                                    (apt as any).payment_status === 'mislukt' ? 'bg-destructive/15 text-destructive' :
+                                    'bg-accent text-foreground'
+                                  }`}>
+                                    {(apt as any).payment_status === 'betaald' ? '€✓' : (apt as any).payment_status === 'mislukt' ? '€✗' : '€…'}
+                                  </span>
+                                )}
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); openMoveSheet(apt); }}
+                                  className="p-1 rounded hover:bg-secondary/60"
+                                  aria-label="Verplaats afspraak"
+                                  title="Verplaats afspraak"
+                                >
+                                  <ArrowRightLeft className="w-3 h-3 text-muted-foreground" />
+                                </button>
+                                <select value={apt.status} onChange={e => handleStatusChange(apt.id, e.target.value)}
+                                  className="text-[10px] px-1.5 py-0.5 rounded bg-secondary border border-border">
+                                  <option value="gepland">gepland</option>
+                                  <option value="voltooid">voltooid</option>
+                                  <option value="geannuleerd">geannuleerd</option>
+                                  <option value="no-show">no-show</option>
+                                </select>
+                                <button onClick={() => handleDelete(apt.id)} className="p-1 rounded hover:bg-destructive/20"><Trash2 className="w-3 h-3 text-destructive" /></button>
                               </div>
-                              {displayEmps.length > 0 && (
-                                <span className="text-[11px] text-foreground/70 mt-0.5 block truncate">
-                                  {displayEmps.map((e: any) => e.name).join(', ')}
-                                </span>
-                              )}
-                              {isGroupBooking && (
-                                <span className="text-[10px] text-primary flex items-center gap-0.5 mt-0.5"><Users className="w-3 h-3" />Groepsboeking</span>
-                              )}
                             </div>
                           </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            {(apt as any).payment_status && (apt as any).payment_status !== 'none' && (
-                              <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
-                                (apt as any).payment_status === 'betaald' ? 'bg-primary/15 text-primary' :
-                                (apt as any).payment_status === 'mislukt' ? 'bg-destructive/15 text-destructive' :
-                                'bg-accent text-foreground'
-                              }`}>
-                                {(apt as any).payment_status === 'betaald' ? '€✓' : (apt as any).payment_status === 'mislukt' ? '€✗' : '€…'}
-                              </span>
-                            )}
-                            <select value={apt.status} onChange={e => handleStatusChange(apt.id, e.target.value)}
-                              className="text-[10px] px-1.5 py-0.5 rounded bg-secondary border border-border">
-                              <option value="gepland">gepland</option>
-                              <option value="voltooid">voltooid</option>
-                              <option value="geannuleerd">geannuleerd</option>
-                              <option value="no-show">no-show</option>
-                            </select>
-                            <button onClick={() => handleDelete(apt.id)} className="p-1 rounded hover:bg-destructive/20"><Trash2 className="w-3 h-3 text-destructive" /></button>
-                          </div>
-                        </div>
-                      </div>
+                        )}
+                      </DayApptDraggable>
                       );
                     })() : (
-                      <div onClick={() => openAddModal(dateStr, slot)}
-                        className="absolute inset-x-0 top-1 h-[40px] rounded-xl border border-dashed border-border/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer hover:bg-primary/5 hover:border-primary/30">
-                        <span className="text-xs text-muted-foreground flex items-center gap-1"><Plus className="w-3.5 h-3.5" />Direct beschikbaar</span>
-                      </div>
+                      <DaySlotDroppable slot={slot}>
+                        <div onClick={() => openAddModal(dateStr, slot)}
+                          className="h-[40px] rounded-xl border border-dashed border-border/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer hover:bg-primary/5 hover:border-primary/30 mt-1">
+                          <span className="text-xs text-muted-foreground flex items-center gap-1"><Plus className="w-3.5 h-3.5" />Direct beschikbaar</span>
+                        </div>
+                      </DaySlotDroppable>
                     )}
                   </div>
                 </div>
               );
             })}
           </div>
+        ) : view === 'columns' ? (
+          <EmployeeColumnDayView
+            employees={displayEmployees.filter((e: any) => getEmployeeStatus(e, currentDate) !== 'afwezig')}
+            appointments={filterByEmployee(appointments)}
+            services={services}
+            customers={customers}
+            apptEmployees={apptEmployees || []}
+            date={dateStr}
+            getDisplayEmployees={getDisplayEmployees}
+            getColumnIdForAppointment={getColumnIdForAppointment}
+            isPauseSlot={isPauseSlotForEmpId}
+            onRequestMove={openMoveSheet}
+            onSlotClick={(empId, slot) => openAddModal(dateStr, slot)}
+            draggable={!isMobile}
+          />
         ) : (
           <div className="overflow-x-auto">
             <div className="grid grid-cols-6 gap-3 min-w-[700px]">
@@ -1087,7 +1364,24 @@ export default function CalendarPage() {
             </div>
           </div>
         )}
+        </DndContext>
       </div>
+
+      <MoveAppointmentSheet
+        open={moveSheetOpen}
+        onOpenChange={setMoveSheetOpen}
+        appointment={moveTargetAppt}
+        initialDate={moveSheetInitial.date}
+        initialTime={moveSheetInitial.time}
+        initialEmployeeId={moveSheetInitial.employeeId}
+        employees={displayEmployees as any}
+        allowEmployeeChange={activeDbEmployees.length > 0}
+        onConfirm={async (target) => {
+          if (!moveTargetAppt) return;
+          const ok = await applyMove(moveTargetAppt, target);
+          if (ok) setMoveSheetOpen(false);
+        }}
+      />
     </AppLayout>
   );
 }
