@@ -715,17 +715,39 @@ export default function CalendarPage() {
 
     // Match the format used when creating appointments: `${date}T${time}:00`
     const dt = `${target.date}T${start}:00`;
-    const result = await update(apt.id, {
+    const updatePayload: Record<string, any> = {
       appointment_date: dt,
       start_time: start,
       end_time: end,
       ...(nextNotes !== apt.notes ? { notes: nextNotes } : {}),
-    });
+    };
     if (import.meta.env.DEV) {
-      console.log('[agendaMove] update result', result);
+      console.log('[agendaMove] applyMove update', {
+        appointmentId: apt.id,
+        oldDate: currentDateStr,
+        oldTime: currentTime,
+        newDate: target.date,
+        newTime: start,
+        targetEmployeeId: target.employeeId,
+        payload: updatePayload,
+      });
     }
-    if (!result) {
-      // useCrud already showed a toast on failure
+    const { data: updResult, error: updErr } = await supabase
+      .from('appointments')
+      .update(updatePayload)
+      .eq('id', apt.id)
+      .select()
+      .single();
+    if (import.meta.env.DEV) {
+      console.log('[agendaMove] update result', { updResult, updErr });
+    }
+    if (updErr) {
+      const msg = (updErr.message || '').toLowerCase();
+      if (msg.includes('duplicate') || msg.includes('unique')) {
+        toast.error('Dit tijdslot is al bezet. Kies een andere tijd of medewerker.');
+      } else {
+        toast.error('Verplaatsen mislukt: ' + updErr.message);
+      }
       return false;
     }
 
