@@ -961,31 +961,40 @@ export default function CalendarPage() {
   return (
     <AppLayout title="Agenda" subtitle="Beheer je afspraken en vind lege plekken."
       actions={
-        <div className="flex items-center gap-2">
-          {!isToday && (
-            <Button variant="outline" size="sm" onClick={goToToday}>
-              <CalendarDays className="w-4 h-4 mr-1" /> Vandaag
-            </Button>
-          )}
-          <div className="flex rounded-xl border border-border overflow-hidden">
-            <button onClick={() => setView('day')} className={cn("px-3 py-2 text-sm font-medium transition-colors", view === 'day' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')}>Dag</button>
-            <button onClick={() => setView('columns')} className={cn("px-3 py-2 text-sm font-medium transition-colors flex items-center gap-1", view === 'columns' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')} title="Kolommen per medewerker">
-              <Columns3 className="w-3.5 h-3.5" />Kolommen
-            </button>
-            <button onClick={() => setView('week')} className={cn("px-3 py-2 text-sm font-medium transition-colors", view === 'week' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')}>Week</button>
+        <div className="w-full max-w-full overflow-hidden flex flex-col lg:flex-row lg:items-center gap-2">
+          {/* Row 1: Vandaag + view toggle */}
+          <div className="flex items-center gap-2 w-full lg:w-auto min-w-0">
+            {!isToday && (
+              <Button variant="outline" size="sm" onClick={goToToday} className="shrink-0">
+                <CalendarDays className="w-4 h-4 mr-1" /> Vandaag
+              </Button>
+            )}
+            <div className="flex flex-1 lg:flex-none rounded-xl border border-border overflow-hidden min-w-0">
+              <button onClick={() => setView('day')} className={cn("flex-1 lg:flex-none px-3 py-2 text-sm font-medium transition-colors", view === 'day' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')}>Dag</button>
+              <button onClick={() => setView('columns')} className={cn("flex-1 lg:flex-none px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-1", view === 'columns' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')} title="Kolommen per medewerker">
+                <Columns3 className="w-3.5 h-3.5" />Kolommen
+              </button>
+              <button onClick={() => setView('week')} className={cn("flex-1 lg:flex-none px-3 py-2 text-sm font-medium transition-colors", view === 'week' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')}>Week</button>
+            </div>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setReflowOpen(true)}
-            className="gap-1"
-            title="Slim plannen — optimaliseer de dag"
-          >
-            <Sparkles className="w-4 h-4" /> Slim plannen
-          </Button>
-          <Button variant="gradient" size="sm" onClick={() => openAddModal(dateStr, '09:00')}>
-            <Plus className="w-4 h-4" /> Nieuwe Afspraak
-          </Button>
+          {/* Row 2 on mobile / inline on desktop: action buttons */}
+          <div className="grid grid-cols-2 gap-3 w-full lg:flex lg:w-auto lg:gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setReflowOpen(true)}
+              className="h-12 lg:h-9 rounded-2xl lg:rounded-xl text-sm min-w-0 px-3 gap-1"
+              title="Slim plannen — optimaliseer de dag"
+            >
+              <Sparkles className="w-4 h-4 shrink-0" /> <span className="truncate">Slim plannen</span>
+            </Button>
+            <Button
+              variant="gradient"
+              onClick={() => openAddModal(dateStr, '09:00')}
+              className="h-12 lg:h-9 rounded-2xl lg:rounded-xl text-sm min-w-0 px-3 gap-1"
+            >
+              <Plus className="w-4 h-4 shrink-0" /> <span className="truncate">Nieuwe afspraak</span>
+            </Button>
+          </div>
         </div>
       }>
 
