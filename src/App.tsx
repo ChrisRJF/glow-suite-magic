@@ -136,6 +136,7 @@ const App = () => (
               <Route path="/social-studio" element={<RoleProtectedRoute><SocialStudioPage /></RoleProtectedRoute>} />
               <Route path="/leads" element={<RoleProtectedRoute><LeadsPage /></RoleProtectedRoute>} />
               <Route path="/eigenaar" element={<RoleProtectedRoute allow={["eigenaar","manager"]}><EigenaarPage /></RoleProtectedRoute>} />
+              <Route path="/medewerkers" element={<RoleProtectedRoute><EmployeesPage /></RoleProtectedRoute>} />
               <Route path="/support" element={<RoleProtectedRoute><SupportPage /></RoleProtectedRoute>} />
               <Route path="/mijn-abonnement" element={<RoleProtectedRoute><MijnAbonnementPage /></RoleProtectedRoute>} />
               <Route path="/launch-status" element={<RoleProtectedRoute allow={["eigenaar"]}><LaunchStatusPage /></RoleProtectedRoute>} />
