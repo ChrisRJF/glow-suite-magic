@@ -22,7 +22,14 @@ type TemplateRow = {
   is_active: boolean;
 };
 
-const TYPES: WhatsAppTemplateType[] = ["booking_confirmation", "reminder", "review", "no_show"];
+const TYPES: WhatsAppTemplateType[] = [
+  "booking_confirmation",
+  "reminder",
+  "review",
+  "no_show",
+  "waitlist_offer",
+  "revenue_boost",
+];
 
 export type WhatsAppTemplatesCardProps = {
   /** Active map controlled from parent (automations card). If omitted, internal state used. */
