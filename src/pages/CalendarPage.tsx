@@ -732,8 +732,8 @@ export default function CalendarPage() {
         payload: updatePayload,
       });
     }
-    const { data: updResult, error: updErr } = await supabase
-      .from('appointments')
+    const { data: updResult, error: updErr } = await (supabase
+      .from('appointments') as any)
       .update(updatePayload)
       .eq('id', apt.id)
       .select()
