@@ -80,6 +80,7 @@ interface PlacementOption {
 
 export default function CalendarPage() {
   const { user } = useAuth();
+  const routerNavigate = useRouterNavigate();
   const { demoMode } = useDemoMode();
   const { data: appointments, refetch } = useAppointments();
   const { data: customers } = useCustomers();
