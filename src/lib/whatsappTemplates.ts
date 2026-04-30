@@ -1,4 +1,4 @@
-export type WhatsAppTemplateType = "booking_confirmation" | "reminder" | "review";
+export type WhatsAppTemplateType = "booking_confirmation" | "reminder" | "review" | "no_show";
 
 export const DEFAULT_WHATSAPP_TEMPLATES: Record<WhatsAppTemplateType, string> = {
   booking_confirmation: `Beste {{customer_name}},
