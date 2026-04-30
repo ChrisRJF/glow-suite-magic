@@ -63,18 +63,55 @@ export default function CalendarPage() {
   const { data: appointments, refetch } = useAppointments();
   const { data: customers } = useCustomers();
   const { data: services } = useServices();
+  const { data: dbEmployees } = useEmployees();
+  const { data: apptEmployees, refetch: refetchApptEmps } = useAppointmentEmployees();
   const { insert, update, remove } = useCrud("appointments");
   const [view, setView] = useState<View>('day');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ customer_id: '', service_id: '', date: '', time: '09:00', notes: '' });
   const [subAppts, setSubAppts] = useState<SubApptForm[]>([]);
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [placementOptions, setPlacementOptions] = useState<PlacementOption[]>([]);
   const [selectedOption, setSelectedOption] = useState(0);
   const [selectedEmployee, setSelectedEmployee] = useState<string>('alle');
   const [showFilters, setShowFilters] = useState(false);
   const [filterAvailability, setFilterAvailability] = useState<string>('alle'); // alle, beschikbaar, afwezig
+
+  // Active DB employees (preferred over hardcoded list when present)
+  const activeDbEmployees = useMemo(
+    () => (dbEmployees || []).filter((e: any) => e.is_active !== false),
+    [dbEmployees]
+  );
+
+  // Resolve employee record by name (DB first, then hardcoded fallback)
+  const resolveEmployee = (name: string | undefined | null) => {
+    if (!name) return null;
+    const db = activeDbEmployees.find((e: any) => e.name?.toLowerCase() === name.toLowerCase());
+    if (db) return db;
+    const hard = MEDEWERKERS.find((m) => m.name.toLowerCase() === name.toLowerCase());
+    if (hard) return { id: hard.name, name: hard.name, role: hard.role, color: hard.color, photo_url: null };
+    return { id: name, name, role: '', color: '#7B61FF', photo_url: null };
+  };
+
+  // Get employees assigned to a given appointment via join table
+  const getEmployeesForAppt = (apptId: string) => {
+    const links = (apptEmployees || []).filter((l: any) => l.appointment_id === apptId);
+    return links
+      .map((l: any) => activeDbEmployees.find((e: any) => e.id === l.employee_id))
+      .filter(Boolean);
+  };
+
+  // Combined view: assigned employees from join table + name from notes (legacy)
+  const getDisplayEmployees = (apt: any): any[] => {
+    const fromJoin = getEmployeesForAppt(apt.id);
+    if (fromJoin.length) return fromJoin;
+    const legacyName = apt?.notes?.match(/Medewerker: (\w+)/)?.[1];
+    const resolved = legacyName ? resolveEmployee(legacyName) : null;
+    return resolved ? [resolved] : [];
+  };
+
 
   const dateStr = formatLocalDate(currentDate);
   const currentDayOfWeek = currentDate.getDay() === 0 ? 7 : currentDate.getDay(); // 1=ma..7=zo
