@@ -26,6 +26,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { EmployeeColumnDayView } from "@/components/EmployeeColumnDayView";
 import { MoveAppointmentSheet, type MoveTarget } from "@/components/MoveAppointmentSheet";
+import { SmartReflowDialog, type ReflowAppointment } from "@/components/SmartReflowDialog";
 import { findConflict, snapToFine, timeToMinutes, minutesToTime } from "@/lib/agendaMove";
 
 type View = 'day' | 'columns' | 'week';
@@ -101,6 +102,7 @@ export default function CalendarPage() {
   const isMobile = useIsMobile();
   const [moveSheetOpen, setMoveSheetOpen] = useState(false);
   const [moveTargetAppt, setMoveTargetAppt] = useState<any | null>(null);
+  const [reflowOpen, setReflowOpen] = useState(false);
 
   // dnd-kit sensors: long-press on touch (300ms / 8px), small distance on pointer (desktop)
   const sensors = useSensors(
@@ -722,14 +724,12 @@ export default function CalendarPage() {
       ...(nextNotes !== apt.notes ? { notes: nextNotes } : {}),
     };
     if (import.meta.env.DEV) {
-      console.log('[agendaMove] applyMove update', {
-        appointmentId: apt.id,
-        oldDate: currentDateStr,
-        oldTime: currentTime,
-        newDate: target.date,
-        newTime: start,
-        targetEmployeeId: target.employeeId,
-        payload: updatePayload,
+      console.log('[DND MOVE]', {
+        id: apt.id,
+        from: currentTime,
+        to: start,
+        date: target.date,
+        employeeId: target.employeeId,
       });
     }
     const { data: updResult, error: updErr } = await (supabase
@@ -788,6 +788,9 @@ export default function CalendarPage() {
     // Await both refetches so the next render uses the fresh data and the
     // appointment renders at its new slot (no visual snap-back).
     await Promise.all([refetch(), refetchApptEmps()]);
+    // Yield a microtask so React commits the new appointment array before
+    // any caller reads stale state.
+    await new Promise<void>(r => setTimeout(r, 0));
 
     toast.success('Afspraak verplaatst');
     return true;
@@ -948,6 +951,15 @@ export default function CalendarPage() {
             </button>
             <button onClick={() => setView('week')} className={cn("px-3 py-2 text-sm font-medium transition-colors", view === 'week' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')}>Week</button>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setReflowOpen(true)}
+            className="gap-1"
+            title="Slim plannen — optimaliseer de dag"
+          >
+            <Sparkles className="w-4 h-4" /> Slim plannen
+          </Button>
           <Button variant="gradient" size="sm" onClick={() => openAddModal(dateStr, '09:00')}>
             <Plus className="w-4 h-4" /> Nieuwe Afspraak
           </Button>
@@ -1546,6 +1558,40 @@ export default function CalendarPage() {
           const ok = await applyMove(moveTargetAppt, target);
           if (ok) setMoveSheetOpen(false);
         }}
+      />
+
+      <SmartReflowDialog
+        open={reflowOpen}
+        onOpenChange={setReflowOpen}
+        date={dateStr}
+        appointments={dayAppts.map((a: any): ReflowAppointment => {
+          const svc = services.find(s => s.id === a.service_id);
+          const cust = customers.find(c => c.id === a.customer_id);
+          const emps = getDisplayEmployees(a);
+          const colId = getColumnIdForAppointment(a);
+          const dbEmp = colId !== 'unassigned'
+            ? activeDbEmployees.find((e: any) => e.id === colId)
+            : null;
+          const start = getAppointmentTime(a) || '09:00';
+          const dur = svc?.duration_minutes || 30;
+          return {
+            id: a.id,
+            start,
+            end: minutesToTime(timeToMinutes(start) + dur),
+            date: getAppointmentDate(a),
+            durationMin: dur,
+            employeeId: dbEmp ? dbEmp.id : null,
+            employeeName: emps[0]?.name || null,
+            customerName: cust?.name || 'Klant',
+            serviceName: svc?.name || 'Behandeling',
+            servicePrice: svc?.price || 0,
+            raw: a,
+          };
+        })}
+        allAppointments={appointments}
+        apptEmployees={apptEmployees || []}
+        services={services}
+        applyMove={applyMove}
       />
     </AppLayout>
   );
