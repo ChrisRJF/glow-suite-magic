@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDemoMode } from "@/hooks/useDemoMode";
 import { EmployeeAvatar, EmployeeAvatarStack } from "@/components/EmployeeAvatar";
 
 type View = 'day' | 'week';
@@ -60,6 +61,7 @@ interface PlacementOption {
 
 export default function CalendarPage() {
   const { user } = useAuth();
+  const { demoMode } = useDemoMode();
   const { data: appointments, refetch } = useAppointments();
   const { data: customers } = useCustomers();
   const { data: services } = useServices();
@@ -87,7 +89,25 @@ export default function CalendarPage() {
 
   // Unified display list — DB employees if any, otherwise hardcoded fallback.
   // Normalized shape used by chips, cards, filters and slot logic.
+  const hardcodedDemoEmployees = useMemo(
+    () =>
+      MEDEWERKERS.map((m) => ({
+        id: m.name,
+        name: m.name,
+        role: m.role,
+        color: m.color,
+        photo_url: null as string | null,
+        days: m.days,
+        pauze: m.pauze,
+        services: m.services,
+      })),
+    []
+  );
+
   const displayEmployees = useMemo(() => {
+    // Demo mode intentionally uses demo employees for guided preview.
+    if (demoMode) return hardcodedDemoEmployees;
+
     if (activeDbEmployees.length > 0) {
       return activeDbEmployees.map((e: any) => {
         const breakStart = e.break_start ? String(e.break_start).slice(0, 5) : null;
@@ -104,18 +124,9 @@ export default function CalendarPage() {
         };
       });
     }
-    // Fallback to hardcoded list
-    return MEDEWERKERS.map(m => ({
-      id: m.name,
-      name: m.name,
-      role: m.role,
-      color: m.color,
-      photo_url: null as string | null,
-      days: m.days,
-      pauze: m.pauze,
-      services: m.services,
-    }));
-  }, [activeDbEmployees]);
+    // Fallback to hardcoded list when DB has zero employees
+    return hardcodedDemoEmployees;
+  }, [demoMode, activeDbEmployees, hardcodedDemoEmployees]);
 
   // Resolve employee record by name (used for legacy notes "Medewerker: X")
   const resolveEmployee = (name: string | undefined | null) => {
