@@ -817,49 +817,56 @@ export default function CalendarPage() {
     };
   }, [moveTargetAppt, dateStr, apptEmployees, displayEmployees]);
 
-  // Compact status pill that opens a small menu (mobile-friendly).
-  const STATUS_OPTIONS: { value: string; label: string; cls: string }[] = [
-    { value: 'gepland',     label: 'Gepland',     cls: 'bg-primary/10 text-primary border-primary/30' },
-    { value: 'voltooid',    label: 'Voltooid',    cls: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30' },
-    { value: 'geannuleerd', label: 'Geannuleerd', cls: 'bg-muted text-muted-foreground border-border' },
-    { value: 'no-show',     label: 'No-show',     cls: 'bg-destructive/10 text-destructive border-destructive/30' },
+  // Status pill: trigger uses Radix DropdownMenu so the menu is portaled
+  // out of any overflow-hidden / z-stacked appointment cards.
+  const STATUS_OPTIONS: { value: string; label: string; pill: string; dot: string }[] = [
+    { value: 'gepland',     label: 'Gepland',     pill: 'bg-primary/10 text-primary border-primary/30',                       dot: 'bg-primary' },
+    { value: 'voltooid',    label: 'Voltooid',    pill: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',           dot: 'bg-emerald-500' },
+    { value: 'geannuleerd', label: 'Geannuleerd', pill: 'bg-rose-500/10 text-rose-600 border-rose-500/30',                    dot: 'bg-rose-500' },
+    { value: 'no-show',     label: 'No-show',     pill: 'bg-destructive/10 text-destructive border-destructive/30',           dot: 'bg-destructive' },
   ];
   const StatusPill = ({ apt }: { apt: any }) => {
-    const [open, setOpen] = useState(false);
     const current = STATUS_OPTIONS.find(o => o.value === apt.status) || STATUS_OPTIONS[0];
     return (
-      <div className="relative">
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); setOpen(v => !v); }}
-          className={cn(
-            "text-[11px] px-2 py-1 rounded-full border font-medium whitespace-nowrap",
-            current.cls
-          )}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            onClick={(e) => e.stopPropagation()}
+            className={cn(
+              "h-9 px-4 rounded-full border font-medium whitespace-nowrap text-xs flex items-center gap-1.5 transition-colors hover:opacity-90",
+              current.pill
+            )}
+            aria-label={`Status: ${current.label}`}
+          >
+            {current.label}
+            <ChevronDown className="w-3.5 h-3.5 opacity-70" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="end"
+          sideOffset={6}
+          className="z-[9999] min-w-[180px] rounded-2xl border border-border bg-popover/95 backdrop-blur-md shadow-xl p-1"
         >
-          {current.label}
-        </button>
-        {open && (
-          <>
-            <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-            <div className="absolute right-0 mt-1 z-50 min-w-[140px] rounded-xl border border-border bg-popover shadow-lg overflow-hidden">
-              {STATUS_OPTIONS.map(o => (
-                <button
-                  key={o.value}
-                  onClick={(e) => { e.stopPropagation(); setOpen(false); handleStatusChange(apt.id, o.value); }}
-                  className={cn(
-                    "w-full text-left px-3 py-2 text-xs hover:bg-secondary/60 transition-colors flex items-center gap-2",
-                    o.value === apt.status && "bg-secondary/40 font-medium"
-                  )}
-                >
-                  <span className={cn("w-2 h-2 rounded-full", o.cls.split(' ')[0])} />
-                  {o.label}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
+          {STATUS_OPTIONS.map(o => (
+            <DropdownMenuItem
+              key={o.value}
+              onSelect={(e) => {
+                e.preventDefault();
+                handleStatusChange(apt.id, o.value);
+              }}
+              className={cn(
+                "h-11 px-3 rounded-xl text-sm cursor-pointer flex items-center gap-2.5 focus:bg-secondary/70",
+                o.value === apt.status && "bg-secondary/60 font-semibold"
+              )}
+            >
+              <span className={cn("w-2.5 h-2.5 rounded-full", o.dot)} />
+              <span className="flex-1">{o.label}</span>
+              {o.value === apt.status && <span className="text-primary text-xs">✓</span>}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
     );
   };
 
