@@ -1251,14 +1251,24 @@ export default function CalendarPage() {
               const isPauzeSlot = selectedEmp && isSlotPauze(selectedEmp, slot);
 
               return (
-                <div key={slot} className="flex gap-4 group min-h-[48px]">
-                  <span className="w-14 text-xs text-muted-foreground py-3 tabular-nums flex-shrink-0">{slot}</span>
+                <div key={slot} className="flex gap-4 group min-h-[48px] relative">
+                  <span className="w-14 text-xs text-muted-foreground py-3 tabular-nums flex-shrink-0 z-0">{slot}</span>
                   <div className="flex-1 border-t border-border/50 relative">
-                    {isPauzeSlot && !apt ? (
-                      <div className="absolute inset-x-0 top-1 h-[40px] rounded-xl bg-accent/50 border border-border/30 flex items-center justify-center">
+                    {coveredByEarlier ? (
+                      // Slot is visually covered by a longer appointment starting earlier — render nothing.
+                      null
+                    ) : isPauzeSlot && !apt ? (
+                      <div className="absolute inset-x-0 top-1 h-[40px] rounded-xl bg-accent/50 border border-border/30 flex items-center justify-center z-0">
                         <span className="text-[11px] text-muted-foreground">☕ Pauze — {selectedEmp?.name || selectedEmployee}</span>
                       </div>
                     ) : apt ? (() => {
+                      const displayEmps = getDisplayEmployees(apt);
+                      return (
+                      <DayApptDraggable apt={apt}>
+                        {({ attributes, listeners }) => {
+                          const durationMin = svc?.duration_minutes || 30;
+                          const computedHeight = (durationMin / 30) * 48 - 8;
+                          const minH = isMobile ? Math.max(computedHeight, 104) : computedHeight;
                       const displayEmps = getDisplayEmployees(apt);
                       return (
                       <DayApptDraggable apt={apt}>
