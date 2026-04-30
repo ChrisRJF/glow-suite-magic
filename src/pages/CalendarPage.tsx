@@ -692,6 +692,46 @@ export default function CalendarPage() {
                   </div>
                   <div><label className="text-xs text-muted-foreground">Notities</label><textarea value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 min-h-[60px]" /></div>
 
+                  {/* Multi-employee assignment (DB employees) */}
+                  {activeDbEmployees.length > 0 && (
+                    <div className="border-t border-border pt-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-medium flex items-center gap-1.5">
+                          <UserPlus2 className="w-3.5 h-3.5" />Medewerker(s)
+                          {selectedEmployeeIds.length > 0 && (
+                            <span className="text-[10px] text-muted-foreground">({selectedEmployeeIds.length} geselecteerd)</span>
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {activeDbEmployees.map((emp: any) => {
+                          const selected = selectedEmployeeIds.includes(emp.id);
+                          return (
+                            <button
+                              type="button"
+                              key={emp.id}
+                              onClick={() => setSelectedEmployeeIds(prev =>
+                                prev.includes(emp.id) ? prev.filter(id => id !== emp.id) : [...prev, emp.id]
+                              )}
+                              className={cn(
+                                "flex items-center gap-2 pl-1 pr-3 py-1 rounded-full border transition-all text-xs",
+                                selected
+                                  ? "border-primary bg-primary/10 text-foreground"
+                                  : "border-border bg-card hover:border-primary/40"
+                              )}
+                            >
+                              <EmployeeAvatar employee={emp} size="sm" ring={false} />
+                              <span className="font-medium">{emp.name}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-2">
+                        Selecteer één of meerdere medewerkers. Dubbele boekingen worden gecontroleerd.
+                      </p>
+                    </div>
+                  )}
+
                   {/* Group booking section */}
                   <div className="border-t border-border pt-3">
                     <div className="flex items-center justify-between mb-2">
