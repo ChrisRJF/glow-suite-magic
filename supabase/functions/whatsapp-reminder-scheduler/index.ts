@@ -97,7 +97,7 @@ Deno.serve(async (req) => {
   try {
     const { data: settingsList, error: sErr } = await admin
       .from("whatsapp_settings")
-      .select("user_id, enabled, send_reminders, send_review_request, reminder_hours_before")
+      .select("user_id, enabled, send_reminders, send_review_request, send_no_show_followup, reminder_hours_before")
       .eq("enabled", true);
     if (sErr) throw sErr;
 
