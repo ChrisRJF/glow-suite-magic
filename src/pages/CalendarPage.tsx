@@ -1,14 +1,15 @@
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
-import { useAppointments, useCustomers, useServices } from "@/hooks/useSupabaseData";
+import { useAppointments, useCustomers, useServices, useEmployees, useAppointmentEmployees } from "@/hooks/useSupabaseData";
 import { useCrud } from "@/hooks/useCrud";
 import { formatEuro } from "@/lib/data";
-import { useState, useMemo } from "react";
-import { ChevronLeft, ChevronRight, Plus, Clock, Trash2, Sparkles, Users, AlertCircle, CheckCircle2, Zap, CalendarDays, Filter, User } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { ChevronLeft, ChevronRight, Plus, Clock, Trash2, Sparkles, Users, AlertCircle, CheckCircle2, Zap, CalendarDays, Filter, User, UserPlus2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { EmployeeAvatar, EmployeeAvatarStack } from "@/components/EmployeeAvatar";
 
 type View = 'day' | 'week';
 
@@ -62,18 +63,55 @@ export default function CalendarPage() {
   const { data: appointments, refetch } = useAppointments();
   const { data: customers } = useCustomers();
   const { data: services } = useServices();
+  const { data: dbEmployees } = useEmployees();
+  const { data: apptEmployees, refetch: refetchApptEmps } = useAppointmentEmployees();
   const { insert, update, remove } = useCrud("appointments");
   const [view, setView] = useState<View>('day');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ customer_id: '', service_id: '', date: '', time: '09:00', notes: '' });
   const [subAppts, setSubAppts] = useState<SubApptForm[]>([]);
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [placementOptions, setPlacementOptions] = useState<PlacementOption[]>([]);
   const [selectedOption, setSelectedOption] = useState(0);
   const [selectedEmployee, setSelectedEmployee] = useState<string>('alle');
   const [showFilters, setShowFilters] = useState(false);
   const [filterAvailability, setFilterAvailability] = useState<string>('alle'); // alle, beschikbaar, afwezig
+
+  // Active DB employees (preferred over hardcoded list when present)
+  const activeDbEmployees = useMemo(
+    () => (dbEmployees || []).filter((e: any) => e.is_active !== false),
+    [dbEmployees]
+  );
+
+  // Resolve employee record by name (DB first, then hardcoded fallback)
+  const resolveEmployee = (name: string | undefined | null) => {
+    if (!name) return null;
+    const db = activeDbEmployees.find((e: any) => e.name?.toLowerCase() === name.toLowerCase());
+    if (db) return db;
+    const hard = MEDEWERKERS.find((m) => m.name.toLowerCase() === name.toLowerCase());
+    if (hard) return { id: hard.name, name: hard.name, role: hard.role, color: hard.color, photo_url: null };
+    return { id: name, name, role: '', color: '#7B61FF', photo_url: null };
+  };
+
+  // Get employees assigned to a given appointment via join table
+  const getEmployeesForAppt = (apptId: string) => {
+    const links = (apptEmployees || []).filter((l: any) => l.appointment_id === apptId);
+    return links
+      .map((l: any) => activeDbEmployees.find((e: any) => e.id === l.employee_id))
+      .filter(Boolean);
+  };
+
+  // Combined view: assigned employees from join table + name from notes (legacy)
+  const getDisplayEmployees = (apt: any): any[] => {
+    const fromJoin = getEmployeesForAppt(apt.id);
+    if (fromJoin.length) return fromJoin;
+    const legacyName = apt?.notes?.match(/Medewerker: (\w+)/)?.[1];
+    const resolved = legacyName ? resolveEmployee(legacyName) : null;
+    return resolved ? [resolved] : [];
+  };
+
 
   const dateStr = formatLocalDate(currentDate);
   const currentDayOfWeek = currentDate.getDay() === 0 ? 7 : currentDate.getDay(); // 1=ma..7=zo
@@ -366,6 +404,34 @@ export default function CalendarPage() {
     const mainEmployee = placementOptions.length > 0 ? placementOptions[selectedOption].placements[0]?.employee : '';
     const dt = `${form.date}T${form.time}:00`;
     const endTime = addMinutes(form.time, svc?.duration_minutes || 30);
+
+    // Multi-employee availability check (DB employees)
+    if (selectedEmployeeIds.length > 0) {
+      const conflictIds = new Set<string>();
+      for (const empId of selectedEmployeeIds) {
+        const conflict = (apptEmployees || []).some((link: any) => {
+          if (link.employee_id !== empId) return false;
+          const otherAppt = appointments.find((a: any) => a.id === link.appointment_id);
+          if (!otherAppt) return false;
+          if (getAppointmentDate(otherAppt) !== form.date) return false;
+          return getAppointmentTime(otherAppt) === form.time;
+        });
+        if (conflict) conflictIds.add(empId);
+      }
+      if (conflictIds.size > 0) {
+        toast.error("Een van de medewerkers is niet beschikbaar op dit tijdstip.");
+        return;
+      }
+    }
+
+    // Build employee names list for legacy notes (so existing logic keeps working)
+    const selectedEmpNames = selectedEmployeeIds
+      .map(id => activeDbEmployees.find((e: any) => e.id === id)?.name)
+      .filter(Boolean) as string[];
+    const employeeLabel = selectedEmpNames.length > 0
+      ? selectedEmpNames.join(' & ')
+      : (mainEmployee || 'Niet toegewezen');
+
     const result = await insert({
       customer_id: form.customer_id,
       service_id: form.service_id,
@@ -374,10 +440,24 @@ export default function CalendarPage() {
       end_time: endTime,
       price: svc?.price || 0,
       notes: subAppts.length > 0
-        ? `Groepsboeking: ${subAppts.length + 1} personen | Medewerker: ${mainEmployee}`
-        : `Medewerker: ${mainEmployee || 'Niet toegewezen'}`,
+        ? `Groepsboeking: ${subAppts.length + 1} personen | Medewerker: ${employeeLabel}`
+        : `Medewerker: ${employeeLabel}`,
       status: 'gepland',
     });
+
+    // Persist multi-employee links
+    if (result && selectedEmployeeIds.length > 0 && user) {
+      const rows = selectedEmployeeIds.map((eid, i) => ({
+        appointment_id: result.id,
+        employee_id: eid,
+        user_id: user.id,
+        is_primary: i === 0,
+        is_demo: (result as any).is_demo === true,
+      }));
+      const { error: aeErr } = await (supabase.from("appointment_employees") as any).insert(rows);
+      if (aeErr) console.error("appointment_employees insert error", aeErr);
+    }
+
     if (result && subAppts.length > 0 && user) {
       for (const sub of subAppts) {
         if (sub.person_name && sub.service_id) {
@@ -401,8 +481,10 @@ export default function CalendarPage() {
       setShowAdd(false);
       setShowConfirmation(false);
       setSubAppts([]);
+      setSelectedEmployeeIds([]);
       setPlacementOptions([]);
       refetch();
+      refetchApptEmps();
     }
   };
 
@@ -422,6 +504,7 @@ export default function CalendarPage() {
     setPlacementOptions([]);
     setForm({ customer_id: '', service_id: '', date, time, notes: '' });
     setSubAppts([]);
+    setSelectedEmployeeIds([]);
   };
 
   const addSubAppt = () => {
@@ -654,6 +737,46 @@ export default function CalendarPage() {
                   </div>
                   <div><label className="text-xs text-muted-foreground">Notities</label><textarea value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 min-h-[60px]" /></div>
 
+                  {/* Multi-employee assignment (DB employees) */}
+                  {activeDbEmployees.length > 0 && (
+                    <div className="border-t border-border pt-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-medium flex items-center gap-1.5">
+                          <UserPlus2 className="w-3.5 h-3.5" />Medewerker(s)
+                          {selectedEmployeeIds.length > 0 && (
+                            <span className="text-[10px] text-muted-foreground">({selectedEmployeeIds.length} geselecteerd)</span>
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {activeDbEmployees.map((emp: any) => {
+                          const selected = selectedEmployeeIds.includes(emp.id);
+                          return (
+                            <button
+                              type="button"
+                              key={emp.id}
+                              onClick={() => setSelectedEmployeeIds(prev =>
+                                prev.includes(emp.id) ? prev.filter(id => id !== emp.id) : [...prev, emp.id]
+                              )}
+                              className={cn(
+                                "flex items-center gap-2 pl-1 pr-3 py-1 rounded-full border transition-all text-xs",
+                                selected
+                                  ? "border-primary bg-primary/10 text-foreground"
+                                  : "border-border bg-card hover:border-primary/40"
+                              )}
+                            >
+                              <EmployeeAvatar employee={emp} size="sm" ring={false} />
+                              <span className="font-medium">{emp.name}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-2">
+                        Selecteer één of meerdere medewerkers. Dubbele boekingen worden gecontroleerd.
+                      </p>
+                    </div>
+                  )}
+
                   {/* Group booking section */}
                   <div className="border-t border-border pt-3">
                     <div className="flex items-center justify-between mb-2">
@@ -789,24 +912,35 @@ export default function CalendarPage() {
                       <div className="absolute inset-x-0 top-1 h-[40px] rounded-xl bg-accent/50 border border-border/30 flex items-center justify-center">
                         <span className="text-[11px] text-muted-foreground">☕ Pauze — {selectedEmployee}</span>
                       </div>
-                    ) : apt ? (
+                    ) : apt ? (() => {
+                      const displayEmps = getDisplayEmployees(apt);
+                      return (
                       <div className="absolute inset-x-0 top-1 rounded-xl p-3 transition-all duration-200 hover:scale-[1.01] cursor-pointer"
                         style={{ backgroundColor: `${svc?.color || '#7B61FF'}15`, borderLeft: `3px solid ${svc?.color || '#7B61FF'}`, minHeight: `${((svc?.duration_minutes || 30) / 30) * 48 - 8}px` }}>
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <p className="text-sm font-medium">{cust?.name || 'Klant'}</p>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <p className="text-xs text-muted-foreground">{svc?.name || 'Behandeling'}</p>
-                              <span className="text-xs text-muted-foreground flex items-center gap-0.5"><Clock className="w-3 h-3" />{svc?.duration_minutes || 30} min</span>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                            {displayEmps.length > 0 && (
+                              <div className="pt-0.5 shrink-0">
+                                <EmployeeAvatarStack employees={displayEmps} size="md" max={3} />
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium truncate">{cust?.name || 'Klant'}</p>
+                              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                <p className="text-xs text-muted-foreground truncate">{svc?.name || 'Behandeling'}</p>
+                                <span className="text-xs text-muted-foreground flex items-center gap-0.5"><Clock className="w-3 h-3" />{svc?.duration_minutes || 30} min</span>
+                              </div>
+                              {displayEmps.length > 0 && (
+                                <span className="text-[11px] text-foreground/70 mt-0.5 block truncate">
+                                  {displayEmps.map((e: any) => e.name).join(', ')}
+                                </span>
+                              )}
+                              {isGroupBooking && (
+                                <span className="text-[10px] text-primary flex items-center gap-0.5 mt-0.5"><Users className="w-3 h-3" />Groepsboeking</span>
+                              )}
                             </div>
-                            {employeeName && (
-                              <span className="text-[10px] text-foreground/70 mt-0.5 block">👤 {employeeName}</span>
-                            )}
-                            {isGroupBooking && (
-                              <span className="text-[10px] text-primary flex items-center gap-0.5 mt-0.5"><Users className="w-3 h-3" />Groepsboeking</span>
-                            )}
                           </div>
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1 shrink-0">
                             {(apt as any).payment_status && (apt as any).payment_status !== 'none' && (
                               <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
                                 (apt as any).payment_status === 'betaald' ? 'bg-primary/15 text-primary' :
@@ -827,7 +961,8 @@ export default function CalendarPage() {
                           </div>
                         </div>
                       </div>
-                    ) : (
+                      );
+                    })() : (
                       <div onClick={() => openAddModal(dateStr, slot)}
                         className="absolute inset-x-0 top-1 h-[40px] rounded-xl border border-dashed border-border/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer hover:bg-primary/5 hover:border-primary/30">
                         <span className="text-xs text-muted-foreground flex items-center gap-1"><Plus className="w-3.5 h-3.5" />Direct beschikbaar</span>
@@ -860,13 +995,24 @@ export default function CalendarPage() {
                         const svc = services.find(s => s.id === apt.service_id);
                         const cust = customers.find(c => c.id === apt.customer_id);
                         const time = getAppointmentTime(apt);
-                        const emp = apt.notes?.match(/Medewerker: (\w+)/)?.[1];
+                        const displayEmps = getDisplayEmployees(apt);
                         return (
                           <div key={apt.id} className="p-2.5 rounded-xl cursor-pointer transition-all duration-200 hover:scale-[1.02]"
                             style={{ backgroundColor: `${svc?.color || '#7B61FF'}12`, borderLeft: `2px solid ${svc?.color || '#7B61FF'}` }}>
-                            <p className="text-xs font-medium truncate">{cust?.name || 'Klant'}</p>
-                            <p className="text-[11px] text-muted-foreground">{time} · {svc?.name || ''}</p>
-                            {emp && <p className="text-[10px] text-foreground/60">👤 {emp}</p>}
+                            <div className="flex items-start gap-2">
+                              {displayEmps.length > 0 && (
+                                <div className="shrink-0 pt-0.5">
+                                  <EmployeeAvatarStack employees={displayEmps} size="xs" max={2} />
+                                </div>
+                              )}
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs font-medium truncate">{cust?.name || 'Klant'}</p>
+                                <p className="text-[11px] text-muted-foreground truncate">{time} · {svc?.name || ''}</p>
+                                {displayEmps.length > 0 && (
+                                  <p className="text-[10px] text-foreground/60 truncate">{displayEmps.map((e: any) => e.name).join(', ')}</p>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         );
                       })}

@@ -50,6 +50,36 @@ export type Database = {
         }
         Relationships: []
       }
+      appointment_employees: {
+        Row: {
+          appointment_id: string
+          created_at: string
+          employee_id: string
+          id: string
+          is_demo: boolean
+          is_primary: boolean
+          user_id: string
+        }
+        Insert: {
+          appointment_id: string
+          created_at?: string
+          employee_id: string
+          id?: string
+          is_demo?: boolean
+          is_primary?: boolean
+          user_id: string
+        }
+        Update: {
+          appointment_id?: string
+          created_at?: string
+          employee_id?: string
+          id?: string
+          is_demo?: boolean
+          is_primary?: boolean
+          user_id?: string
+        }
+        Relationships: []
+      }
       appointments: {
         Row: {
           amount_paid: number | null
@@ -776,6 +806,66 @@ export type Database = {
           updated_at?: string
           user_id?: string
           value?: number | null
+        }
+        Relationships: []
+      }
+      employees: {
+        Row: {
+          break_end: string | null
+          break_start: string | null
+          color: string
+          created_at: string
+          email: string | null
+          id: string
+          is_active: boolean
+          is_demo: boolean
+          name: string
+          phone: string | null
+          photo_url: string | null
+          role: string
+          services: Json
+          sort_order: number
+          updated_at: string
+          user_id: string
+          working_days: number[]
+        }
+        Insert: {
+          break_end?: string | null
+          break_start?: string | null
+          color?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          is_demo?: boolean
+          name: string
+          phone?: string | null
+          photo_url?: string | null
+          role?: string
+          services?: Json
+          sort_order?: number
+          updated_at?: string
+          user_id: string
+          working_days?: number[]
+        }
+        Update: {
+          break_end?: string | null
+          break_start?: string | null
+          color?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          is_demo?: boolean
+          name?: string
+          phone?: string | null
+          photo_url?: string | null
+          role?: string
+          services?: Json
+          sort_order?: number
+          updated_at?: string
+          user_id?: string
+          working_days?: number[]
         }
         Relationships: []
       }
