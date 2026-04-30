@@ -1225,9 +1225,21 @@ export default function CalendarPage() {
         <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
         {view === 'day' ? (
           <div className="relative">
+            {(() => { return null; })()}
             {timeSlots.map((slot) => {
-              const apt = dayAppts.find(a => {
-                return getAppointmentTime(a) === slot;
+              const slotIdx = timeSlots.indexOf(slot);
+              // Appointment starting exactly at this slot
+              const apt = dayAppts.find(a => getAppointmentTime(a) === slot);
+              // Is this slot covered by an appointment that started earlier?
+              const coveredByEarlier = dayAppts.some(a => {
+                const aStart = getAppointmentTime(a);
+                if (!aStart || aStart === slot) return false;
+                const aStartIdx = timeSlots.indexOf(aStart);
+                if (aStartIdx < 0) return false;
+                const aSvc = services.find(s => s.id === a.service_id);
+                const aDur = aSvc?.duration_minutes || 30;
+                const aSpan = Math.ceil(aDur / 30);
+                return slotIdx > aStartIdx && slotIdx < aStartIdx + aSpan;
               });
               const svc = apt ? services.find(s => s.id === apt.service_id) : null;
               const cust = apt ? customers.find(c => c.id === apt.customer_id) : null;
