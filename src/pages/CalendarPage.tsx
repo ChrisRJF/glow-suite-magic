@@ -1203,58 +1203,90 @@ export default function CalendarPage() {
                     ) : apt ? (() => {
                       const displayEmps = getDisplayEmployees(apt);
                       return (
-                      <div className="absolute inset-x-0 top-1 rounded-xl p-3 transition-all duration-200 hover:scale-[1.01] cursor-pointer"
-                        style={{ backgroundColor: `${svc?.color || '#7B61FF'}15`, borderLeft: `3px solid ${svc?.color || '#7B61FF'}`, minHeight: `${((svc?.duration_minutes || 30) / 30) * 48 - 8}px` }}>
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-start gap-2.5 min-w-0 flex-1">
-                            {displayEmps.length > 0 && (
-                              <div className="pt-0.5 shrink-0">
-                                <EmployeeAvatarStack employees={displayEmps} size="md" max={3} />
+                      <DayApptDraggable apt={apt}>
+                        {({ attributes, listeners }) => (
+                          <div
+                            className="rounded-xl p-3 transition-all duration-200 cursor-pointer"
+                            style={{
+                              backgroundColor: `${svc?.color || '#7B61FF'}15`,
+                              borderLeft: `3px solid ${svc?.color || '#7B61FF'}`,
+                              minHeight: `${((svc?.duration_minutes || 30) / 30) * 48 - 8}px`,
+                              touchAction: 'none',
+                            }}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                                {!isMobile && (
+                                  <button
+                                    {...listeners}
+                                    {...attributes}
+                                    className="p-1 rounded hover:bg-secondary/60 cursor-grab active:cursor-grabbing shrink-0"
+                                    aria-label="Sleep om te verplaatsen"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <GripVertical className="w-3.5 h-3.5 text-muted-foreground" />
+                                  </button>
+                                )}
+                                {displayEmps.length > 0 && (
+                                  <div className="pt-0.5 shrink-0">
+                                    <EmployeeAvatarStack employees={displayEmps} size="md" max={3} />
+                                  </div>
+                                )}
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm font-medium truncate">{cust?.name || 'Klant'}</p>
+                                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                    <p className="text-xs text-muted-foreground truncate">{svc?.name || 'Behandeling'}</p>
+                                    <span className="text-xs text-muted-foreground flex items-center gap-0.5"><Clock className="w-3 h-3" />{svc?.duration_minutes || 30} min</span>
+                                  </div>
+                                  {displayEmps.length > 0 && (
+                                    <span className="text-[11px] text-foreground/70 mt-0.5 block truncate">
+                                      {displayEmps.map((e: any) => e.name).join(', ')}
+                                    </span>
+                                  )}
+                                  {isGroupBooking && (
+                                    <span className="text-[10px] text-primary flex items-center gap-0.5 mt-0.5"><Users className="w-3 h-3" />Groepsboeking</span>
+                                  )}
+                                </div>
                               </div>
-                            )}
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm font-medium truncate">{cust?.name || 'Klant'}</p>
-                              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                                <p className="text-xs text-muted-foreground truncate">{svc?.name || 'Behandeling'}</p>
-                                <span className="text-xs text-muted-foreground flex items-center gap-0.5"><Clock className="w-3 h-3" />{svc?.duration_minutes || 30} min</span>
+                              <div className="flex items-center gap-1 shrink-0">
+                                {(apt as any).payment_status && (apt as any).payment_status !== 'none' && (
+                                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                                    (apt as any).payment_status === 'betaald' ? 'bg-primary/15 text-primary' :
+                                    (apt as any).payment_status === 'mislukt' ? 'bg-destructive/15 text-destructive' :
+                                    'bg-accent text-foreground'
+                                  }`}>
+                                    {(apt as any).payment_status === 'betaald' ? '€✓' : (apt as any).payment_status === 'mislukt' ? '€✗' : '€…'}
+                                  </span>
+                                )}
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); openMoveSheet(apt); }}
+                                  className="p-1 rounded hover:bg-secondary/60"
+                                  aria-label="Verplaats afspraak"
+                                  title="Verplaats afspraak"
+                                >
+                                  <ArrowRightLeft className="w-3 h-3 text-muted-foreground" />
+                                </button>
+                                <select value={apt.status} onChange={e => handleStatusChange(apt.id, e.target.value)}
+                                  className="text-[10px] px-1.5 py-0.5 rounded bg-secondary border border-border">
+                                  <option value="gepland">gepland</option>
+                                  <option value="voltooid">voltooid</option>
+                                  <option value="geannuleerd">geannuleerd</option>
+                                  <option value="no-show">no-show</option>
+                                </select>
+                                <button onClick={() => handleDelete(apt.id)} className="p-1 rounded hover:bg-destructive/20"><Trash2 className="w-3 h-3 text-destructive" /></button>
                               </div>
-                              {displayEmps.length > 0 && (
-                                <span className="text-[11px] text-foreground/70 mt-0.5 block truncate">
-                                  {displayEmps.map((e: any) => e.name).join(', ')}
-                                </span>
-                              )}
-                              {isGroupBooking && (
-                                <span className="text-[10px] text-primary flex items-center gap-0.5 mt-0.5"><Users className="w-3 h-3" />Groepsboeking</span>
-                              )}
                             </div>
                           </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            {(apt as any).payment_status && (apt as any).payment_status !== 'none' && (
-                              <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
-                                (apt as any).payment_status === 'betaald' ? 'bg-primary/15 text-primary' :
-                                (apt as any).payment_status === 'mislukt' ? 'bg-destructive/15 text-destructive' :
-                                'bg-accent text-foreground'
-                              }`}>
-                                {(apt as any).payment_status === 'betaald' ? '€✓' : (apt as any).payment_status === 'mislukt' ? '€✗' : '€…'}
-                              </span>
-                            )}
-                            <select value={apt.status} onChange={e => handleStatusChange(apt.id, e.target.value)}
-                              className="text-[10px] px-1.5 py-0.5 rounded bg-secondary border border-border">
-                              <option value="gepland">gepland</option>
-                              <option value="voltooid">voltooid</option>
-                              <option value="geannuleerd">geannuleerd</option>
-                              <option value="no-show">no-show</option>
-                            </select>
-                            <button onClick={() => handleDelete(apt.id)} className="p-1 rounded hover:bg-destructive/20"><Trash2 className="w-3 h-3 text-destructive" /></button>
-                          </div>
-                        </div>
-                      </div>
+                        )}
+                      </DayApptDraggable>
                       );
                     })() : (
-                      <div onClick={() => openAddModal(dateStr, slot)}
-                        className="absolute inset-x-0 top-1 h-[40px] rounded-xl border border-dashed border-border/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer hover:bg-primary/5 hover:border-primary/30">
-                        <span className="text-xs text-muted-foreground flex items-center gap-1"><Plus className="w-3.5 h-3.5" />Direct beschikbaar</span>
-                      </div>
+                      <DaySlotDroppable slot={slot}>
+                        <div onClick={() => openAddModal(dateStr, slot)}
+                          className="absolute inset-x-0 top-1 h-[40px] rounded-xl border border-dashed border-border/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer hover:bg-primary/5 hover:border-primary/30">
+                          <span className="text-xs text-muted-foreground flex items-center gap-1"><Plus className="w-3.5 h-3.5" />Direct beschikbaar</span>
+                        </div>
+                      </DaySlotDroppable>
                     )}
                   </div>
                 </div>
