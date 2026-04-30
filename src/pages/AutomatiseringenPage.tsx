@@ -145,7 +145,7 @@ export default function AutomatiseringenPage() {
     const [waRes, tplRes, logsRes, runsRes] = await Promise.all([
       supabase
         .from("whatsapp_settings")
-        .select("enabled, send_booking_confirmation, send_reminders, send_review_request")
+        .select("enabled, send_booking_confirmation, send_reminders, send_review_request, send_no_show_followup")
         .eq("user_id", user.id)
         .maybeSingle(),
       supabase
