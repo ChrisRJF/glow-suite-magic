@@ -877,8 +877,7 @@ export default function CalendarPage() {
                         </div>
                       </div>
                       );
-                    })()
-                    ) : (
+                    })() : (
                       <div onClick={() => openAddModal(dateStr, slot)}
                         className="absolute inset-x-0 top-1 h-[40px] rounded-xl border border-dashed border-border/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer hover:bg-primary/5 hover:border-primary/30">
                         <span className="text-xs text-muted-foreground flex items-center gap-1"><Plus className="w-3.5 h-3.5" />Direct beschikbaar</span>
