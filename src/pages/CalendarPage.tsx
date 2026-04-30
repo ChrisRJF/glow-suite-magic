@@ -587,6 +587,28 @@ export default function CalendarPage() {
     if (!result) return;
     await refetch();
     toast.success(`Status gewijzigd naar ${status}`);
+
+    // If a slot becomes free (cancel/no-show), suggest waitlist matches
+    if (status === "geannuleerd" || status === "no-show") {
+      const apt = appointments.find((a: any) => a.id === id);
+      if (apt) {
+        const dateStr = getAppointmentDate(apt);
+        const time = (apt.start_time || "10:00").toString().slice(0, 5);
+        const slotIso = `${dateStr}T${time}:00`;
+        toast("Wachtlijst-suggesties beschikbaar", {
+          description: "Bekijk klanten die op dit slot wachten.",
+          action: {
+            label: "Bekijk",
+            onClick: () => {
+              const params = new URLSearchParams({ slot: slotIso });
+              if (apt.service_id) params.set("service_id", apt.service_id);
+              navigate(`/wachtlijst?${params.toString()}`);
+            },
+          },
+          duration: 8000,
+        });
+      }
+    }
   };
 
   const openAddModal = (date: string, time: string) => {
