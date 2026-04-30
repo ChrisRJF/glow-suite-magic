@@ -786,6 +786,9 @@ export default function CalendarPage() {
     // Await both refetches so the next render uses the fresh data and the
     // appointment renders at its new slot (no visual snap-back).
     await Promise.all([refetch(), refetchApptEmps()]);
+    // Yield a microtask so React commits the new appointment array before
+    // any caller reads stale state.
+    await new Promise<void>(r => setTimeout(r, 0));
 
     toast.success('Afspraak verplaatst');
     return true;
