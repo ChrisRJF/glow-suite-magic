@@ -773,6 +773,43 @@ export default function CalendarPage() {
     };
   }, [moveTargetAppt, dateStr, apptEmployees, displayEmployees]);
 
+  // Inline draggable wrapper for day view appointment block
+  const DayApptDraggable = ({ apt, children }: { apt: any; children: (handleProps: any) => React.ReactNode }) => {
+    const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+      id: `day-apt-${apt.id}`,
+      data: { appointmentId: apt.id, type: 'appointment' },
+      disabled: isMobile, // mobile uses move sheet only
+    });
+    return (
+      <div
+        ref={setNodeRef}
+        style={{
+          transform: CSS.Translate.toString(transform),
+          opacity: isDragging ? 0.5 : 1,
+        }}
+        className="absolute inset-x-0 top-1"
+      >
+        {children({ attributes, listeners })}
+      </div>
+    );
+  };
+
+  // Inline droppable wrapper for an empty day-view slot
+  const DaySlotDroppable = ({ slot, children }: { slot: string; children: React.ReactNode }) => {
+    const { setNodeRef, isOver } = useDroppableImported({
+      id: `day-slot-${slot}`,
+      data: { slot, employeeId: undefined, type: 'slot' },
+    });
+    return (
+      <div
+        ref={setNodeRef}
+        className={cn("absolute inset-0 transition-colors rounded-xl", isOver && "bg-primary/10 ring-1 ring-primary/40")}
+      >
+        {children}
+      </div>
+    );
+  };
+
   // -----------------------------------------------------------------------
 
   return (
