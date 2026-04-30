@@ -276,7 +276,8 @@ export default function CalendarPage() {
 
   const dayAppts = useMemo(() =>
     filterByEmployee(appointments.filter(a => getAppointmentDate(a) === dateStr)),
-    [appointments, dateStr, selectedEmployee]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [appointments, dateStr, selectedEmployee, apptEmployees]
   );
 
   const weekStart = useMemo(() => {
