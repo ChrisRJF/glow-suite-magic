@@ -1139,6 +1139,7 @@ export default function CalendarPage() {
           </span>
         </div>
 
+        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
         {view === 'day' ? (
           <div className="relative">
             {timeSlots.map((slot) => {
