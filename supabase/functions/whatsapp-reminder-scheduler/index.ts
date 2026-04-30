@@ -393,6 +393,116 @@ Deno.serve(async (req) => {
           stats.errors.push(`review pass ${s.user_id}: ${e instanceof Error ? e.message : "unknown"}`);
         }
       }
+
+      // -------- NO-SHOW PASS --------
+      if (s.send_no_show_followup) {
+        try {
+          // Look at appointments scheduled in the last 24h with no-show status
+          const since = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+          const until = new Date(now.getTime() + 60 * 60 * 1000).toISOString();
+
+          const { data: nsAppts } = await admin
+            .from("appointments")
+            .select("id, customer_id, appointment_date, start_time, status, user_id")
+            .eq("user_id", s.user_id)
+            .gte("appointment_date", since)
+            .lte("appointment_date", until)
+            .in("status", ["no-show", "no_show", "noshow", "niet_verschenen"]);
+
+          const { data: nsTpl } = await admin
+            .from("whatsapp_templates")
+            .select("content, is_active")
+            .eq("user_id", s.user_id)
+            .eq("template_type", "no_show")
+            .maybeSingle();
+
+          if (nsTpl?.is_active === false) {
+            // template disabled — skip
+          } else {
+            const DEFAULT_NS = `Hoi {{customer_name}},\n\nWe hebben je vandaag gemist bij {{salon_name}} 💜\nGeen zorgen — we plannen graag een nieuwe afspraak in. Laat het ons weten!\n\n{{salon_name}}`;
+            const nsContent = nsTpl?.content || DEFAULT_NS;
+
+            const { data: profileNs } = await admin
+              .from("profiles")
+              .select("salon_name")
+              .eq("user_id", s.user_id)
+              .maybeSingle();
+            const salonNameNs = profileNs?.salon_name || "ons salon";
+
+            for (const appt of nsAppts || []) {
+              stats.checked++;
+              if (!appt.customer_id) { stats.skipped++; continue; }
+
+              const { data: existingLog } = await admin
+                .from("whatsapp_logs")
+                .select("id")
+                .eq("appointment_id", appt.id)
+                .eq("kind", "no_show")
+                .eq("status", "sent")
+                .limit(1)
+                .maybeSingle();
+              if (existingLog) { stats.skipped++; continue; }
+
+              const { data: customer } = await admin
+                .from("customers")
+                .select("id, name, phone, whatsapp_opt_in")
+                .eq("id", appt.customer_id)
+                .maybeSingle();
+              if (!customer || !customer.phone || customer.whatsapp_opt_in === false) {
+                stats.skipped++;
+                continue;
+              }
+
+              const apptInstant = new Date(appt.appointment_date);
+              const dateStr = new Intl.DateTimeFormat("nl-NL", {
+                day: "numeric", month: "long",
+              }).format(apptInstant);
+              const timeStr = (appt.start_time as string | null)?.substring(0, 5)
+                || String(appt.appointment_date).substring(11, 16);
+
+              const message = nsContent
+                .replace(/\{\{\s*customer_name\s*\}\}/g, customer.name || "")
+                .replace(/\{\{\s*salon_name\s*\}\}/g, salonNameNs)
+                .replace(/\{\{\s*appointment_date\s*\}\}/g, dateStr)
+                .replace(/\{\{\s*appointment_time\s*\}\}/g, timeStr)
+                .replace(/\{\{\s*services\s*\}\}/g, "")
+                .replace(/\{\{\s*reschedule_link\s*\}\}/g, "")
+                .replace(/\{\{\s*review_link\s*\}\}/g, "");
+
+              try {
+                const fnUrl = `${SUPABASE_URL}/functions/v1/whatsapp-send`;
+                const resp = await fetch(fnUrl, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${SERVICE_KEY}`,
+                  },
+                  body: JSON.stringify({
+                    user_id: s.user_id,
+                    to: customer.phone,
+                    message,
+                    customer_id: customer.id,
+                    appointment_id: appt.id,
+                    kind: "no_show",
+                  }),
+                });
+                const data = await resp.json();
+                if (resp.ok && (data.success || data.deduped)) {
+                  if (data.deduped) stats.skipped++; else stats.sent++;
+                } else {
+                  stats.failed++;
+                  stats.errors.push(`no_show ${appt.id}: ${data.error || resp.status}`);
+                }
+              } catch (e) {
+                stats.failed++;
+                stats.errors.push(`no_show ${appt.id}: ${e instanceof Error ? e.message : "unknown"}`);
+              }
+            }
+          }
+        } catch (e) {
+          stats.errors.push(`no_show pass ${s.user_id}: ${e instanceof Error ? e.message : "unknown"}`);
+        }
+      }
     }
 
     if (runId) {
