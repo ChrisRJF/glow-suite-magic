@@ -35,6 +35,7 @@ import WebshopPage from "./pages/WebshopPage";
 import SocialStudioPage from "./pages/SocialStudioPage";
 import LeadsPage from "./pages/LeadsPage";
 import EigenaarPage from "./pages/EigenaarPage";
+import EmployeesPage from "./pages/EmployeesPage";
 import QAStatusPage from "./pages/QAStatusPage";
 import AdminEmailTemplatesPage from "./pages/AdminEmailTemplatesPage";
 import AdminDemoRequestsPage from "./pages/AdminDemoRequestsPage";
