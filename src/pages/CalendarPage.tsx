@@ -722,14 +722,12 @@ export default function CalendarPage() {
       ...(nextNotes !== apt.notes ? { notes: nextNotes } : {}),
     };
     if (import.meta.env.DEV) {
-      console.log('[agendaMove] applyMove update', {
-        appointmentId: apt.id,
-        oldDate: currentDateStr,
-        oldTime: currentTime,
-        newDate: target.date,
-        newTime: start,
-        targetEmployeeId: target.employeeId,
-        payload: updatePayload,
+      console.log('[DND MOVE]', {
+        id: apt.id,
+        from: currentTime,
+        to: start,
+        date: target.date,
+        employeeId: target.employeeId,
       });
     }
     const { data: updResult, error: updErr } = await (supabase
