@@ -932,7 +932,7 @@ export default function CalendarPage() {
           </div>
           <span className="text-sm text-muted-foreground">
             {view === 'day' ? `${dayAppts.length} afspraken` : `${filterByEmployee(appointments.filter(a => weekDays.some(d => getAppointmentDate(a) === formatLocalDate(d)))).length} afspraken`}
-            {selectedEmployee !== 'alle' && ` · ${selectedEmployee}`}
+            {selectedEmployee !== 'alle' && ` · ${displayEmployees.find((e: any) => e.id === selectedEmployee || e.name === selectedEmployee)?.name || selectedEmployee}`}
           </span>
         </div>
 
