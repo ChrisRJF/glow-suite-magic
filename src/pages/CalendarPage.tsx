@@ -95,10 +95,10 @@ export default function CalendarPage() {
   const [moveSheetOpen, setMoveSheetOpen] = useState(false);
   const [moveTargetAppt, setMoveTargetAppt] = useState<any | null>(null);
 
-  // dnd-kit sensors: long-press on touch (250ms), small distance on pointer (desktop)
+  // dnd-kit sensors: long-press on touch (300ms / 8px), small distance on pointer (desktop)
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 300, tolerance: 8 } }),
     useSensor(KeyboardSensor),
   );
 
