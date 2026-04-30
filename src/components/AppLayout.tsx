@@ -52,18 +52,26 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
             </div>
           </header>
 
-          {/* Mobile subtitle + actions row (title is in topbar) */}
-          <div className="lg:hidden flex items-center justify-between gap-3 page-enter">
-            {subtitle || demoMode ? (
-              <div className="min-w-0 flex items-center gap-2">
+          {/* Mobile header meta row — subtitle + Demo badge (title is in topbar) */}
+          {(subtitle || demoMode) && (
+            <div className="lg:hidden flex items-center justify-between gap-3 page-enter min-w-0">
+              <div className="min-w-0 flex-1">
                 {subtitle && <p className="text-meta leading-relaxed truncate">{subtitle}</p>}
-                {demoMode && <span className="shrink-0 rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary border border-primary/15">Demo</span>}
               </div>
-            ) : (
-              <span />
-            )}
-            {actions && <div className="flex items-center gap-2 flex-shrink-0">{actions}</div>}
-          </div>
+              {demoMode && (
+                <span className="shrink-0 rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary border border-primary/15">
+                  Demo
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Mobile actions row — full width, no badge sharing the row */}
+          {actions && (
+            <div className="lg:hidden w-full max-w-full overflow-hidden page-enter">
+              {actions}
+            </div>
+          )}
 
           <div className="space-y-7">{children}</div>
         </div>
