@@ -8,6 +8,13 @@ import { ChevronLeft, ChevronRight, Plus, Clock, Trash2, Sparkles, Users, AlertC
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ChevronDown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoMode } from "@/hooks/useDemoMode";
 import { EmployeeAvatar, EmployeeAvatarStack } from "@/components/EmployeeAvatar";
