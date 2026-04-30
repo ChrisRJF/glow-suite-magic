@@ -686,7 +686,7 @@ export default function CalendarPage() {
           <Sparkles className="w-4 h-4 text-primary" />
           <span className="text-xs text-muted-foreground">
             <strong className="text-foreground">{emptySlotCount} vrije slots</strong> vandaag
-            {selectedEmployee !== 'alle' && ` voor ${selectedEmployee}`}
+            {selectedEmployee !== 'alle' && ` voor ${displayEmployees.find((e: any) => e.id === selectedEmployee || e.name === selectedEmployee)?.name || selectedEmployee}`}
             {' '}— klik op een leeg tijdslot om direct te boeken
           </span>
         </div>
