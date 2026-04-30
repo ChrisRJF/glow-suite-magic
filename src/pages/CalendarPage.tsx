@@ -8,6 +8,13 @@ import { ChevronLeft, ChevronRight, Plus, Clock, Trash2, Sparkles, Users, AlertC
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ChevronDown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoMode } from "@/hooks/useDemoMode";
 import { EmployeeAvatar, EmployeeAvatarStack } from "@/components/EmployeeAvatar";
@@ -269,7 +276,8 @@ export default function CalendarPage() {
 
   const dayAppts = useMemo(() =>
     filterByEmployee(appointments.filter(a => getAppointmentDate(a) === dateStr)),
-    [appointments, dateStr, selectedEmployee]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [appointments, dateStr, selectedEmployee, apptEmployees]
   );
 
   const weekStart = useMemo(() => {
@@ -572,9 +580,10 @@ export default function CalendarPage() {
   };
 
   const handleStatusChange = async (id: string, status: string) => {
-    await update(id, { status });
+    const result = await update(id, { status });
+    if (!result) return;
+    await refetch();
     toast.success(`Status gewijzigd naar ${status}`);
-    refetch();
   };
 
   const openAddModal = (date: string, time: string) => {
@@ -639,6 +648,8 @@ export default function CalendarPage() {
 
   // Apply a move target to an appointment. Validates conflict, snaps to 15-min,
   // then updates appointment + appointment_employees link.
+  // IMPORTANT: must await DB writes AND refetch before resolving so the UI
+  // re-renders the appointment at its new position (otherwise it visually snaps back).
   const applyMove = async (apt: any, target: MoveTarget) => {
     const svc = services.find(s => s.id === apt.service_id);
     const duration = svc?.duration_minutes || 30;
@@ -652,6 +663,29 @@ export default function CalendarPage() {
     const targetEmpName = targetEmp?.name || null;
     // Only treat as DB employee when matching activeDbEmployees
     const isDbEmployee = !!(target.employeeId && activeDbEmployees.find((e: any) => e.id === target.employeeId));
+
+    if (import.meta.env.DEV) {
+      console.log('[agendaMove] applyMove', {
+        appointmentId: apt.id,
+        targetDate: target.date,
+        targetTime: start,
+        targetEmployeeId: target.employeeId,
+        isDbEmployee,
+      });
+    }
+
+    // No-op move? (same date, same time, same employee)
+    const currentDateStr = getAppointmentDate(apt);
+    const currentTime = getAppointmentTime(apt);
+    const currentColId = getColumnIdForAppointment(apt);
+    const sameTarget =
+      currentDateStr === target.date &&
+      currentTime === start &&
+      ((target.employeeId === null && currentColId === 'unassigned') ||
+        currentColId === target.employeeId);
+    if (sameTarget) {
+      return true;
+    }
 
     const conflict = findConflict({
       movingId: apt.id,
@@ -679,6 +713,7 @@ export default function CalendarPage() {
       }
     }
 
+    // Match the format used when creating appointments: `${date}T${time}:00`
     const dt = `${target.date}T${start}:00`;
     const result = await update(apt.id, {
       appointment_date: dt,
@@ -686,6 +721,9 @@ export default function CalendarPage() {
       end_time: end,
       ...(nextNotes !== apt.notes ? { notes: nextNotes } : {}),
     });
+    if (import.meta.env.DEV) {
+      console.log('[agendaMove] update result', result);
+    }
     if (!result) {
       // useCrud already showed a toast on failure
       return false;
@@ -695,34 +733,41 @@ export default function CalendarPage() {
     if (isDbEmployee && user) {
       try {
         // Replace primary link
-        await (supabase.from('appointment_employees') as any)
+        const { error: delErr } = await (supabase.from('appointment_employees') as any)
           .delete()
           .eq('appointment_id', apt.id);
-        await (supabase.from('appointment_employees') as any).insert({
+        if (delErr) console.error('appointment_employees delete error', delErr);
+        const { error: insErr } = await (supabase.from('appointment_employees') as any).insert({
           appointment_id: apt.id,
           employee_id: target.employeeId,
           user_id: user.id,
           is_primary: true,
           is_demo: (apt as any).is_demo === true,
         });
-        refetchApptEmps();
+        if (insErr) console.error('appointment_employees insert error', insErr);
       } catch (e) {
         console.error('reassign employee link failed', e);
       }
-    } else if (target.employeeId === null) {
-      // unassign: remove links
-      try {
-        await (supabase.from('appointment_employees') as any)
-          .delete()
-          .eq('appointment_id', apt.id);
-        refetchApptEmps();
-      } catch (e) {
-        console.error('unassign failed', e);
+    } else if (target.employeeId === null && isDbEmployee === false) {
+      // Only unassign DB-employee link when explicitly choosing 'none' AND we
+      // had a previous DB employee. We avoid wiping links for legacy/demo moves.
+      const hadDbLink = (apptEmployees || []).some((l: any) => l.appointment_id === apt.id);
+      if (hadDbLink && targetEmpName === null) {
+        try {
+          await (supabase.from('appointment_employees') as any)
+            .delete()
+            .eq('appointment_id', apt.id);
+        } catch (e) {
+          console.error('unassign failed', e);
+        }
       }
     }
 
+    // Await both refetches so the next render uses the fresh data and the
+    // appointment renders at its new slot (no visual snap-back).
+    await Promise.all([refetch(), refetchApptEmps()]);
+
     toast.success('Afspraak verplaatst');
-    refetch();
     return true;
   };
 
@@ -773,49 +818,56 @@ export default function CalendarPage() {
     };
   }, [moveTargetAppt, dateStr, apptEmployees, displayEmployees]);
 
-  // Compact status pill that opens a small menu (mobile-friendly).
-  const STATUS_OPTIONS: { value: string; label: string; cls: string }[] = [
-    { value: 'gepland',     label: 'Gepland',     cls: 'bg-primary/10 text-primary border-primary/30' },
-    { value: 'voltooid',    label: 'Voltooid',    cls: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30' },
-    { value: 'geannuleerd', label: 'Geannuleerd', cls: 'bg-muted text-muted-foreground border-border' },
-    { value: 'no-show',     label: 'No-show',     cls: 'bg-destructive/10 text-destructive border-destructive/30' },
+  // Status pill: trigger uses Radix DropdownMenu so the menu is portaled
+  // out of any overflow-hidden / z-stacked appointment cards.
+  const STATUS_OPTIONS: { value: string; label: string; pill: string; dot: string }[] = [
+    { value: 'gepland',     label: 'Gepland',     pill: 'bg-primary/10 text-primary border-primary/30',                       dot: 'bg-primary' },
+    { value: 'voltooid',    label: 'Voltooid',    pill: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',           dot: 'bg-emerald-500' },
+    { value: 'geannuleerd', label: 'Geannuleerd', pill: 'bg-rose-500/10 text-rose-600 border-rose-500/30',                    dot: 'bg-rose-500' },
+    { value: 'no-show',     label: 'No-show',     pill: 'bg-destructive/10 text-destructive border-destructive/30',           dot: 'bg-destructive' },
   ];
   const StatusPill = ({ apt }: { apt: any }) => {
-    const [open, setOpen] = useState(false);
     const current = STATUS_OPTIONS.find(o => o.value === apt.status) || STATUS_OPTIONS[0];
     return (
-      <div className="relative">
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); setOpen(v => !v); }}
-          className={cn(
-            "text-[11px] px-2 py-1 rounded-full border font-medium whitespace-nowrap",
-            current.cls
-          )}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            onClick={(e) => e.stopPropagation()}
+            className={cn(
+              "h-9 px-4 rounded-full border font-medium whitespace-nowrap text-xs flex items-center gap-1.5 transition-colors hover:opacity-90",
+              current.pill
+            )}
+            aria-label={`Status: ${current.label}`}
+          >
+            {current.label}
+            <ChevronDown className="w-3.5 h-3.5 opacity-70" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="end"
+          sideOffset={6}
+          className="z-[9999] min-w-[180px] rounded-2xl border border-border bg-popover/95 backdrop-blur-md shadow-xl p-1"
         >
-          {current.label}
-        </button>
-        {open && (
-          <>
-            <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-            <div className="absolute right-0 mt-1 z-50 min-w-[140px] rounded-xl border border-border bg-popover shadow-lg overflow-hidden">
-              {STATUS_OPTIONS.map(o => (
-                <button
-                  key={o.value}
-                  onClick={(e) => { e.stopPropagation(); setOpen(false); handleStatusChange(apt.id, o.value); }}
-                  className={cn(
-                    "w-full text-left px-3 py-2 text-xs hover:bg-secondary/60 transition-colors flex items-center gap-2",
-                    o.value === apt.status && "bg-secondary/40 font-medium"
-                  )}
-                >
-                  <span className={cn("w-2 h-2 rounded-full", o.cls.split(' ')[0])} />
-                  {o.label}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
+          {STATUS_OPTIONS.map(o => (
+            <DropdownMenuItem
+              key={o.value}
+              onSelect={(e) => {
+                e.preventDefault();
+                handleStatusChange(apt.id, o.value);
+              }}
+              className={cn(
+                "h-11 px-3 rounded-xl text-sm cursor-pointer flex items-center gap-2.5 focus:bg-secondary/70",
+                o.value === apt.status && "bg-secondary/60 font-semibold"
+              )}
+            >
+              <span className={cn("w-2.5 h-2.5 rounded-full", o.dot)} />
+              <span className="flex-1">{o.label}</span>
+              {o.value === apt.status && <span className="text-primary text-xs">✓</span>}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
     );
   };
 
