@@ -607,6 +607,174 @@ export default function CalendarPage() {
     muted: 'text-muted-foreground bg-secondary/50',
   };
 
+  // Phase 3 — drag/drop & move helpers ------------------------------------
+
+  // Determine which column an appointment belongs to in the column view.
+  // Returns the DB employee id (preferred), then a name match against display employees,
+  // else 'unassigned'.
+  const getColumnIdForAppointment = (apt: any): string => {
+    const link = (apptEmployees || []).find((l: any) => l.appointment_id === apt.id && l.is_primary !== false);
+    if (link?.employee_id) {
+      const emp = displayEmployees.find((e: any) => e.id === link.employee_id);
+      if (emp) return emp.id;
+    }
+    const linkAny = (apptEmployees || []).find((l: any) => l.appointment_id === apt.id);
+    if (linkAny?.employee_id) {
+      const emp = displayEmployees.find((e: any) => e.id === linkAny.employee_id);
+      if (emp) return emp.id;
+    }
+    const legacyName = apt?.notes?.match(/Medewerker: (\w+)/)?.[1];
+    if (legacyName) {
+      const emp = displayEmployees.find((e: any) => e.name?.toLowerCase() === legacyName.toLowerCase());
+      if (emp) return emp.id;
+    }
+    return 'unassigned';
+  };
+
+  const isPauseSlotForEmpId = (empId: string, slot: string) => {
+    const emp = displayEmployees.find((e: any) => e.id === empId);
+    if (!emp) return false;
+    return isSlotPauze(emp, slot);
+  };
+
+  // Apply a move target to an appointment. Validates conflict, snaps to 15-min,
+  // then updates appointment + appointment_employees link.
+  const applyMove = async (apt: any, target: MoveTarget) => {
+    const svc = services.find(s => s.id === apt.service_id);
+    const duration = svc?.duration_minutes || 30;
+    const start = snapToFine(target.time);
+    const end = minutesToTime(timeToMinutes(start) + duration);
+
+    // Resolve target employee
+    const targetEmp = target.employeeId
+      ? displayEmployees.find((e: any) => e.id === target.employeeId)
+      : null;
+    const targetEmpName = targetEmp?.name || null;
+    // Only treat as DB employee when matching activeDbEmployees
+    const isDbEmployee = !!(target.employeeId && activeDbEmployees.find((e: any) => e.id === target.employeeId));
+
+    const conflict = findConflict({
+      movingId: apt.id,
+      date: target.date,
+      startTime: start,
+      durationMinutes: duration,
+      targetEmployeeId: isDbEmployee ? target.employeeId : null,
+      targetEmployeeName: targetEmpName,
+      appointments,
+      apptEmployees: apptEmployees || [],
+      services,
+    });
+    if (conflict) {
+      toast.error(conflict);
+      return false;
+    }
+
+    // Build updated notes for legacy "Medewerker: X" if no DB employee in use.
+    let nextNotes: string | undefined = apt.notes ?? '';
+    if (!isDbEmployee && targetEmpName) {
+      if (nextNotes.match(/Medewerker: (\w+)/)) {
+        nextNotes = nextNotes.replace(/Medewerker: \w+/, `Medewerker: ${targetEmpName}`);
+      } else {
+        nextNotes = nextNotes ? `${nextNotes} | Medewerker: ${targetEmpName}` : `Medewerker: ${targetEmpName}`;
+      }
+    }
+
+    const dt = `${target.date}T${start}:00`;
+    const { error } = await update(apt.id, {
+      appointment_date: dt,
+      start_time: start,
+      end_time: end,
+      ...(nextNotes !== apt.notes ? { notes: nextNotes } : {}),
+    });
+    if (error) {
+      toast.error('Kon afspraak niet verplaatsen');
+      return false;
+    }
+
+    // Update appointment_employees link if a DB employee was chosen.
+    if (isDbEmployee && user) {
+      try {
+        // Replace primary link
+        await (supabase.from('appointment_employees') as any)
+          .delete()
+          .eq('appointment_id', apt.id);
+        await (supabase.from('appointment_employees') as any).insert({
+          appointment_id: apt.id,
+          employee_id: target.employeeId,
+          user_id: user.id,
+          is_primary: true,
+          is_demo: (apt as any).is_demo === true,
+        });
+        refetchApptEmps();
+      } catch (e) {
+        console.error('reassign employee link failed', e);
+      }
+    } else if (target.employeeId === null) {
+      // unassign: remove links
+      try {
+        await (supabase.from('appointment_employees') as any)
+          .delete()
+          .eq('appointment_id', apt.id);
+        refetchApptEmps();
+      } catch (e) {
+        console.error('unassign failed', e);
+      }
+    }
+
+    toast.success('Afspraak verplaatst');
+    refetch();
+    return true;
+  };
+
+  const openMoveSheet = (apt: any) => {
+    setMoveTargetAppt(apt);
+    setMoveSheetOpen(true);
+  };
+
+  // Drag end handler — applies an immediate move when dropped on a slot/cell.
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+    const apptId = active.data.current?.appointmentId as string | undefined;
+    const overData = over.data.current as { slot?: string; employeeId?: string; type?: string } | undefined;
+    if (!apptId || !overData?.slot) return;
+    const apt = appointments.find(a => a.id === apptId);
+    if (!apt) return;
+
+    const targetSlot = overData.slot;
+    const targetEmployeeId = overData.employeeId && overData.employeeId !== 'unassigned'
+      ? overData.employeeId
+      : (overData.employeeId === 'unassigned' ? null : null);
+
+    // For day view (no employee column), keep current employee.
+    let resolvedEmpId: string | null = targetEmployeeId;
+    if (view === 'day') {
+      const currentColId = getColumnIdForAppointment(apt);
+      resolvedEmpId = currentColId === 'unassigned' ? null : currentColId;
+    }
+
+    await applyMove(apt, {
+      date: dateStr,
+      time: targetSlot,
+      employeeId: resolvedEmpId,
+    });
+  };
+
+  // Initial values for the move sheet
+  const moveSheetInitial = useMemo(() => {
+    if (!moveTargetAppt) return { date: dateStr, time: '09:00', employeeId: null as string | null };
+    const t = getAppointmentTime(moveTargetAppt) || '09:00';
+    const d = getAppointmentDate(moveTargetAppt) || dateStr;
+    const colId = getColumnIdForAppointment(moveTargetAppt);
+    return {
+      date: d,
+      time: snapToFine(t),
+      employeeId: colId === 'unassigned' ? null : colId,
+    };
+  }, [moveTargetAppt, dateStr, apptEmployees, displayEmployees]);
+
+  // -----------------------------------------------------------------------
+
   return (
     <AppLayout title="Agenda" subtitle="Beheer je afspraken en vind lege plekken."
       actions={
