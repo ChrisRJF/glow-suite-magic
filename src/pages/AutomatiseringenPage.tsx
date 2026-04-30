@@ -34,9 +34,9 @@ type AutoDef = {
   templateLabel: string;
   templateType?: WhatsAppTemplateType;
   /** Which whatsapp_settings boolean column controls master enable */
-  settingsFlag?: "send_booking_confirmation" | "send_reminders" | "send_review_request";
+  settingsFlag?: "send_booking_confirmation" | "send_reminders" | "send_review_request" | "send_no_show_followup";
   /** Which whatsapp_logs.kind to count for "last sent" */
-  logKind?: "confirmation" | "reminder" | "review";
+  logKind?: "confirmation" | "reminder" | "review" | "no_show";
   status: Status;
   comingSoonReason?: string;
   icon: any;
