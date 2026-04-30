@@ -41,7 +41,7 @@ export function EmployeeAvatar({
     <div
       title={title ?? `${employee.name}${employee.role ? ` · ${employee.role}` : ""}`}
       className={cn(
-        "relative inline-flex shrink-0 items-center justify-center rounded-full font-semibold text-white shadow-sm overflow-hidden",
+        "relative inline-flex shrink-0 aspect-square items-center justify-center rounded-full font-semibold text-white shadow-sm overflow-hidden",
         ring && "ring-2 ring-white",
         SIZE_CLASSES[size],
         className,
@@ -53,7 +53,7 @@ export function EmployeeAvatar({
           src={employee.photo_url}
           alt={employee.name}
           loading="lazy"
-          className="absolute inset-0 h-full w-full object-cover"
+          className="absolute inset-0 h-full w-full aspect-square rounded-full object-cover object-center"
           onError={(e) => {
             (e.currentTarget as HTMLImageElement).style.display = "none";
           }}
