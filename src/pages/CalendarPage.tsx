@@ -773,6 +773,52 @@ export default function CalendarPage() {
     };
   }, [moveTargetAppt, dateStr, apptEmployees, displayEmployees]);
 
+  // Compact status pill that opens a small menu (mobile-friendly).
+  const STATUS_OPTIONS: { value: string; label: string; cls: string }[] = [
+    { value: 'gepland',     label: 'Gepland',     cls: 'bg-primary/10 text-primary border-primary/30' },
+    { value: 'voltooid',    label: 'Voltooid',    cls: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30' },
+    { value: 'geannuleerd', label: 'Geannuleerd', cls: 'bg-muted text-muted-foreground border-border' },
+    { value: 'no-show',     label: 'No-show',     cls: 'bg-destructive/10 text-destructive border-destructive/30' },
+  ];
+  const StatusPill = ({ apt }: { apt: any }) => {
+    const [open, setOpen] = useState(false);
+    const current = STATUS_OPTIONS.find(o => o.value === apt.status) || STATUS_OPTIONS[0];
+    return (
+      <div className="relative">
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setOpen(v => !v); }}
+          className={cn(
+            "text-[11px] px-2 py-1 rounded-full border font-medium whitespace-nowrap",
+            current.cls
+          )}
+        >
+          {current.label}
+        </button>
+        {open && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+            <div className="absolute right-0 mt-1 z-50 min-w-[140px] rounded-xl border border-border bg-popover shadow-lg overflow-hidden">
+              {STATUS_OPTIONS.map(o => (
+                <button
+                  key={o.value}
+                  onClick={(e) => { e.stopPropagation(); setOpen(false); handleStatusChange(apt.id, o.value); }}
+                  className={cn(
+                    "w-full text-left px-3 py-2 text-xs hover:bg-secondary/60 transition-colors flex items-center gap-2",
+                    o.value === apt.status && "bg-secondary/40 font-medium"
+                  )}
+                >
+                  <span className={cn("w-2 h-2 rounded-full", o.cls.split(' ')[0])} />
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
+
   // Inline draggable wrapper for day view appointment block
   const DayApptDraggable = ({ apt, children }: { apt: any; children: (handleProps: any) => React.ReactNode }) => {
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
