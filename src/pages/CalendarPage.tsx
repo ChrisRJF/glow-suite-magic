@@ -1433,6 +1433,11 @@ export default function CalendarPage() {
         initialEmployeeId={moveSheetInitial.employeeId}
         employees={displayEmployees as any}
         allowEmployeeChange={activeDbEmployees.length > 0}
+        summary={moveTargetAppt ? {
+          customer: customers.find(c => c.id === moveTargetAppt.customer_id)?.name,
+          service: services.find(s => s.id === moveTargetAppt.service_id)?.name,
+          currentTime: getAppointmentTime(moveTargetAppt),
+        } : undefined}
         onConfirm={async (target) => {
           if (!moveTargetAppt) return;
           const ok = await applyMove(moveTargetAppt, target);
