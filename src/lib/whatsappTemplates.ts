@@ -1,4 +1,10 @@
-export type WhatsAppTemplateType = "booking_confirmation" | "reminder" | "review" | "no_show";
+export type WhatsAppTemplateType =
+  | "booking_confirmation"
+  | "reminder"
+  | "review"
+  | "no_show"
+  | "waitlist_offer"
+  | "revenue_boost";
 
 export const DEFAULT_WHATSAPP_TEMPLATES: Record<WhatsAppTemplateType, string> = {
   booking_confirmation: `Beste {{customer_name}},
@@ -22,12 +28,9 @@ Tot dan!`,
 
 We horen graag je ervaring. Laat hier een korte review achter:
 {{review_link}}`,
-  no_show: `Hoi {{customer_name}},
-
-We hebben je vandaag gemist bij {{salon_name}} 💜
-Geen zorgen — we plannen graag een nieuwe afspraak in. Laat het ons weten!
-
-{{salon_name}}`,
+  no_show: `Hi {{customer_name}}, jammer dat je je afspraak bij {{salon_name}} hebt gemist. Je kunt makkelijk een nieuwe afspraak plannen via {{booking_link}}.`,
+  waitlist_offer: `Hi {{customer_name}}, er is een plek vrijgekomen op {{appointment_date}} om {{appointment_time}} voor {{service}}. Wil je deze plek boeken? {{booking_link}}`,
+  revenue_boost: `Hi {{customer_name}}, het is alweer even geleden sinds je laatste behandeling bij {{salon_name}}. Deze week hebben we nog enkele plekken vrij. Boek hier je afspraak: {{booking_link}}`,
 };
 
 export const TEMPLATE_LABELS: Record<WhatsAppTemplateType, string> = {
@@ -35,6 +38,8 @@ export const TEMPLATE_LABELS: Record<WhatsAppTemplateType, string> = {
   reminder: "Herinnering",
   review: "Review verzoek",
   no_show: "No-show follow-up",
+  waitlist_offer: "Wachtlijst aanbieding",
+  revenue_boost: "Revenue Boost",
 };
 
 export function renderTemplate(
@@ -53,6 +58,8 @@ export const SAMPLE_VARS: Record<string, string> = {
   appointment_date: "vrijdag 12 juli",
   appointment_time: "14:30",
   services: "• Knippen & föhnen\n• Kleuring",
+  service: "Knippen & föhnen",
   reschedule_link: "https://glowsuite.nl/afspraak/voorbeeld",
   review_link: "https://g.page/r/voorbeeld/review",
+  booking_link: "https://glowsuite.nl/boek/voorbeeld",
 };
