@@ -1225,9 +1225,21 @@ export default function CalendarPage() {
         <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
         {view === 'day' ? (
           <div className="relative">
+            {(() => { return null; })()}
             {timeSlots.map((slot) => {
-              const apt = dayAppts.find(a => {
-                return getAppointmentTime(a) === slot;
+              const slotIdx = timeSlots.indexOf(slot);
+              // Appointment starting exactly at this slot
+              const apt = dayAppts.find(a => getAppointmentTime(a) === slot);
+              // Is this slot covered by an appointment that started earlier?
+              const coveredByEarlier = dayAppts.some(a => {
+                const aStart = getAppointmentTime(a);
+                if (!aStart || aStart === slot) return false;
+                const aStartIdx = timeSlots.indexOf(aStart);
+                if (aStartIdx < 0) return false;
+                const aSvc = services.find(s => s.id === a.service_id);
+                const aDur = aSvc?.duration_minutes || 30;
+                const aSpan = Math.ceil(aDur / 30);
+                return slotIdx > aStartIdx && slotIdx < aStartIdx + aSpan;
               });
               const svc = apt ? services.find(s => s.id === apt.service_id) : null;
               const cust = apt ? customers.find(c => c.id === apt.customer_id) : null;
@@ -1239,11 +1251,14 @@ export default function CalendarPage() {
               const isPauzeSlot = selectedEmp && isSlotPauze(selectedEmp, slot);
 
               return (
-                <div key={slot} className="flex gap-4 group min-h-[48px]">
-                  <span className="w-14 text-xs text-muted-foreground py-3 tabular-nums flex-shrink-0">{slot}</span>
+                <div key={slot} className="flex gap-4 group min-h-[48px] relative">
+                  <span className="w-14 text-xs text-muted-foreground py-3 tabular-nums flex-shrink-0 z-0">{slot}</span>
                   <div className="flex-1 border-t border-border/50 relative">
-                    {isPauzeSlot && !apt ? (
-                      <div className="absolute inset-x-0 top-1 h-[40px] rounded-xl bg-accent/50 border border-border/30 flex items-center justify-center">
+                    {coveredByEarlier ? (
+                      // Slot is visually covered by a longer appointment starting earlier — render nothing.
+                      null
+                    ) : isPauzeSlot && !apt ? (
+                      <div className="absolute inset-x-0 top-1 h-[40px] rounded-xl bg-accent/50 border border-border/30 flex items-center justify-center z-0">
                         <span className="text-[11px] text-muted-foreground">☕ Pauze — {selectedEmp?.name || selectedEmployee}</span>
                       </div>
                     ) : apt ? (() => {
@@ -1258,7 +1273,7 @@ export default function CalendarPage() {
                           const showPayment = paymentStatus && paymentStatus !== 'none';
                           return (
                           <div
-                            className="rounded-2xl p-3 transition-all duration-200 bg-card/80 backdrop-blur-sm shadow-[var(--shadow-sm)] flex flex-col gap-2"
+                            className="absolute left-0 right-0 top-1 z-10 rounded-2xl p-3 transition-all duration-200 bg-card/95 backdrop-blur-sm shadow-[var(--shadow-sm)] flex flex-col gap-2"
                             style={{
                               backgroundImage: `linear-gradient(135deg, ${svc?.color || '#7B61FF'}10, ${svc?.color || '#7B61FF'}06)`,
                               borderLeft: `3px solid ${svc?.color || '#7B61FF'}`,
