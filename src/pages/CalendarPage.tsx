@@ -95,10 +95,10 @@ export default function CalendarPage() {
   const [moveSheetOpen, setMoveSheetOpen] = useState(false);
   const [moveTargetAppt, setMoveTargetAppt] = useState<any | null>(null);
 
-  // dnd-kit sensors: long-press on touch (250ms), small distance on pointer (desktop)
+  // dnd-kit sensors: long-press on touch (300ms / 8px), small distance on pointer (desktop)
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 300, tolerance: 8 } }),
     useSensor(KeyboardSensor),
   );
 
@@ -773,12 +773,58 @@ export default function CalendarPage() {
     };
   }, [moveTargetAppt, dateStr, apptEmployees, displayEmployees]);
 
+  // Compact status pill that opens a small menu (mobile-friendly).
+  const STATUS_OPTIONS: { value: string; label: string; cls: string }[] = [
+    { value: 'gepland',     label: 'Gepland',     cls: 'bg-primary/10 text-primary border-primary/30' },
+    { value: 'voltooid',    label: 'Voltooid',    cls: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30' },
+    { value: 'geannuleerd', label: 'Geannuleerd', cls: 'bg-muted text-muted-foreground border-border' },
+    { value: 'no-show',     label: 'No-show',     cls: 'bg-destructive/10 text-destructive border-destructive/30' },
+  ];
+  const StatusPill = ({ apt }: { apt: any }) => {
+    const [open, setOpen] = useState(false);
+    const current = STATUS_OPTIONS.find(o => o.value === apt.status) || STATUS_OPTIONS[0];
+    return (
+      <div className="relative">
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setOpen(v => !v); }}
+          className={cn(
+            "text-[11px] px-2 py-1 rounded-full border font-medium whitespace-nowrap",
+            current.cls
+          )}
+        >
+          {current.label}
+        </button>
+        {open && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+            <div className="absolute right-0 mt-1 z-50 min-w-[140px] rounded-xl border border-border bg-popover shadow-lg overflow-hidden">
+              {STATUS_OPTIONS.map(o => (
+                <button
+                  key={o.value}
+                  onClick={(e) => { e.stopPropagation(); setOpen(false); handleStatusChange(apt.id, o.value); }}
+                  className={cn(
+                    "w-full text-left px-3 py-2 text-xs hover:bg-secondary/60 transition-colors flex items-center gap-2",
+                    o.value === apt.status && "bg-secondary/40 font-medium"
+                  )}
+                >
+                  <span className={cn("w-2 h-2 rounded-full", o.cls.split(' ')[0])} />
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
+
   // Inline draggable wrapper for day view appointment block
   const DayApptDraggable = ({ apt, children }: { apt: any; children: (handleProps: any) => React.ReactNode }) => {
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
       id: `day-apt-${apt.id}`,
       data: { appointmentId: apt.id, type: 'appointment' },
-      disabled: isMobile, // mobile uses move sheet only
+      // Mobile drag is enabled but only triggers from the dedicated grip handle (long-press).
     });
     return (
       <div
@@ -1204,80 +1250,92 @@ export default function CalendarPage() {
                       const displayEmps = getDisplayEmployees(apt);
                       return (
                       <DayApptDraggable apt={apt}>
-                        {({ attributes, listeners }) => (
+                        {({ attributes, listeners }) => {
+                          const durationMin = svc?.duration_minutes || 30;
+                          const computedHeight = (durationMin / 30) * 48 - 8;
+                          const minH = isMobile ? Math.max(computedHeight, 104) : computedHeight;
+                          const paymentStatus = (apt as any).payment_status;
+                          const showPayment = paymentStatus && paymentStatus !== 'none';
+                          return (
                           <div
-                            className="rounded-xl p-3 transition-all duration-200 cursor-pointer"
+                            className="rounded-2xl p-3 transition-all duration-200 bg-card/80 backdrop-blur-sm shadow-[var(--shadow-sm)] flex flex-col gap-2"
                             style={{
-                              backgroundColor: `${svc?.color || '#7B61FF'}15`,
+                              backgroundImage: `linear-gradient(135deg, ${svc?.color || '#7B61FF'}10, ${svc?.color || '#7B61FF'}06)`,
                               borderLeft: `3px solid ${svc?.color || '#7B61FF'}`,
-                              minHeight: `${((svc?.duration_minutes || 30) / 30) * 48 - 8}px`,
-                              touchAction: 'none',
+                              minHeight: `${minH}px`,
+                              // touchAction left as default so the page can scroll;
+                              // the drag handle below sets touchAction: 'none' for long-press.
                             }}
                           >
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex items-start gap-2.5 min-w-0 flex-1">
-                                {!isMobile && (
-                                  <button
-                                    {...listeners}
-                                    {...attributes}
-                                    className="p-1 rounded hover:bg-secondary/60 cursor-grab active:cursor-grabbing shrink-0"
-                                    aria-label="Sleep om te verplaatsen"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    <GripVertical className="w-3.5 h-3.5 text-muted-foreground" />
-                                  </button>
-                                )}
-                                {displayEmps.length > 0 && (
-                                  <div className="pt-0.5 shrink-0">
-                                    <EmployeeAvatarStack employees={displayEmps} size="md" max={3} />
-                                  </div>
-                                )}
-                                <div className="min-w-0 flex-1">
-                                  <p className="text-sm font-medium truncate">{cust?.name || 'Klant'}</p>
-                                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                                    <p className="text-xs text-muted-foreground truncate">{svc?.name || 'Behandeling'}</p>
-                                    <span className="text-xs text-muted-foreground flex items-center gap-0.5"><Clock className="w-3 h-3" />{svc?.duration_minutes || 30} min</span>
-                                  </div>
-                                  {displayEmps.length > 0 && (
-                                    <span className="text-[11px] text-foreground/70 mt-0.5 block truncate">
-                                      {displayEmps.map((e: any) => e.name).join(', ')}
-                                    </span>
-                                  )}
-                                  {isGroupBooking && (
-                                    <span className="text-[10px] text-primary flex items-center gap-0.5 mt-0.5"><Users className="w-3 h-3" />Groepsboeking</span>
-                                  )}
+                            {/* Top row: avatar + name + payment */}
+                            <div className="flex items-center gap-2 min-w-0">
+                              {displayEmps.length > 0 && (
+                                <div className="shrink-0">
+                                  <EmployeeAvatarStack employees={displayEmps} size="md" max={3} />
                                 </div>
-                              </div>
+                              )}
+                              <p className="text-sm font-semibold line-clamp-1 min-w-0 flex-1">{cust?.name || 'Klant'}</p>
+                              {showPayment && (
+                                <span className={cn(
+                                  "text-[10px] px-1.5 py-0.5 rounded-full font-medium shrink-0",
+                                  paymentStatus === 'betaald' ? 'bg-primary/15 text-primary' :
+                                  paymentStatus === 'mislukt' ? 'bg-destructive/15 text-destructive' :
+                                  'bg-accent text-foreground'
+                                )}>
+                                  {paymentStatus === 'betaald' ? '€ ✓' : paymentStatus === 'mislukt' ? '€ ✗' : '€ …'}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Second row: service • duration • employee */}
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground min-w-0 flex-wrap">
+                              <span className="line-clamp-1 min-w-0">{svc?.name || 'Behandeling'}</span>
+                              <span className="flex items-center gap-0.5 shrink-0"><Clock className="w-3 h-3" />{durationMin} min</span>
+                              {displayEmps.length > 0 && (
+                                <span className="line-clamp-1 min-w-0 text-foreground/70">
+                                  · {displayEmps.map((e: any) => e.name).join(', ')}
+                                </span>
+                              )}
+                              {isGroupBooking && (
+                                <span className="text-[10px] text-primary flex items-center gap-0.5 shrink-0"><Users className="w-3 h-3" />Groep</span>
+                              )}
+                            </div>
+
+                            {/* Bottom row: drag handle • move • status • delete */}
+                            <div className="flex items-center justify-between gap-2 mt-auto pt-1">
+                              <button
+                                {...listeners}
+                                {...attributes}
+                                className="p-1.5 rounded-lg hover:bg-secondary/60 active:bg-secondary cursor-grab active:cursor-grabbing shrink-0 -ml-1"
+                                aria-label="Sleep om te verplaatsen"
+                                onClick={(e) => e.stopPropagation()}
+                                style={{ touchAction: 'none' }}
+                              >
+                                <GripVertical className="w-4 h-4 text-muted-foreground" />
+                              </button>
                               <div className="flex items-center gap-1 shrink-0">
-                                {(apt as any).payment_status && (apt as any).payment_status !== 'none' && (
-                                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
-                                    (apt as any).payment_status === 'betaald' ? 'bg-primary/15 text-primary' :
-                                    (apt as any).payment_status === 'mislukt' ? 'bg-destructive/15 text-destructive' :
-                                    'bg-accent text-foreground'
-                                  }`}>
-                                    {(apt as any).payment_status === 'betaald' ? '€✓' : (apt as any).payment_status === 'mislukt' ? '€✗' : '€…'}
-                                  </span>
-                                )}
                                 <button
                                   onClick={(e) => { e.stopPropagation(); openMoveSheet(apt); }}
-                                  className="p-1 rounded hover:bg-secondary/60"
+                                  className="p-1.5 rounded-lg hover:bg-secondary/60 flex items-center gap-1 text-[11px] text-muted-foreground"
                                   aria-label="Verplaats afspraak"
                                   title="Verplaats afspraak"
                                 >
-                                  <ArrowRightLeft className="w-3 h-3 text-muted-foreground" />
+                                  <ArrowRightLeft className="w-3.5 h-3.5" />
+                                  {!isMobile && <span>Verplaats</span>}
                                 </button>
-                                <select value={apt.status} onChange={e => handleStatusChange(apt.id, e.target.value)}
-                                  className="text-[10px] px-1.5 py-0.5 rounded bg-secondary border border-border">
-                                  <option value="gepland">gepland</option>
-                                  <option value="voltooid">voltooid</option>
-                                  <option value="geannuleerd">geannuleerd</option>
-                                  <option value="no-show">no-show</option>
-                                </select>
-                                <button onClick={() => handleDelete(apt.id)} className="p-1 rounded hover:bg-destructive/20"><Trash2 className="w-3 h-3 text-destructive" /></button>
+                                <StatusPill apt={apt} />
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleDelete(apt.id); }}
+                                  className="p-1.5 rounded-lg hover:bg-destructive/15"
+                                  aria-label="Verwijder afspraak"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                                </button>
                               </div>
                             </div>
                           </div>
-                        )}
+                          );
+                        }}
                       </DayApptDraggable>
                       );
                     })() : (
@@ -1376,6 +1434,11 @@ export default function CalendarPage() {
         initialEmployeeId={moveSheetInitial.employeeId}
         employees={displayEmployees as any}
         allowEmployeeChange={activeDbEmployees.length > 0}
+        summary={moveTargetAppt ? {
+          customer: customers.find(c => c.id === moveTargetAppt.customer_id)?.name,
+          service: services.find(s => s.id === moveTargetAppt.service_id)?.name,
+          currentTime: getAppointmentTime(moveTargetAppt),
+        } : undefined}
         onConfirm={async (target) => {
           if (!moveTargetAppt) return;
           const ok = await applyMove(moveTargetAppt, target);
