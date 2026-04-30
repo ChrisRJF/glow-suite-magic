@@ -1,14 +1,15 @@
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
-import { useAppointments, useCustomers, useServices } from "@/hooks/useSupabaseData";
+import { useAppointments, useCustomers, useServices, useEmployees, useAppointmentEmployees } from "@/hooks/useSupabaseData";
 import { useCrud } from "@/hooks/useCrud";
 import { formatEuro } from "@/lib/data";
-import { useState, useMemo } from "react";
-import { ChevronLeft, ChevronRight, Plus, Clock, Trash2, Sparkles, Users, AlertCircle, CheckCircle2, Zap, CalendarDays, Filter, User } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { ChevronLeft, ChevronRight, Plus, Clock, Trash2, Sparkles, Users, AlertCircle, CheckCircle2, Zap, CalendarDays, Filter, User, UserPlus2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { EmployeeAvatar, EmployeeAvatarStack } from "@/components/EmployeeAvatar";
 
 type View = 'day' | 'week';
 
