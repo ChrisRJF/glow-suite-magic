@@ -34,9 +34,9 @@ type AutoDef = {
   templateLabel: string;
   templateType?: WhatsAppTemplateType;
   /** Which whatsapp_settings boolean column controls master enable */
-  settingsFlag?: "send_booking_confirmation" | "send_reminders" | "send_review_request";
+  settingsFlag?: "send_booking_confirmation" | "send_reminders" | "send_review_request" | "send_no_show_followup";
   /** Which whatsapp_logs.kind to count for "last sent" */
-  logKind?: "confirmation" | "reminder" | "review";
+  logKind?: "confirmation" | "reminder" | "review" | "no_show";
   status: Status;
   comingSoonReason?: string;
   icon: any;
@@ -85,12 +85,14 @@ const AUTOMATIONS: AutoDef[] = [
   {
     key: "no_show",
     title: "No-show follow-up",
-    description: "Bericht naar klanten die niet zijn verschenen.",
-    trigger: "Status afspraak: no-show",
-    action: "WhatsApp follow-up",
+    description: "Bericht naar klanten die niet zijn verschenen, om opnieuw in te plannen.",
+    trigger: "Status afspraak: no-show (binnen 24 uur)",
+    action: "WhatsApp follow-up versturen",
     templateLabel: "No-show",
-    status: "soon",
-    comingSoonReason: "No-show status wordt nog niet gebruikt in de agenda.",
+    templateType: "no_show",
+    settingsFlag: "send_no_show_followup",
+    logKind: "no_show",
+    status: "live",
     icon: UserX,
   },
   {
@@ -122,6 +124,7 @@ type WaSettings = {
   send_booking_confirmation: boolean;
   send_reminders: boolean;
   send_review_request: boolean;
+  send_no_show_followup: boolean;
 } | null;
 
 export default function AutomatiseringenPage() {
@@ -142,7 +145,7 @@ export default function AutomatiseringenPage() {
     const [waRes, tplRes, logsRes, runsRes] = await Promise.all([
       supabase
         .from("whatsapp_settings")
-        .select("enabled, send_booking_confirmation, send_reminders, send_review_request")
+        .select("enabled, send_booking_confirmation, send_reminders, send_review_request, send_no_show_followup")
         .eq("user_id", user.id)
         .maybeSingle(),
       supabase

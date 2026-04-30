@@ -1,4 +1,4 @@
-export type WhatsAppTemplateType = "booking_confirmation" | "reminder" | "review";
+export type WhatsAppTemplateType = "booking_confirmation" | "reminder" | "review" | "no_show";
 
 export const DEFAULT_WHATSAPP_TEMPLATES: Record<WhatsAppTemplateType, string> = {
   booking_confirmation: `Beste {{customer_name}},
@@ -22,12 +22,19 @@ Tot dan!`,
 
 We horen graag je ervaring. Laat hier een korte review achter:
 {{review_link}}`,
+  no_show: `Hoi {{customer_name}},
+
+We hebben je vandaag gemist bij {{salon_name}} 💜
+Geen zorgen — we plannen graag een nieuwe afspraak in. Laat het ons weten!
+
+{{salon_name}}`,
 };
 
 export const TEMPLATE_LABELS: Record<WhatsAppTemplateType, string> = {
   booking_confirmation: "Boekingsbevestiging",
   reminder: "Herinnering",
   review: "Review verzoek",
+  no_show: "No-show follow-up",
 };
 
 export function renderTemplate(

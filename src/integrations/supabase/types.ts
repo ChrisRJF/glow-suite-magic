@@ -2404,6 +2404,7 @@ export type Database = {
           overage_enabled: boolean
           reminder_hours_before: number
           send_booking_confirmation: boolean
+          send_no_show_followup: boolean
           send_reminders: boolean
           send_review_request: boolean
           updated_at: string
@@ -2418,6 +2419,7 @@ export type Database = {
           overage_enabled?: boolean
           reminder_hours_before?: number
           send_booking_confirmation?: boolean
+          send_no_show_followup?: boolean
           send_reminders?: boolean
           send_review_request?: boolean
           updated_at?: string
@@ -2432,6 +2434,7 @@ export type Database = {
           overage_enabled?: boolean
           reminder_hours_before?: number
           send_booking_confirmation?: boolean
+          send_no_show_followup?: boolean
           send_reminders?: boolean
           send_review_request?: boolean
           updated_at?: string
