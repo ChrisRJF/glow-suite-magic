@@ -1559,6 +1559,40 @@ export default function CalendarPage() {
           if (ok) setMoveSheetOpen(false);
         }}
       />
+
+      <SmartReflowDialog
+        open={reflowOpen}
+        onOpenChange={setReflowOpen}
+        date={dateStr}
+        appointments={dayAppts.map((a: any): ReflowAppointment => {
+          const svc = services.find(s => s.id === a.service_id);
+          const cust = customers.find(c => c.id === a.customer_id);
+          const emps = getDisplayEmployees(a);
+          const colId = getColumnIdForAppointment(a);
+          const dbEmp = colId !== 'unassigned'
+            ? activeDbEmployees.find((e: any) => e.id === colId)
+            : null;
+          const start = getAppointmentTime(a) || '09:00';
+          const dur = svc?.duration_minutes || 30;
+          return {
+            id: a.id,
+            start,
+            end: minutesToTime(timeToMinutes(start) + dur),
+            date: getAppointmentDate(a),
+            durationMin: dur,
+            employeeId: dbEmp ? dbEmp.id : null,
+            employeeName: emps[0]?.name || null,
+            customerName: cust?.name || 'Klant',
+            serviceName: svc?.name || 'Behandeling',
+            servicePrice: svc?.price || 0,
+            raw: a,
+          };
+        })}
+        allAppointments={appointments}
+        apptEmployees={apptEmployees || []}
+        services={services}
+        applyMove={applyMove}
+      />
     </AppLayout>
   );
 }
