@@ -78,7 +78,7 @@ export default function WhatsAppPage() {
         setActiveMap((prev) => {
           const next = { ...prev };
           for (const r of data as any[]) {
-            if (["booking_confirmation", "reminder", "review"].includes(r.template_type)) {
+            if (["booking_confirmation", "reminder", "review", "no_show"].includes(r.template_type)) {
               next[r.template_type as WhatsAppTemplateType] = !!r.is_active;
             }
           }
