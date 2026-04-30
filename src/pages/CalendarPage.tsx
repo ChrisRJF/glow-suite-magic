@@ -680,14 +680,14 @@ export default function CalendarPage() {
     }
 
     const dt = `${target.date}T${start}:00`;
-    const { error } = await update(apt.id, {
+    const result = await update(apt.id, {
       appointment_date: dt,
       start_time: start,
       end_time: end,
       ...(nextNotes !== apt.notes ? { notes: nextNotes } : {}),
     });
-    if (error) {
-      toast.error('Kon afspraak niet verplaatsen');
+    if (!result) {
+      // useCrud already showed a toast on failure
       return false;
     }
 
