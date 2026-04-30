@@ -33,6 +33,7 @@ const navGroups: NavGroup[] = [
       { label: "Overzicht", icon: LayoutDashboard, path: "/" },
       { label: "Agenda", icon: Calendar, path: "/agenda" },
       { label: "Klanten", icon: Users, path: "/klanten" },
+      { label: "Medewerkers", icon: UserPlus, path: "/medewerkers" },
       { label: "Omzet", icon: TrendingUp, path: "/omzet" },
     ],
   },
@@ -62,7 +63,6 @@ const navGroups: NavGroup[] = [
     title: "Beheer",
     items: [
       { label: "Behandelingen", icon: Scissors, path: "/behandelingen" },
-      { label: "Medewerkers", icon: UserPlus, path: "/medewerkers" },
       { label: "Online Boeken", icon: Globe, path: "/boeken" },
       { label: "Kassa", icon: ShoppingBag, path: "/kassa" },
       { label: "Producten", icon: Package, path: "/producten" },
