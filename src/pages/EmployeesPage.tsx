@@ -154,17 +154,17 @@ export default function EmployeesPage() {
   };
 
   return (
-    <AppLayout>
-      <div className="max-w-5xl mx-auto px-4 py-6 sm:py-8">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Medewerkers</h1>
-            <p className="text-sm text-muted-foreground mt-1">Beheer je team, foto's en werkdagen.</p>
-          </div>
-          <Button onClick={openNew} className="h-11 gap-2">
-            <Plus className="h-4 w-4" /> Nieuw
-          </Button>
-        </div>
+    <AppLayout
+      title="Medewerkers"
+      subtitle="Beheer je team, foto's en werkdagen."
+      actions={
+        <Button onClick={openNew} className="h-11 gap-2">
+          <Plus className="h-4 w-4" /> Nieuw
+        </Button>
+      }
+    >
+      <div className="max-w-5xl mx-auto">
+
 
         {loading ? (
           <div className="text-center py-12 text-muted-foreground text-sm">Laden…</div>
