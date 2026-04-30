@@ -604,7 +604,7 @@ export default function CalendarPage() {
           duration: 8000,
           action: {
             label: "Bekijk",
-            onClick: () => navigate(`/wachtlijst?${params.toString()}`),
+            onClick: () => routerNavigate(`/wachtlijst?${params.toString()}`),
           },
         });
       }
