@@ -460,6 +460,7 @@ export default function CalendarPage() {
     setPlacementOptions([]);
     setForm({ customer_id: '', service_id: '', date, time, notes: '' });
     setSubAppts([]);
+    setSelectedEmployeeIds([]);
   };
 
   const addSubAppt = () => {
