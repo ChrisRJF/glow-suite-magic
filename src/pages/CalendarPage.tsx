@@ -146,38 +146,44 @@ export default function CalendarPage() {
   const dateStr = formatLocalDate(currentDate);
   const currentDayOfWeek = currentDate.getDay() === 0 ? 7 : currentDate.getDay(); // 1=ma..7=zo
 
+  type DisplayEmp = (typeof displayEmployees)[number];
+
   // Employee availability for current date
-  const getEmployeeStatus = (emp: typeof MEDEWERKERS[0], date: Date) => {
+  const getEmployeeStatus = (emp: DisplayEmp, date: Date) => {
     const dow = date.getDay() === 0 ? 7 : date.getDay();
     if (!emp.days.includes(dow)) return 'afwezig';
     return 'beschikbaar';
   };
 
-  const getEmployeePauze = (emp: typeof MEDEWERKERS[0]) => {
+  const getEmployeePauze = (emp: DisplayEmp) => {
     if (!emp.pauze) return null;
     const [start, end] = emp.pauze.split('-');
     return { start, end };
   };
 
-  const isSlotPauze = (emp: typeof MEDEWERKERS[0], slot: string) => {
+  const isSlotPauze = (emp: DisplayEmp, slot: string) => {
     const p = getEmployeePauze(emp);
     if (!p) return false;
     return slot >= p.start && slot < p.end;
   };
 
-  // Count appointments per employee for a given date
-  const getEmployeeApptCount = (empName: string, date: string) => {
-    return appointments.filter(a =>
-      getAppointmentDate(a) === date &&
-      a.notes?.includes(`Medewerker: ${empName}`)
+  // Count appointments per employee for a given date.
+  // Counts via appointment_employees join (DB id) AND legacy notes (name).
+  const getEmployeeApptCount = (emp: DisplayEmp, date: string) => {
+    const dayAppts = appointments.filter(a => getAppointmentDate(a) === date);
+    const linkedIds = new Set(
+      (apptEmployees || [])
+        .filter((l: any) => l.employee_id === emp.id)
+        .map((l: any) => l.appointment_id)
+    );
+    return dayAppts.filter(a =>
+      linkedIds.has(a.id) || a.notes?.includes(`Medewerker: ${emp.name}`)
     ).length;
   };
 
   // Get workload label
-  const getWorkloadLabel = (empName: string, date: string) => {
-    const count = getEmployeeApptCount(empName, date);
-    const emp = MEDEWERKERS.find(m => m.name === empName);
-    if (!emp) return { label: '–', variant: 'muted' as const };
+  const getWorkloadLabel = (emp: DisplayEmp, date: string) => {
+    const count = getEmployeeApptCount(emp, date);
     const status = getEmployeeStatus(emp, new Date(date));
     if (status === 'afwezig') return { label: 'Afwezig', variant: 'destructive' as const };
     if (count >= 8) return { label: 'Vol', variant: 'destructive' as const };
@@ -187,36 +193,47 @@ export default function CalendarPage() {
   };
 
   // Free slots per employee
-  const getEmployeeFreeSlots = (empName: string, date: string) => {
-    const emp = MEDEWERKERS.find(m => m.name === empName);
-    if (!emp) return 0;
+  const getEmployeeFreeSlots = (emp: DisplayEmp, date: string) => {
     const status = getEmployeeStatus(emp, new Date(date));
     if (status === 'afwezig') return 0;
+    const linkedIds = new Set(
+      (apptEmployees || [])
+        .filter((l: any) => l.employee_id === emp.id)
+        .map((l: any) => l.appointment_id)
+    );
     const bookedTimes = new Set(
       appointments
-        .filter(a => getAppointmentDate(a) === date && a.notes?.includes(`Medewerker: ${empName}`))
+        .filter(a => getAppointmentDate(a) === date && (linkedIds.has(a.id) || a.notes?.includes(`Medewerker: ${emp.name}`)))
         .map(a => getAppointmentTime(a))
     );
     return timeSlots.filter(s => !bookedTimes.has(s) && !isSlotPauze(emp, s)).length;
   };
 
-  // Filter appointments by selected employee
+  // Filter appointments by selected employee (selectedEmployee = 'alle' | DB id | legacy name)
   const filterByEmployee = (appts: typeof appointments) => {
     if (selectedEmployee === 'alle') return appts;
-    return appts.filter(a => a.notes?.includes(`Medewerker: ${selectedEmployee}`));
+    const emp = displayEmployees.find((e: any) => e.id === selectedEmployee)
+      || displayEmployees.find((e: any) => e.name === selectedEmployee);
+    const empName = emp?.name || selectedEmployee;
+    const empId = emp?.id;
+    const linkedIds = new Set(
+      (apptEmployees || [])
+        .filter((l: any) => l.employee_id === empId)
+        .map((l: any) => l.appointment_id)
+    );
+    return appts.filter(a => linkedIds.has(a.id) || a.notes?.includes(`Medewerker: ${empName}`));
   };
 
   // Filter employees by availability
   const filteredMedewerkers = useMemo(() => {
-    if (filterAvailability === 'alle') return MEDEWERKERS;
     if (filterAvailability === 'beschikbaar') {
-      return MEDEWERKERS.filter(m => getEmployeeStatus(m, currentDate) === 'beschikbaar');
+      return displayEmployees.filter((m: any) => getEmployeeStatus(m, currentDate) === 'beschikbaar');
     }
     if (filterAvailability === 'afwezig') {
-      return MEDEWERKERS.filter(m => getEmployeeStatus(m, currentDate) === 'afwezig');
+      return displayEmployees.filter((m: any) => getEmployeeStatus(m, currentDate) === 'afwezig');
     }
-    return MEDEWERKERS;
-  }, [filterAvailability, currentDate]);
+    return displayEmployees;
+  }, [filterAvailability, currentDate, displayEmployees]);
 
   const dayAppts = useMemo(() =>
     filterByEmployee(appointments.filter(a => getAppointmentDate(a) === dateStr)),
