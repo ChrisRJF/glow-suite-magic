@@ -715,17 +715,39 @@ export default function CalendarPage() {
 
     // Match the format used when creating appointments: `${date}T${time}:00`
     const dt = `${target.date}T${start}:00`;
-    const result = await update(apt.id, {
+    const updatePayload: Record<string, any> = {
       appointment_date: dt,
       start_time: start,
       end_time: end,
       ...(nextNotes !== apt.notes ? { notes: nextNotes } : {}),
-    });
+    };
     if (import.meta.env.DEV) {
-      console.log('[agendaMove] update result', result);
+      console.log('[agendaMove] applyMove update', {
+        appointmentId: apt.id,
+        oldDate: currentDateStr,
+        oldTime: currentTime,
+        newDate: target.date,
+        newTime: start,
+        targetEmployeeId: target.employeeId,
+        payload: updatePayload,
+      });
     }
-    if (!result) {
-      // useCrud already showed a toast on failure
+    const { data: updResult, error: updErr } = await (supabase
+      .from('appointments') as any)
+      .update(updatePayload)
+      .eq('id', apt.id)
+      .select()
+      .single();
+    if (import.meta.env.DEV) {
+      console.log('[agendaMove] update result', { updResult, updErr });
+    }
+    if (updErr) {
+      const msg = (updErr.message || '').toLowerCase();
+      if (msg.includes('duplicate') || msg.includes('unique')) {
+        toast.error('Dit tijdslot is al bezet. Kies een andere tijd of medewerker.');
+      } else {
+        toast.error('Verplaatsen mislukt: ' + updErr.message);
+      }
       return false;
     }
 
@@ -1112,10 +1134,23 @@ export default function CalendarPage() {
                       {services.filter(s => s.is_active).map(s => <option key={s.id} value={s.id}>{s.name} — {formatEuro(s.price)}</option>)}
                     </select>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div><label className="text-xs text-muted-foreground">Datum *</label><input type="date" value={form.date} onChange={e => setForm({...form, date: e.target.value})} className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" /></div>
-                    <div><label className="text-xs text-muted-foreground">Tijd *</label>
-                      <select value={form.time} onChange={e => setForm({...form, time: e.target.value})} className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="flex flex-col">
+                      <label className="text-xs text-muted-foreground mb-1">Datum *</label>
+                      <input
+                        type="date"
+                        value={form.date}
+                        onChange={e => setForm({ ...form, date: e.target.value })}
+                        className="w-full h-14 px-4 rounded-2xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      />
+                    </div>
+                    <div className="flex flex-col">
+                      <label className="text-xs text-muted-foreground mb-1">Tijd *</label>
+                      <select
+                        value={form.time}
+                        onChange={e => setForm({ ...form, time: e.target.value })}
+                        className="w-full h-14 px-4 rounded-2xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      >
                         {timeSlots.map(t => <option key={t} value={t}>{t}</option>)}
                       </select>
                     </div>
