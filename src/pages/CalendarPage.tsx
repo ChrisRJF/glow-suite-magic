@@ -4,15 +4,24 @@ import { useAppointments, useCustomers, useServices, useEmployees, useAppointmen
 import { useCrud } from "@/hooks/useCrud";
 import { formatEuro } from "@/lib/data";
 import { useState, useMemo, useEffect } from "react";
-import { ChevronLeft, ChevronRight, Plus, Clock, Trash2, Sparkles, Users, AlertCircle, CheckCircle2, Zap, CalendarDays, Filter, User, UserPlus2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Clock, Trash2, Sparkles, Users, AlertCircle, CheckCircle2, Zap, CalendarDays, Filter, User, UserPlus2, Columns3, ArrowRightLeft, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoMode } from "@/hooks/useDemoMode";
 import { EmployeeAvatar, EmployeeAvatarStack } from "@/components/EmployeeAvatar";
+import {
+  DndContext, DragEndEvent, PointerSensor, TouchSensor, KeyboardSensor,
+  useSensor, useSensors, useDraggable,
+} from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { EmployeeColumnDayView } from "@/components/EmployeeColumnDayView";
+import { MoveAppointmentSheet, type MoveTarget } from "@/components/MoveAppointmentSheet";
+import { findConflict, snapToFine, timeToMinutes, minutesToTime } from "@/lib/agendaMove";
 
-type View = 'day' | 'week';
+type View = 'day' | 'columns' | 'week';
 
 const timeSlots = ['09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00'];
 
