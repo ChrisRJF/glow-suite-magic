@@ -605,19 +605,19 @@ export default function CalendarPage() {
           >
             Alle medewerkers
           </button>
-          {MEDEWERKERS.map(emp => {
+          {displayEmployees.map((emp: any) => {
             const status = getEmployeeStatus(emp, currentDate);
-            const wl = getWorkloadLabel(emp.name, dateStr);
-            const apptCount = getEmployeeApptCount(emp.name, dateStr);
-            const isSelected = selectedEmployee === emp.name;
+            const wl = getWorkloadLabel(emp, dateStr);
+            const apptCount = getEmployeeApptCount(emp, dateStr);
+            const isSelected = selectedEmployee === emp.id;
             return (
-              <button key={emp.name} onClick={() => setSelectedEmployee(emp.name)}
+              <button key={emp.id} onClick={() => setSelectedEmployee(emp.id)}
                 className={cn("px-3 py-1.5 rounded-xl text-xs font-medium border transition-all flex items-center gap-1.5",
                   isSelected ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground hover:bg-secondary",
                   status === 'afwezig' && !isSelected && "opacity-50"
                 )}
               >
-                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: emp.color }} />
+                <EmployeeAvatar employee={emp} size="xs" ring={false} />
                 {emp.name}
                 {status === 'afwezig' ? (
                   <span className="text-[10px] text-destructive">Afwezig</span>
