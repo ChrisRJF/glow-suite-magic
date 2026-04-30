@@ -1263,7 +1263,8 @@ export default function CalendarPage() {
                               backgroundImage: `linear-gradient(135deg, ${svc?.color || '#7B61FF'}10, ${svc?.color || '#7B61FF'}06)`,
                               borderLeft: `3px solid ${svc?.color || '#7B61FF'}`,
                               minHeight: `${minH}px`,
-                              touchAction: 'none',
+                              // touchAction left as default so the page can scroll;
+                              // the drag handle below sets touchAction: 'none' for long-press.
                             }}
                           >
                             {/* Top row: avatar + name + payment */}
