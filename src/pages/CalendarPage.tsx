@@ -595,17 +595,15 @@ export default function CalendarPage() {
         const dateStr = getAppointmentDate(apt);
         const time = (apt.start_time || "10:00").toString().slice(0, 5);
         const slotIso = `${dateStr}T${time}:00`;
-        toast("Wachtlijst-suggesties beschikbaar", {
+        const params = new URLSearchParams({ slot: slotIso });
+        if (apt.service_id) params.set("service_id", apt.service_id);
+        toast.info("Wachtlijst-suggesties beschikbaar", {
           description: "Bekijk klanten die op dit slot wachten.",
+          duration: 8000,
           action: {
             label: "Bekijk",
-            onClick: () => {
-              const params = new URLSearchParams({ slot: slotIso });
-              if (apt.service_id) params.set("service_id", apt.service_id);
-              navigate(`/wachtlijst?${params.toString()}`);
-            },
+            onClick: () => navigate(`/wachtlijst?${params.toString()}`),
           },
-          duration: 8000,
         });
       }
     }
