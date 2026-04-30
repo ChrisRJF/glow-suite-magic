@@ -778,7 +778,7 @@ export default function CalendarPage() {
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
       id: `day-apt-${apt.id}`,
       data: { appointmentId: apt.id, type: 'appointment' },
-      disabled: isMobile, // mobile uses move sheet only
+      // Mobile drag is enabled but only triggers from the dedicated grip handle (long-press).
     });
     return (
       <div
