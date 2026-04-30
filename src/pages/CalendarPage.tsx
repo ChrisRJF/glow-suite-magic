@@ -827,24 +827,35 @@ export default function CalendarPage() {
                       <div className="absolute inset-x-0 top-1 h-[40px] rounded-xl bg-accent/50 border border-border/30 flex items-center justify-center">
                         <span className="text-[11px] text-muted-foreground">☕ Pauze — {selectedEmployee}</span>
                       </div>
-                    ) : apt ? (
+                    ) : apt ? (() => {
+                      const displayEmps = getDisplayEmployees(apt);
+                      return (
                       <div className="absolute inset-x-0 top-1 rounded-xl p-3 transition-all duration-200 hover:scale-[1.01] cursor-pointer"
                         style={{ backgroundColor: `${svc?.color || '#7B61FF'}15`, borderLeft: `3px solid ${svc?.color || '#7B61FF'}`, minHeight: `${((svc?.duration_minutes || 30) / 30) * 48 - 8}px` }}>
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <p className="text-sm font-medium">{cust?.name || 'Klant'}</p>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <p className="text-xs text-muted-foreground">{svc?.name || 'Behandeling'}</p>
-                              <span className="text-xs text-muted-foreground flex items-center gap-0.5"><Clock className="w-3 h-3" />{svc?.duration_minutes || 30} min</span>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                            {displayEmps.length > 0 && (
+                              <div className="pt-0.5 shrink-0">
+                                <EmployeeAvatarStack employees={displayEmps} size="md" max={3} />
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium truncate">{cust?.name || 'Klant'}</p>
+                              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                <p className="text-xs text-muted-foreground truncate">{svc?.name || 'Behandeling'}</p>
+                                <span className="text-xs text-muted-foreground flex items-center gap-0.5"><Clock className="w-3 h-3" />{svc?.duration_minutes || 30} min</span>
+                              </div>
+                              {displayEmps.length > 0 && (
+                                <span className="text-[11px] text-foreground/70 mt-0.5 block truncate">
+                                  {displayEmps.map((e: any) => e.name).join(', ')}
+                                </span>
+                              )}
+                              {isGroupBooking && (
+                                <span className="text-[10px] text-primary flex items-center gap-0.5 mt-0.5"><Users className="w-3 h-3" />Groepsboeking</span>
+                              )}
                             </div>
-                            {employeeName && (
-                              <span className="text-[10px] text-foreground/70 mt-0.5 block">👤 {employeeName}</span>
-                            )}
-                            {isGroupBooking && (
-                              <span className="text-[10px] text-primary flex items-center gap-0.5 mt-0.5"><Users className="w-3 h-3" />Groepsboeking</span>
-                            )}
                           </div>
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1 shrink-0">
                             {(apt as any).payment_status && (apt as any).payment_status !== 'none' && (
                               <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
                                 (apt as any).payment_status === 'betaald' ? 'bg-primary/15 text-primary' :
@@ -865,6 +876,8 @@ export default function CalendarPage() {
                           </div>
                         </div>
                       </div>
+                      );
+                    })()
                     ) : (
                       <div onClick={() => openAddModal(dateStr, slot)}
                         className="absolute inset-x-0 top-1 h-[40px] rounded-xl border border-dashed border-border/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer hover:bg-primary/5 hover:border-primary/30">
