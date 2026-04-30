@@ -1134,10 +1134,23 @@ export default function CalendarPage() {
                       {services.filter(s => s.is_active).map(s => <option key={s.id} value={s.id}>{s.name} — {formatEuro(s.price)}</option>)}
                     </select>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div><label className="text-xs text-muted-foreground">Datum *</label><input type="date" value={form.date} onChange={e => setForm({...form, date: e.target.value})} className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" /></div>
-                    <div><label className="text-xs text-muted-foreground">Tijd *</label>
-                      <select value={form.time} onChange={e => setForm({...form, time: e.target.value})} className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="flex flex-col">
+                      <label className="text-xs text-muted-foreground mb-1">Datum *</label>
+                      <input
+                        type="date"
+                        value={form.date}
+                        onChange={e => setForm({ ...form, date: e.target.value })}
+                        className="w-full h-14 px-4 rounded-2xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      />
+                    </div>
+                    <div className="flex flex-col">
+                      <label className="text-xs text-muted-foreground mb-1">Tijd *</label>
+                      <select
+                        value={form.time}
+                        onChange={e => setForm({ ...form, time: e.target.value })}
+                        className="w-full h-14 px-4 rounded-2xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      >
                         {timeSlots.map(t => <option key={t} value={t}>{t}</option>)}
                       </select>
                     </div>
