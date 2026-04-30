@@ -13,7 +13,7 @@ import { useDemoMode } from "@/hooks/useDemoMode";
 import { EmployeeAvatar, EmployeeAvatarStack } from "@/components/EmployeeAvatar";
 import {
   DndContext, DragEndEvent, PointerSensor, TouchSensor, KeyboardSensor,
-  useSensor, useSensors, useDraggable,
+  useSensor, useSensors, useDraggable, useDroppable as useDroppableImported,
 } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { useIsMobile } from "@/hooks/use-mobile";
