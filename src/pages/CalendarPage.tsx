@@ -90,6 +90,18 @@ export default function CalendarPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [filterAvailability, setFilterAvailability] = useState<string>('alle'); // alle, beschikbaar, afwezig
 
+  // Phase 3: drag/drop + move sheet state
+  const isMobile = useIsMobile();
+  const [moveSheetOpen, setMoveSheetOpen] = useState(false);
+  const [moveTargetAppt, setMoveTargetAppt] = useState<any | null>(null);
+
+  // dnd-kit sensors: long-press on touch (250ms), small distance on pointer (desktop)
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
+    useSensor(KeyboardSensor),
+  );
+
   // Active DB employees (preferred over hardcoded list when present)
   const activeDbEmployees = useMemo(
     () => (dbEmployees || []).filter((e: any) => e.is_active !== false),
