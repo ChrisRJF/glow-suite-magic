@@ -92,6 +92,14 @@ export function useLeads() {
   return useSupabaseQuery("leads");
 }
 
+export function useEmployees() {
+  return useSupabaseQuery("employees", { orderBy: "sort_order", ascending: true });
+}
+
+export function useAppointmentEmployees() {
+  return useSupabaseQuery("appointment_employees", { orderBy: "created_at", ascending: true });
+}
+
 export function useMollieConnections() {
   return useSupabaseQuery("mollie_connections");
 }
