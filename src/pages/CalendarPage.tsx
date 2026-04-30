@@ -654,16 +654,16 @@ export default function CalendarPage() {
         {/* Compact workload overview */}
         {selectedEmployee === 'alle' && (
           <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {filteredMedewerkers.map(emp => {
+            {filteredMedewerkers.map((emp: any) => {
               const status = getEmployeeStatus(emp, currentDate);
-              const wl = getWorkloadLabel(emp.name, dateStr);
-              const freeSlots = getEmployeeFreeSlots(emp.name, dateStr);
-              const apptCount = getEmployeeApptCount(emp.name, dateStr);
+              const wl = getWorkloadLabel(emp, dateStr);
+              const freeSlots = getEmployeeFreeSlots(emp, dateStr);
+              const apptCount = getEmployeeApptCount(emp, dateStr);
               return (
-                <button key={emp.name} onClick={() => setSelectedEmployee(emp.name)}
+                <button key={emp.id} onClick={() => setSelectedEmployee(emp.id)}
                   className="p-2.5 rounded-xl bg-secondary/30 border border-border hover:bg-secondary/50 transition-all text-left">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: emp.color }} />
+                    <EmployeeAvatar employee={emp} size="sm" ring={false} />
                     <span className="text-xs font-medium truncate">{emp.name}</span>
                     <span className={cn("text-[10px] px-1.5 py-0.5 rounded ml-auto", workloadColors[wl.variant])}>{wl.label}</span>
                   </div>
