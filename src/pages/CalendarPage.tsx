@@ -28,7 +28,7 @@ import { EmployeeColumnDayView } from "@/components/EmployeeColumnDayView";
 import { MoveAppointmentSheet, type MoveTarget } from "@/components/MoveAppointmentSheet";
 import { SmartReflowDialog, type ReflowAppointment } from "@/components/SmartReflowDialog";
 import { findConflict, snapToFine, timeToMinutes, minutesToTime } from "@/lib/agendaMove";
-import { useNavigate } from "react-router-dom";
+
 
 type View = 'day' | 'columns' | 'week';
 
