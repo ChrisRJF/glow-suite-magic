@@ -647,6 +647,8 @@ export default function CalendarPage() {
 
   // Apply a move target to an appointment. Validates conflict, snaps to 15-min,
   // then updates appointment + appointment_employees link.
+  // IMPORTANT: must await DB writes AND refetch before resolving so the UI
+  // re-renders the appointment at its new position (otherwise it visually snaps back).
   const applyMove = async (apt: any, target: MoveTarget) => {
     const svc = services.find(s => s.id === apt.service_id);
     const duration = svc?.duration_minutes || 30;
@@ -660,6 +662,29 @@ export default function CalendarPage() {
     const targetEmpName = targetEmp?.name || null;
     // Only treat as DB employee when matching activeDbEmployees
     const isDbEmployee = !!(target.employeeId && activeDbEmployees.find((e: any) => e.id === target.employeeId));
+
+    if (import.meta.env.DEV) {
+      console.log('[agendaMove] applyMove', {
+        appointmentId: apt.id,
+        targetDate: target.date,
+        targetTime: start,
+        targetEmployeeId: target.employeeId,
+        isDbEmployee,
+      });
+    }
+
+    // No-op move? (same date, same time, same employee)
+    const currentDateStr = getAppointmentDate(apt);
+    const currentTime = getAppointmentTime(apt);
+    const currentColId = getColumnIdForAppointment(apt);
+    const sameTarget =
+      currentDateStr === target.date &&
+      currentTime === start &&
+      ((target.employeeId === null && currentColId === 'unassigned') ||
+        currentColId === target.employeeId);
+    if (sameTarget) {
+      return true;
+    }
 
     const conflict = findConflict({
       movingId: apt.id,
@@ -687,6 +712,7 @@ export default function CalendarPage() {
       }
     }
 
+    // Match the format used when creating appointments: `${date}T${time}:00`
     const dt = `${target.date}T${start}:00`;
     const result = await update(apt.id, {
       appointment_date: dt,
@@ -694,6 +720,9 @@ export default function CalendarPage() {
       end_time: end,
       ...(nextNotes !== apt.notes ? { notes: nextNotes } : {}),
     });
+    if (import.meta.env.DEV) {
+      console.log('[agendaMove] update result', result);
+    }
     if (!result) {
       // useCrud already showed a toast on failure
       return false;
@@ -703,34 +732,41 @@ export default function CalendarPage() {
     if (isDbEmployee && user) {
       try {
         // Replace primary link
-        await (supabase.from('appointment_employees') as any)
+        const { error: delErr } = await (supabase.from('appointment_employees') as any)
           .delete()
           .eq('appointment_id', apt.id);
-        await (supabase.from('appointment_employees') as any).insert({
+        if (delErr) console.error('appointment_employees delete error', delErr);
+        const { error: insErr } = await (supabase.from('appointment_employees') as any).insert({
           appointment_id: apt.id,
           employee_id: target.employeeId,
           user_id: user.id,
           is_primary: true,
           is_demo: (apt as any).is_demo === true,
         });
-        refetchApptEmps();
+        if (insErr) console.error('appointment_employees insert error', insErr);
       } catch (e) {
         console.error('reassign employee link failed', e);
       }
-    } else if (target.employeeId === null) {
-      // unassign: remove links
-      try {
-        await (supabase.from('appointment_employees') as any)
-          .delete()
-          .eq('appointment_id', apt.id);
-        refetchApptEmps();
-      } catch (e) {
-        console.error('unassign failed', e);
+    } else if (target.employeeId === null && isDbEmployee === false) {
+      // Only unassign DB-employee link when explicitly choosing 'none' AND we
+      // had a previous DB employee. We avoid wiping links for legacy/demo moves.
+      const hadDbLink = (apptEmployees || []).some((l: any) => l.appointment_id === apt.id);
+      if (hadDbLink && targetEmpName === null) {
+        try {
+          await (supabase.from('appointment_employees') as any)
+            .delete()
+            .eq('appointment_id', apt.id);
+        } catch (e) {
+          console.error('unassign failed', e);
+        }
       }
     }
 
+    // Await both refetches so the next render uses the fresh data and the
+    // appointment renders at its new slot (no visual snap-back).
+    await Promise.all([refetch(), refetchApptEmps()]);
+
     toast.success('Afspraak verplaatst');
-    refetch();
     return true;
   };
 
