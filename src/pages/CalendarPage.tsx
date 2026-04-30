@@ -580,9 +580,10 @@ export default function CalendarPage() {
   };
 
   const handleStatusChange = async (id: string, status: string) => {
-    await update(id, { status });
+    const result = await update(id, { status });
+    if (!result) return;
+    await refetch();
     toast.success(`Status gewijzigd naar ${status}`);
-    refetch();
   };
 
   const openAddModal = (date: string, time: string) => {
