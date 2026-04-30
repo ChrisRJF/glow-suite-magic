@@ -1269,18 +1269,11 @@ export default function CalendarPage() {
                           const durationMin = svc?.duration_minutes || 30;
                           const computedHeight = (durationMin / 30) * 48 - 8;
                           const minH = isMobile ? Math.max(computedHeight, 104) : computedHeight;
-                      const displayEmps = getDisplayEmployees(apt);
-                      return (
-                      <DayApptDraggable apt={apt}>
-                        {({ attributes, listeners }) => {
-                          const durationMin = svc?.duration_minutes || 30;
-                          const computedHeight = (durationMin / 30) * 48 - 8;
-                          const minH = isMobile ? Math.max(computedHeight, 104) : computedHeight;
                           const paymentStatus = (apt as any).payment_status;
                           const showPayment = paymentStatus && paymentStatus !== 'none';
                           return (
                           <div
-                            className="rounded-2xl p-3 transition-all duration-200 bg-card/80 backdrop-blur-sm shadow-[var(--shadow-sm)] flex flex-col gap-2"
+                            className="absolute left-0 right-0 top-1 z-10 rounded-2xl p-3 transition-all duration-200 bg-card/95 backdrop-blur-sm shadow-[var(--shadow-sm)] flex flex-col gap-2"
                             style={{
                               backgroundImage: `linear-gradient(135deg, ${svc?.color || '#7B61FF'}10, ${svc?.color || '#7B61FF'}06)`,
                               borderLeft: `3px solid ${svc?.color || '#7B61FF'}`,
