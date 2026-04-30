@@ -85,13 +85,43 @@ export default function CalendarPage() {
     [dbEmployees]
   );
 
-  // Resolve employee record by name (DB first, then hardcoded fallback)
+  // Unified display list — DB employees if any, otherwise hardcoded fallback.
+  // Normalized shape used by chips, cards, filters and slot logic.
+  const displayEmployees = useMemo(() => {
+    if (activeDbEmployees.length > 0) {
+      return activeDbEmployees.map((e: any) => {
+        const breakStart = e.break_start ? String(e.break_start).slice(0, 5) : null;
+        const breakEnd = e.break_end ? String(e.break_end).slice(0, 5) : null;
+        return {
+          id: e.id as string,
+          name: e.name as string,
+          role: e.role || '',
+          color: e.color || '#7B61FF',
+          photo_url: e.photo_url || null,
+          days: Array.isArray(e.working_days) && e.working_days.length ? e.working_days.map((n: any) => Number(n)) : [1,2,3,4,5],
+          pauze: breakStart && breakEnd ? `${breakStart}-${breakEnd}` : null,
+          services: Array.isArray(e.services) ? e.services : [],
+        };
+      });
+    }
+    // Fallback to hardcoded list
+    return MEDEWERKERS.map(m => ({
+      id: m.name,
+      name: m.name,
+      role: m.role,
+      color: m.color,
+      photo_url: null as string | null,
+      days: m.days,
+      pauze: m.pauze,
+      services: m.services,
+    }));
+  }, [activeDbEmployees]);
+
+  // Resolve employee record by name (used for legacy notes "Medewerker: X")
   const resolveEmployee = (name: string | undefined | null) => {
     if (!name) return null;
-    const db = activeDbEmployees.find((e: any) => e.name?.toLowerCase() === name.toLowerCase());
-    if (db) return db;
-    const hard = MEDEWERKERS.find((m) => m.name.toLowerCase() === name.toLowerCase());
-    if (hard) return { id: hard.name, name: hard.name, role: hard.role, color: hard.color, photo_url: null };
+    const match = displayEmployees.find((e: any) => e.name?.toLowerCase() === name.toLowerCase());
+    if (match) return match;
     return { id: name, name, role: '', color: '#7B61FF', photo_url: null };
   };
 
@@ -116,38 +146,44 @@ export default function CalendarPage() {
   const dateStr = formatLocalDate(currentDate);
   const currentDayOfWeek = currentDate.getDay() === 0 ? 7 : currentDate.getDay(); // 1=ma..7=zo
 
+  type DisplayEmp = (typeof displayEmployees)[number];
+
   // Employee availability for current date
-  const getEmployeeStatus = (emp: typeof MEDEWERKERS[0], date: Date) => {
+  const getEmployeeStatus = (emp: DisplayEmp, date: Date) => {
     const dow = date.getDay() === 0 ? 7 : date.getDay();
     if (!emp.days.includes(dow)) return 'afwezig';
     return 'beschikbaar';
   };
 
-  const getEmployeePauze = (emp: typeof MEDEWERKERS[0]) => {
+  const getEmployeePauze = (emp: DisplayEmp) => {
     if (!emp.pauze) return null;
     const [start, end] = emp.pauze.split('-');
     return { start, end };
   };
 
-  const isSlotPauze = (emp: typeof MEDEWERKERS[0], slot: string) => {
+  const isSlotPauze = (emp: DisplayEmp, slot: string) => {
     const p = getEmployeePauze(emp);
     if (!p) return false;
     return slot >= p.start && slot < p.end;
   };
 
-  // Count appointments per employee for a given date
-  const getEmployeeApptCount = (empName: string, date: string) => {
-    return appointments.filter(a =>
-      getAppointmentDate(a) === date &&
-      a.notes?.includes(`Medewerker: ${empName}`)
+  // Count appointments per employee for a given date.
+  // Counts via appointment_employees join (DB id) AND legacy notes (name).
+  const getEmployeeApptCount = (emp: DisplayEmp, date: string) => {
+    const dayAppts = appointments.filter(a => getAppointmentDate(a) === date);
+    const linkedIds = new Set(
+      (apptEmployees || [])
+        .filter((l: any) => l.employee_id === emp.id)
+        .map((l: any) => l.appointment_id)
+    );
+    return dayAppts.filter(a =>
+      linkedIds.has(a.id) || a.notes?.includes(`Medewerker: ${emp.name}`)
     ).length;
   };
 
   // Get workload label
-  const getWorkloadLabel = (empName: string, date: string) => {
-    const count = getEmployeeApptCount(empName, date);
-    const emp = MEDEWERKERS.find(m => m.name === empName);
-    if (!emp) return { label: '–', variant: 'muted' as const };
+  const getWorkloadLabel = (emp: DisplayEmp, date: string) => {
+    const count = getEmployeeApptCount(emp, date);
     const status = getEmployeeStatus(emp, new Date(date));
     if (status === 'afwezig') return { label: 'Afwezig', variant: 'destructive' as const };
     if (count >= 8) return { label: 'Vol', variant: 'destructive' as const };
@@ -157,36 +193,47 @@ export default function CalendarPage() {
   };
 
   // Free slots per employee
-  const getEmployeeFreeSlots = (empName: string, date: string) => {
-    const emp = MEDEWERKERS.find(m => m.name === empName);
-    if (!emp) return 0;
+  const getEmployeeFreeSlots = (emp: DisplayEmp, date: string) => {
     const status = getEmployeeStatus(emp, new Date(date));
     if (status === 'afwezig') return 0;
+    const linkedIds = new Set(
+      (apptEmployees || [])
+        .filter((l: any) => l.employee_id === emp.id)
+        .map((l: any) => l.appointment_id)
+    );
     const bookedTimes = new Set(
       appointments
-        .filter(a => getAppointmentDate(a) === date && a.notes?.includes(`Medewerker: ${empName}`))
+        .filter(a => getAppointmentDate(a) === date && (linkedIds.has(a.id) || a.notes?.includes(`Medewerker: ${emp.name}`)))
         .map(a => getAppointmentTime(a))
     );
     return timeSlots.filter(s => !bookedTimes.has(s) && !isSlotPauze(emp, s)).length;
   };
 
-  // Filter appointments by selected employee
+  // Filter appointments by selected employee (selectedEmployee = 'alle' | DB id | legacy name)
   const filterByEmployee = (appts: typeof appointments) => {
     if (selectedEmployee === 'alle') return appts;
-    return appts.filter(a => a.notes?.includes(`Medewerker: ${selectedEmployee}`));
+    const emp = displayEmployees.find((e: any) => e.id === selectedEmployee)
+      || displayEmployees.find((e: any) => e.name === selectedEmployee);
+    const empName = emp?.name || selectedEmployee;
+    const empId = emp?.id;
+    const linkedIds = new Set(
+      (apptEmployees || [])
+        .filter((l: any) => l.employee_id === empId)
+        .map((l: any) => l.appointment_id)
+    );
+    return appts.filter(a => linkedIds.has(a.id) || a.notes?.includes(`Medewerker: ${empName}`));
   };
 
   // Filter employees by availability
   const filteredMedewerkers = useMemo(() => {
-    if (filterAvailability === 'alle') return MEDEWERKERS;
     if (filterAvailability === 'beschikbaar') {
-      return MEDEWERKERS.filter(m => getEmployeeStatus(m, currentDate) === 'beschikbaar');
+      return displayEmployees.filter((m: any) => getEmployeeStatus(m, currentDate) === 'beschikbaar');
     }
     if (filterAvailability === 'afwezig') {
-      return MEDEWERKERS.filter(m => getEmployeeStatus(m, currentDate) === 'afwezig');
+      return displayEmployees.filter((m: any) => getEmployeeStatus(m, currentDate) === 'afwezig');
     }
-    return MEDEWERKERS;
-  }, [filterAvailability, currentDate]);
+    return displayEmployees;
+  }, [filterAvailability, currentDate, displayEmployees]);
 
   const dayAppts = useMemo(() =>
     filterByEmployee(appointments.filter(a => getAppointmentDate(a) === dateStr)),
@@ -558,19 +605,19 @@ export default function CalendarPage() {
           >
             Alle medewerkers
           </button>
-          {MEDEWERKERS.map(emp => {
+          {displayEmployees.map((emp: any) => {
             const status = getEmployeeStatus(emp, currentDate);
-            const wl = getWorkloadLabel(emp.name, dateStr);
-            const apptCount = getEmployeeApptCount(emp.name, dateStr);
-            const isSelected = selectedEmployee === emp.name;
+            const wl = getWorkloadLabel(emp, dateStr);
+            const apptCount = getEmployeeApptCount(emp, dateStr);
+            const isSelected = selectedEmployee === emp.id;
             return (
-              <button key={emp.name} onClick={() => setSelectedEmployee(emp.name)}
+              <button key={emp.id} onClick={() => setSelectedEmployee(emp.id)}
                 className={cn("px-3 py-1.5 rounded-xl text-xs font-medium border transition-all flex items-center gap-1.5",
                   isSelected ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground hover:bg-secondary",
                   status === 'afwezig' && !isSelected && "opacity-50"
                 )}
               >
-                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: emp.color }} />
+                <EmployeeAvatar employee={emp} size="xs" ring={false} />
                 {emp.name}
                 {status === 'afwezig' ? (
                   <span className="text-[10px] text-destructive">Afwezig</span>
@@ -607,16 +654,16 @@ export default function CalendarPage() {
         {/* Compact workload overview */}
         {selectedEmployee === 'alle' && (
           <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {filteredMedewerkers.map(emp => {
+            {filteredMedewerkers.map((emp: any) => {
               const status = getEmployeeStatus(emp, currentDate);
-              const wl = getWorkloadLabel(emp.name, dateStr);
-              const freeSlots = getEmployeeFreeSlots(emp.name, dateStr);
-              const apptCount = getEmployeeApptCount(emp.name, dateStr);
+              const wl = getWorkloadLabel(emp, dateStr);
+              const freeSlots = getEmployeeFreeSlots(emp, dateStr);
+              const apptCount = getEmployeeApptCount(emp, dateStr);
               return (
-                <button key={emp.name} onClick={() => setSelectedEmployee(emp.name)}
+                <button key={emp.id} onClick={() => setSelectedEmployee(emp.id)}
                   className="p-2.5 rounded-xl bg-secondary/30 border border-border hover:bg-secondary/50 transition-all text-left">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: emp.color }} />
+                    <EmployeeAvatar employee={emp} size="sm" ring={false} />
                     <span className="text-xs font-medium truncate">{emp.name}</span>
                     <span className={cn("text-[10px] px-1.5 py-0.5 rounded ml-auto", workloadColors[wl.variant])}>{wl.label}</span>
                   </div>
@@ -639,7 +686,7 @@ export default function CalendarPage() {
           <Sparkles className="w-4 h-4 text-primary" />
           <span className="text-xs text-muted-foreground">
             <strong className="text-foreground">{emptySlotCount} vrije slots</strong> vandaag
-            {selectedEmployee !== 'alle' && ` voor ${selectedEmployee}`}
+            {selectedEmployee !== 'alle' && ` voor ${displayEmployees.find((e: any) => e.id === selectedEmployee || e.name === selectedEmployee)?.name || selectedEmployee}`}
             {' '}— klik op een leeg tijdslot om direct te boeken
           </span>
         </div>
@@ -885,7 +932,7 @@ export default function CalendarPage() {
           </div>
           <span className="text-sm text-muted-foreground">
             {view === 'day' ? `${dayAppts.length} afspraken` : `${filterByEmployee(appointments.filter(a => weekDays.some(d => getAppointmentDate(a) === formatLocalDate(d)))).length} afspraken`}
-            {selectedEmployee !== 'alle' && ` · ${selectedEmployee}`}
+            {selectedEmployee !== 'alle' && ` · ${displayEmployees.find((e: any) => e.id === selectedEmployee || e.name === selectedEmployee)?.name || selectedEmployee}`}
           </span>
         </div>
 
@@ -901,7 +948,7 @@ export default function CalendarPage() {
               const employeeName = apt?.notes?.match(/Medewerker: (\w+)/)?.[1];
 
               // Check if this slot is a pause for the selected employee
-              const selectedEmp = MEDEWERKERS.find(m => m.name === selectedEmployee);
+              const selectedEmp = displayEmployees.find((m: any) => m.id === selectedEmployee || m.name === selectedEmployee);
               const isPauzeSlot = selectedEmp && isSlotPauze(selectedEmp, slot);
 
               return (
@@ -910,7 +957,7 @@ export default function CalendarPage() {
                   <div className="flex-1 border-t border-border/50 relative">
                     {isPauzeSlot && !apt ? (
                       <div className="absolute inset-x-0 top-1 h-[40px] rounded-xl bg-accent/50 border border-border/30 flex items-center justify-center">
-                        <span className="text-[11px] text-muted-foreground">☕ Pauze — {selectedEmployee}</span>
+                        <span className="text-[11px] text-muted-foreground">☕ Pauze — {selectedEmp?.name || selectedEmployee}</span>
                       </div>
                     ) : apt ? (() => {
                       const displayEmps = getDisplayEmployees(apt);
