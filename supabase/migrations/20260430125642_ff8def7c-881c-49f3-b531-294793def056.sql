@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS public.idx_appointments_unique_unassigned_start;
