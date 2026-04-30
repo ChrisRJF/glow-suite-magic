@@ -101,6 +101,7 @@ export default function CalendarPage() {
   const isMobile = useIsMobile();
   const [moveSheetOpen, setMoveSheetOpen] = useState(false);
   const [moveTargetAppt, setMoveTargetAppt] = useState<any | null>(null);
+  const [reflowOpen, setReflowOpen] = useState(false);
 
   // dnd-kit sensors: long-press on touch (300ms / 8px), small distance on pointer (desktop)
   const sensors = useSensors(
