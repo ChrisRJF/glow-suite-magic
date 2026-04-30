@@ -404,6 +404,34 @@ export default function CalendarPage() {
     const mainEmployee = placementOptions.length > 0 ? placementOptions[selectedOption].placements[0]?.employee : '';
     const dt = `${form.date}T${form.time}:00`;
     const endTime = addMinutes(form.time, svc?.duration_minutes || 30);
+
+    // Multi-employee availability check (DB employees)
+    if (selectedEmployeeIds.length > 0) {
+      const conflictIds = new Set<string>();
+      for (const empId of selectedEmployeeIds) {
+        const conflict = (apptEmployees || []).some((link: any) => {
+          if (link.employee_id !== empId) return false;
+          const otherAppt = appointments.find((a: any) => a.id === link.appointment_id);
+          if (!otherAppt) return false;
+          if (getAppointmentDate(otherAppt) !== form.date) return false;
+          return getAppointmentTime(otherAppt) === form.time;
+        });
+        if (conflict) conflictIds.add(empId);
+      }
+      if (conflictIds.size > 0) {
+        toast.error("Een van de medewerkers is niet beschikbaar op dit tijdstip.");
+        return;
+      }
+    }
+
+    // Build employee names list for legacy notes (so existing logic keeps working)
+    const selectedEmpNames = selectedEmployeeIds
+      .map(id => activeDbEmployees.find((e: any) => e.id === id)?.name)
+      .filter(Boolean) as string[];
+    const employeeLabel = selectedEmpNames.length > 0
+      ? selectedEmpNames.join(' & ')
+      : (mainEmployee || 'Niet toegewezen');
+
     const result = await insert({
       customer_id: form.customer_id,
       service_id: form.service_id,
@@ -412,10 +440,24 @@ export default function CalendarPage() {
       end_time: endTime,
       price: svc?.price || 0,
       notes: subAppts.length > 0
-        ? `Groepsboeking: ${subAppts.length + 1} personen | Medewerker: ${mainEmployee}`
-        : `Medewerker: ${mainEmployee || 'Niet toegewezen'}`,
+        ? `Groepsboeking: ${subAppts.length + 1} personen | Medewerker: ${employeeLabel}`
+        : `Medewerker: ${employeeLabel}`,
       status: 'gepland',
     });
+
+    // Persist multi-employee links
+    if (result && selectedEmployeeIds.length > 0 && user) {
+      const rows = selectedEmployeeIds.map((eid, i) => ({
+        appointment_id: result.id,
+        employee_id: eid,
+        user_id: user.id,
+        is_primary: i === 0,
+        is_demo: (result as any).is_demo === true,
+      }));
+      const { error: aeErr } = await (supabase.from("appointment_employees") as any).insert(rows);
+      if (aeErr) console.error("appointment_employees insert error", aeErr);
+    }
+
     if (result && subAppts.length > 0 && user) {
       for (const sub of subAppts) {
         if (sub.person_name && sub.service_id) {
@@ -439,8 +481,10 @@ export default function CalendarPage() {
       setShowAdd(false);
       setShowConfirmation(false);
       setSubAppts([]);
+      setSelectedEmployeeIds([]);
       setPlacementOptions([]);
       refetch();
+      refetchApptEmps();
     }
   };
 
