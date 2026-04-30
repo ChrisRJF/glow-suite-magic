@@ -85,13 +85,43 @@ export default function CalendarPage() {
     [dbEmployees]
   );
 
-  // Resolve employee record by name (DB first, then hardcoded fallback)
+  // Unified display list — DB employees if any, otherwise hardcoded fallback.
+  // Normalized shape used by chips, cards, filters and slot logic.
+  const displayEmployees = useMemo(() => {
+    if (activeDbEmployees.length > 0) {
+      return activeDbEmployees.map((e: any) => {
+        const breakStart = e.break_start ? String(e.break_start).slice(0, 5) : null;
+        const breakEnd = e.break_end ? String(e.break_end).slice(0, 5) : null;
+        return {
+          id: e.id as string,
+          name: e.name as string,
+          role: e.role || '',
+          color: e.color || '#7B61FF',
+          photo_url: e.photo_url || null,
+          days: Array.isArray(e.working_days) && e.working_days.length ? e.working_days.map((n: any) => Number(n)) : [1,2,3,4,5],
+          pauze: breakStart && breakEnd ? `${breakStart}-${breakEnd}` : null,
+          services: Array.isArray(e.services) ? e.services : [],
+        };
+      });
+    }
+    // Fallback to hardcoded list
+    return MEDEWERKERS.map(m => ({
+      id: m.name,
+      name: m.name,
+      role: m.role,
+      color: m.color,
+      photo_url: null as string | null,
+      days: m.days,
+      pauze: m.pauze,
+      services: m.services,
+    }));
+  }, [activeDbEmployees]);
+
+  // Resolve employee record by name (used for legacy notes "Medewerker: X")
   const resolveEmployee = (name: string | undefined | null) => {
     if (!name) return null;
-    const db = activeDbEmployees.find((e: any) => e.name?.toLowerCase() === name.toLowerCase());
-    if (db) return db;
-    const hard = MEDEWERKERS.find((m) => m.name.toLowerCase() === name.toLowerCase());
-    if (hard) return { id: hard.name, name: hard.name, role: hard.role, color: hard.color, photo_url: null };
+    const match = displayEmployees.find((e: any) => e.name?.toLowerCase() === name.toLowerCase());
+    if (match) return match;
     return { id: name, name, role: '', color: '#7B61FF', photo_url: null };
   };
 
