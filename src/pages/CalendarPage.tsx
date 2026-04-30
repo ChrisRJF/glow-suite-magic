@@ -1224,6 +1224,21 @@ export default function CalendarPage() {
               );
             })}
           </div>
+        ) : view === 'columns' ? (
+          <EmployeeColumnDayView
+            employees={displayEmployees.filter((e: any) => getEmployeeStatus(e, currentDate) !== 'afwezig')}
+            appointments={filterByEmployee(appointments)}
+            services={services}
+            customers={customers}
+            apptEmployees={apptEmployees || []}
+            date={dateStr}
+            getDisplayEmployees={getDisplayEmployees}
+            getColumnIdForAppointment={getColumnIdForAppointment}
+            isPauseSlot={isPauseSlotForEmpId}
+            onRequestMove={openMoveSheet}
+            onSlotClick={(empId, slot) => openAddModal(dateStr, slot)}
+            draggable={!isMobile}
+          />
         ) : (
           <div className="overflow-x-auto">
             <div className="grid grid-cols-6 gap-3 min-w-[700px]">
