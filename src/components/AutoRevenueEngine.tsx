@@ -496,10 +496,10 @@ export function AutoRevenueEngine() {
           ) : (
             <>
               <Button variant="gradient" size="sm" onClick={runAutopilot} disabled={running}>
-                <Zap className="w-3.5 h-3.5" /> {running ? "Bezig..." : "Nu uitvoeren"}
+                <Zap className="w-3.5 h-3.5" /> {running ? "Bezig..." : actionLabel(demoMode, "run")}
               </Button>
               <Button variant="outline" size="sm" onClick={resetDemo}>
-                <RotateCcw className="w-3.5 h-3.5" /> Demo opnieuw laden
+                <RotateCcw className="w-3.5 h-3.5" /> {demoMode ? "Demo opnieuw laden" : "Reset"}
               </Button>
             </>
           )}
