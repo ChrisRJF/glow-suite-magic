@@ -166,6 +166,12 @@ export function WhatsAppConnectionCard() {
     if (!userId || !testPhone) { toast.error("Vul een telefoonnummer in"); return; }
     setSending(true);
     setLastTestResult(null);
+    if (demoMode) {
+      simulateDemoAction("WhatsApp testbericht", { to: testPhone });
+      setLastTestResult({ ok: true, message: "Demo — niets echt verstuurd." });
+      setSending(false);
+      return;
+    }
     try {
       const { data, error } = await supabase.functions.invoke("whatsapp-send", {
         body: {
