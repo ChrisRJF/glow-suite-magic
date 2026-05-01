@@ -14,6 +14,7 @@ import { useCrud } from "@/hooks/useCrud";
 import { useDemoMode } from "@/hooks/useDemoMode";
 import { actionLogKey, autopilotLastRunKey, autopilotStateKey, clearLegacyDemoLocalState, demoStateKey } from "@/lib/demoIsolation";
 import { formatEuro } from "@/lib/data";
+import { actionLabel, simulateDemoAction } from "@/lib/demoMode";
 import { toast } from "sonner";
 
 interface ActionLogEntry {
@@ -299,6 +300,20 @@ export function AutoRevenueEngine() {
     if (!user || running) return;
     setRunning(true);
 
+    // Demo mode: never write campaigns/discounts/rebooks against real-mode tables.
+    // Show a simulated log entry only.
+    if (demoMode) {
+      simulateDemoAction("Omzet Autopilot", { emptySlots, inactive: inactiveCustomers.length });
+      addLog({
+        type: "campaign",
+        description: `Demo: ${emptySlots} lege plekken — simulatie voltooid`,
+        result: "Gesimuleerd",
+        revenue: 0,
+      });
+      setRunning(false);
+      return;
+    }
+
     try {
       if (emptySlots >= 3) {
         const targetCustomers = withoutNext.slice(0, Math.min(autopilot.maxMessagesPerDay, withoutNext.length));
@@ -339,11 +354,13 @@ export function AutoRevenueEngine() {
         toast("Geen actie nodig — agenda ziet er goed uit 👍");
       }
     } catch (e) {
-      toast.error("Autopilot fout: " + (e instanceof Error ? e.message : "onbekend"));
+      // Hide raw DB errors from users
+      console.error("Autopilot error", e);
+      toast.error("Autopilot kon niet alles uitvoeren — probeer het opnieuw.");
     } finally {
       setRunning(false);
     }
-  }, [user, running, emptySlots, withoutNext, inactiveCustomers, autopilot, insertCampaign, insertDiscount, insertRebook, refetchCampaigns]);
+  }, [user, running, demoMode, emptySlots, withoutNext, inactiveCustomers, autopilot, insertCampaign, insertDiscount, insertRebook, refetchCampaigns]);
 
   // Auto-run when enabled
   useEffect(() => {
@@ -479,10 +496,10 @@ export function AutoRevenueEngine() {
           ) : (
             <>
               <Button variant="gradient" size="sm" onClick={runAutopilot} disabled={running}>
-                <Zap className="w-3.5 h-3.5" /> {running ? "Bezig..." : "Nu uitvoeren"}
+                <Zap className="w-3.5 h-3.5" /> {running ? "Bezig..." : actionLabel(demoMode, "run")}
               </Button>
               <Button variant="outline" size="sm" onClick={resetDemo}>
-                <RotateCcw className="w-3.5 h-3.5" /> Demo opnieuw laden
+                <RotateCcw className="w-3.5 h-3.5" /> {demoMode ? "Demo opnieuw laden" : "Reset"}
               </Button>
             </>
           )}

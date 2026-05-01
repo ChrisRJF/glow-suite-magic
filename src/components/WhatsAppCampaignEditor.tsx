@@ -20,6 +20,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useDemoMode } from "@/hooks/useDemoMode";
+import { simulateDemoAction } from "@/lib/demoMode";
 
 export type AudienceType = "all" | "upcoming" | "inactive_4w" | "manual";
 
@@ -49,6 +51,7 @@ interface Props {
 type Recipient = { id: string; name: string; phone: string };
 
 export function WhatsAppCampaignEditor({ open, onOpenChange, initial, userId, onSaved }: Props) {
+  const { demoMode } = useDemoMode();
   const [title, setTitle] = useState(initial.title);
   const [message, setMessage] = useState(initial.message);
   const [audience, setAudience] = useState<AudienceType>(initial.audience || "all");
@@ -170,6 +173,11 @@ export function WhatsAppCampaignEditor({ open, onOpenChange, initial, userId, on
     if (!testPhone) { toast.error("Vul een telefoonnummer in voor de test"); return; }
     if (!message.trim()) { toast.error("Bericht is leeg"); return; }
     setSendingTest(true);
+    if (demoMode) {
+      simulateDemoAction("WhatsApp campagne test", { to: testPhone });
+      setSendingTest(false);
+      return;
+    }
     try {
       const { data, error } = await supabase.functions.invoke("whatsapp-send", {
         body: {
@@ -199,6 +207,13 @@ export function WhatsAppCampaignEditor({ open, onOpenChange, initial, userId, on
   const sendNow = async () => {
     if (recipients.length === 0) { toast.error("Geen ontvangers met telefoonnummer"); return; }
     setSending(true);
+    if (demoMode) {
+      simulateDemoAction("WhatsApp campagne", { recipients: recipients.length });
+      setSending(false);
+      setConfirmOpen(false);
+      onOpenChange(false);
+      return;
+    }
     try {
       // Save campaign first
       let campaignId = initial.id;

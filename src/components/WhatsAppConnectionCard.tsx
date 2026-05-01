@@ -4,6 +4,8 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, AlertCircle, Send, Loader2, Play, Info } from "lucide-react";
 import { toast } from "sonner";
+import { useDemoMode } from "@/hooks/useDemoMode";
+import { simulateDemoAction } from "@/lib/demoMode";
 
 type WaSettings = {
   id?: string;
@@ -60,6 +62,7 @@ function friendlyError(error: string | null | undefined): string {
 }
 
 export function WhatsAppConnectionCard() {
+  const { demoMode } = useDemoMode();
   const [userId, setUserId] = useState<string | null>(null);
   const [settings, setSettings] = useState<WaSettings | null>(null);
   const [logs, setLogs] = useState<LogRow[]>([]);
@@ -163,6 +166,12 @@ export function WhatsAppConnectionCard() {
     if (!userId || !testPhone) { toast.error("Vul een telefoonnummer in"); return; }
     setSending(true);
     setLastTestResult(null);
+    if (demoMode) {
+      simulateDemoAction("WhatsApp testbericht", { to: testPhone });
+      setLastTestResult({ ok: true, message: "Demo — niets echt verstuurd." });
+      setSending(false);
+      return;
+    }
     try {
       const { data, error } = await supabase.functions.invoke("whatsapp-send", {
         body: {

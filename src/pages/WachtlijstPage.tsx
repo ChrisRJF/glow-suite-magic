@@ -11,6 +11,8 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { DEFAULT_WHATSAPP_TEMPLATES, renderTemplate } from "@/lib/whatsappTemplates";
+import { useDemoMode } from "@/hooks/useDemoMode";
+import { simulateDemoAction } from "@/lib/demoMode";
 
 const MEDEWERKERS = ["Bas", "Roos", "Lisa", "Emma"];
 const FLEX_OPTIONS = ["flexibel", "alleen ochtend", "alleen middag", "specifieke dag"];
@@ -23,6 +25,7 @@ type OfferTarget = {
 
 export default function WachtlijstPage() {
   const { user } = useAuth();
+  const { demoMode } = useDemoMode();
   const { data: waitlist, refetch } = useWaitlist();
   const { data: customers } = useCustomers();
   const { data: services } = useServices();
@@ -161,6 +164,19 @@ export default function WachtlijstPage() {
       return;
     }
     setOfferSending(true);
+    if (demoMode) {
+      simulateDemoAction("Wachtlijst aanbieding (demo)", { customer: customer.id, slot: slotKey });
+      await update(offer.entry.id, {
+        status: "aangeboden",
+        last_offer_sent_at: new Date().toISOString(),
+        last_offered_slot: slotKey,
+      });
+      setOffer(null);
+      refetch();
+      clearSuggestion();
+      setOfferSending(false);
+      return;
+    }
     try {
       const { data, error } = await supabase.functions.invoke("whatsapp-send", {
         body: {

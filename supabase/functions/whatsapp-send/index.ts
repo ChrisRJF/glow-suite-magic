@@ -66,6 +66,36 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Demo mode guard — never call Twilio for demo accounts. Simulate + log only.
+    const { data: salonSettings } = await admin
+      .from("settings")
+      .select("is_demo, demo_mode")
+      .eq("user_id", user_id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const isDemoAccount = Boolean((salonSettings as any)?.is_demo || (salonSettings as any)?.demo_mode);
+
+    if (isDemoAccount) {
+      await admin.from("whatsapp_logs").insert({
+        user_id,
+        customer_id,
+        appointment_id,
+        to_number: `whatsapp:${to}`,
+        message,
+        status: "demo",
+        twilio_sid: null,
+        error: null,
+        kind,
+        meta: { ...meta, demo: true, simulated: true },
+      });
+      console.log("whatsapp-send simulated (demo)", { user_id, kind, to });
+      return new Response(
+        JSON.stringify({ success: true, demo: true, simulated: true, status: "demo" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     // Load salon settings (central Twilio is used; salon only toggles enabled + from sender preference)
     const { data: settings } = await admin
       .from("whatsapp_settings")
