@@ -13,6 +13,8 @@ import {
   renderTemplate,
   SAMPLE_VARS,
 } from "@/lib/whatsappTemplates";
+import { useDemoMode } from "@/hooks/useDemoMode";
+import { simulateDemoAction } from "@/lib/demoMode";
 
 type TemplateRow = {
   id?: string;
