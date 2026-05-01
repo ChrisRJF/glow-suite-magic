@@ -809,6 +809,126 @@ export type Database = {
         }
         Relationships: []
       }
+      employee_payroll_adjustments: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          employee_id: string
+          id: string
+          is_demo: boolean
+          note: string
+          period_month: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount_cents?: number
+          created_at?: string
+          employee_id: string
+          id?: string
+          is_demo?: boolean
+          note?: string
+          period_month: string
+          type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          employee_id?: string
+          id?: string
+          is_demo?: boolean
+          note?: string
+          period_month?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      employee_payroll_settings: {
+        Row: {
+          commission_percentage_bps: number
+          created_at: string
+          employee_id: string
+          fixed_commission_cents: number
+          hourly_rate_cents: number
+          id: string
+          is_demo: boolean
+          tips_enabled: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          commission_percentage_bps?: number
+          created_at?: string
+          employee_id: string
+          fixed_commission_cents?: number
+          hourly_rate_cents?: number
+          id?: string
+          is_demo?: boolean
+          tips_enabled?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          commission_percentage_bps?: number
+          created_at?: string
+          employee_id?: string
+          fixed_commission_cents?: number
+          hourly_rate_cents?: number
+          id?: string
+          is_demo?: boolean
+          tips_enabled?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      employee_time_entries: {
+        Row: {
+          break_minutes: number
+          clock_in: string | null
+          clock_out: string | null
+          created_at: string
+          date: string
+          employee_id: string
+          id: string
+          is_demo: boolean
+          notes: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          break_minutes?: number
+          clock_in?: string | null
+          clock_out?: string | null
+          created_at?: string
+          date: string
+          employee_id: string
+          id?: string
+          is_demo?: boolean
+          notes?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          break_minutes?: number
+          clock_in?: string | null
+          clock_out?: string | null
+          created_at?: string
+          date?: string
+          employee_id?: string
+          id?: string
+          is_demo?: boolean
+          notes?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       employees: {
         Row: {
           break_end: string | null
