@@ -97,7 +97,7 @@ export function AutoRevenueEngine() {
   const { insert: insertCampaign } = useCrud("campaigns");
   const { insert: insertDiscount } = useCrud("discounts");
   const { insert: insertRebook } = useCrud("rebook_actions");
-  const { insert: insertAppointment } = useCrud("appointments");
+  // removeAppointment kept only for defensive cleanup of legacy demo rows.
   const { remove: removeAppointment } = useCrud("appointments");
 
   const [autopilot, setAutopilot] = useState(() => getAutopilotState(demoMode));
