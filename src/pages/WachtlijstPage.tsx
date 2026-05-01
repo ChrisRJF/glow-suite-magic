@@ -164,6 +164,19 @@ export default function WachtlijstPage() {
       return;
     }
     setOfferSending(true);
+    if (demoMode) {
+      simulateDemoAction("Wachtlijst aanbieding (demo)", { customer: customer.id, slot: slotKey });
+      await update(offer.entry.id, {
+        status: "aangeboden",
+        last_offer_sent_at: new Date().toISOString(),
+        last_offered_slot: slotKey,
+      });
+      setOffer(null);
+      refetch();
+      clearSuggestion();
+      setOfferSending(false);
+      return;
+    }
     try {
       const { data, error } = await supabase.functions.invoke("whatsapp-send", {
         body: {
