@@ -14,6 +14,7 @@ import { useCrud } from "@/hooks/useCrud";
 import { useDemoMode } from "@/hooks/useDemoMode";
 import { actionLogKey, autopilotLastRunKey, autopilotStateKey, clearLegacyDemoLocalState, demoStateKey } from "@/lib/demoIsolation";
 import { formatEuro } from "@/lib/data";
+import { actionLabel, simulateDemoAction } from "@/lib/demoMode";
 import { toast } from "sonner";
 
 interface ActionLogEntry {
