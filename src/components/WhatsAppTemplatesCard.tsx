@@ -40,6 +40,7 @@ export type WhatsAppTemplatesCardProps = {
 };
 
 export function WhatsAppTemplatesCard({ activeMap, onActiveChange }: WhatsAppTemplatesCardProps = {}) {
+  const { demoMode } = useDemoMode();
   const [userId, setUserId] = useState<string | null>(null);
   const [templates, setTemplates] = useState<Record<WhatsAppTemplateType, TemplateRow>>(() => {
     const init = {} as Record<WhatsAppTemplateType, TemplateRow>;
