@@ -4,6 +4,8 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, AlertCircle, Send, Loader2, Play, Info } from "lucide-react";
 import { toast } from "sonner";
+import { useDemoMode } from "@/hooks/useDemoMode";
+import { simulateDemoAction } from "@/lib/demoMode";
 
 type WaSettings = {
   id?: string;
