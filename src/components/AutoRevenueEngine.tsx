@@ -170,7 +170,7 @@ export function AutoRevenueEngine() {
     }, ...prev].slice(0, 50));
   };
 
-  // === DEMO FLOW ===
+  // === DEMO FLOW (pure simulation — no DB writes) ===
   const runDemoSequence = useCallback(async () => {
     if (!user || demoRunning) return;
     if (!demoMode) {
@@ -183,70 +183,42 @@ export function AutoRevenueEngine() {
     setDemoProgress(0);
     setShowLog(true);
 
-    // Step through animated phases
+    // Animated phases — log entries are local UI state only.
     for (let i = 0; i < DEMO_STEPS.length; i++) {
       setCurrentStep(i);
       setDemoProgress(Math.round(((i + 1) / (DEMO_STEPS.length + 1)) * 100));
-
       addLog({
         type: "demo",
         description: DEMO_STEPS[i].label,
         result: "✓",
         revenue: 0,
       });
-
       await new Promise(r => setTimeout(r, DEMO_STEPS[i].duration));
     }
 
-    // Now create real appointments
-    const today = new Date();
+    // Simulate filled slots — NO inserts into appointments/campaigns/whatsapp_logs.
     const bookingsToAdd = DEMO_BOOKINGS.slice(0, Math.min(2, emptySlots || 2));
-    const createdIds: string[] = [];
     let addedRev = 0;
 
-    // Find matching services or use first available
-    for (let i = 0; i < bookingsToAdd.length; i++) {
-      const booking = bookingsToAdd[i];
-      const matchService = services.find(s => s.name.toLowerCase().includes(booking.service.split(" ")[0].toLowerCase()));
-      // Find matching customer or use any customer
-      const matchCustomer = customers.find(c => c.name.toLowerCase().includes(booking.name.split(" ")[0].toLowerCase()))
-        || customers[i];
-
-      const hour = 14 + i; // 14:00, 15:00
-      const appointmentDate = new Date(today);
-      appointmentDate.setHours(hour, 0, 0, 0);
-
-      const result = await insertAppointment({
-        appointment_date: appointmentDate.toISOString(),
-        customer_id: matchCustomer?.id || null,
-        service_id: matchService?.id || services[0]?.id || null,
-        status: "gepland",
-        price: matchService?.price || booking.price,
-        notes: `Auto-gevuld door AI Revenue Engine`,
+    for (const booking of bookingsToAdd) {
+      const rev = Number(booking.price);
+      addedRev += rev;
+      addLog({
+        type: "demo",
+        description: `${booking.name} → ${booking.service} (gesimuleerd)`,
+        result: `+${formatEuro(rev)}`,
+        revenue: rev,
       });
-
-      if (result) {
-        createdIds.push(result.id);
-        const rev = Number(matchService?.price || booking.price);
-        addedRev += rev;
-
-        addLog({
-          type: "demo",
-          description: `${matchCustomer?.name || booking.name} → ${matchService?.name || booking.service} ingepland`,
-          result: `+${formatEuro(rev)}`,
-          revenue: rev,
-        });
-      }
+      // Tiny delay so the log animates nicely.
+      await new Promise(r => setTimeout(r, 200));
     }
 
-    // Also create a campaign record
-    await insertCampaign({
-      title: `AI Auto-fill: ${bookingsToAdd.length} afspraken gevuld`,
-      type: "whatsapp",
-      status: "verzonden",
-      audience: `${bookingsToAdd.length} klanten`,
-      sent_count: bookingsToAdd.length,
-      message: "Hi! We hebben vandaag nog plekken beschikbaar. Boek snel! 💇‍♀️",
+    // Simulate the WhatsApp blast — log only.
+    addLog({
+      type: "demo",
+      description: `WhatsApp simulatie — ${bookingsToAdd.length} berichten "verstuurd"`,
+      result: "Gesimuleerd",
+      revenue: 0,
     });
 
     setDemoProgress(100);
@@ -255,22 +227,19 @@ export function AutoRevenueEngine() {
       hasRun: true,
       addedAppointments: bookingsToAdd.length,
       addedRevenue: addedRev,
-      addedAppointmentIds: createdIds,
+      addedAppointmentIds: [], // never created any real rows
     };
     setDemoState(newDemoState);
     saveDemoState(newDemoState);
-
-    await refetchAppointments();
-    await refetchCampaigns();
 
     setCurrentStep(DEMO_STEPS.length);
     setDemoComplete(true);
     setDemoRunning(false);
 
-    toast.success(`${formatEuro(addedRev)} extra omzet gegenereerd! 🎉`, {
-      description: `${bookingsToAdd.length} afspraken automatisch ingepland`,
+    toast.success("Demo uitgevoerd — er is niets echt verstuurd of ingepland.", {
+      description: `${bookingsToAdd.length} afspraken & ${formatEuro(addedRev)} gesimuleerd`,
     });
-  }, [user, demoRunning, demoMode, emptySlots, customers, services, insertAppointment, insertCampaign, refetchAppointments, refetchCampaigns]);
+  }, [user, demoRunning, demoMode, emptySlots]);
 
   // === RESET DEMO ===
   const resetDemo = useCallback(async () => {
@@ -278,9 +247,9 @@ export function AutoRevenueEngine() {
       toast.error("Deze actie is alleen beschikbaar in demo modus.");
       return;
     }
-    // Remove created appointments
+    // Defensive cleanup — older demo runs may still have row IDs persisted.
     for (const id of demoState.addedAppointmentIds) {
-      await removeAppointment(id);
+      try { await removeAppointment(id); } catch (e) { console.warn("demo cleanup skipped", e); }
     }
 
     const resetState: DemoState = { hasRun: false, addedAppointments: 0, addedRevenue: 0, addedAppointmentIds: [] };
@@ -291,8 +260,10 @@ export function AutoRevenueEngine() {
     setCurrentStep(-1);
     setDemoProgress(0);
 
-    await refetchAppointments();
-    toast.success("Demo is gereset 🔄");
+    if (demoState.addedAppointmentIds.length > 0) {
+      await refetchAppointments();
+    }
+    toast.success("Demo opnieuw geladen 🔄");
   }, [demoMode, demoState.addedAppointmentIds, removeAppointment, refetchAppointments]);
 
   // === AUTOPILOT ===
