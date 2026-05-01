@@ -115,11 +115,17 @@ export function WhatsAppTemplatesCard({ activeMap, onActiveChange }: WhatsAppTem
     setSendingTest(type);
     try {
       const message = renderTemplate(templates[type].content, SAMPLE_VARS);
+      if (demoMode) {
+        simulateDemoAction("WhatsApp testbericht", { to: testPhone, type });
+        return;
+      }
       const { data, error } = await supabase.functions.invoke("whatsapp-send", {
         body: { user_id: userId, to: testPhone, message, kind: "test", test: true },
       });
       if (error) throw error;
-      if ((data as any)?.success) toast.success("Testbericht verstuurd");
+      if ((data as any)?.demo) {
+        simulateDemoAction("WhatsApp testbericht", { to: testPhone, type });
+      } else if ((data as any)?.success) toast.success("Testbericht verstuurd");
       else toast.error("Verzenden mislukt: " + ((data as any)?.error || "onbekend"));
     } catch (e: any) {
       toast.error(e.message || "Fout bij verzenden");
