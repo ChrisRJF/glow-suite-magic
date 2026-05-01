@@ -173,6 +173,11 @@ export function WhatsAppCampaignEditor({ open, onOpenChange, initial, userId, on
     if (!testPhone) { toast.error("Vul een telefoonnummer in voor de test"); return; }
     if (!message.trim()) { toast.error("Bericht is leeg"); return; }
     setSendingTest(true);
+    if (demoMode) {
+      simulateDemoAction("WhatsApp campagne test", { to: testPhone });
+      setSendingTest(false);
+      return;
+    }
     try {
       const { data, error } = await supabase.functions.invoke("whatsapp-send", {
         body: {
