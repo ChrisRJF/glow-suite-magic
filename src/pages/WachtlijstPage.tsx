@@ -11,6 +11,8 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { DEFAULT_WHATSAPP_TEMPLATES, renderTemplate } from "@/lib/whatsappTemplates";
+import { useDemoMode } from "@/hooks/useDemoMode";
+import { simulateDemoAction } from "@/lib/demoMode";
 
 const MEDEWERKERS = ["Bas", "Roos", "Lisa", "Emma"];
 const FLEX_OPTIONS = ["flexibel", "alleen ochtend", "alleen middag", "specifieke dag"];
