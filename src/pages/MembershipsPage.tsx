@@ -190,7 +190,15 @@ export default function MembershipsPage() {
     setBusyId(created.id);
     const { data, error } = await supabase.functions.invoke("create-payment", { body: { amount: Number(plan.price || 0), payment_type: "membership", membership_id: created.id, customer_id: customer?.id, method: memberForm.method, redirect_url: window.location.href } });
     setBusyId(null);
-    if (error || !data?.checkoutUrl) { toast.error((error as any)?.message || data?.error || "Checkout kon niet worden gestart"); return; }
+    if (error) { toast.error((error as any)?.message || "Checkout kon niet worden gestart"); return; }
+    if (data?.demo) {
+      toast.success("Demo uitgevoerd — er is niets echt verstuurd of ingepland.", {
+        description: data?.message || "Demo betaling gesimuleerd",
+      });
+      refetchMemberships();
+      return;
+    }
+    if (!data?.checkoutUrl) { toast.error(data?.error || "Checkout kon niet worden gestart"); return; }
     window.location.href = data.checkoutUrl;
   };
 
