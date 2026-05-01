@@ -50,6 +50,7 @@ export const ROUTE_PERMISSIONS: Record<string, AppRole[]> = {
   "/wachtlijst": ["eigenaar", "manager", "admin", "medewerker", "receptie"],
   "/behandelingen": ["eigenaar", "manager", "admin"],
   "/medewerkers": ["eigenaar", "manager", "admin"],
+  "/payroll": ["eigenaar", "manager"],
   "/boeken": ["eigenaar", "manager", "admin"],
   "/producten": ["eigenaar", "manager", "admin"],
   "/kassa": ["eigenaar", "manager", "admin", "medewerker", "receptie"],

@@ -36,6 +36,7 @@ import SocialStudioPage from "./pages/SocialStudioPage";
 import LeadsPage from "./pages/LeadsPage";
 import EigenaarPage from "./pages/EigenaarPage";
 import EmployeesPage from "./pages/EmployeesPage";
+import PayrollPage from "./pages/PayrollPage";
 import QAStatusPage from "./pages/QAStatusPage";
 import AdminEmailTemplatesPage from "./pages/AdminEmailTemplatesPage";
 import AdminDemoRequestsPage from "./pages/AdminDemoRequestsPage";
@@ -137,6 +138,7 @@ const App = () => (
               <Route path="/leads" element={<RoleProtectedRoute><LeadsPage /></RoleProtectedRoute>} />
               <Route path="/eigenaar" element={<RoleProtectedRoute allow={["eigenaar","manager"]}><EigenaarPage /></RoleProtectedRoute>} />
               <Route path="/medewerkers" element={<RoleProtectedRoute><EmployeesPage /></RoleProtectedRoute>} />
+              <Route path="/payroll" element={<RoleProtectedRoute allow={["eigenaar","manager"]}><PayrollPage /></RoleProtectedRoute>} />
               <Route path="/support" element={<RoleProtectedRoute><SupportPage /></RoleProtectedRoute>} />
               <Route path="/mijn-abonnement" element={<RoleProtectedRoute><MijnAbonnementPage /></RoleProtectedRoute>} />
               <Route path="/launch-status" element={<RoleProtectedRoute allow={["eigenaar"]}><LaunchStatusPage /></RoleProtectedRoute>} />
