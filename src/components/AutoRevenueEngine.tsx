@@ -97,7 +97,7 @@ export function AutoRevenueEngine() {
   const { insert: insertCampaign } = useCrud("campaigns");
   const { insert: insertDiscount } = useCrud("discounts");
   const { insert: insertRebook } = useCrud("rebook_actions");
-  const { insert: insertAppointment } = useCrud("appointments");
+  // removeAppointment kept only for defensive cleanup of legacy demo rows.
   const { remove: removeAppointment } = useCrud("appointments");
 
   const [autopilot, setAutopilot] = useState(() => getAutopilotState(demoMode));
@@ -170,7 +170,7 @@ export function AutoRevenueEngine() {
     }, ...prev].slice(0, 50));
   };
 
-  // === DEMO FLOW ===
+  // === DEMO FLOW (pure simulation — no DB writes) ===
   const runDemoSequence = useCallback(async () => {
     if (!user || demoRunning) return;
     if (!demoMode) {
@@ -183,70 +183,42 @@ export function AutoRevenueEngine() {
     setDemoProgress(0);
     setShowLog(true);
 
-    // Step through animated phases
+    // Animated phases — log entries are local UI state only.
     for (let i = 0; i < DEMO_STEPS.length; i++) {
       setCurrentStep(i);
       setDemoProgress(Math.round(((i + 1) / (DEMO_STEPS.length + 1)) * 100));
-
       addLog({
         type: "demo",
         description: DEMO_STEPS[i].label,
         result: "✓",
         revenue: 0,
       });
-
       await new Promise(r => setTimeout(r, DEMO_STEPS[i].duration));
     }
 
-    // Now create real appointments
-    const today = new Date();
+    // Simulate filled slots — NO inserts into appointments/campaigns/whatsapp_logs.
     const bookingsToAdd = DEMO_BOOKINGS.slice(0, Math.min(2, emptySlots || 2));
-    const createdIds: string[] = [];
     let addedRev = 0;
 
-    // Find matching services or use first available
-    for (let i = 0; i < bookingsToAdd.length; i++) {
-      const booking = bookingsToAdd[i];
-      const matchService = services.find(s => s.name.toLowerCase().includes(booking.service.split(" ")[0].toLowerCase()));
-      // Find matching customer or use any customer
-      const matchCustomer = customers.find(c => c.name.toLowerCase().includes(booking.name.split(" ")[0].toLowerCase()))
-        || customers[i];
-
-      const hour = 14 + i; // 14:00, 15:00
-      const appointmentDate = new Date(today);
-      appointmentDate.setHours(hour, 0, 0, 0);
-
-      const result = await insertAppointment({
-        appointment_date: appointmentDate.toISOString(),
-        customer_id: matchCustomer?.id || null,
-        service_id: matchService?.id || services[0]?.id || null,
-        status: "gepland",
-        price: matchService?.price || booking.price,
-        notes: `Auto-gevuld door AI Revenue Engine`,
+    for (const booking of bookingsToAdd) {
+      const rev = Number(booking.price);
+      addedRev += rev;
+      addLog({
+        type: "demo",
+        description: `${booking.name} → ${booking.service} (gesimuleerd)`,
+        result: `+${formatEuro(rev)}`,
+        revenue: rev,
       });
-
-      if (result) {
-        createdIds.push(result.id);
-        const rev = Number(matchService?.price || booking.price);
-        addedRev += rev;
-
-        addLog({
-          type: "demo",
-          description: `${matchCustomer?.name || booking.name} → ${matchService?.name || booking.service} ingepland`,
-          result: `+${formatEuro(rev)}`,
-          revenue: rev,
-        });
-      }
+      // Tiny delay so the log animates nicely.
+      await new Promise(r => setTimeout(r, 200));
     }
 
-    // Also create a campaign record
-    await insertCampaign({
-      title: `AI Auto-fill: ${bookingsToAdd.length} afspraken gevuld`,
-      type: "whatsapp",
-      status: "verzonden",
-      audience: `${bookingsToAdd.length} klanten`,
-      sent_count: bookingsToAdd.length,
-      message: "Hi! We hebben vandaag nog plekken beschikbaar. Boek snel! 💇‍♀️",
+    // Simulate the WhatsApp blast — log only.
+    addLog({
+      type: "demo",
+      description: `WhatsApp simulatie — ${bookingsToAdd.length} berichten "verstuurd"`,
+      result: "Gesimuleerd",
+      revenue: 0,
     });
 
     setDemoProgress(100);
@@ -255,22 +227,19 @@ export function AutoRevenueEngine() {
       hasRun: true,
       addedAppointments: bookingsToAdd.length,
       addedRevenue: addedRev,
-      addedAppointmentIds: createdIds,
+      addedAppointmentIds: [], // never created any real rows
     };
     setDemoState(newDemoState);
     saveDemoState(newDemoState);
-
-    await refetchAppointments();
-    await refetchCampaigns();
 
     setCurrentStep(DEMO_STEPS.length);
     setDemoComplete(true);
     setDemoRunning(false);
 
-    toast.success(`${formatEuro(addedRev)} extra omzet gegenereerd! 🎉`, {
-      description: `${bookingsToAdd.length} afspraken automatisch ingepland`,
+    toast.success("Demo uitgevoerd — er is niets echt verstuurd of ingepland.", {
+      description: `${bookingsToAdd.length} afspraken & ${formatEuro(addedRev)} gesimuleerd`,
     });
-  }, [user, demoRunning, demoMode, emptySlots, customers, services, insertAppointment, insertCampaign, refetchAppointments, refetchCampaigns]);
+  }, [user, demoRunning, demoMode, emptySlots]);
 
   // === RESET DEMO ===
   const resetDemo = useCallback(async () => {
@@ -278,9 +247,9 @@ export function AutoRevenueEngine() {
       toast.error("Deze actie is alleen beschikbaar in demo modus.");
       return;
     }
-    // Remove created appointments
+    // Defensive cleanup — older demo runs may still have row IDs persisted.
     for (const id of demoState.addedAppointmentIds) {
-      await removeAppointment(id);
+      try { await removeAppointment(id); } catch (e) { console.warn("demo cleanup skipped", e); }
     }
 
     const resetState: DemoState = { hasRun: false, addedAppointments: 0, addedRevenue: 0, addedAppointmentIds: [] };
@@ -291,8 +260,10 @@ export function AutoRevenueEngine() {
     setCurrentStep(-1);
     setDemoProgress(0);
 
-    await refetchAppointments();
-    toast.success("Demo is gereset 🔄");
+    if (demoState.addedAppointmentIds.length > 0) {
+      await refetchAppointments();
+    }
+    toast.success("Demo opnieuw geladen 🔄");
   }, [demoMode, demoState.addedAppointmentIds, removeAppointment, refetchAppointments]);
 
   // === AUTOPILOT ===
@@ -314,6 +285,9 @@ export function AutoRevenueEngine() {
       return;
     }
 
+    let actionsRun = 0;
+    const errors: string[] = [];
+
     try {
       if (emptySlots >= 3) {
         const targetCustomers = withoutNext.slice(0, Math.min(autopilot.maxMessagesPerDay, withoutNext.length));
@@ -327,43 +301,74 @@ export function AutoRevenueEngine() {
             message: `Hi! We hebben vandaag nog plekken beschikbaar. Boek snel met ${autopilot.maxDiscount}% korting! 💇‍♀️`,
           });
           if (result) {
+            actionsRun++;
             addLog({ type: "campaign", description: `WhatsApp naar ${targetCustomers.length} klanten voor ${emptySlots} lege plekken`, result: "Verzonden", revenue: emptySlots * 45 });
             if (autopilot.maxDiscount > 0) {
-              await insertDiscount({ title: `Auto korting: ${autopilot.maxDiscount}% lege plekken`, type: "percentage", value: autopilot.maxDiscount, is_active: true });
-              addLog({ type: "discount", description: `${autopilot.maxDiscount}% korting geactiveerd`, result: "Actief", revenue: 0 });
+              const disc = await insertDiscount({ title: `Auto korting: ${autopilot.maxDiscount}% lege plekken`, type: "percentage", value: autopilot.maxDiscount, is_active: true });
+              if (disc) {
+                actionsRun++;
+                addLog({ type: "discount", description: `${autopilot.maxDiscount}% korting geactiveerd`, result: "Actief", revenue: 0 });
+              } else {
+                errors.push("korting kon niet worden aangemaakt");
+              }
             }
+          } else {
+            errors.push("lege-plekken campagne kon niet worden aangemaakt");
           }
         }
       }
 
       if (inactiveCustomers.length >= 3) {
-        const targets = inactiveCustomers.slice(0, Math.min(5, autopilot.maxMessagesPerDay));
-        const result = await insertCampaign({ title: `Auto: Comeback actie - ${new Date().toLocaleDateString("nl-NL")}`, type: "whatsapp", status: "verzonden", audience: `${targets.length} inactieve klanten`, sent_count: targets.length, message: `Hey! We missen je 💕 Boek deze week met een speciale welkom-terug korting!` });
-        if (result) {
-          addLog({ type: "rebook", description: `Comeback actie naar ${targets.length} inactieve klanten`, result: "Verzonden", revenue: targets.length * 55 });
-          for (const c of targets.slice(0, 5)) {
-            await insertRebook({ customer_id: c.id, status: "verzonden", suggested_date: new Date(Date.now() + 3 * 86400000).toISOString() });
+        // FK safety: only target customers that still exist in the loaded customer set.
+        const validIds = new Set(customers.map(c => c.id));
+        const targets = inactiveCustomers
+          .filter(c => validIds.has(c.id))
+          .slice(0, Math.min(5, autopilot.maxMessagesPerDay));
+
+        if (targets.length === 0) {
+          errors.push("geen geldige inactieve klanten gevonden voor comeback-actie");
+        } else {
+          const result = await insertCampaign({ title: `Auto: Comeback actie - ${new Date().toLocaleDateString("nl-NL")}`, type: "whatsapp", status: "verzonden", audience: `${targets.length} inactieve klanten`, sent_count: targets.length, message: `Hey! We missen je 💕 Boek deze week met een speciale welkom-terug korting!` });
+          if (result) {
+            actionsRun++;
+            addLog({ type: "rebook", description: `Comeback actie naar ${targets.length} inactieve klanten`, result: "Verzonden", revenue: targets.length * 55 });
+            for (const c of targets.slice(0, 5)) {
+              const r = await insertRebook({ customer_id: c.id, status: "verzonden", suggested_date: new Date(Date.now() + 3 * 86400000).toISOString() });
+              if (!r) errors.push(`rebook voor ${c.name || c.id} mislukt`);
+            }
+          } else {
+            errors.push("comeback campagne kon niet worden aangemaakt");
           }
         }
       }
 
       await refetchCampaigns();
-      if (emptySlots >= 3 || inactiveCustomers.length >= 3) {
-        toast.success("Autopilot heeft acties uitgevoerd! 🚀");
-      } else {
+
+      if (actionsRun === 0 && errors.length === 0) {
         toast("Geen actie nodig — agenda ziet er goed uit 👍");
+      } else if (errors.length === 0) {
+        toast.success("Autopilot heeft acties uitgevoerd! 🚀");
+      } else if (actionsRun > 0) {
+        toast.warning(`Autopilot deels gelukt (${actionsRun} actie(s))`, {
+          description: errors.join(" · "),
+        });
+      } else {
+        // Never silently fail — surface the reason.
+        toast.error("Autopilot kon geen acties uitvoeren", {
+          description: errors.join(" · "),
+        });
       }
     } catch (e) {
-      // Hide raw DB errors from users
       console.error("Autopilot error", e);
       toast.error("Autopilot kon niet alles uitvoeren — probeer het opnieuw.");
     } finally {
       setRunning(false);
     }
-  }, [user, running, demoMode, emptySlots, withoutNext, inactiveCustomers, autopilot, insertCampaign, insertDiscount, insertRebook, refetchCampaigns]);
+  }, [user, running, demoMode, emptySlots, withoutNext, inactiveCustomers, customers, autopilot, insertCampaign, insertDiscount, insertRebook, refetchCampaigns]);
 
-  // Auto-run when enabled
+  // Auto-run when enabled — never auto-run during demo mode.
   useEffect(() => {
+    if (demoMode) return;
     if (autopilot.enabled && user && !running && customers.length > 0) {
       const lastRunKey = autopilotLastRunKey(demoMode);
       const lastRun = localStorage.getItem(lastRunKey);
@@ -373,7 +378,7 @@ export function AutoRevenueEngine() {
         return () => clearTimeout(timer);
       }
     }
-  }, [autopilot.enabled, user, customers.length, todayStr, demoMode, runAutopilot]);
+  }, [autopilot.enabled, user, customers.length, todayStr, demoMode, runAutopilot, running]);
 
   return (
     <div id="auto-revenue-engine" className="glass-card p-6 mb-6 opacity-0 animate-fade-in-up border border-primary/20 relative overflow-hidden" style={{ animationDelay: '50ms' }}>
