@@ -207,6 +207,13 @@ export function WhatsAppCampaignEditor({ open, onOpenChange, initial, userId, on
   const sendNow = async () => {
     if (recipients.length === 0) { toast.error("Geen ontvangers met telefoonnummer"); return; }
     setSending(true);
+    if (demoMode) {
+      simulateDemoAction("WhatsApp campagne", { recipients: recipients.length });
+      setSending(false);
+      setConfirmOpen(false);
+      onOpenChange(false);
+      return;
+    }
     try {
       // Save campaign first
       let campaignId = initial.id;
