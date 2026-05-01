@@ -62,6 +62,7 @@ function friendlyError(error: string | null | undefined): string {
 }
 
 export function WhatsAppConnectionCard() {
+  const { demoMode } = useDemoMode();
   const [userId, setUserId] = useState<string | null>(null);
   const [settings, setSettings] = useState<WaSettings | null>(null);
   const [logs, setLogs] = useState<LogRow[]>([]);
