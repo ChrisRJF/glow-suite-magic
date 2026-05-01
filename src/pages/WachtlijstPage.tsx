@@ -25,6 +25,7 @@ type OfferTarget = {
 
 export default function WachtlijstPage() {
   const { user } = useAuth();
+  const { demoMode } = useDemoMode();
   const { data: waitlist, refetch } = useWaitlist();
   const { data: customers } = useCustomers();
   const { data: services } = useServices();
