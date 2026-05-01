@@ -20,6 +20,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useDemoMode } from "@/hooks/useDemoMode";
+import { simulateDemoAction } from "@/lib/demoMode";
 
 export type AudienceType = "all" | "upcoming" | "inactive_4w" | "manual";
 
