@@ -51,6 +51,7 @@ interface Props {
 type Recipient = { id: string; name: string; phone: string };
 
 export function WhatsAppCampaignEditor({ open, onOpenChange, initial, userId, onSaved }: Props) {
+  const { demoMode } = useDemoMode();
   const [title, setTitle] = useState(initial.title);
   const [message, setMessage] = useState(initial.message);
   const [audience, setAudience] = useState<AudienceType>(initial.audience || "all");
