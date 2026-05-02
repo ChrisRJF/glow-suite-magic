@@ -197,12 +197,7 @@ export function AutoRevenueEngine() {
     [customers, appointments]
   );
 
-  const withoutNext = useMemo(() =>
-    customers.filter(c => !appointments.find(a =>
-      a.customer_id === c.id && new Date(a.appointment_date) > new Date() && a.status !== "geannuleerd"
-    )),
-    [customers, appointments]
-  );
+
 
   const totalRevenue = actionLog.reduce((s, e) => s + e.revenue, 0) + demoState.addedRevenue;
   const totalActions = actionLog.length + demoState.addedAppointments;
