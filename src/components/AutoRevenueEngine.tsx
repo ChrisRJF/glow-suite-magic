@@ -330,15 +330,28 @@ export function AutoRevenueEngine() {
     setRunning(true);
 
     // Demo mode: never write campaigns/discounts/rebooks against real-mode tables.
-    // Show a simulated log entry only.
+    // Walk through the scored decisions and log each one as a simulation.
     if (demoMode) {
-      simulateDemoAction("Omzet Autopilot", { emptySlots, inactive: inactiveCustomers.length });
-      addLog({
-        type: "campaign",
-        description: `Demo: ${emptySlots} lege plekken — simulatie voltooid`,
-        result: "Gesimuleerd",
-        revenue: 0,
+      simulateDemoAction("Omzet Autopilot scoring", {
+        decisions: scoredDecisions.length,
+        projected: projectedExtraRevenue,
       });
+      if (scoredDecisions.length === 0) {
+        addLog({
+          type: "demo",
+          description: "Geen winstgevende lege plekken gevonden — geen actie",
+          result: "Skipped",
+          revenue: 0,
+        });
+      }
+      for (const d of scoredDecisions) {
+        addLog({
+          type: "demo",
+          description: `${ACTION_LABELS[d.action]} · ${d.startsAt.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })} — ${d.reason}`,
+          result: `Score ${d.score.toFixed(0)}`,
+          revenue: d.projectedRevenue,
+        });
+      }
       setRunning(false);
       return;
     }
