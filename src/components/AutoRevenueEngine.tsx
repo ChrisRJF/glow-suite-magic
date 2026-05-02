@@ -550,6 +550,40 @@ export function AutoRevenueEngine() {
           </p>
         </div>
 
+        {/* Autopilot decisions (scoring) */}
+        {scoredDecisions.length > 0 && (
+          <div className="mb-4 p-4 rounded-xl bg-secondary/40 border border-primary/15">
+            <div className="flex items-center justify-between mb-2 gap-2">
+              <p className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground">
+                Autopilot decisions · top {scoredDecisions.length}
+              </p>
+              <span className="text-[11px] font-semibold text-success whitespace-nowrap">
+                Verwachte omzet +{formatEuro(projectedExtraRevenue)}
+              </span>
+            </div>
+            <div className="space-y-1.5">
+              {scoredDecisions.map((d, i) => (
+                <div key={i} className="flex items-start gap-2 text-xs p-2 rounded-lg bg-background/60">
+                  <span className="font-semibold text-primary tabular-nums w-10 shrink-0">
+                    {d.score.toFixed(0)}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium">
+                      {d.startsAt.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })}
+                      {" · "}
+                      <span className="text-primary">{ACTION_LABELS[d.action]}</span>
+                      {" · +"}{formatEuro(d.projectedRevenue)}
+                    </p>
+                    <p className="text-muted-foreground mt-0.5">
+                      <span className="font-medium">Waarom deze actie?</span> {d.reason}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Demo Progress Steps */}
         {demoRunning && currentStep >= 0 && (
           <div className="mb-4 p-4 rounded-xl bg-secondary/50 border border-primary/20 space-y-3">
