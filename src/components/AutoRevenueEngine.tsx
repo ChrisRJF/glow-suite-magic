@@ -136,6 +136,56 @@ export function AutoRevenueEngine() {
 
   const emptySlots = Math.max(0, totalSlots - todaysAppts.length);
 
+  // Average service price as expected revenue per slot.
+  const avgServicePrice = useMemo(() => {
+    const prices = services.map((s: any) => Number(s.price) || 0).filter(p => p > 0);
+    if (prices.length === 0) return 55;
+    return Math.round(prices.reduce((a, b) => a + b, 0) / prices.length);
+  }, [services]);
+
+  // Synthesize empty slot times for today (9:00–18:00, excluding booked hours).
+  const scoredDecisions = useMemo<ScoredSlot[]>(() => {
+    const now = new Date();
+    const busyHours = new Set(
+      todaysAppts
+        .map(a => {
+          const t = a.start_time || (a.appointment_date ? new Date(a.appointment_date).toTimeString().slice(0, 5) : null);
+          return t ? Number(t.split(":")[0]) : null;
+        })
+        .filter((h): h is number => h != null),
+    );
+    const slots: { startsAt: Date; expectedRevenue: number }[] = [];
+    for (let h = 9; h <= 18; h++) {
+      if (busyHours.has(h)) continue;
+      const d = new Date(now);
+      d.setHours(h, 0, 0, 0);
+      if (d.getTime() < now.getTime() - 3_600_000) continue; // skip past
+      slots.push({ startsAt: d, expectedRevenue: avgServicePrice });
+    }
+    return pickTopSlots(slots, 5, now);
+  }, [todaysAppts, avgServicePrice]);
+
+  const projectedExtraRevenue = useMemo(
+    () => scoredDecisions.reduce((s, d) => s + d.projectedRevenue, 0),
+    [scoredDecisions],
+  );
+
+  const rankedCustomers = useMemo(() => {
+    const signals = customers.map((c: any) => {
+      const last = appointments
+        .filter(a => a.customer_id === c.id && a.status !== "geannuleerd")
+        .sort((a, b) => new Date(b.appointment_date).getTime() - new Date(a.appointment_date).getTime())[0];
+      return {
+        id: c.id,
+        name: c.name,
+        total_spent: c.total_spent,
+        no_show_count: c.no_show_count,
+        lastVisitAt: last ? new Date(last.appointment_date) : null,
+      };
+    });
+    return rankCustomers(signals);
+  }, [customers, appointments]);
+
   const inactiveCustomers = useMemo(() =>
     customers.filter(c => {
       const last = appointments
