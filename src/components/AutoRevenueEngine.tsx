@@ -15,6 +15,14 @@ import { useDemoMode } from "@/hooks/useDemoMode";
 import { actionLogKey, autopilotLastRunKey, autopilotStateKey, clearLegacyDemoLocalState, demoStateKey } from "@/lib/demoIsolation";
 import { formatEuro } from "@/lib/data";
 import { actionLabel, simulateDemoAction } from "@/lib/demoMode";
+import {
+  pickTopSlots,
+  rankCustomers,
+  buildActionMessage,
+  ACTION_LABELS,
+  type ScoredSlot,
+  type AutopilotAction,
+} from "@/lib/revenueScoring";
 import { toast } from "sonner";
 
 interface ActionLogEntry {
