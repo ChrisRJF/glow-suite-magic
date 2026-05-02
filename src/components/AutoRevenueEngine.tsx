@@ -15,6 +15,14 @@ import { useDemoMode } from "@/hooks/useDemoMode";
 import { actionLogKey, autopilotLastRunKey, autopilotStateKey, clearLegacyDemoLocalState, demoStateKey } from "@/lib/demoIsolation";
 import { formatEuro } from "@/lib/data";
 import { actionLabel, simulateDemoAction } from "@/lib/demoMode";
+import {
+  pickTopSlots,
+  rankCustomers,
+  buildActionMessage,
+  ACTION_LABELS,
+  type ScoredSlot,
+  type AutopilotAction,
+} from "@/lib/revenueScoring";
 import { toast } from "sonner";
 
 interface ActionLogEntry {
@@ -128,6 +136,56 @@ export function AutoRevenueEngine() {
 
   const emptySlots = Math.max(0, totalSlots - todaysAppts.length);
 
+  // Average service price as expected revenue per slot.
+  const avgServicePrice = useMemo(() => {
+    const prices = services.map((s: any) => Number(s.price) || 0).filter(p => p > 0);
+    if (prices.length === 0) return 55;
+    return Math.round(prices.reduce((a, b) => a + b, 0) / prices.length);
+  }, [services]);
+
+  // Synthesize empty slot times for today (9:00–18:00, excluding booked hours).
+  const scoredDecisions = useMemo<ScoredSlot[]>(() => {
+    const now = new Date();
+    const busyHours = new Set(
+      todaysAppts
+        .map(a => {
+          const t = a.start_time || (a.appointment_date ? new Date(a.appointment_date).toTimeString().slice(0, 5) : null);
+          return t ? Number(t.split(":")[0]) : null;
+        })
+        .filter((h): h is number => h != null),
+    );
+    const slots: { startsAt: Date; expectedRevenue: number }[] = [];
+    for (let h = 9; h <= 18; h++) {
+      if (busyHours.has(h)) continue;
+      const d = new Date(now);
+      d.setHours(h, 0, 0, 0);
+      if (d.getTime() < now.getTime() - 3_600_000) continue; // skip past
+      slots.push({ startsAt: d, expectedRevenue: avgServicePrice });
+    }
+    return pickTopSlots(slots, 5, now);
+  }, [todaysAppts, avgServicePrice]);
+
+  const projectedExtraRevenue = useMemo(
+    () => scoredDecisions.reduce((s, d) => s + d.projectedRevenue, 0),
+    [scoredDecisions],
+  );
+
+  const rankedCustomers = useMemo(() => {
+    const signals = customers.map((c: any) => {
+      const last = appointments
+        .filter(a => a.customer_id === c.id && a.status !== "geannuleerd")
+        .sort((a, b) => new Date(b.appointment_date).getTime() - new Date(a.appointment_date).getTime())[0];
+      return {
+        id: c.id,
+        name: c.name,
+        total_spent: c.total_spent,
+        no_show_count: c.no_show_count,
+        lastVisitAt: last ? new Date(last.appointment_date) : null,
+      };
+    });
+    return rankCustomers(signals);
+  }, [customers, appointments]);
+
   const inactiveCustomers = useMemo(() =>
     customers.filter(c => {
       const last = appointments
@@ -139,12 +197,7 @@ export function AutoRevenueEngine() {
     [customers, appointments]
   );
 
-  const withoutNext = useMemo(() =>
-    customers.filter(c => !appointments.find(a =>
-      a.customer_id === c.id && new Date(a.appointment_date) > new Date() && a.status !== "geannuleerd"
-    )),
-    [customers, appointments]
-  );
+
 
   const totalRevenue = actionLog.reduce((s, e) => s + e.revenue, 0) + demoState.addedRevenue;
   const totalActions = actionLog.length + demoState.addedAppointments;
@@ -272,72 +325,128 @@ export function AutoRevenueEngine() {
     setRunning(true);
 
     // Demo mode: never write campaigns/discounts/rebooks against real-mode tables.
-    // Show a simulated log entry only.
+    // Walk through the scored decisions and log each one as a simulation.
     if (demoMode) {
-      simulateDemoAction("Omzet Autopilot", { emptySlots, inactive: inactiveCustomers.length });
-      addLog({
-        type: "campaign",
-        description: `Demo: ${emptySlots} lege plekken — simulatie voltooid`,
-        result: "Gesimuleerd",
-        revenue: 0,
+      simulateDemoAction("Omzet Autopilot scoring", {
+        decisions: scoredDecisions.length,
+        projected: projectedExtraRevenue,
       });
+      if (scoredDecisions.length === 0) {
+        addLog({
+          type: "demo",
+          description: "Geen winstgevende lege plekken gevonden — geen actie",
+          result: "Skipped",
+          revenue: 0,
+        });
+      }
+      for (const d of scoredDecisions) {
+        addLog({
+          type: "demo",
+          description: `${ACTION_LABELS[d.action]} · ${d.startsAt.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })} — ${d.reason}`,
+          result: `Score ${d.score.toFixed(0)}`,
+          revenue: d.projectedRevenue,
+        });
+      }
       setRunning(false);
       return;
     }
 
     let actionsRun = 0;
+    let actualRevenue = 0;
     const errors: string[] = [];
+    const bookingLink = `${window.location.origin}/boek`;
 
     try {
-      if (emptySlots >= 3) {
-        const targetCustomers = withoutNext.slice(0, Math.min(autopilot.maxMessagesPerDay, withoutNext.length));
-        if (targetCustomers.length > 0) {
-          const result = await insertCampaign({
-            title: `Auto: Lege plekken vullen - ${new Date().toLocaleDateString("nl-NL")}`,
-            type: "whatsapp",
-            status: "verzonden",
-            audience: `${targetCustomers.length} klanten zonder afspraak`,
-            sent_count: targetCustomers.length,
-            message: `Hi! We hebben vandaag nog plekken beschikbaar. Boek snel met ${autopilot.maxDiscount}% korting! 💇‍♀️`,
-          });
-          if (result) {
-            actionsRun++;
-            addLog({ type: "campaign", description: `WhatsApp naar ${targetCustomers.length} klanten voor ${emptySlots} lege plekken`, result: "Verzonden", revenue: emptySlots * 45 });
-            if (autopilot.maxDiscount > 0) {
-              const disc = await insertDiscount({ title: `Auto korting: ${autopilot.maxDiscount}% lege plekken`, type: "percentage", value: autopilot.maxDiscount, is_active: true });
-              if (disc) {
-                actionsRun++;
-                addLog({ type: "discount", description: `${autopilot.maxDiscount}% korting geactiveerd`, result: "Actief", revenue: 0 });
-              } else {
-                errors.push("korting kon niet worden aangemaakt");
-              }
-            }
-          } else {
-            errors.push("lege-plekken campagne kon niet worden aangemaakt");
-          }
-        }
+      if (scoredDecisions.length === 0) {
+        toast("Geen winstgevende lege plekken vandaag — geen actie 👍");
+        setRunning(false);
+        return;
       }
 
-      if (inactiveCustomers.length >= 3) {
-        // FK safety: only target customers that still exist in the loaded customer set.
-        const validIds = new Set(customers.map(c => c.id));
-        const targets = inactiveCustomers
-          .filter(c => validIds.has(c.id))
-          .slice(0, Math.min(5, autopilot.maxMessagesPerDay));
+      // Group decisions by action so we batch one campaign per action type.
+      const grouped: Record<AutopilotAction, ScoredSlot[]> = {
+        waitlist_offer: [],
+        whatsapp_blast: [],
+        discount_offer: [],
+        do_nothing: [],
+      };
+      for (const d of scoredDecisions) grouped[d.action].push(d);
 
-        if (targets.length === 0) {
-          errors.push("geen geldige inactieve klanten gevonden voor comeback-actie");
-        } else {
-          const result = await insertCampaign({ title: `Auto: Comeback actie - ${new Date().toLocaleDateString("nl-NL")}`, type: "whatsapp", status: "verzonden", audience: `${targets.length} inactieve klanten`, sent_count: targets.length, message: `Hey! We missen je 💕 Boek deze week met een speciale welkom-terug korting!` });
-          if (result) {
+      // FK safety: only use customers from the loaded set.
+      const validIds = new Set(customers.map(c => c.id));
+      const topTargets = rankedCustomers
+        .map(rc => rc.customer)
+        .filter(c => validIds.has(c.id))
+        .slice(0, Math.max(1, autopilot.maxMessagesPerDay));
+
+      for (const action of ["waitlist_offer", "whatsapp_blast", "discount_offer"] as AutopilotAction[]) {
+        const decisions = grouped[action];
+        if (decisions.length === 0) continue;
+
+        const avgHours = decisions.reduce((s, d) => s + d.hoursUntil, 0) / decisions.length;
+        const projected = decisions.reduce((s, d) => s + d.projectedRevenue, 0);
+        const message = buildActionMessage(action, {
+          hoursUntil: avgHours,
+          bookingLink,
+          discountPct: autopilot.maxDiscount,
+        });
+
+        if (action === "discount_offer" && autopilot.maxDiscount > 0) {
+          const disc = await insertDiscount({
+            title: `Auto: ${autopilot.maxDiscount}% korting (lage vulkans)`,
+            type: "percentage",
+            value: autopilot.maxDiscount,
+            is_active: true,
+          });
+          if (disc) {
             actionsRun++;
-            addLog({ type: "rebook", description: `Comeback actie naar ${targets.length} inactieve klanten`, result: "Verzonden", revenue: targets.length * 55 });
-            for (const c of targets.slice(0, 5)) {
-              const r = await insertRebook({ customer_id: c.id, status: "verzonden", suggested_date: new Date(Date.now() + 3 * 86400000).toISOString() });
-              if (!r) errors.push(`rebook voor ${c.name || c.id} mislukt`);
-            }
+            addLog({
+              type: "discount",
+              description: `Korting actie · ${decisions.length} plek(ken) · ${decisions[0].reason}`,
+              result: `Verwacht +${formatEuro(projected)}`,
+              revenue: 0,
+            });
           } else {
-            errors.push("comeback campagne kon niet worden aangemaakt");
+            errors.push("korting kon niet worden aangemaakt");
+          }
+        }
+
+        const audience = action === "waitlist_offer"
+          ? `Wachtlijst (${decisions.length} plek)`
+          : `${topTargets.length} top klanten`;
+
+        const result = await insertCampaign({
+          title: `Auto: ${ACTION_LABELS[action]} - ${new Date().toLocaleDateString("nl-NL")}`,
+          type: "whatsapp",
+          status: "verzonden",
+          audience,
+          sent_count: action === "waitlist_offer" ? decisions.length : topTargets.length,
+          message,
+        });
+
+        if (!result) {
+          errors.push(`${ACTION_LABELS[action]} campagne mislukt`);
+          continue;
+        }
+
+        actionsRun++;
+        actualRevenue += projected;
+        addLog({
+          type: action === "waitlist_offer" ? "rebook" : "campaign",
+          description: `${ACTION_LABELS[action]} · ${decisions.length} plek(ken) · ${decisions[0].reason}`,
+          result: `Score ${decisions[0].score.toFixed(0)}`,
+          revenue: projected,
+        });
+
+        // For whatsapp_blast: attach rebook actions to ranked customers (FK-safe).
+        if (action === "whatsapp_blast") {
+          for (const c of topTargets.slice(0, decisions.length)) {
+            const r = await insertRebook({
+              customer_id: c.id,
+              status: "verzonden",
+              suggested_date: new Date(Date.now() + 86_400_000).toISOString(),
+            });
+            if (!r) errors.push(`rebook voor ${c.name || c.id} mislukt`);
           }
         }
       }
@@ -347,13 +456,12 @@ export function AutoRevenueEngine() {
       if (actionsRun === 0 && errors.length === 0) {
         toast("Geen actie nodig — agenda ziet er goed uit 👍");
       } else if (errors.length === 0) {
-        toast.success("Autopilot heeft acties uitgevoerd! 🚀");
+        toast.success(`Autopilot uitgevoerd — verwachte omzet +${formatEuro(actualRevenue)} 🚀`);
       } else if (actionsRun > 0) {
         toast.warning(`Autopilot deels gelukt (${actionsRun} actie(s))`, {
           description: errors.join(" · "),
         });
       } else {
-        // Never silently fail — surface the reason.
         toast.error("Autopilot kon geen acties uitvoeren", {
           description: errors.join(" · "),
         });
@@ -364,7 +472,7 @@ export function AutoRevenueEngine() {
     } finally {
       setRunning(false);
     }
-  }, [user, running, demoMode, emptySlots, withoutNext, inactiveCustomers, customers, autopilot, insertCampaign, insertDiscount, insertRebook, refetchCampaigns]);
+  }, [user, running, demoMode, scoredDecisions, projectedExtraRevenue, rankedCustomers, customers, autopilot, insertCampaign, insertDiscount, insertRebook, refetchCampaigns]);
 
   // Auto-run when enabled — never auto-run during demo mode.
   useEffect(() => {
@@ -436,6 +544,40 @@ export function AutoRevenueEngine() {
             <span>Bezettingsgraad vandaag: <span className="font-semibold">{totalSlots > 0 ? Math.round((todaysAppts.length / totalSlots) * 100) : 0}%</span> — {emptySlots > 0 ? `${emptySlots} plekken te vullen` : 'volledig gevuld!'}</span>
           </p>
         </div>
+
+        {/* Autopilot decisions (scoring) */}
+        {scoredDecisions.length > 0 && (
+          <div className="mb-4 p-4 rounded-xl bg-secondary/40 border border-primary/15">
+            <div className="flex items-center justify-between mb-2 gap-2">
+              <p className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground">
+                Autopilot decisions · top {scoredDecisions.length}
+              </p>
+              <span className="text-[11px] font-semibold text-success whitespace-nowrap">
+                Verwachte omzet +{formatEuro(projectedExtraRevenue)}
+              </span>
+            </div>
+            <div className="space-y-1.5">
+              {scoredDecisions.map((d, i) => (
+                <div key={i} className="flex items-start gap-2 text-xs p-2 rounded-lg bg-background/60">
+                  <span className="font-semibold text-primary tabular-nums w-10 shrink-0">
+                    {d.score.toFixed(0)}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium">
+                      {d.startsAt.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })}
+                      {" · "}
+                      <span className="text-primary">{ACTION_LABELS[d.action]}</span>
+                      {" · +"}{formatEuro(d.projectedRevenue)}
+                    </p>
+                    <p className="text-muted-foreground mt-0.5">
+                      <span className="font-medium">Waarom deze actie?</span> {d.reason}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Demo Progress Steps */}
         {demoRunning && currentStep >= 0 && (
