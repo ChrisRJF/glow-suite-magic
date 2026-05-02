@@ -357,58 +357,101 @@ export function AutoRevenueEngine() {
     }
 
     let actionsRun = 0;
+    let actualRevenue = 0;
     const errors: string[] = [];
+    const bookingLink = `${window.location.origin}/boek`;
 
     try {
-      if (emptySlots >= 3) {
-        const targetCustomers = withoutNext.slice(0, Math.min(autopilot.maxMessagesPerDay, withoutNext.length));
-        if (targetCustomers.length > 0) {
-          const result = await insertCampaign({
-            title: `Auto: Lege plekken vullen - ${new Date().toLocaleDateString("nl-NL")}`,
-            type: "whatsapp",
-            status: "verzonden",
-            audience: `${targetCustomers.length} klanten zonder afspraak`,
-            sent_count: targetCustomers.length,
-            message: `Hi! We hebben vandaag nog plekken beschikbaar. Boek snel met ${autopilot.maxDiscount}% korting! 💇‍♀️`,
-          });
-          if (result) {
-            actionsRun++;
-            addLog({ type: "campaign", description: `WhatsApp naar ${targetCustomers.length} klanten voor ${emptySlots} lege plekken`, result: "Verzonden", revenue: emptySlots * 45 });
-            if (autopilot.maxDiscount > 0) {
-              const disc = await insertDiscount({ title: `Auto korting: ${autopilot.maxDiscount}% lege plekken`, type: "percentage", value: autopilot.maxDiscount, is_active: true });
-              if (disc) {
-                actionsRun++;
-                addLog({ type: "discount", description: `${autopilot.maxDiscount}% korting geactiveerd`, result: "Actief", revenue: 0 });
-              } else {
-                errors.push("korting kon niet worden aangemaakt");
-              }
-            }
-          } else {
-            errors.push("lege-plekken campagne kon niet worden aangemaakt");
-          }
-        }
+      if (scoredDecisions.length === 0) {
+        toast("Geen winstgevende lege plekken vandaag — geen actie 👍");
+        setRunning(false);
+        return;
       }
 
-      if (inactiveCustomers.length >= 3) {
-        // FK safety: only target customers that still exist in the loaded customer set.
-        const validIds = new Set(customers.map(c => c.id));
-        const targets = inactiveCustomers
-          .filter(c => validIds.has(c.id))
-          .slice(0, Math.min(5, autopilot.maxMessagesPerDay));
+      // Group decisions by action so we batch one campaign per action type.
+      const grouped: Record<AutopilotAction, ScoredSlot[]> = {
+        waitlist_offer: [],
+        whatsapp_blast: [],
+        discount_offer: [],
+        do_nothing: [],
+      };
+      for (const d of scoredDecisions) grouped[d.action].push(d);
 
-        if (targets.length === 0) {
-          errors.push("geen geldige inactieve klanten gevonden voor comeback-actie");
-        } else {
-          const result = await insertCampaign({ title: `Auto: Comeback actie - ${new Date().toLocaleDateString("nl-NL")}`, type: "whatsapp", status: "verzonden", audience: `${targets.length} inactieve klanten`, sent_count: targets.length, message: `Hey! We missen je 💕 Boek deze week met een speciale welkom-terug korting!` });
-          if (result) {
+      // FK safety: only use customers from the loaded set.
+      const validIds = new Set(customers.map(c => c.id));
+      const topTargets = rankedCustomers
+        .map(rc => rc.customer)
+        .filter(c => validIds.has(c.id))
+        .slice(0, Math.max(1, autopilot.maxMessagesPerDay));
+
+      for (const action of ["waitlist_offer", "whatsapp_blast", "discount_offer"] as AutopilotAction[]) {
+        const decisions = grouped[action];
+        if (decisions.length === 0) continue;
+
+        const avgHours = decisions.reduce((s, d) => s + d.hoursUntil, 0) / decisions.length;
+        const projected = decisions.reduce((s, d) => s + d.projectedRevenue, 0);
+        const message = buildActionMessage(action, {
+          hoursUntil: avgHours,
+          bookingLink,
+          discountPct: autopilot.maxDiscount,
+        });
+
+        if (action === "discount_offer" && autopilot.maxDiscount > 0) {
+          const disc = await insertDiscount({
+            title: `Auto: ${autopilot.maxDiscount}% korting (lage vulkans)`,
+            type: "percentage",
+            value: autopilot.maxDiscount,
+            is_active: true,
+          });
+          if (disc) {
             actionsRun++;
-            addLog({ type: "rebook", description: `Comeback actie naar ${targets.length} inactieve klanten`, result: "Verzonden", revenue: targets.length * 55 });
-            for (const c of targets.slice(0, 5)) {
-              const r = await insertRebook({ customer_id: c.id, status: "verzonden", suggested_date: new Date(Date.now() + 3 * 86400000).toISOString() });
-              if (!r) errors.push(`rebook voor ${c.name || c.id} mislukt`);
-            }
+            addLog({
+              type: "discount",
+              description: `Korting actie · ${decisions.length} plek(ken) · ${decisions[0].reason}`,
+              result: `Verwacht +${formatEuro(projected)}`,
+              revenue: 0,
+            });
           } else {
-            errors.push("comeback campagne kon niet worden aangemaakt");
+            errors.push("korting kon niet worden aangemaakt");
+          }
+        }
+
+        const audience = action === "waitlist_offer"
+          ? `Wachtlijst (${decisions.length} plek)`
+          : `${topTargets.length} top klanten`;
+
+        const result = await insertCampaign({
+          title: `Auto: ${ACTION_LABELS[action]} - ${new Date().toLocaleDateString("nl-NL")}`,
+          type: "whatsapp",
+          status: "verzonden",
+          audience,
+          sent_count: action === "waitlist_offer" ? decisions.length : topTargets.length,
+          message,
+        });
+
+        if (!result) {
+          errors.push(`${ACTION_LABELS[action]} campagne mislukt`);
+          continue;
+        }
+
+        actionsRun++;
+        actualRevenue += projected;
+        addLog({
+          type: action === "waitlist_offer" ? "rebook" : "campaign",
+          description: `${ACTION_LABELS[action]} · ${decisions.length} plek(ken) · ${decisions[0].reason}`,
+          result: `Score ${decisions[0].score.toFixed(0)}`,
+          revenue: projected,
+        });
+
+        // For whatsapp_blast: attach rebook actions to ranked customers (FK-safe).
+        if (action === "whatsapp_blast") {
+          for (const c of topTargets.slice(0, decisions.length)) {
+            const r = await insertRebook({
+              customer_id: c.id,
+              status: "verzonden",
+              suggested_date: new Date(Date.now() + 86_400_000).toISOString(),
+            });
+            if (!r) errors.push(`rebook voor ${c.name || c.id} mislukt`);
           }
         }
       }
@@ -418,13 +461,12 @@ export function AutoRevenueEngine() {
       if (actionsRun === 0 && errors.length === 0) {
         toast("Geen actie nodig — agenda ziet er goed uit 👍");
       } else if (errors.length === 0) {
-        toast.success("Autopilot heeft acties uitgevoerd! 🚀");
+        toast.success(`Autopilot uitgevoerd — verwachte omzet +${formatEuro(actualRevenue)} 🚀`);
       } else if (actionsRun > 0) {
         toast.warning(`Autopilot deels gelukt (${actionsRun} actie(s))`, {
           description: errors.join(" · "),
         });
       } else {
-        // Never silently fail — surface the reason.
         toast.error("Autopilot kon geen acties uitvoeren", {
           description: errors.join(" · "),
         });
@@ -435,7 +477,7 @@ export function AutoRevenueEngine() {
     } finally {
       setRunning(false);
     }
-  }, [user, running, demoMode, emptySlots, withoutNext, inactiveCustomers, customers, autopilot, insertCampaign, insertDiscount, insertRebook, refetchCampaigns]);
+  }, [user, running, demoMode, scoredDecisions, projectedExtraRevenue, rankedCustomers, customers, autopilot, insertCampaign, insertDiscount, insertRebook, refetchCampaigns]);
 
   // Auto-run when enabled — never auto-run during demo mode.
   useEffect(() => {
