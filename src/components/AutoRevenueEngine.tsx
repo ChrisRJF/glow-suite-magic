@@ -522,6 +522,21 @@ export function AutoRevenueEngine() {
       console.error("Autopilot error", e);
       toast.error("Autopilot kon niet alles uitvoeren — probeer het opnieuw.");
     } finally {
+      if (runId) {
+        try {
+          await supabase
+            .from("autopilot_runs")
+            .update({
+              finished_at: new Date().toISOString(),
+              actions_count: actionsRun,
+              actual_revenue_cents: Math.round(actualRevenue * 100),
+              status: actionsRun > 0 ? "executed" : "failed",
+            })
+            .eq("id", runId);
+        } catch (err) {
+          console.warn("autopilot run finalize failed", err);
+        }
+      }
       setRunning(false);
     }
   }, [user, running, demoMode, scoredDecisions, projectedExtraRevenue, rankedCustomers, customers, autopilot, insertCampaign, insertDiscount, insertRebook, refetchCampaigns]);
