@@ -539,6 +539,24 @@ export function AutoRevenueEngine() {
               suggested_date: new Date(Date.now() + 86_400_000).toISOString(),
             });
             if (!r) errors.push(`rebook voor ${c.name || c.id} mislukt`);
+            // Log per-customer action so future runs dedupe within the same day.
+            if (runId) {
+              try {
+                await supabase.from("autopilot_action_logs").insert({
+                  user_id: user.id,
+                  run_id: runId,
+                  customer_id: c.id,
+                  action,
+                  status: r ? "executed" : "failed",
+                  message,
+                  expected_revenue_cents: Math.round((decisions[0]?.projectedRevenue || 0) * 100),
+                  is_demo: false,
+                } as any);
+                messagedTodayIds.add(c.id);
+              } catch (err) {
+                console.warn("autopilot action log insert failed", err);
+              }
+            }
           }
         }
       }
