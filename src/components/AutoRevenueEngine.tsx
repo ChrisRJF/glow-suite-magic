@@ -464,11 +464,11 @@ export function AutoRevenueEngine() {
       };
       for (const d of scoredDecisions) grouped[d.action].push(d);
 
-      // FK safety: only use customers from the loaded set.
+      // FK safety + dedupe: only customers from loaded set, not yet messaged today.
       const validIds = new Set(customers.map(c => c.id));
       const topTargets = rankedCustomers
         .map(rc => rc.customer)
-        .filter(c => validIds.has(c.id))
+        .filter(c => validIds.has(c.id) && !messagedTodayIds.has(c.id))
         .slice(0, Math.max(1, autopilot.maxMessagesPerDay));
 
       for (const action of ["waitlist_offer", "whatsapp_blast", "discount_offer"] as AutopilotAction[]) {
