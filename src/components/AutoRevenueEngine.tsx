@@ -22,7 +22,8 @@ import {
   ACTION_LABELS,
   type ScoredSlot,
   type AutopilotAction,
-} from "@/lib/revenueScoring";
+} from "@/lib/autopilotScoring";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 interface ActionLogEntry {
@@ -324,8 +325,49 @@ export function AutoRevenueEngine() {
     if (!user || running) return;
     setRunning(true);
 
-    // Demo mode: never write campaigns/discounts/rebooks against real-mode tables.
-    // Walk through the scored decisions and log each one as a simulation.
+    // Persist run + decisions to autopilot_runs/autopilot_decisions in BOTH modes.
+    // Demo rows are isolated via is_demo + RLS — they never affect live tables.
+    const expectedTotal = scoredDecisions.reduce((s, d) => s + d.projectedRevenue, 0);
+    let runId: string | null = null;
+    try {
+      const { data: runRow } = await supabase
+        .from("autopilot_runs")
+        .insert({
+          user_id: user.id,
+          run_type: demoMode ? "demo" : "manual",
+          status: demoMode ? "simulated" : "executed",
+          started_at: new Date().toISOString(),
+          expected_revenue_cents: Math.round(expectedTotal * 100),
+          actions_count: 0,
+          is_demo: demoMode,
+        })
+        .select("id")
+        .single();
+      runId = (runRow as any)?.id ?? null;
+
+      if (runId && scoredDecisions.length > 0) {
+        await supabase.from("autopilot_decisions").insert(
+          scoredDecisions.map((d) => ({
+            user_id: user.id,
+            run_id: runId,
+            slot_date: d.startsAt.toISOString().slice(0, 10),
+            slot_time: d.startsAt.toTimeString().slice(0, 8),
+            action: d.action,
+            score: Number(d.score.toFixed(2)),
+            fill_probability: Number(d.fillProbability.toFixed(3)),
+            expected_revenue_cents: Math.round(d.projectedRevenue * 100),
+            urgency_multiplier: Number(d.urgencyMultiplier.toFixed(2)),
+            reason: d.reason,
+            status: demoMode ? "simulated" : "suggested",
+            is_demo: demoMode,
+          })) as any,
+        );
+      }
+    } catch (e) {
+      console.warn("autopilot run logging failed", e);
+    }
+
+    // Demo mode: simulate only. Do NOT write to campaigns/discounts/rebooks/appointments.
     if (demoMode) {
       simulateDemoAction("Omzet Autopilot scoring", {
         decisions: scoredDecisions.length,
@@ -346,6 +388,16 @@ export function AutoRevenueEngine() {
           result: `Score ${d.score.toFixed(0)}`,
           revenue: d.projectedRevenue,
         });
+      }
+      if (runId) {
+        await supabase
+          .from("autopilot_runs")
+          .update({
+            finished_at: new Date().toISOString(),
+            actions_count: scoredDecisions.length,
+            actual_revenue_cents: 0,
+          })
+          .eq("id", runId);
       }
       setRunning(false);
       return;
@@ -470,6 +522,21 @@ export function AutoRevenueEngine() {
       console.error("Autopilot error", e);
       toast.error("Autopilot kon niet alles uitvoeren — probeer het opnieuw.");
     } finally {
+      if (runId) {
+        try {
+          await supabase
+            .from("autopilot_runs")
+            .update({
+              finished_at: new Date().toISOString(),
+              actions_count: actionsRun,
+              actual_revenue_cents: Math.round(actualRevenue * 100),
+              status: actionsRun > 0 ? "executed" : "failed",
+            })
+            .eq("id", runId);
+        } catch (err) {
+          console.warn("autopilot run finalize failed", err);
+        }
+      }
       setRunning(false);
     }
   }, [user, running, demoMode, scoredDecisions, projectedExtraRevenue, rankedCustomers, customers, autopilot, insertCampaign, insertDiscount, insertRebook, refetchCampaigns]);
@@ -543,6 +610,26 @@ export function AutoRevenueEngine() {
             <span className="font-semibold">📅</span>
             <span>Bezettingsgraad vandaag: <span className="font-semibold">{totalSlots > 0 ? Math.round((todaysAppts.length / totalSlots) * 100) : 0}%</span> — {emptySlots > 0 ? `${emptySlots} plekken te vullen` : 'volledig gevuld!'}</span>
           </p>
+        </div>
+
+        {/* Summary cards: gevonden / acties / verwacht / uplift */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+          <div className="p-3 rounded-xl bg-secondary/50 border border-border">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Vandaag gevonden</p>
+            <p className="text-base font-semibold">{emptySlots} <span className="text-xs font-normal text-muted-foreground">lege plekken</span></p>
+          </div>
+          <div className="p-3 rounded-xl bg-secondary/50 border border-border">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Acties uitgevoerd</p>
+            <p className="text-base font-semibold">{totalActions}</p>
+          </div>
+          <div className="p-3 rounded-xl bg-success/10 border border-success/20">
+            <p className="text-[10px] uppercase tracking-wider text-success/80 mb-1">Verwachte omzet</p>
+            <p className="text-base font-semibold text-success">{formatEuro(projectedExtraRevenue)}</p>
+          </div>
+          <div className="p-3 rounded-xl bg-primary/10 border border-primary/20">
+            <p className="text-[10px] uppercase tracking-wider text-primary/80 mb-1">Potentiële uplift</p>
+            <p className="text-base font-semibold text-primary">{formatEuro(emptySlots * avgServicePrice)}</p>
+          </div>
         </div>
 
         {/* Autopilot decisions (scoring) */}
