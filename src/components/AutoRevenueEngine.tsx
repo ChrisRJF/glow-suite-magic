@@ -325,8 +325,49 @@ export function AutoRevenueEngine() {
     if (!user || running) return;
     setRunning(true);
 
-    // Demo mode: never write campaigns/discounts/rebooks against real-mode tables.
-    // Walk through the scored decisions and log each one as a simulation.
+    // Persist run + decisions to autopilot_runs/autopilot_decisions in BOTH modes.
+    // Demo rows are isolated via is_demo + RLS — they never affect live tables.
+    const expectedTotal = scoredDecisions.reduce((s, d) => s + d.projectedRevenue, 0);
+    let runId: string | null = null;
+    try {
+      const { data: runRow } = await supabase
+        .from("autopilot_runs")
+        .insert({
+          user_id: user.id,
+          run_type: demoMode ? "demo" : "manual",
+          status: demoMode ? "simulated" : "executed",
+          started_at: new Date().toISOString(),
+          expected_revenue_cents: Math.round(expectedTotal * 100),
+          actions_count: 0,
+          is_demo: demoMode,
+        })
+        .select("id")
+        .single();
+      runId = (runRow as any)?.id ?? null;
+
+      if (runId && scoredDecisions.length > 0) {
+        await supabase.from("autopilot_decisions").insert(
+          scoredDecisions.map((d) => ({
+            user_id: user.id,
+            run_id: runId,
+            slot_date: d.startsAt.toISOString().slice(0, 10),
+            slot_time: d.startsAt.toTimeString().slice(0, 8),
+            action: d.action,
+            score: Number(d.score.toFixed(2)),
+            fill_probability: Number(d.fillProbability.toFixed(3)),
+            expected_revenue_cents: Math.round(d.projectedRevenue * 100),
+            urgency_multiplier: Number(d.urgencyMultiplier.toFixed(2)),
+            reason: d.reason,
+            status: demoMode ? "simulated" : "suggested",
+            is_demo: demoMode,
+          })) as any,
+        );
+      }
+    } catch (e) {
+      console.warn("autopilot run logging failed", e);
+    }
+
+    // Demo mode: simulate only. Do NOT write to campaigns/discounts/rebooks/appointments.
     if (demoMode) {
       simulateDemoAction("Omzet Autopilot scoring", {
         decisions: scoredDecisions.length,
@@ -347,6 +388,16 @@ export function AutoRevenueEngine() {
           result: `Score ${d.score.toFixed(0)}`,
           revenue: d.projectedRevenue,
         });
+      }
+      if (runId) {
+        await supabase
+          .from("autopilot_runs")
+          .update({
+            finished_at: new Date().toISOString(),
+            actions_count: scoredDecisions.length,
+            actual_revenue_cents: 0,
+          })
+          .eq("id", runId);
       }
       setRunning(false);
       return;
