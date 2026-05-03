@@ -408,9 +408,49 @@ export function AutoRevenueEngine() {
     const errors: string[] = [];
     const bookingLink = `${window.location.origin}/boek`;
 
+    // Guard 1: WhatsApp must be enabled to perform any messaging actions.
+    let whatsappEnabled = false;
+    try {
+      const { data: ws } = await supabase
+        .from("whatsapp_settings")
+        .select("enabled")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      whatsappEnabled = Boolean((ws as any)?.enabled);
+    } catch (e) {
+      console.warn("whatsapp_settings lookup failed", e);
+    }
+
+    // Guard 2: customers already messaged today by autopilot — never message twice/day.
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    let messagedTodayIds = new Set<string>();
+    try {
+      const { data: logs } = await supabase
+        .from("autopilot_action_logs")
+        .select("customer_id")
+        .eq("user_id", user.id)
+        .eq("is_demo", false)
+        .gte("created_at", todayStart.toISOString());
+      messagedTodayIds = new Set(
+        (logs || [])
+          .map((l: any) => l.customer_id)
+          .filter((id: string | null): id is string => Boolean(id)),
+      );
+    } catch (e) {
+      console.warn("autopilot dedupe lookup failed", e);
+    }
+
     try {
       if (scoredDecisions.length === 0) {
         toast("Geen winstgevende lege plekken vandaag — geen actie 👍");
+        setRunning(false);
+        return;
+      }
+
+      if (!whatsappEnabled) {
+        toast.warning("WhatsApp is uitgeschakeld — autopilot heeft geen berichten verstuurd.", {
+          description: "Schakel WhatsApp in via Instellingen om autopilot acties uit te voeren.",
+        });
         setRunning(false);
         return;
       }
@@ -424,11 +464,11 @@ export function AutoRevenueEngine() {
       };
       for (const d of scoredDecisions) grouped[d.action].push(d);
 
-      // FK safety: only use customers from the loaded set.
+      // FK safety + dedupe: only customers from loaded set, not yet messaged today.
       const validIds = new Set(customers.map(c => c.id));
       const topTargets = rankedCustomers
         .map(rc => rc.customer)
-        .filter(c => validIds.has(c.id))
+        .filter(c => validIds.has(c.id) && !messagedTodayIds.has(c.id))
         .slice(0, Math.max(1, autopilot.maxMessagesPerDay));
 
       for (const action of ["waitlist_offer", "whatsapp_blast", "discount_offer"] as AutopilotAction[]) {
@@ -499,6 +539,24 @@ export function AutoRevenueEngine() {
               suggested_date: new Date(Date.now() + 86_400_000).toISOString(),
             });
             if (!r) errors.push(`rebook voor ${c.name || c.id} mislukt`);
+            // Log per-customer action so future runs dedupe within the same day.
+            if (runId) {
+              try {
+                await supabase.from("autopilot_action_logs").insert({
+                  user_id: user.id,
+                  run_id: runId,
+                  customer_id: c.id,
+                  action,
+                  status: r ? "executed" : "failed",
+                  message,
+                  expected_revenue_cents: Math.round((decisions[0]?.projectedRevenue || 0) * 100),
+                  is_demo: false,
+                } as any);
+                messagedTodayIds.add(c.id);
+              } catch (err) {
+                console.warn("autopilot action log insert failed", err);
+              }
+            }
           }
         }
       }
