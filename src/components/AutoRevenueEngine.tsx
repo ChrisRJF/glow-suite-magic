@@ -22,7 +22,8 @@ import {
   ACTION_LABELS,
   type ScoredSlot,
   type AutopilotAction,
-} from "@/lib/revenueScoring";
+} from "@/lib/autopilotScoring";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 interface ActionLogEntry {
