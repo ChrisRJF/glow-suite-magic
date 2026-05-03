@@ -421,6 +421,176 @@ export type Database = {
           },
         ]
       }
+      autopilot_action_logs: {
+        Row: {
+          action: string
+          actual_revenue_cents: number
+          appointment_id: string | null
+          created_at: string
+          customer_id: string | null
+          decision_id: string | null
+          expected_revenue_cents: number
+          id: string
+          is_demo: boolean
+          message: string
+          metadata: Json
+          run_id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          actual_revenue_cents?: number
+          appointment_id?: string | null
+          created_at?: string
+          customer_id?: string | null
+          decision_id?: string | null
+          expected_revenue_cents?: number
+          id?: string
+          is_demo?: boolean
+          message?: string
+          metadata?: Json
+          run_id: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          actual_revenue_cents?: number
+          appointment_id?: string | null
+          created_at?: string
+          customer_id?: string | null
+          decision_id?: string | null
+          expected_revenue_cents?: number
+          id?: string
+          is_demo?: boolean
+          message?: string
+          metadata?: Json
+          run_id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "autopilot_action_logs_decision_id_fkey"
+            columns: ["decision_id"]
+            isOneToOne: false
+            referencedRelation: "autopilot_decisions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "autopilot_action_logs_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "autopilot_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      autopilot_decisions: {
+        Row: {
+          action: string
+          created_at: string
+          employee_id: string | null
+          expected_revenue_cents: number
+          fill_probability: number
+          id: string
+          is_demo: boolean
+          reason: string
+          run_id: string
+          score: number
+          slot_date: string
+          slot_time: string | null
+          status: string
+          urgency_multiplier: number
+          user_id: string
+        }
+        Insert: {
+          action?: string
+          created_at?: string
+          employee_id?: string | null
+          expected_revenue_cents?: number
+          fill_probability?: number
+          id?: string
+          is_demo?: boolean
+          reason?: string
+          run_id: string
+          score?: number
+          slot_date: string
+          slot_time?: string | null
+          status?: string
+          urgency_multiplier?: number
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          employee_id?: string | null
+          expected_revenue_cents?: number
+          fill_probability?: number
+          id?: string
+          is_demo?: boolean
+          reason?: string
+          run_id?: string
+          score?: number
+          slot_date?: string
+          slot_time?: string | null
+          status?: string
+          urgency_multiplier?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "autopilot_decisions_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "autopilot_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      autopilot_runs: {
+        Row: {
+          actions_count: number
+          actual_revenue_cents: number
+          created_at: string
+          expected_revenue_cents: number
+          finished_at: string | null
+          id: string
+          is_demo: boolean
+          run_type: string
+          started_at: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          actions_count?: number
+          actual_revenue_cents?: number
+          created_at?: string
+          expected_revenue_cents?: number
+          finished_at?: string | null
+          id?: string
+          is_demo?: boolean
+          run_type?: string
+          started_at?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          actions_count?: number
+          actual_revenue_cents?: number
+          created_at?: string
+          expected_revenue_cents?: number
+          finished_at?: string | null
+          id?: string
+          is_demo?: boolean
+          run_type?: string
+          started_at?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       campaigns: {
         Row: {
           audience: string | null
