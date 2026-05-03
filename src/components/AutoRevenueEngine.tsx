@@ -408,9 +408,49 @@ export function AutoRevenueEngine() {
     const errors: string[] = [];
     const bookingLink = `${window.location.origin}/boek`;
 
+    // Guard 1: WhatsApp must be enabled to perform any messaging actions.
+    let whatsappEnabled = false;
+    try {
+      const { data: ws } = await supabase
+        .from("whatsapp_settings")
+        .select("enabled")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      whatsappEnabled = Boolean((ws as any)?.enabled);
+    } catch (e) {
+      console.warn("whatsapp_settings lookup failed", e);
+    }
+
+    // Guard 2: customers already messaged today by autopilot — never message twice/day.
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    let messagedTodayIds = new Set<string>();
+    try {
+      const { data: logs } = await supabase
+        .from("autopilot_action_logs")
+        .select("customer_id")
+        .eq("user_id", user.id)
+        .eq("is_demo", false)
+        .gte("created_at", todayStart.toISOString());
+      messagedTodayIds = new Set(
+        (logs || [])
+          .map((l: any) => l.customer_id)
+          .filter((id: string | null): id is string => Boolean(id)),
+      );
+    } catch (e) {
+      console.warn("autopilot dedupe lookup failed", e);
+    }
+
     try {
       if (scoredDecisions.length === 0) {
         toast("Geen winstgevende lege plekken vandaag — geen actie 👍");
+        setRunning(false);
+        return;
+      }
+
+      if (!whatsappEnabled) {
+        toast.warning("WhatsApp is uitgeschakeld — autopilot heeft geen berichten verstuurd.", {
+          description: "Schakel WhatsApp in via Instellingen om autopilot acties uit te voeren.",
+        });
         setRunning(false);
         return;
       }
