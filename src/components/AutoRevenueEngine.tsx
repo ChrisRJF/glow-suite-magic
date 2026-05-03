@@ -612,6 +612,26 @@ export function AutoRevenueEngine() {
           </p>
         </div>
 
+        {/* Summary cards: gevonden / acties / verwacht / uplift */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+          <div className="p-3 rounded-xl bg-secondary/50 border border-border">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Vandaag gevonden</p>
+            <p className="text-base font-semibold">{emptySlots} <span className="text-xs font-normal text-muted-foreground">lege plekken</span></p>
+          </div>
+          <div className="p-3 rounded-xl bg-secondary/50 border border-border">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Acties uitgevoerd</p>
+            <p className="text-base font-semibold">{totalActions}</p>
+          </div>
+          <div className="p-3 rounded-xl bg-success/10 border border-success/20">
+            <p className="text-[10px] uppercase tracking-wider text-success/80 mb-1">Verwachte omzet</p>
+            <p className="text-base font-semibold text-success">{formatEuro(projectedExtraRevenue)}</p>
+          </div>
+          <div className="p-3 rounded-xl bg-primary/10 border border-primary/20">
+            <p className="text-[10px] uppercase tracking-wider text-primary/80 mb-1">Potentiële uplift</p>
+            <p className="text-base font-semibold text-primary">{formatEuro(emptySlots * avgServicePrice)}</p>
+          </div>
+        </div>
+
         {/* Autopilot decisions (scoring) */}
         {scoredDecisions.length > 0 && (
           <div className="mb-4 p-4 rounded-xl bg-secondary/40 border border-primary/15">
