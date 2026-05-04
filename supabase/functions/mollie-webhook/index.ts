@@ -212,14 +212,16 @@ Deno.serve(async (req) => {
                 : `https://glowsuite.nl/afspraak`;
               if (!appt.booking_token) console.warn("WhatsApp: missing booking_token", appt.id);
 
-              const waMessage = templateContent
-                .replace(/\{\{\s*customer_name\s*\}\}/g, customer.name || "")
-                .replace(/\{\{\s*salon_name\s*\}\}/g, settings?.salon_name || "ons salon")
-                .replace(/\{\{\s*appointment_date\s*\}\}/g, dateStr)
-                .replace(/\{\{\s*appointment_time\s*\}\}/g, timeStr)
-                .replace(/\{\{\s*services\s*\}\}/g, service?.name ? `• ${service.name}` : "")
-                .replace(/\{\{\s*reschedule_link\s*\}\}/g, rescheduleLink)
-                .replace(/\{\{\s*review_link\s*\}\}/g, "");
+              const waMessage = isAutoRevenue
+                ? "Je afspraak staat vast! 🙌 Tot dan."
+                : templateContent
+                    .replace(/\{\{\s*customer_name\s*\}\}/g, customer.name || "")
+                    .replace(/\{\{\s*salon_name\s*\}\}/g, settings?.salon_name || "ons salon")
+                    .replace(/\{\{\s*appointment_date\s*\}\}/g, dateStr)
+                    .replace(/\{\{\s*appointment_time\s*\}\}/g, timeStr)
+                    .replace(/\{\{\s*services\s*\}\}/g, service?.name ? `• ${service.name}` : "")
+                    .replace(/\{\{\s*reschedule_link\s*\}\}/g, rescheduleLink)
+                    .replace(/\{\{\s*review_link\s*\}\}/g, "");
 
               const fnUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/whatsapp-send`;
               fetch(fnUrl, {
