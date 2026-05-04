@@ -114,13 +114,49 @@ Deno.serve(async (req) => {
       .eq("id", payment.id);
     if (paymentUpdateError) throw paymentUpdateError;
 
+    const isAutoRevenue = (payment.metadata as any)?.source === "auto_revenue_deposit" || metadata?.source === "auto_revenue_deposit";
+
     if (appointmentId) {
       const amountPaid = status === "paid" ? Number(payment.amount || 0) : 0;
+      // For auto-revenue deposits, paid → 'gepland' (Dutch convention used in this app)
+      const apptStatusToSet = isAutoRevenue && status === "paid"
+        ? "gepland"
+        : isAutoRevenue && ["failed", "expired", "canceled", "cancelled"].includes(status)
+          ? "geannuleerd"
+          : mapped.appointment_status;
+      const apptPaymentStatus = isAutoRevenue && status === "paid" ? "paid" : mapped.payment_status;
+
+      const updatePayload: Record<string, unknown> = {
+        payment_status: apptPaymentStatus,
+        status: apptStatusToSet,
+        amount_paid: amountPaid,
+      };
+      if (isAutoRevenue && status === "paid") {
+        updatePayload.payment_expires_at = null;
+      }
+
       const { data: appointment } = await supabase.from("appointments").select("booking_group_id").eq("id", appointmentId).maybeSingle();
       if (appointment?.booking_group_id) {
-        await supabase.from("appointments").update({ payment_status: mapped.payment_status, status: mapped.appointment_status, amount_paid: amountPaid }).eq("booking_group_id", appointment.booking_group_id);
+        await supabase.from("appointments").update(updatePayload).eq("booking_group_id", appointment.booking_group_id);
       }
-      await supabase.from("appointments").update({ payment_status: mapped.payment_status, status: mapped.appointment_status, amount_paid: amountPaid }).eq("id", appointmentId);
+      await supabase.from("appointments").update(updatePayload).eq("id", appointmentId);
+
+      if (isAutoRevenue) {
+        const offerId = (payment.metadata as any)?.offer_id || metadata?.offer_id;
+        if (offerId) {
+          const offerStatus = status === "paid"
+            ? "paid"
+            : ["failed", "expired", "canceled", "cancelled"].includes(status)
+              ? "expired"
+              : "pending_payment";
+          // Idempotent — only update if status changed
+          await supabase
+            .from("auto_revenue_offers")
+            .update({ status: offerStatus, updated_at: new Date().toISOString() })
+            .eq("id", offerId)
+            .neq("status", offerStatus);
+        }
+      }
     }
 
     if (status === "paid") {
