@@ -95,6 +95,7 @@ export type Database = {
           id: string
           is_demo: boolean
           notes: string | null
+          payment_expires_at: string | null
           payment_required: boolean | null
           payment_status: string | null
           payment_type: string | null
@@ -120,6 +121,7 @@ export type Database = {
           id?: string
           is_demo?: boolean
           notes?: string | null
+          payment_expires_at?: string | null
           payment_required?: boolean | null
           payment_status?: string | null
           payment_type?: string | null
@@ -145,6 +147,7 @@ export type Database = {
           id?: string
           is_demo?: boolean
           notes?: string | null
+          payment_expires_at?: string | null
           payment_required?: boolean | null
           payment_status?: string | null
           payment_type?: string | null
@@ -208,6 +211,79 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      auto_revenue_offers: {
+        Row: {
+          appointment_date: string
+          appointment_id: string | null
+          created_at: string
+          customer_id: string
+          employee_id: string | null
+          end_time: string
+          expires_at: string
+          id: string
+          is_demo: boolean
+          service_id: string | null
+          start_time: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          appointment_date: string
+          appointment_id?: string | null
+          created_at?: string
+          customer_id: string
+          employee_id?: string | null
+          end_time: string
+          expires_at: string
+          id?: string
+          is_demo?: boolean
+          service_id?: string | null
+          start_time: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          appointment_date?: string
+          appointment_id?: string | null
+          created_at?: string
+          customer_id?: string
+          employee_id?: string | null
+          end_time?: string
+          expires_at?: string
+          id?: string
+          is_demo?: boolean
+          service_id?: string | null
+          start_time?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auto_revenue_offers_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auto_revenue_offers_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auto_revenue_offers_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       automation_logs: {
         Row: {
@@ -2166,6 +2242,13 @@ export type Database = {
         Row: {
           appointment_reminder_schedule: Json
           auto_block_noshow: number | null
+          auto_revenue_deposit_enabled: boolean
+          auto_revenue_deposit_fixed_cents: number
+          auto_revenue_deposit_max_cents: number
+          auto_revenue_deposit_min_cents: number
+          auto_revenue_deposit_percentage_bps: number
+          auto_revenue_deposit_type: string
+          auto_revenue_reservation_hold_minutes: number
           buffer_minutes: number | null
           cancellation_notice: string | null
           created_at: string
@@ -2200,6 +2283,13 @@ export type Database = {
         Insert: {
           appointment_reminder_schedule?: Json
           auto_block_noshow?: number | null
+          auto_revenue_deposit_enabled?: boolean
+          auto_revenue_deposit_fixed_cents?: number
+          auto_revenue_deposit_max_cents?: number
+          auto_revenue_deposit_min_cents?: number
+          auto_revenue_deposit_percentage_bps?: number
+          auto_revenue_deposit_type?: string
+          auto_revenue_reservation_hold_minutes?: number
           buffer_minutes?: number | null
           cancellation_notice?: string | null
           created_at?: string
@@ -2234,6 +2324,13 @@ export type Database = {
         Update: {
           appointment_reminder_schedule?: Json
           auto_block_noshow?: number | null
+          auto_revenue_deposit_enabled?: boolean
+          auto_revenue_deposit_fixed_cents?: number
+          auto_revenue_deposit_max_cents?: number
+          auto_revenue_deposit_min_cents?: number
+          auto_revenue_deposit_percentage_bps?: number
+          auto_revenue_deposit_type?: string
+          auto_revenue_reservation_hold_minutes?: number
           buffer_minutes?: number | null
           cancellation_notice?: string | null
           created_at?: string
@@ -2701,6 +2798,53 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      whatsapp_inbound_messages: {
+        Row: {
+          body: string
+          created_at: string
+          customer_id: string | null
+          from_number: string
+          id: string
+          is_demo: boolean
+          metadata: Json
+          processed: boolean
+          received_at: string
+          user_id: string
+        }
+        Insert: {
+          body?: string
+          created_at?: string
+          customer_id?: string | null
+          from_number: string
+          id?: string
+          is_demo?: boolean
+          metadata?: Json
+          processed?: boolean
+          received_at?: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          customer_id?: string | null
+          from_number?: string
+          id?: string
+          is_demo?: boolean
+          metadata?: Json
+          processed?: boolean
+          received_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_inbound_messages_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       whatsapp_logs: {
         Row: {
