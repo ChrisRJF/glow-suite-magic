@@ -1,0 +1,2 @@
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS auto_revenue_payment_mode text NOT NULL DEFAULT 'deposit';
+ALTER TABLE public.settings ADD CONSTRAINT settings_auto_revenue_payment_mode_check CHECK (auto_revenue_payment_mode IN ('none','deposit','full'));

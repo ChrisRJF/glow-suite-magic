@@ -114,7 +114,8 @@ Deno.serve(async (req) => {
       .eq("id", payment.id);
     if (paymentUpdateError) throw paymentUpdateError;
 
-    const isAutoRevenue = (payment.metadata as any)?.source === "auto_revenue_deposit" || metadata?.source === "auto_revenue_deposit";
+    const arSources = ["auto_revenue_deposit", "auto_revenue_full"];
+    const isAutoRevenue = arSources.includes((payment.metadata as any)?.source) || arSources.includes(metadata?.source);
 
     if (appointmentId) {
       const amountPaid = status === "paid" ? Number(payment.amount || 0) : 0;

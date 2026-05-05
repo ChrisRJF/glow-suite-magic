@@ -212,13 +212,15 @@ Deno.serve(async (req) => {
       return ok();
     }
 
-    // Load deposit/hold settings
+    // Load deposit/hold settings + payment mode
     const { data: settings } = await admin
       .from("settings")
-      .select("auto_revenue_reservation_hold_minutes")
+      .select("auto_revenue_reservation_hold_minutes, auto_revenue_payment_mode")
       .eq("user_id", inboundUserId)
       .maybeSingle();
     const holdMinutes = Number((settings as any)?.auto_revenue_reservation_hold_minutes ?? 15);
+    const paymentMode: "none" | "deposit" | "full" =
+      ((settings as any)?.auto_revenue_payment_mode as any) || "deposit";
     const expiresAt = new Date(Date.now() + holdMinutes * 60_000).toISOString();
 
     // Load service price
@@ -226,7 +228,10 @@ Deno.serve(async (req) => {
       ? await admin.from("services").select("name, price").eq("id", offer.service_id).maybeSingle()
       : { data: null };
 
-    // Create pending_payment appointment
+    const servicePrice = Number((service as any)?.price || 0);
+    const isImmediate = paymentMode === "none";
+
+    // Create appointment (immediate or pending_payment)
     const { data: appt, error: apptErr } = await admin
       .from("appointments")
       .insert({
@@ -237,11 +242,11 @@ Deno.serve(async (req) => {
         appointment_date: apptDateIso,
         start_time: offer.start_time,
         end_time: offer.end_time,
-        status: "pending_payment",
-        payment_required: true,
-        payment_status: "pending",
-        payment_expires_at: expiresAt,
-        price: Number((service as any)?.price || 0),
+        status: isImmediate ? "gepland" : "pending_payment",
+        payment_required: !isImmediate,
+        payment_status: isImmediate ? "none" : "pending",
+        payment_expires_at: isImmediate ? null : expiresAt,
+        price: servicePrice,
         source: "auto_revenue_reply",
         is_demo: inboundIsDemo,
       })
@@ -254,53 +259,67 @@ Deno.serve(async (req) => {
       return ok();
     }
 
-    // Create deposit payment via Mollie (or simulate in demo)
+    const timeStr = String(offer.start_time).substring(0, 5);
     let checkoutUrl: string | null = null;
-    try {
-      const payRes = await fetch(`${SUPABASE_URL}/functions/v1/create-auto-revenue-payment`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-        },
-        body: JSON.stringify({
-          user_id: inboundUserId,
-          appointment_id: appt.id,
-          offer_id: offer.id,
-          customer_id: customer!.id,
-          is_demo: inboundIsDemo,
-        }),
-      });
-      const payJson = await payRes.json().catch(() => ({}));
-      checkoutUrl = (payJson as any)?.checkout_url || null;
-      if (!payRes.ok || !checkoutUrl) {
-        throw new Error((payJson as any)?.error || "Geen checkout link ontvangen");
-      }
-    } catch (e) {
-      console.error("whatsapp-inbound: payment creation failed", e);
-      // Roll back: cancel appointment + mark offer failed
-      await admin.from("appointments").update({ status: "geannuleerd", payment_status: "failed" }).eq("id", appt.id);
-      await admin.from("auto_revenue_offers").update({ status: "failed", updated_at: new Date().toISOString() }).eq("id", offer.id);
-      if (waSettings?.enabled !== false) {
-        await sendWhatsApp(admin, {
-          user_id: inboundUserId,
-          to: fromPhone,
-          message: "Het lukte niet om een betaallink aan te maken. Onze excuses — we nemen contact met je op.",
-          customer_id: customer!.id,
+
+    if (!isImmediate) {
+      // Create deposit/full payment via Mollie (or simulate in demo)
+      try {
+        const payRes = await fetch(`${SUPABASE_URL}/functions/v1/create-auto-revenue-payment`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+          },
+          body: JSON.stringify({
+            user_id: inboundUserId,
+            appointment_id: appt.id,
+            offer_id: offer.id,
+            customer_id: customer!.id,
+            is_demo: inboundIsDemo,
+            payment_mode: paymentMode,
+          }),
         });
+        const payJson = await payRes.json().catch(() => ({}));
+        checkoutUrl = (payJson as any)?.checkout_url || null;
+        if (!payRes.ok || !checkoutUrl) {
+          throw new Error((payJson as any)?.error || "Geen checkout link ontvangen");
+        }
+      } catch (e) {
+        console.error("whatsapp-inbound: payment creation failed", e);
+        await admin.from("appointments").update({ status: "geannuleerd", payment_status: "failed" }).eq("id", appt.id);
+        await admin.from("auto_revenue_offers").update({ status: "failed", updated_at: new Date().toISOString() }).eq("id", offer.id);
+        if (waSettings?.enabled !== false) {
+          await sendWhatsApp(admin, {
+            user_id: inboundUserId,
+            to: fromPhone,
+            message: "Het lukte niet om een betaallink aan te maken. Onze excuses — we nemen contact met je op.",
+            customer_id: customer!.id,
+          });
+        }
+        return ok();
       }
-      return ok();
     }
 
     // Update offer
     await admin
       .from("auto_revenue_offers")
-      .update({ status: "pending_payment", appointment_id: appt.id, updated_at: new Date().toISOString() })
+      .update({
+        status: isImmediate ? "paid" : "pending_payment",
+        appointment_id: appt.id,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", offer.id);
 
-    // Send confirmation WhatsApp with payment link
-    const timeStr = String(offer.start_time).substring(0, 5);
-    const message = `Top! Ik heb de plek voor je gereserveerd om ${timeStr} 🙌\n\nBevestig met een aanbetaling via:\n${checkoutUrl}\n\nNa betaling is je afspraak definitief.`;
+    // Send confirmation WhatsApp
+    let message: string;
+    if (isImmediate) {
+      message = `Top! Je afspraak om ${timeStr} is bevestigd ✅\n\nTot snel!`;
+    } else if (paymentMode === "full") {
+      message = `Top! Ik heb de plek voor je gereserveerd om ${timeStr} 🙌\n\nBevestig met de volledige betaling via:\n${checkoutUrl}\n\nNa betaling is je afspraak definitief.`;
+    } else {
+      message = `Top! Ik heb de plek voor je gereserveerd om ${timeStr} 🙌\n\nBevestig met een aanbetaling via:\n${checkoutUrl}\n\nNa betaling is je afspraak definitief.`;
+    }
 
     if (waSettings?.enabled !== false) {
       await sendWhatsApp(admin, {
@@ -309,7 +328,7 @@ Deno.serve(async (req) => {
         message,
         customer_id: customer!.id,
         appointment_id: appt.id,
-        meta: { source: "auto_revenue_reply", offer_id: offer.id },
+        meta: { source: "auto_revenue_reply", offer_id: offer.id, payment_mode: paymentMode },
       });
     }
 
