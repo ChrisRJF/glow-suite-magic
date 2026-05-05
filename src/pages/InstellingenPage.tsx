@@ -61,6 +61,7 @@ export default function InstellingenPage() {
   const [fullPrepayThreshold, setFullPrepayThreshold] = useState(150);
   const [skipVip, setSkipVip] = useState(true);
   const [depositNoshow, setDepositNoshow] = useState(true);
+  const [autoRevenuePaymentMode, setAutoRevenuePaymentMode] = useState<"none" | "deposit" | "full">("deposit");
   const [resetLoading, setResetLoading] = useState(false);
   const [openingHours, setOpeningHours] = useState<OpeningHours>(defaultHours);
   const [bufferMinutes, setBufferMinutes] = useState(15);
