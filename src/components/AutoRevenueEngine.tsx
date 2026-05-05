@@ -111,7 +111,7 @@ export function AutoRevenueEngine() {
 
   const [autopilot, setAutopilot] = useState(() => getAutopilotState(demoMode));
   const [actionLog, setActionLog] = useState<ActionLogEntry[]>([]);
-  const [offerLogs, setOfferLogs] = useState<Array<{ id: string; status: string; created_at: string; channel: string | null }>>([]);
+  const [offerLogs, setOfferLogs] = useState<Array<{ id: string; status: string; created_at: string }>>([]);
   const [showLog, setShowLog] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [running, setRunning] = useState(false);
@@ -135,7 +135,7 @@ export function AutoRevenueEngine() {
     (async () => {
       const { data } = await supabase
         .from("auto_revenue_offers")
-        .select("id, status, created_at, channel")
+        .select("id, status, created_at")
         .eq("user_id", user.id)
         .eq("is_demo", demoMode)
         .order("created_at", { ascending: false })
