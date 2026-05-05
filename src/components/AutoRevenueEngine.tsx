@@ -128,6 +128,23 @@ export function AutoRevenueEngine() {
     setAutopilot(getAutopilotState(demoMode));
   }, [demoMode]);
 
+  // Load recent Auto Revenue offer logs (read-only display)
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("auto_revenue_offers")
+        .select("id, status, created_at, channel")
+        .eq("user_id", user.id)
+        .eq("is_demo", demoMode)
+        .order("created_at", { ascending: false })
+        .limit(10);
+      if (!cancelled) setOfferLogs((data as any) || []);
+    })();
+    return () => { cancelled = true; };
+  }, [user, demoMode, actionLog.length]);
+
   const todayStr = new Date().toISOString().split("T")[0];
   const totalSlots = 10;
 
