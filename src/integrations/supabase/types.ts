@@ -2248,6 +2248,7 @@ export type Database = {
           auto_revenue_deposit_min_cents: number
           auto_revenue_deposit_percentage_bps: number
           auto_revenue_deposit_type: string
+          auto_revenue_payment_mode: string
           auto_revenue_reservation_hold_minutes: number
           buffer_minutes: number | null
           cancellation_notice: string | null
@@ -2289,6 +2290,7 @@ export type Database = {
           auto_revenue_deposit_min_cents?: number
           auto_revenue_deposit_percentage_bps?: number
           auto_revenue_deposit_type?: string
+          auto_revenue_payment_mode?: string
           auto_revenue_reservation_hold_minutes?: number
           buffer_minutes?: number | null
           cancellation_notice?: string | null
@@ -2330,6 +2332,7 @@ export type Database = {
           auto_revenue_deposit_min_cents?: number
           auto_revenue_deposit_percentage_bps?: number
           auto_revenue_deposit_type?: string
+          auto_revenue_payment_mode?: string
           auto_revenue_reservation_hold_minutes?: number
           buffer_minutes?: number | null
           cancellation_notice?: string | null
