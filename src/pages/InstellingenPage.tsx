@@ -107,6 +107,7 @@ export default function InstellingenPage() {
       setFullPrepayThreshold(Number(s.full_prepay_threshold) || 150);
       setSkipVip(s.skip_prepay_vip ?? true);
       setDepositNoshow(s.deposit_noshow_risk ?? true);
+      setAutoRevenuePaymentMode((s.auto_revenue_payment_mode as any) || "deposit");
       if (s.opening_hours) setOpeningHours(s.opening_hours as OpeningHours);
       setBufferMinutes(s.buffer_minutes ?? 15);
       setMaxBookings(s.max_bookings_simultaneous ?? 1);
