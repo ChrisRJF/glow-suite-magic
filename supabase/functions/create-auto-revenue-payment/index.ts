@@ -76,16 +76,16 @@ Deno.serve(async (req) => {
     const admin = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
     const body = await req.json().catch(() => ({}));
-    const { user_id, appointment_id, offer_id, customer_id, is_demo: bodyIsDemo } = body || {};
+    const { user_id, appointment_id, offer_id, customer_id, is_demo: bodyIsDemo, payment_mode: bodyMode } = body || {};
     if (!user_id || !appointment_id || !offer_id || !customer_id) {
       return json({ error: "user_id, appointment_id, offer_id, customer_id verplicht" }, 400);
     }
 
-    // Load settings (deposit config + demo flag)
+    // Load settings (deposit config + payment mode + demo flag)
     const { data: settings } = await admin
       .from("settings")
       .select(
-        "id, demo_mode, is_demo, auto_revenue_deposit_enabled, auto_revenue_deposit_type, auto_revenue_deposit_fixed_cents, auto_revenue_deposit_percentage_bps, auto_revenue_deposit_min_cents, auto_revenue_deposit_max_cents",
+        "id, demo_mode, is_demo, auto_revenue_payment_mode, auto_revenue_deposit_enabled, auto_revenue_deposit_type, auto_revenue_deposit_fixed_cents, auto_revenue_deposit_percentage_bps, auto_revenue_deposit_min_cents, auto_revenue_deposit_max_cents",
       )
       .eq("user_id", user_id)
       .order("created_at", { ascending: false })
@@ -93,8 +93,14 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     const demoMode = bodyIsDemo === true || Boolean((settings as any)?.is_demo || (settings as any)?.demo_mode);
+    const paymentMode: "none" | "deposit" | "full" =
+      (bodyMode as any) || ((settings as any)?.auto_revenue_payment_mode as any) || "deposit";
 
-    // Load appointment to compute deposit base (price)
+    if (paymentMode === "none") {
+      return json({ error: "payment_mode=none vereist geen betaling" }, 400);
+    }
+
+    // Load appointment to compute base amount (price)
     const { data: appt } = await admin
       .from("appointments")
       .select("id, user_id, price, service_id")
@@ -102,22 +108,29 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (!appt || appt.user_id !== user_id) return json({ error: "Afspraak niet gevonden" }, 404);
 
-    // Compute deposit
     const priceCents = Math.round(Number(appt.price || 0) * 100);
     const cfg = settings as any;
-    const depositType = cfg?.auto_revenue_deposit_type || "fixed";
-    const fixedCents = Number(cfg?.auto_revenue_deposit_fixed_cents ?? 1000);
-    const pctBps = Number(cfg?.auto_revenue_deposit_percentage_bps ?? 2000); // 2000bps = 20%
-    const minCents = Number(cfg?.auto_revenue_deposit_min_cents ?? 500);
-    const maxCents = Number(cfg?.auto_revenue_deposit_max_cents ?? 2500);
 
-    let depositCents = depositType === "percentage"
-      ? Math.round((priceCents * pctBps) / 10_000)
-      : fixedCents;
-    depositCents = clamp(depositCents || fixedCents, minCents, maxCents);
+    let depositCents = 0;
+    if (paymentMode === "full") {
+      depositCents = priceCents;
+    } else {
+      const depositType = cfg?.auto_revenue_deposit_type || "fixed";
+      const fixedCents = Number(cfg?.auto_revenue_deposit_fixed_cents ?? 1000);
+      const pctBps = Number(cfg?.auto_revenue_deposit_percentage_bps ?? 2000);
+      const minCents = Number(cfg?.auto_revenue_deposit_min_cents ?? 500);
+      const maxCents = Number(cfg?.auto_revenue_deposit_max_cents ?? 2500);
+      depositCents = depositType === "percentage"
+        ? Math.round((priceCents * pctBps) / 10_000)
+        : fixedCents;
+      depositCents = clamp(depositCents || fixedCents, minCents, maxCents);
+    }
 
     const totalCents = depositCents + PLATFORM_FEE_CENTS;
     const totalEuros = (totalCents / 100).toFixed(2);
+    const paymentType = paymentMode === "full" ? "full" : "deposit";
+    const sourceTag = paymentMode === "full" ? "auto_revenue_full" : "auto_revenue_deposit";
+    const description = paymentMode === "full" ? "GlowSuite Volledige betaling" : "GlowSuite Aanbetaling";
 
     if (demoMode) {
       const fakeId = `demo_ar_${crypto.randomUUID().slice(0, 8)}`;
