@@ -111,6 +111,7 @@ export function AutoRevenueEngine() {
 
   const [autopilot, setAutopilot] = useState(() => getAutopilotState(demoMode));
   const [actionLog, setActionLog] = useState<ActionLogEntry[]>([]);
+  const [offerLogs, setOfferLogs] = useState<Array<{ id: string; status: string; created_at: string; channel: string | null }>>([]);
   const [showLog, setShowLog] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [running, setRunning] = useState(false);
