@@ -867,7 +867,30 @@ export function AutoRevenueEngine() {
             ))}
           </div>
         )}
-      </div>
-    </div>
-  );
+
+        {/* Auto Revenue offer logs */}
+        {offerLogs.length > 0 && (
+          <div className="p-4 rounded-xl bg-secondary/50 border border-border space-y-2 max-h-56 overflow-y-auto">
+            <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium mb-2">Aanbod log (laatste 10)</p>
+            {offerLogs.map(o => {
+              const map: Record<string, { label: string; cls: string }> = {
+                sent:            { label: "Verstuurd",          cls: "bg-primary/10 text-primary border-primary/30" },
+                pending_payment: { label: "Wacht op aanbetaling", cls: "bg-amber-500/10 text-amber-600 border-amber-500/30" },
+                paid:            { label: "Betaald",            cls: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30" },
+                expired:         { label: "Verlopen",           cls: "bg-muted text-muted-foreground border-border" },
+                cancelled:       { label: "Geannuleerd",        cls: "bg-rose-500/10 text-rose-600 border-rose-500/30" },
+                failed:          { label: "Mislukt",            cls: "bg-destructive/10 text-destructive border-destructive/30" },
+              };
+              const s = map[o.status] || { label: o.status, cls: "bg-muted text-muted-foreground border-border" };
+              return (
+                <div key={o.id} className="flex items-center justify-between text-sm p-2 rounded-lg bg-background/50">
+                  <span className="text-[11px] text-muted-foreground">
+                    {new Date(o.created_at).toLocaleString("nl-NL", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                  <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${s.cls}`}>{s.label}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
 }
