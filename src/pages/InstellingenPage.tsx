@@ -274,6 +274,7 @@ export default function InstellingenPage() {
         full_prepay_threshold: fullPrepayThreshold,
         skip_prepay_vip: skipVip,
         deposit_noshow_risk: depositNoshow,
+        auto_revenue_payment_mode: autoRevenuePaymentMode,
         opening_hours: openingHours,
         buffer_minutes: bufferMinutes,
         max_bookings_simultaneous: maxBookings,
