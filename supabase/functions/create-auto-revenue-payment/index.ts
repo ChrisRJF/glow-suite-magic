@@ -181,17 +181,18 @@ Deno.serve(async (req) => {
 
     const molliePayload: Record<string, unknown> = {
       amount: { currency: "EUR", value: totalEuros },
-      description: "GlowSuite Aanbetaling",
+      description,
       redirectUrl: `${REDIRECT_BASE}/boeken?status=payment-return&offer=${offer_id}`,
       webhookUrl: `${SUPABASE_URL}/functions/v1/mollie-webhook`,
       method: "ideal",
       metadata: {
-        source: "auto_revenue_deposit",
+        source: sourceTag,
+        payment_mode: paymentMode,
         appointment_id,
         offer_id,
         customer_id,
         salon_id: user_id,
-        payment_type: "deposit",
+        payment_type: paymentType,
         deposit_cents: depositCents,
         platform_fee_cents: PLATFORM_FEE_CENTS,
         total_amount_cents: totalCents,
