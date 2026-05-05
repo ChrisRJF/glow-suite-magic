@@ -649,6 +649,13 @@ export default function InstellingenPage() {
                 <div><span className="text-sm">No-show risico aanbetaling</span><p className="text-[11px] text-muted-foreground">Vereis aanbetaling bij no-show risico</p></div>
                 <ToggleSwitch value={depositNoshow} onChange={setDepositNoshow} />
               </div>
+              <div className="mt-2 p-3 rounded-xl bg-primary/5 border border-primary/10">
+                <p className="text-xs font-medium mb-1">Auto Revenue aanbetaling — voorbeeld</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Behandeling €100 → aanbetaling <span className="font-semibold text-foreground">€{(depositPct).toFixed(0)}</span>
+                  {" "}+ €0,35 platformkosten. Slot wordt 15 min vastgehouden tot betaling.
+                </p>
+              </div>
             </div>
           </div>
         )}
