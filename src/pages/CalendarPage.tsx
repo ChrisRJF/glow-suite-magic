@@ -873,6 +873,7 @@ export default function CalendarPage() {
     { value: 'voltooid',    label: 'Voltooid',    pill: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',           dot: 'bg-emerald-500' },
     { value: 'geannuleerd', label: 'Geannuleerd', pill: 'bg-rose-500/10 text-rose-600 border-rose-500/30',                    dot: 'bg-rose-500' },
     { value: 'no-show',     label: 'No-show',     pill: 'bg-destructive/10 text-destructive border-destructive/30',           dot: 'bg-destructive' },
+    { value: 'pending_payment', label: 'Wacht op aanbetaling', pill: 'bg-amber-500/10 text-amber-600 border-amber-500/30',     dot: 'bg-amber-500' },
   ];
   const StatusPill = ({ apt }: { apt: any }) => {
     const current = STATUS_OPTIONS.find(o => o.value === apt.status) || STATUS_OPTIONS[0];
