@@ -652,12 +652,47 @@ export default function InstellingenPage() {
                 <div><span className="text-sm">No-show risico aanbetaling</span><p className="text-[11px] text-muted-foreground">Vereis aanbetaling bij no-show risico</p></div>
                 <ToggleSwitch value={depositNoshow} onChange={setDepositNoshow} />
               </div>
-              <div className="mt-2 p-3 rounded-xl bg-primary/5 border border-primary/10">
-                <p className="text-xs font-medium mb-1">Auto Revenue aanbetaling — voorbeeld</p>
-                <p className="text-[11px] text-muted-foreground">
-                  Behandeling €100 → aanbetaling <span className="font-semibold text-foreground">€{(depositPct).toFixed(0)}</span>
-                  {" "}+ €0,35 platformkosten. Slot wordt 15 min vastgehouden tot betaling.
-                </p>
+              <div className="mt-4 pt-4 border-t border-border">
+                <p className="text-sm font-semibold mb-2">Auto Revenue betaling</p>
+                <p className="text-[11px] text-muted-foreground mb-3">Hoe wordt een JA-reactie via WhatsApp bevestigd?</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {([
+                    { v: "none", title: "Geen betaling vooraf", desc: "Direct bevestigd, geen betaallink" },
+                    { v: "deposit", title: "Aanbetaling", desc: "Slot vasthouden, aanbetaling vereist" },
+                    { v: "full", title: "Volledige betaling", desc: "Volledige prijs vooraf vereist" },
+                  ] as const).map((opt) => {
+                    const active = autoRevenuePaymentMode === opt.v;
+                    return (
+                      <button
+                        key={opt.v}
+                        type="button"
+                        onClick={() => setAutoRevenuePaymentMode(opt.v)}
+                        className={`text-left p-3 rounded-xl border transition ${active ? "border-primary bg-primary/10" : "border-border bg-secondary/30 hover:bg-secondary/50"}`}
+                      >
+                        <p className="text-xs font-semibold">{opt.title}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{opt.desc}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="mt-3 p-3 rounded-xl bg-primary/5 border border-primary/10">
+                  {(() => {
+                    const sample = 50;
+                    let amount = 0;
+                    if (autoRevenuePaymentMode === "none") amount = 0;
+                    else if (autoRevenuePaymentMode === "full") amount = sample + 0.35;
+                    else amount = Math.max(5, Math.min(25, (sample * depositPct) / 100)) + 0.35;
+                    return (
+                      <p className="text-[11px] text-muted-foreground">
+                        Bij een behandeling van €{sample} betaalt klant:{" "}
+                        <span className="font-semibold text-foreground">
+                          {amount === 0 ? "€0 (geen betaling vooraf)" : `€${amount.toFixed(2)}`}
+                        </span>
+                        {amount > 0 && " (incl. €0,35 platformkosten)"}
+                      </p>
+                    );
+                  })()}
+                </div>
               </div>
             </div>
           </div>
