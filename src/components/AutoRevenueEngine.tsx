@@ -875,7 +875,7 @@ export function AutoRevenueEngine() {
             {offerLogs.map(o => {
               const map: Record<string, { label: string; cls: string }> = {
                 sent:            { label: "Verstuurd",          cls: "bg-primary/10 text-primary border-primary/30" },
-                pending_payment: { label: "Wacht op aanbetaling", cls: "bg-amber-500/10 text-amber-600 border-amber-500/30" },
+                pending_payment: { label: "Wacht op betaling", cls: "bg-amber-500/10 text-amber-600 border-amber-500/30" },
                 paid:            { label: "Betaald",            cls: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30" },
                 expired:         { label: "Verlopen",           cls: "bg-muted text-muted-foreground border-border" },
                 cancelled:       { label: "Geannuleerd",        cls: "bg-rose-500/10 text-rose-600 border-rose-500/30" },

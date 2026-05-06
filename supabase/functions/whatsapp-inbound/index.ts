@@ -314,11 +314,11 @@ Deno.serve(async (req) => {
     // Send confirmation WhatsApp
     let message: string;
     if (isImmediate) {
-      message = `Top! Je afspraak om ${timeStr} is bevestigd ✅\n\nTot snel!`;
+      message = `Top! Je afspraak om ${timeStr} staat vast ✅\n\nTot snel!`;
     } else if (paymentMode === "full") {
-      message = `Top! Ik heb de plek voor je gereserveerd om ${timeStr} 🙌\n\nBevestig met de volledige betaling via:\n${checkoutUrl}\n\nNa betaling is je afspraak definitief.`;
+      message = `Top! Ik heb de plek om ${timeStr} tijdelijk voor je vastgezet 🙌\n\nBevestig je afspraak via:\n${checkoutUrl}\n\nNa betaling staat je afspraak definitief in de agenda.`;
     } else {
-      message = `Top! Ik heb de plek voor je gereserveerd om ${timeStr} 🙌\n\nBevestig met een aanbetaling via:\n${checkoutUrl}\n\nNa betaling is je afspraak definitief.`;
+      message = `Top! Ik heb de plek om ${timeStr} tijdelijk voor je gereserveerd 🙌\n\nBevestig je afspraak met een kleine aanbetaling via:\n${checkoutUrl}\n\nNa betaling staat je afspraak definitief in de agenda.`;
     }
 
     if (waSettings?.enabled !== false) {
