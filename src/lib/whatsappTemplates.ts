@@ -29,7 +29,13 @@ Tot dan!`,
 We horen graag je ervaring. Laat hier een korte review achter:
 {{review_link}}`,
   no_show: `Hi {{customer_name}}, jammer dat je je afspraak bij {{salon_name}} hebt gemist. Je kunt makkelijk een nieuwe afspraak plannen via {{booking_link}}.`,
-  waitlist_offer: `Hi {{customer_name}}, er is een plek vrijgekomen op {{appointment_date}} om {{appointment_time}} voor {{service}}. Wil je deze plek boeken? {{booking_link}}`,
+  waitlist_offer: `Hey {{customer_name}} 👋
+
+Er is net een plek vrijgekomen op {{appointment_date}} om {{appointment_time}} voor {{service}}.
+
+Wil je 'm hebben? Reageer met JA, dan reserveer ik de plek voor je.
+
+– {{salon_name}}`,
   revenue_boost: `Hi {{customer_name}}, het is alweer even geleden sinds je laatste behandeling bij {{salon_name}}. Deze week hebben we nog enkele plekken vrij. Boek hier je afspraak: {{booking_link}}`,
 };
 

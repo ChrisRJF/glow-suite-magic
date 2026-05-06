@@ -161,7 +161,7 @@ export function buildActionMessage(
       : "deze week";
   switch (action) {
     case "waitlist_offer":
-      return `Hoi! Er is een plek vrij ${when}. Eerste die boekt krijgt 'm: ${ctx.bookingLink}`;
+      return `Hey 👋 Er is net een plek vrijgekomen ${when}.\n\nWil je 'm hebben? Reageer met JA, dan reserveer ik de plek voor je.`;
     case "whatsapp_blast":
       return `Hi 👋 We hebben ${when} nog plek. Snel boeken? ${ctx.bookingLink}`;
     case "discount_offer":
