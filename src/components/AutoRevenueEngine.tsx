@@ -25,6 +25,7 @@ import {
 } from "@/lib/autopilotScoring";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { AutoRevenueMetrics } from "@/components/AutoRevenueMetrics";
 
 interface ActionLogEntry {
   id: string;
@@ -687,6 +688,9 @@ export function AutoRevenueEngine() {
             <span>Bezettingsgraad vandaag: <span className="font-semibold">{totalSlots > 0 ? Math.round((todaysAppts.length / totalSlots) * 100) : 0}%</span> — {emptySlots > 0 ? `${emptySlots} plekken te vullen` : 'volledig gevuld!'}</span>
           </p>
         </div>
+
+        {/* Auto Revenue conversion metrics */}
+        <AutoRevenueMetrics />
 
         {/* Summary cards: gevonden / acties / verwacht / uplift */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
