@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Calendar, Users, Scissors, X, Globe,
   MessageCircle, CreditCard, TrendingUp, RefreshCw, Megaphone,
   Zap, ShoppingBag, Package, BarChart3, Settings, HelpCircle, LogOut,
-  Sun, Moon, Bot, Clock, Gift, ShoppingCart, Share2, UserPlus, Crown, RotateCcw, Mail, Wallet,
+  Sun, Moon, Bot, Clock, Gift, ShoppingCart, Share2, UserPlus, Crown, RotateCcw, Mail, Wallet, Flame,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -40,7 +40,6 @@ const navGroups: NavGroup[] = [
   {
     title: "Groei",
     items: [
-      { label: "Autopilot", icon: Zap, path: "/acties", accent: true },
       { label: "Marketing", icon: Megaphone, path: "/marketing" },
       { label: "Social Studio", icon: Share2, path: "/social-studio" },
       { label: "Leads", icon: UserPlus, path: "/leads" },
@@ -51,13 +50,20 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    title: "Management",
+    title: "Financiën",
     items: [
       { label: "Eigenaar", icon: Crown, path: "/eigenaar", accent: true },
       { label: "Payroll", icon: Wallet, path: "/payroll" },
       { label: "Rapporten", icon: BarChart3, path: "/rapporten" },
       { label: "GlowPay", icon: CreditCard, path: "/glowpay", accent: true },
       { label: "Refunds", icon: RotateCcw, path: "/refunds" },
+    ],
+  },
+  {
+    title: "Auto Revenue",
+    items: [
+      { label: "🔥 Auto Revenue", icon: Flame, path: "/auto-revenue", accent: true, badge: "AI" },
+      { label: "Autopilot", icon: Zap, path: "/acties" },
     ],
   },
   {
