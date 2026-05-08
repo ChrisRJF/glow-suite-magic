@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Flame, Sparkles, Clock, Users, RotateCcw, Crown, Gift, CreditCard, ArrowRight, CheckCircle2, XCircle, Hourglass, Wallet } from "lucide-react";
+import { Sparkles, Clock, RotateCcw, Crown, Gift, CreditCard, ArrowRight, CheckCircle2, XCircle, Hourglass, Wallet } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
