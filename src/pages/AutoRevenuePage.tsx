@@ -165,48 +165,39 @@ export default function AutoRevenuePage() {
     { label: "Verlopen aanbiedingen", value: kpis.expired, tone: "from-muted to-muted/30 border-border text-muted-foreground" },
   ];
 
-  return (
-    <AppLayout>
-      <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
-        {/* Hero */}
-        <div className="rounded-3xl border border-border bg-gradient-to-br from-primary/10 via-background to-background p-6 sm:p-8">
-          <div className="flex items-start justify-between gap-3 flex-wrap">
-            <div className="flex items-center gap-3">
-              <div className="h-12 w-12 rounded-2xl bg-primary/15 text-primary flex items-center justify-center">
-                <Flame className="w-6 h-6" />
-              </div>
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Auto Revenue</h1>
-                <p className="text-sm text-muted-foreground mt-1 max-w-xl">
-                  Laat GlowSuite automatisch lege plekken vullen en omzet terugwinnen.
-                </p>
-              </div>
-            </div>
-            <div className="inline-flex rounded-xl border border-border bg-card p-0.5 text-xs">
-              {(["today", "week", "month"] as Range[]).map((r) => (
-                <button
-                  key={r}
-                  onClick={() => setRange(r)}
-                  className={`px-3 py-1.5 rounded-lg font-medium transition-colors ${
-                    range === r ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {r === "today" ? "Vandaag" : r === "week" ? "Week" : "Maand"}
-                </button>
-              ))}
-            </div>
-          </div>
+  const rangeToggle = (
+    <div className="inline-flex rounded-xl border border-border bg-card p-0.5 text-xs">
+      {(["today", "week", "month"] as Range[]).map((r) => (
+        <button
+          key={r}
+          onClick={() => setRange(r)}
+          className={`px-3 py-1.5 rounded-lg font-medium transition-colors ${
+            range === r ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          {r === "today" ? "Vandaag" : r === "week" ? "Week" : "Maand"}
+        </button>
+      ))}
+    </div>
+  );
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-6">
-            {kpiCards.map((c) => (
-              <div key={c.label} className={`rounded-2xl border p-3 bg-gradient-to-br ${c.tone}`}>
-                <p className="text-[10px] uppercase tracking-wider font-medium opacity-80">{c.label}</p>
-                <p className="text-xl sm:text-2xl font-semibold tabular-nums mt-1 text-foreground">
-                  {loading ? "…" : c.value}
-                </p>
-              </div>
-            ))}
-          </div>
+  return (
+    <AppLayout
+      title="🔥 Auto Revenue"
+      subtitle="Laat GlowSuite automatisch lege plekken vullen en omzet terugwinnen."
+      actions={rangeToggle}
+    >
+      <div className="space-y-6">
+        {/* KPI cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          {kpiCards.map((c) => (
+            <div key={c.label} className={`rounded-2xl border p-3 bg-gradient-to-br ${c.tone}`}>
+              <p className="text-[10px] uppercase tracking-wider font-medium opacity-80">{c.label}</p>
+              <p className="text-xl sm:text-2xl font-semibold tabular-nums mt-1 text-foreground">
+                {loading ? "…" : c.value}
+              </p>
+            </div>
+          ))}
         </div>
 
         {/* Live activity */}
