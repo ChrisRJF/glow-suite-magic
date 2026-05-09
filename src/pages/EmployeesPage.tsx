@@ -62,7 +62,7 @@ const EXCEPTION_TYPES: { value: string; label: string }[] = [
 
 export default function EmployeesPage() {
   const { user } = useAuth();
-  const { isDemoMode } = useDemoMode();
+  const { demoMode: isDemoMode } = useDemoMode();
   const { data: employees, refetch, loading } = useEmployees();
   const { data: exceptions, refetch: refetchExceptions } = useEmployeeAvailabilityExceptions();
   const { insert, update, remove } = useCrud("employees");
