@@ -141,10 +141,37 @@ export default function AutoRevenuePage() {
   const [reloadKey, setReloadKey] = useState(0);
 
   // Shared runner — identical DB writes as the Dashboard "Omzet Autopilot" card.
-  const { running, runAutopilot } = useAutoRevenueRunner({
+  const { running, runAutopilot, scoredDecisions, projectedExtraRevenue, rankedCustomers } = useAutoRevenueRunner({
     maxDiscount: autopilotConfig.maxDiscount,
     maxMessagesPerDay: autopilotConfig.maxMessagesPerDay,
   });
+
+  // Visual progress feedback (UI only — does not affect runner logic).
+  const RUN_STEPS = [
+    "Agenda analyseren…",
+    "Lege plekken zoeken…",
+    "Beste klanten selecteren…",
+    "WhatsApp acties voorbereiden…",
+    "Resultaten opslaan…",
+  ];
+  const [currentStep, setCurrentStep] = useState<number>(-1);
+  const [lastSummary, setLastSummary] = useState<{
+    actions: number;
+    revenue: number;
+    customersReached: number;
+    noAction: boolean;
+  } | null>(null);
+
+  // Advance steps while running. Cap at last step until runner finishes.
+  useEffect(() => {
+    if (!running) return;
+    setCurrentStep(0);
+    setLastSummary(null);
+    const id = setInterval(() => {
+      setCurrentStep((s) => Math.min(RUN_STEPS.length - 1, s + 1));
+    }, 700);
+    return () => clearInterval(id);
+  }, [running]);
 
   const enableAutopilot = useCallback(() => {
     try {
@@ -165,16 +192,27 @@ export default function AutoRevenuePage() {
       enableAutopilot();
       toast.success("Auto Revenue staat nu actief ✅");
     }
+    // Snapshot pre-run signals for the summary card.
+    const actions = scoredDecisions.length;
+    const revenue = projectedExtraRevenue;
+    const cap = Math.max(1, autopilotConfig.maxMessagesPerDay);
+    const customersReached = Math.min(rankedCustomers.length, Math.min(actions, cap));
     try {
       await runAutopilot();
-      toast.success("Auto Revenue uitgevoerd ✅");
+      setCurrentStep(RUN_STEPS.length); // all done
+      setLastSummary({
+        actions,
+        revenue,
+        customersReached,
+        noAction: actions === 0,
+      });
     } catch (e) {
-      // runAutopilot already surfaces its own toasts; this is just a safety net.
       console.warn("auto revenue run failed", e);
+      setCurrentStep(-1);
     } finally {
       setReloadKey((k) => k + 1);
     }
-  }, [running, autopilotEnabled, enableAutopilot, runAutopilot]);
+  }, [running, autopilotEnabled, enableAutopilot, runAutopilot, scoredDecisions, projectedExtraRevenue, rankedCustomers, autopilotConfig.maxMessagesPerDay]);
 
   // Back-compat alias retained for the empty-state button below.
   const startAutoRevenue = handleStartOrRun;
@@ -347,6 +385,77 @@ export default function AutoRevenuePage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Run progress panel — visible while running or right after completion */}
+        {(running || lastSummary) && (
+          <Card className="border-primary/20">
+            <CardContent className="p-4 sm:p-5">
+              {running ? (
+                <>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Loader2 className="w-4 h-4 text-primary animate-spin" />
+                    <p className="text-sm font-medium">Auto Revenue draait…</p>
+                  </div>
+                  <ul className="space-y-2">
+                    {RUN_STEPS.map((label, i) => {
+                      const done = i < currentStep;
+                      const active = i === currentStep;
+                      return (
+                        <li
+                          key={label}
+                          className={`flex items-center gap-2 text-sm transition-colors ${
+                            done
+                              ? "text-emerald-700 dark:text-emerald-400"
+                              : active
+                                ? "text-foreground font-medium"
+                                : "text-muted-foreground/60"
+                          }`}
+                        >
+                          {done ? (
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                          ) : active ? (
+                            <Loader2 className="w-3.5 h-3.5 text-primary animate-spin shrink-0" />
+                          ) : (
+                            <Circle className="w-3.5 h-3.5 text-muted-foreground/40 shrink-0" />
+                          )}
+                          <span>{label}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </>
+              ) : lastSummary ? (
+                lastSummary.noAction ? (
+                  <div className="flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
+                    <p className="text-sm">Geen actie nodig — agenda ziet er goed uit 👍</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2 mb-3">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      <p className="text-sm font-medium">Auto Revenue uitgevoerd ✅</p>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="rounded-xl border border-border bg-secondary/40 p-3">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Acties</p>
+                        <p className="text-base font-semibold tabular-nums mt-0.5">{lastSummary.actions}</p>
+                      </div>
+                      <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
+                        <p className="text-[10px] uppercase tracking-wider text-emerald-700/80 dark:text-emerald-400/80">Omzet</p>
+                        <p className="text-base font-semibold tabular-nums mt-0.5 text-emerald-700 dark:text-emerald-400">{formatEuro(lastSummary.revenue)}</p>
+                      </div>
+                      <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
+                        <p className="text-[10px] uppercase tracking-wider text-primary/80">Klanten</p>
+                        <p className="text-base font-semibold tabular-nums mt-0.5 text-primary">{lastSummary.customersReached}</p>
+                      </div>
+                    </div>
+                  </>
+                )
+              ) : null}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Live status strip */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
