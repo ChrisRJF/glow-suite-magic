@@ -1451,7 +1451,38 @@ export default function BookingPage() {
 
             {!paymentResult && (
               <div className="mt-6 sm:static fixed bottom-0 left-0 right-0 sm:bg-transparent bg-background/95 sm:border-0 border-t border-border sm:p-0 p-4 sm:shadow-none shadow-lg z-40">
-                <Button variant="gradient" className="w-full" disabled={!name || !phone || !email || paymentLoading} onClick={handleConfirm}>
+                <div className="mb-3 space-y-2.5 rounded-xl border border-border/60 bg-muted/30 p-3">
+                  <label className="flex items-start gap-2.5 cursor-pointer text-xs leading-relaxed">
+                    <Checkbox
+                      checked={acceptedGlowsuiteTerms}
+                      onCheckedChange={(v) => { setAcceptedGlowsuiteTerms(Boolean(v)); if (v) setShowTermsError(false); }}
+                      className="mt-0.5"
+                    />
+                    <span className="text-foreground/90">
+                      Ik ga akkoord met de{" "}
+                      <a href="https://glowsuite.nl/voorwaarden" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-primary">
+                        algemene voorwaarden
+                      </a>
+                      {" "}van GlowSuite.
+                    </span>
+                  </label>
+                  <label className="flex items-start gap-2.5 cursor-pointer text-xs leading-relaxed">
+                    <Checkbox
+                      checked={acceptedSalonTerms}
+                      onCheckedChange={(v) => { setAcceptedSalonTerms(Boolean(v)); if (v) setShowTermsError(false); }}
+                      className="mt-0.5"
+                    />
+                    <span className="text-foreground/90">
+                      Ik ga akkoord met de voorwaarden van {publicData?.salon.name || "deze salon/kliniek"}.
+                    </span>
+                  </label>
+                  {showTermsError && (
+                    <p className="text-[11px] text-destructive flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" /> Ga akkoord met de voorwaarden om verder te gaan.
+                    </p>
+                  )}
+                </div>
+                <Button variant="gradient" className="w-full" disabled={!name || !phone || !email || paymentLoading || !acceptedGlowsuiteTerms || !acceptedSalonTerms} onClick={handleConfirm}>
                   {paymentLoading ? (
                     <><Loader2 className="w-4 h-4 animate-spin" /> Betaling verwerken...</>
                   ) : paymentDecision?.required ? (
