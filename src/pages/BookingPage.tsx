@@ -621,6 +621,12 @@ export default function BookingPage() {
       toast.error("Kies eerst een behandeling en tijdstip.");
       return;
     }
+    if (!acceptedGlowsuiteTerms || !acceptedSalonTerms) {
+      setShowTermsError(true);
+      toast.error("Ga akkoord met de voorwaarden om verder te gaan.");
+      return;
+    }
+    const acceptedTermsAt = new Date().toISOString();
 
     if (isPublicBooking && salonSlug) {
       setPaymentLoading(true);
