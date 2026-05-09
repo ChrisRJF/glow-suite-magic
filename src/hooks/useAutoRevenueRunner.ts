@@ -46,6 +46,8 @@ export interface UseAutoRevenueRunnerOptions {
   /** Settings from the autopilot config (defaults match getAutopilotState). */
   maxDiscount?: number;
   maxMessagesPerDay?: number;
+  /** DEV diagnostics source label for comparing the two button consumers. */
+  source?: "overview" | "auto-revenue-page";
   /** Optional UI logger — engine card animates these. Page does not need it. */
   onLog?: (entry: RunnerLogEntry) => void;
 }
@@ -53,6 +55,8 @@ export interface UseAutoRevenueRunnerOptions {
 export interface UseAutoRevenueRunnerResult {
   running: boolean;
   runAutopilot: () => Promise<void>;
+  ready: boolean;
+  notReadyReason: string | null;
   scoredDecisions: ScoredSlot[];
   projectedExtraRevenue: number;
   rankedCustomers: ReturnType<typeof rankCustomers>;
@@ -60,6 +64,14 @@ export interface UseAutoRevenueRunnerResult {
   avgServicePrice: number;
   todaysAppts: any[];
   inactiveCustomers: any[];
+  whatsappEnabled: boolean;
+  dataLoadingStates: {
+    demoMode: boolean;
+    customers: boolean;
+    appointments: boolean;
+    services: boolean;
+    whatsappSettings: boolean;
+  };
 }
 
 const TOTAL_SLOTS_CONST = 10;
