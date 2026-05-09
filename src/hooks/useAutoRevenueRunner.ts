@@ -596,11 +596,16 @@ export function useAutoRevenueRunner(
     insertDiscount,
     insertRebook,
     refetchCampaigns,
+    ready,
+    notReadyReason,
+    whatsappEnabled,
   ]);
 
   return {
     running,
     runAutopilot,
+    ready,
+    notReadyReason,
     scoredDecisions,
     projectedExtraRevenue,
     rankedCustomers,
@@ -608,5 +613,7 @@ export function useAutoRevenueRunner(
     avgServicePrice,
     todaysAppts,
     inactiveCustomers,
+    whatsappEnabled,
+    dataLoadingStates,
   };
 }
