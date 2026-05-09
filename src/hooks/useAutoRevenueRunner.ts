@@ -11,7 +11,7 @@
  *
  * Demo mode never sends real WhatsApp / never inserts campaigns/discounts.
  */
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoMode } from "@/hooks/useDemoMode";
