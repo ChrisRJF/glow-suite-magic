@@ -293,6 +293,10 @@ export function useAutoRevenueRunner(
 
   const runAutopilot = useCallback(async () => {
     if (!user || running) return;
+    if (!ready) {
+      if (notReadyReason) toast(notReadyReason);
+      return;
+    }
     setRunning(true);
 
     const expectedTotal = scoredDecisions.reduce(
@@ -381,18 +385,6 @@ export function useAutoRevenueRunner(
     let actualRevenue = 0;
     const errors: string[] = [];
     const bookingLink = `${window.location.origin}/boek`;
-
-    let whatsappEnabled = false;
-    try {
-      const { data: ws } = await supabase
-        .from("whatsapp_settings")
-        .select("enabled")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      whatsappEnabled = Boolean((ws as any)?.enabled);
-    } catch (e) {
-      console.warn("whatsapp_settings lookup failed", e);
-    }
 
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
