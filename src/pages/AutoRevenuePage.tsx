@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { Sparkles, Clock, RotateCcw, Crown, Gift, CreditCard, ArrowRight, CheckCircle2, XCircle, Hourglass, Wallet, Rocket, Settings as SettingsIcon, Circle, Zap, Loader2 } from "lucide-react";
+import { Sparkles, Clock, RotateCcw, Crown, Gift, CreditCard, ArrowRight, CheckCircle2, XCircle, Hourglass, Wallet, Circle } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,11 +8,10 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoMode } from "@/hooks/useDemoMode";
 import { useSettings, useCampaigns } from "@/hooks/useSupabaseData";
-import { AutoRevenueRunControl } from "@/components/AutoRevenueRunControl";
+import { AutoRevenueEngine } from "@/components/AutoRevenueEngine";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEuro } from "@/lib/data";
 import { autopilotStateKey } from "@/lib/demoIsolation";
-import { toast } from "sonner";
 
 type Range = "today" | "week" | "month";
 
@@ -112,24 +111,7 @@ export default function AutoRevenuePage() {
   const whatsappEnabled = Boolean(settings?.whatsapp_enabled);
   const campaignsSent = (campaigns?.length || 0) > 0;
 
-  // Reload trigger so KPIs/feed refetch after a run completes.
-  const [reloadKey, setReloadKey] = useState(0);
-  const handleRunComplete = useCallback(() => setReloadKey((k) => k + 1), []);
-
-  // Empty-state button shortcut: just enables autopilot in localStorage. The
-  // shared <AutoRevenueRunControl /> handles activation + run on click too.
-  const startAutoRevenue = useCallback(() => {
-    try {
-      const key = autopilotStateKey(demoMode);
-      const raw = localStorage.getItem(key);
-      const current = raw ? JSON.parse(raw) : { enabled: false, maxDiscount: 15, maxMessagesPerDay: 10 };
-      if (!current.enabled) {
-        localStorage.setItem(key, JSON.stringify({ ...current, enabled: true }));
-        setAutopilotEnabled(true);
-        toast.success("Auto Revenue staat nu actief ✅");
-      }
-    } catch {}
-  }, [demoMode]);
+  const [reloadKey] = useState(0);
 
   const checklistItems = useMemo(() => ([
     { label: "WhatsApp gekoppeld", done: whatsappEnabled, to: "/whatsapp" },
