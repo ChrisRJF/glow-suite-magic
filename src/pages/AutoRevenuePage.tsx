@@ -276,25 +276,17 @@ export default function AutoRevenuePage() {
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row lg:flex-col gap-2 lg:items-end shrink-0">
-                <Button
-                  size="lg"
-                  onClick={handleStartOrRun}
-                  disabled={running}
-                  className="shadow-md"
-                >
-                  {running ? (
-                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Bezig…</>
-                  ) : autopilotEnabled ? (
-                    <><Zap className="w-4 h-4 mr-2" /> Nu uitvoeren</>
-                  ) : (
-                    <><Rocket className="w-4 h-4 mr-2" /> Start Auto Revenue</>
-                  )}
-                </Button>
-                <Button asChild variant="outline" size="lg">
-                  <Link to="/instellingen?section=auto-revenue">
-                    <SettingsIcon className="w-4 h-4 mr-2" /> Instellingen
-                  </Link>
-                </Button>
+                <AutoRevenueRunControl
+                  bare
+                  onRunComplete={handleRunComplete}
+                  secondary={
+                    <Button asChild variant="outline" size="lg">
+                      <Link to="/instellingen?section=auto-revenue">
+                        <SettingsIcon className="w-4 h-4 mr-2" /> Instellingen
+                      </Link>
+                    </Button>
+                  }
+                />
               </div>
             </div>
           </CardContent>
