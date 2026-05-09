@@ -61,14 +61,11 @@ export interface UseAutoRevenueRunnerResult {
   inactiveCustomers: any[];
 }
 
-const TOTAL_SLOTS = 10;
+const TOTAL_SLOTS_CONST = 10;
 
 export function useAutoRevenueRunner(
   opts: UseAutoRevenueRunnerOptions = {},
 ): UseAutoRevenueRunnerResult {
-  const maxDiscount = opts.maxDiscount ?? 15;
-  const maxMessagesPerDay = opts.maxMessagesPerDay ?? 10;
-
   const { user } = useAuth();
   const { demoMode } = useDemoMode();
   const { data: customers } = useCustomers();
@@ -79,10 +76,40 @@ export function useAutoRevenueRunner(
   const { insert: insertDiscount } = useCrud("discounts");
   const { insert: insertRebook } = useCrud("rebook_actions");
 
+  // Auto-read autopilot config from the SAME localStorage key the Overview
+  // engine writes to. This guarantees both call sites see identical settings
+  // without each consumer having to re-read it. Explicit opts still override.
+  const [storedConfig, setStoredConfig] = useState<{ maxDiscount: number; maxMessagesPerDay: number }>(() => {
+    try {
+      const raw = localStorage.getItem(autopilotStateKey(demoMode));
+      const parsed = raw ? JSON.parse(raw) : null;
+      return {
+        maxDiscount: parsed?.maxDiscount ?? 15,
+        maxMessagesPerDay: parsed?.maxMessagesPerDay ?? 10,
+      };
+    } catch {
+      return { maxDiscount: 15, maxMessagesPerDay: 10 };
+    }
+  });
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(autopilotStateKey(demoMode));
+      const parsed = raw ? JSON.parse(raw) : null;
+      setStoredConfig({
+        maxDiscount: parsed?.maxDiscount ?? 15,
+        maxMessagesPerDay: parsed?.maxMessagesPerDay ?? 10,
+      });
+    } catch {}
+  }, [demoMode]);
+
+  const maxDiscount = opts.maxDiscount ?? storedConfig.maxDiscount;
+  const maxMessagesPerDay = opts.maxMessagesPerDay ?? storedConfig.maxMessagesPerDay;
+
   const [running, setRunning] = useState(false);
   void campaigns;
 
   const todayStr = new Date().toISOString().split("T")[0];
+  const TOTAL_SLOTS = TOTAL_SLOTS_CONST;
 
   const todaysAppts = useMemo(
     () =>
