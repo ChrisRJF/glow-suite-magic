@@ -836,8 +836,8 @@ export function ImportWizard() {
           </div>
           {summary.errors.length > 0 && (
             <>
-              <div className="border border-border rounded-xl max-h-64 overflow-y-auto">
-                <table className="w-full text-xs">
+              <div className="border border-border rounded-xl max-h-64 overflow-y-auto overflow-x-auto max-w-full">
+                <table className="w-full text-xs min-w-[300px]">
                   <thead className="bg-secondary/50 sticky top-0">
                     <tr><th className="text-left p-2">Rij</th><th className="text-left p-2">Reden</th></tr>
                   </thead>
@@ -851,13 +851,13 @@ export function ImportWizard() {
                   </tbody>
                 </table>
               </div>
-              <Button variant="outline" onClick={downloadErrorReport}>
+              <Button variant="outline" onClick={downloadErrorReport} className="w-full sm:w-auto">
                 <Download className="w-4 h-4" />Foutenrapport downloaden (CSV)
               </Button>
             </>
           )}
           <div className="flex justify-end">
-            <Button onClick={reset}>Nieuwe import</Button>
+            <Button onClick={reset} className="w-full sm:w-auto">Nieuwe import</Button>
           </div>
         </div>
       )}
