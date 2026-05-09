@@ -94,13 +94,7 @@ const DEMO_STEPS: DemoStep[] = [
 export function AutoRevenueEngine() {
   const { user } = useAuth();
   const { demoMode } = useDemoMode();
-  const { data: customers } = useCustomers();
   const { data: appointments, refetch: refetchAppointments } = useAppointments();
-  const { data: campaigns, refetch: refetchCampaigns } = useCampaigns();
-  const { data: services } = useServices();
-  const { insert: insertCampaign } = useCrud("campaigns");
-  const { insert: insertDiscount } = useCrud("discounts");
-  const { insert: insertRebook } = useCrud("rebook_actions");
   // removeAppointment kept only for defensive cleanup of legacy demo rows.
   const { remove: removeAppointment } = useCrud("appointments");
 
@@ -109,7 +103,30 @@ export function AutoRevenueEngine() {
   const [offerLogs, setOfferLogs] = useState<Array<{ id: string; status: string; created_at: string }>>([]);
   const [showLog, setShowLog] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [running, setRunning] = useState(false);
+
+  const addLog = useCallback((entry: Omit<ActionLogEntry, "id" | "timestamp">) => {
+    setActionLog(prev => [{
+      ...entry,
+      id: crypto.randomUUID(),
+      timestamp: new Date(),
+    }, ...prev].slice(0, 50));
+  }, []);
+
+  const {
+    running,
+    runAutopilot,
+    scoredDecisions,
+    projectedExtraRevenue,
+    emptySlots,
+    avgServicePrice,
+    todaysAppts,
+    inactiveCustomers,
+  } = useAutoRevenueRunner({
+    maxDiscount: autopilot.maxDiscount,
+    maxMessagesPerDay: autopilot.maxMessagesPerDay,
+    onLog: addLog,
+  });
+
 
   // Demo flow state
   const [demoState, setDemoState] = useState<DemoState>(getDemoState);
