@@ -115,6 +115,8 @@ export function AutoRevenueEngine() {
   const {
     running,
     runAutopilot,
+    ready,
+    notReadyReason,
     scoredDecisions,
     projectedExtraRevenue,
     emptySlots,
@@ -124,6 +126,7 @@ export function AutoRevenueEngine() {
   } = useAutoRevenueRunner({
     maxDiscount: autopilot.maxDiscount,
     maxMessagesPerDay: autopilot.maxMessagesPerDay,
+    source: "overview",
     onLog: addLog,
   });
 
@@ -277,7 +280,7 @@ export function AutoRevenueEngine() {
   // 🔥 Auto Revenue page produce identical DB writes.
   useEffect(() => {
     if (demoMode) return;
-    if (autopilot.enabled && user && !running) {
+    if (autopilot.enabled && user && !running && ready) {
       const lastRunKey = autopilotLastRunKey(demoMode);
       const lastRun = localStorage.getItem(lastRunKey);
       if (!lastRun || lastRun !== todayStr) {
@@ -286,7 +289,7 @@ export function AutoRevenueEngine() {
         return () => clearTimeout(timer);
       }
     }
-  }, [autopilot.enabled, user, todayStr, demoMode, runAutopilot, running]);
+  }, [autopilot.enabled, user, todayStr, demoMode, runAutopilot, running, ready]);
 
   return (
     <div id="auto-revenue-engine" className="glass-card p-6 mb-6 opacity-0 animate-fade-in-up border border-primary/20 relative overflow-hidden" style={{ animationDelay: '50ms' }}>
@@ -465,8 +468,9 @@ export function AutoRevenueEngine() {
             </Button>
           ) : (
             <>
-              <Button variant="gradient" size="sm" onClick={runAutopilot} disabled={running}>
-                <Zap className="w-3.5 h-3.5" /> {running ? "Bezig..." : actionLabel(demoMode, "run")}
+              <Button variant="gradient" size="sm" onClick={runAutopilot} disabled={running || !ready}>
+                {running || !ready ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+                {running ? "Bezig..." : !ready ? (notReadyReason || "Gegevens laden…") : actionLabel(demoMode, "run")}
               </Button>
               <Button variant="outline" size="sm" onClick={resetDemo}>
                 <RotateCcw className="w-3.5 h-3.5" /> {demoMode ? "Demo opnieuw laden" : "Reset"}

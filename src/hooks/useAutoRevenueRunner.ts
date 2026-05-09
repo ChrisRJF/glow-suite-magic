@@ -11,7 +11,7 @@
  *
  * Demo mode never sends real WhatsApp / never inserts campaigns/discounts.
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoMode } from "@/hooks/useDemoMode";
@@ -46,6 +46,8 @@ export interface UseAutoRevenueRunnerOptions {
   /** Settings from the autopilot config (defaults match getAutopilotState). */
   maxDiscount?: number;
   maxMessagesPerDay?: number;
+  /** DEV diagnostics source label for comparing the two button consumers. */
+  source?: "overview" | "auto-revenue-page";
   /** Optional UI logger — engine card animates these. Page does not need it. */
   onLog?: (entry: RunnerLogEntry) => void;
 }
@@ -53,6 +55,8 @@ export interface UseAutoRevenueRunnerOptions {
 export interface UseAutoRevenueRunnerResult {
   running: boolean;
   runAutopilot: () => Promise<void>;
+  ready: boolean;
+  notReadyReason: string | null;
   scoredDecisions: ScoredSlot[];
   projectedExtraRevenue: number;
   rankedCustomers: ReturnType<typeof rankCustomers>;
@@ -60,6 +64,14 @@ export interface UseAutoRevenueRunnerResult {
   avgServicePrice: number;
   todaysAppts: any[];
   inactiveCustomers: any[];
+  whatsappEnabled: boolean;
+  dataLoadingStates: {
+    demoMode: boolean;
+    customers: boolean;
+    appointments: boolean;
+    services: boolean;
+    whatsappSettings: boolean;
+  };
 }
 
 const TOTAL_SLOTS_CONST = 10;
@@ -68,11 +80,11 @@ export function useAutoRevenueRunner(
   opts: UseAutoRevenueRunnerOptions = {},
 ): UseAutoRevenueRunnerResult {
   const { user } = useAuth();
-  const { demoMode } = useDemoMode();
-  const { data: customers } = useCustomers();
-  const { data: appointments } = useAppointments();
+  const { demoMode, loading: demoModeLoading } = useDemoMode();
+  const { data: customers, loading: customersLoading } = useCustomers();
+  const { data: appointments, loading: appointmentsLoading } = useAppointments();
   const { data: campaigns, refetch: refetchCampaigns } = useCampaigns();
-  const { data: services } = useServices();
+  const { data: services, loading: servicesLoading } = useServices();
   const { insert: insertCampaign } = useCrud("campaigns");
   const { insert: insertDiscount } = useCrud("discounts");
   const { insert: insertRebook } = useCrud("rebook_actions");
@@ -107,7 +119,38 @@ export function useAutoRevenueRunner(
   const maxMessagesPerDay = opts.maxMessagesPerDay ?? storedConfig.maxMessagesPerDay;
 
   const [running, setRunning] = useState(false);
+  const runningRef = useRef(false);
+  const [whatsappEnabled, setWhatsappEnabled] = useState(false);
+  const [whatsappSettingsLoading, setWhatsappSettingsLoading] = useState(true);
   void campaigns;
+
+  useEffect(() => {
+    if (!user) {
+      setWhatsappEnabled(false);
+      setWhatsappSettingsLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setWhatsappSettingsLoading(true);
+    (async () => {
+      try {
+        const { data: ws } = await supabase
+          .from("whatsapp_settings")
+          .select("enabled")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (!cancelled) setWhatsappEnabled(Boolean((ws as any)?.enabled));
+      } catch (e) {
+        console.warn("whatsapp_settings lookup failed", e);
+        if (!cancelled) setWhatsappEnabled(false);
+      } finally {
+        if (!cancelled) setWhatsappSettingsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   const todayStr = new Date().toISOString().split("T")[0];
   const TOTAL_SLOTS = TOTAL_SLOTS_CONST;
@@ -201,28 +244,61 @@ export function useAutoRevenueRunner(
     [customers, appointments],
   );
 
+  const dataLoadingStates = useMemo(
+    () => ({
+      demoMode: demoModeLoading,
+      customers: customersLoading,
+      appointments: appointmentsLoading,
+      services: servicesLoading,
+      whatsappSettings: whatsappSettingsLoading,
+    }),
+    [demoModeLoading, customersLoading, appointmentsLoading, servicesLoading, whatsappSettingsLoading],
+  );
+
+  const notReadyReason = useMemo(() => {
+    if (!user) return "Log eerst in om Auto Revenue te starten.";
+    if (demoModeLoading || customersLoading || appointmentsLoading || servicesLoading || whatsappSettingsLoading) {
+      return "Gegevens laden…";
+    }
+    return null;
+  }, [user, demoModeLoading, customersLoading, appointmentsLoading, servicesLoading, whatsappSettingsLoading]);
+
+  const ready = notReadyReason === null;
+
   // DEV-only diagnostic — compare two consumers (Overview vs Auto Revenue page).
-  if (import.meta.env.DEV) {
+  useEffect(() => {
+    if (!import.meta.env.DEV || !opts.source) return;
     // eslint-disable-next-line no-console
-    console.log("[AutoRevenueRunControl]", {
-      demoMode,
-      enabled: storedConfig != null,
-      maxDiscount,
-      maxMessagesPerDay,
-      scoredDecisionsCount: scoredDecisions.length,
-      projectedExtraRevenue,
-      emptySlots,
+    console.table({
+      source: opts.source,
+      ready,
+      notReadyReason,
       customersCount: customers.length,
       appointmentsCount: appointments.length,
+      servicesCount: services.length,
+      todaysApptsCount: todaysAppts.length,
+      emptySlots,
+      scoredDecisionsCount: scoredDecisions.length,
+      whatsappEnabled,
+      demoMode,
+      autopilotStateKey: autopilotStateKey(demoMode),
+      maxDiscount,
+      maxMessagesPerDay,
+      dataLoadingStates: JSON.stringify(dataLoadingStates),
     });
-  }
+  }, [opts.source, ready, notReadyReason, customers.length, appointments.length, services.length, todaysAppts.length, emptySlots, scoredDecisions.length, whatsappEnabled, demoMode, maxDiscount, maxMessagesPerDay, dataLoadingStates]);
 
   const log = (entry: RunnerLogEntry) => {
     opts.onLog?.(entry);
   };
 
   const runAutopilot = useCallback(async () => {
-    if (!user || running) return;
+    if (!user || runningRef.current) return;
+    if (!ready) {
+      if (notReadyReason) toast(notReadyReason);
+      return;
+    }
+    runningRef.current = true;
     setRunning(true);
 
     const expectedTotal = scoredDecisions.reduce(
@@ -303,6 +379,7 @@ export function useAutoRevenueRunner(
           })
           .eq("id", runId);
       }
+      runningRef.current = false;
       setRunning(false);
       return;
     }
@@ -311,18 +388,6 @@ export function useAutoRevenueRunner(
     let actualRevenue = 0;
     const errors: string[] = [];
     const bookingLink = `${window.location.origin}/boek`;
-
-    let whatsappEnabled = false;
-    try {
-      const { data: ws } = await supabase
-        .from("whatsapp_settings")
-        .select("enabled")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      whatsappEnabled = Boolean((ws as any)?.enabled);
-    } catch (e) {
-      console.warn("whatsapp_settings lookup failed", e);
-    }
 
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
@@ -346,6 +411,7 @@ export function useAutoRevenueRunner(
     try {
       if (scoredDecisions.length === 0) {
         toast("Geen winstgevende lege plekken vandaag — geen actie 👍");
+        runningRef.current = false;
         setRunning(false);
         return;
       }
@@ -358,6 +424,7 @@ export function useAutoRevenueRunner(
               "Schakel WhatsApp in via Instellingen om autopilot acties uit te voeren.",
           },
         );
+        runningRef.current = false;
         setRunning(false);
         return;
       }
@@ -518,6 +585,7 @@ export function useAutoRevenueRunner(
           console.warn("autopilot run finalize failed", err);
         }
       }
+      runningRef.current = false;
       setRunning(false);
     }
   }, [
@@ -534,11 +602,16 @@ export function useAutoRevenueRunner(
     insertDiscount,
     insertRebook,
     refetchCampaigns,
+    ready,
+    notReadyReason,
+    whatsappEnabled,
   ]);
 
   return {
     running,
     runAutopilot,
+    ready,
+    notReadyReason,
     scoredDecisions,
     projectedExtraRevenue,
     rankedCustomers,
@@ -546,5 +619,7 @@ export function useAutoRevenueRunner(
     avgServicePrice,
     todaysAppts,
     inactiveCustomers,
+    whatsappEnabled,
+    dataLoadingStates,
   };
 }
