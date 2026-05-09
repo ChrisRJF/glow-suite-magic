@@ -80,11 +80,11 @@ export function useAutoRevenueRunner(
   opts: UseAutoRevenueRunnerOptions = {},
 ): UseAutoRevenueRunnerResult {
   const { user } = useAuth();
-  const { demoMode } = useDemoMode();
-  const { data: customers } = useCustomers();
-  const { data: appointments } = useAppointments();
+  const { demoMode, loading: demoModeLoading } = useDemoMode();
+  const { data: customers, loading: customersLoading } = useCustomers();
+  const { data: appointments, loading: appointmentsLoading } = useAppointments();
   const { data: campaigns, refetch: refetchCampaigns } = useCampaigns();
-  const { data: services } = useServices();
+  const { data: services, loading: servicesLoading } = useServices();
   const { insert: insertCampaign } = useCrud("campaigns");
   const { insert: insertDiscount } = useCrud("discounts");
   const { insert: insertRebook } = useCrud("rebook_actions");
@@ -119,7 +119,37 @@ export function useAutoRevenueRunner(
   const maxMessagesPerDay = opts.maxMessagesPerDay ?? storedConfig.maxMessagesPerDay;
 
   const [running, setRunning] = useState(false);
+  const [whatsappEnabled, setWhatsappEnabled] = useState(false);
+  const [whatsappSettingsLoading, setWhatsappSettingsLoading] = useState(true);
   void campaigns;
+
+  useEffect(() => {
+    if (!user) {
+      setWhatsappEnabled(false);
+      setWhatsappSettingsLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setWhatsappSettingsLoading(true);
+    (async () => {
+      try {
+        const { data: ws } = await supabase
+          .from("whatsapp_settings")
+          .select("enabled")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (!cancelled) setWhatsappEnabled(Boolean((ws as any)?.enabled));
+      } catch (e) {
+        console.warn("whatsapp_settings lookup failed", e);
+        if (!cancelled) setWhatsappEnabled(false);
+      } finally {
+        if (!cancelled) setWhatsappSettingsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   const todayStr = new Date().toISOString().split("T")[0];
   const TOTAL_SLOTS = TOTAL_SLOTS_CONST;
