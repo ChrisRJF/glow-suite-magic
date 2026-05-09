@@ -474,7 +474,7 @@ export default function InstellingenPage() {
   return (
     <AppLayout title="Instellingen" subtitle="Account en saloninstellingen">
       {/* Tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-3 mb-8 -mx-1 px-1 border-b border-border/50">
+      <div className="flex gap-2 overflow-x-auto pb-3 mb-8 -mx-1 px-1 border-b border-border/50 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
         {tabs.map(t => (
           <button key={t.id} onClick={() => setActiveTab(t.id)}
             className={`flex items-center gap-2 min-h-10 px-4 py-2.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all ${
