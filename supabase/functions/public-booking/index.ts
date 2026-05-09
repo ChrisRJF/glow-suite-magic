@@ -26,6 +26,9 @@ const RequestSchema = z.discriminatedUnion("action", [
       phone: z.string().trim().min(6).max(40),
       marketing_consent: z.boolean().optional().default(false),
       privacy_consent: z.boolean().optional().default(true),
+      accepted_glowsuite_terms: z.boolean().optional().default(false),
+      accepted_salon_terms: z.boolean().optional().default(false),
+      accepted_terms_at: z.string().datetime().optional().nullable(),
     }),
     date: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/),
     time: z.string().trim().regex(/^\d{2}:\d{2}$/),
@@ -345,6 +348,9 @@ Deno.serve(async (req) => {
         source: "online_booking",
         booking_group_id: bookingRows.length > 1 ? groupId : null,
         payment_type: data.payment.type,
+        accepted_glowsuite_terms: Boolean(data.customer.accepted_glowsuite_terms),
+        accepted_salon_terms: Boolean(data.customer.accepted_salon_terms),
+        accepted_terms_at: data.customer.accepted_terms_at ?? ((data.customer.accepted_glowsuite_terms && data.customer.accepted_salon_terms) ? new Date().toISOString() : null),
       };
     });
 
