@@ -815,11 +815,11 @@ export function ImportWizard() {
               <p className="text-xs text-muted-foreground text-center">{progress}% • importeren…</p>
             </div>
           )}
-          <div className="flex justify-between">
+          <div className="flex justify-between flex-wrap gap-2">
             <Button variant="outline" onClick={() => setStep(3)} disabled={importing}><ArrowLeft className="w-4 h-4" />Terug</Button>
-            <Button onClick={runImport} disabled={importing}>
+            <Button onClick={runImport} disabled={importing} className="w-full sm:w-auto">
               {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-              {importing ? "Bezig…" : `Importeer ${rows.length} rijen`}
+              <span className="truncate">{importing ? "Bezig…" : `Importeer ${rows.length} rijen`}</span>
             </Button>
           </div>
         </div>
