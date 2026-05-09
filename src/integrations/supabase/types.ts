@@ -82,6 +82,9 @@ export type Database = {
       }
       appointments: {
         Row: {
+          accepted_glowsuite_terms: boolean
+          accepted_salon_terms: boolean
+          accepted_terms_at: string | null
           amount_paid: number | null
           appointment_date: string
           booking_group_id: string | null
@@ -108,6 +111,9 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          accepted_glowsuite_terms?: boolean
+          accepted_salon_terms?: boolean
+          accepted_terms_at?: string | null
           amount_paid?: number | null
           appointment_date: string
           booking_group_id?: string | null
@@ -134,6 +140,9 @@ export type Database = {
           user_id: string
         }
         Update: {
+          accepted_glowsuite_terms?: boolean
+          accepted_salon_terms?: boolean
+          accepted_terms_at?: string | null
           amount_paid?: number | null
           appointment_date?: string
           booking_group_id?: string | null
