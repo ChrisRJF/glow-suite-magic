@@ -621,7 +621,7 @@ export function ImportWizard() {
   const targetFields = FIELDS[type];
 
   return (
-    <div className="glass-card p-6 space-y-6">
+    <div className="glass-card p-4 sm:p-6 space-y-6 w-full max-w-full overflow-x-hidden">
       <div>
         <h2 className="text-xl font-semibold mb-1">Data importeren</h2>
         <p className="text-sm text-muted-foreground">
