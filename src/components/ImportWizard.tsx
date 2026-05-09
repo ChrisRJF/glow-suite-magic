@@ -654,11 +654,11 @@ export function ImportWizard() {
         <div
           onDrop={onDrop}
           onDragOver={(e) => e.preventDefault()}
-          className="border-2 border-dashed border-border rounded-xl p-10 text-center cursor-pointer hover:bg-secondary/30 transition"
+          className="border-2 border-dashed border-border rounded-xl p-6 sm:p-10 text-center cursor-pointer hover:bg-secondary/30 transition w-full max-w-full"
           onClick={() => fileInputRef.current?.click()}
         >
-          <Upload className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
-          <p className="font-medium">Sleep een CSV of XLSX hierheen</p>
+          <Upload className="w-8 h-8 sm:w-10 sm:h-10 mx-auto text-muted-foreground mb-3" />
+          <p className="font-medium text-sm sm:text-base">Sleep een CSV of XLSX hierheen</p>
           <p className="text-sm text-muted-foreground mt-1">of klik om te bladeren</p>
           <input
             ref={fileInputRef}
