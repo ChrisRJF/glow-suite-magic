@@ -1537,7 +1537,7 @@ export default function CalendarPage() {
           </div>
         ) : view === 'columns' ? (
           <EmployeeColumnDayView
-            employees={displayEmployees.filter((e: any) => getEmployeeStatus(e, currentDate) !== 'afwezig')}
+            employees={displayEmployees.filter((e: any) => getEmployeeStatus(e, currentDate) === 'beschikbaar')}
             appointments={filterByEmployee(appointments)}
             services={services}
             customers={customers}
