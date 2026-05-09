@@ -776,7 +776,7 @@ export function ImportWizard() {
           <p className="text-sm text-muted-foreground">
             Voorbeeld eerste 20 rijen. {rows.length} rijen totaal worden geïmporteerd ({SOURCE_LABELS[source]} → {TYPE_LABELS[type]}).
           </p>
-          <div className="border border-border rounded-xl overflow-x-auto">
+          <div className="border border-border rounded-xl overflow-x-auto max-w-full">
             <table className="w-full text-xs">
               <thead className="bg-secondary/50">
                 <tr>
