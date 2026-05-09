@@ -631,20 +631,20 @@ export function ImportWizard() {
       </div>
 
       {/* Stepper */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2">
+      <div className="flex items-center gap-2 overflow-x-auto max-w-full pb-2 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
         {["Upload", "Bron", "Type", "Mapping", "Preview", "Klaar"].map((label, i) => (
-          <div key={i} className="flex items-center gap-2">
+          <div key={i} className="flex items-center gap-1.5 sm:gap-2">
             <div
-              className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold ${
+              className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-semibold ${
                 i <= step ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
               }`}
             >
               {i + 1}
             </div>
-            <span className={`text-xs whitespace-nowrap ${i === step ? "text-foreground font-medium" : "text-muted-foreground"}`}>
+            <span className={`text-[10px] sm:text-xs whitespace-nowrap ${i === step ? "text-foreground font-medium" : "text-muted-foreground"}`}>
               {label}
             </span>
-            {i < 5 && <div className="w-6 h-px bg-border" />}
+            {i < 5 && <div className="w-3 sm:w-6 h-px bg-border" />}
           </div>
         ))}
       </div>
