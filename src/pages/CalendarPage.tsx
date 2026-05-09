@@ -145,8 +145,9 @@ export default function CalendarPage() {
 
     if (activeDbEmployees.length > 0) {
       return activeDbEmployees.map((e: any) => {
-        const breakStart = e.break_start ? String(e.break_start).slice(0, 5) : null;
-        const breakEnd = e.break_end ? String(e.break_end).slice(0, 5) : null;
+        const breaks = parseBreaks(e.breaks, e.break_start, e.break_end);
+        const breakStart = breaks[0]?.start || null;
+        const breakEnd = breaks[0]?.end || null;
         return {
           id: e.id as string,
           name: e.name as string,
@@ -155,6 +156,11 @@ export default function CalendarPage() {
           photo_url: e.photo_url || null,
           days: Array.isArray(e.working_days) && e.working_days.length ? e.working_days.map((n: any) => Number(n)) : [1,2,3,4,5],
           pauze: breakStart && breakEnd ? `${breakStart}-${breakEnd}` : null,
+          breaks,
+          status: (e.status as string) || 'werkzaam',
+          status_from: e.status_from || null,
+          status_until: e.status_until || null,
+          status_note: e.status_note || null,
           services: Array.isArray(e.services) ? e.services : [],
         };
       });
@@ -194,23 +200,51 @@ export default function CalendarPage() {
 
   type DisplayEmp = (typeof displayEmployees)[number];
 
+  const exceptionsFor = (empId: string): ExceptionRow[] =>
+    (availabilityExceptions || []).filter((ex: any) => ex.employee_id === empId) as ExceptionRow[];
+
   // Employee availability for current date
   const getEmployeeStatus = (emp: DisplayEmp, date: Date) => {
-    const dow = date.getDay() === 0 ? 7 : date.getDay();
+    const dow = dayOfWeekIso(date);
     if (!emp.days.includes(dow)) return 'afwezig';
+    const dStr = formatLocalDate(date);
+    const absence = getAbsenceForDate(emp as any, exceptionsFor((emp as any).id), dStr);
+    if (absence) return absence.type === 'ziek' ? 'ziek' : absence.type === 'vakantie' ? 'vakantie' : 'afwezig';
     return 'beschikbaar';
   };
 
+  const getEmployeeAbsenceBadge = (emp: DisplayEmp, date: Date) => {
+    const dow = dayOfWeekIso(date);
+    if (!(emp as any).days?.includes(dow)) return { label: 'Vrij', tone: 'bg-muted text-muted-foreground' };
+    const absence = getAbsenceForDate(emp as any, exceptionsFor((emp as any).id), formatLocalDate(date));
+    if (!absence) return null;
+    const meta = statusMeta(absence.type);
+    return { label: absence.label, tone: meta.tone };
+  };
+
+  const getEmployeeBreaks = (emp: DisplayEmp): EmployeeBreak[] => {
+    if (Array.isArray((emp as any).breaks) && (emp as any).breaks.length) return (emp as any).breaks;
+    // demo employees have pauze "HH:MM-HH:MM"
+    if (emp.pauze) {
+      const [start, end] = emp.pauze.split('-');
+      return [{ start, end, label: 'Pauze' }];
+    }
+    return [];
+  };
+
   const getEmployeePauze = (emp: DisplayEmp) => {
-    if (!emp.pauze) return null;
-    const [start, end] = emp.pauze.split('-');
-    return { start, end };
+    const list = getEmployeeBreaks(emp);
+    if (!list.length) return null;
+    return { start: list[0].start, end: list[0].end };
   };
 
   const isSlotPauze = (emp: DisplayEmp, slot: string) => {
-    const p = getEmployeePauze(emp);
-    if (!p) return false;
-    return slot >= p.start && slot < p.end;
+    const breaks = getEmployeeBreaks(emp);
+    const dow = currentDayOfWeek;
+    if (isSlotInBreaks(slot, breaks, dow)) return true;
+    const blocked = isSlotBlockedByException(slot, exceptionsFor((emp as any).id), dateStr, dow);
+    if (blocked) return true;
+    return false;
   };
 
   // Count appointments per employee for a given date.
