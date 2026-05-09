@@ -243,21 +243,49 @@ export function useAutoRevenueRunner(
     [customers, appointments],
   );
 
+  const dataLoadingStates = useMemo(
+    () => ({
+      demoMode: demoModeLoading,
+      customers: customersLoading,
+      appointments: appointmentsLoading,
+      services: servicesLoading,
+      whatsappSettings: whatsappSettingsLoading,
+    }),
+    [demoModeLoading, customersLoading, appointmentsLoading, servicesLoading, whatsappSettingsLoading],
+  );
+
+  const notReadyReason = useMemo(() => {
+    if (!user) return "Log eerst in om Auto Revenue te starten.";
+    if (demoModeLoading || customersLoading || appointmentsLoading || servicesLoading || whatsappSettingsLoading) {
+      return "Gegevens laden…";
+    }
+    return null;
+  }, [user, demoModeLoading, customersLoading, appointmentsLoading, servicesLoading, whatsappSettingsLoading]);
+
+  const ready = notReadyReason === null;
+
   // DEV-only diagnostic — compare two consumers (Overview vs Auto Revenue page).
-  if (import.meta.env.DEV) {
+  useEffect(() => {
+    if (!import.meta.env.DEV || !opts.source) return;
     // eslint-disable-next-line no-console
-    console.log("[AutoRevenueRunControl]", {
-      demoMode,
-      enabled: storedConfig != null,
-      maxDiscount,
-      maxMessagesPerDay,
-      scoredDecisionsCount: scoredDecisions.length,
-      projectedExtraRevenue,
-      emptySlots,
+    console.table({
+      source: opts.source,
+      ready,
+      notReadyReason,
       customersCount: customers.length,
       appointmentsCount: appointments.length,
+      servicesCount: services.length,
+      todaysApptsCount: todaysAppts.length,
+      emptySlots,
+      scoredDecisionsCount: scoredDecisions.length,
+      whatsappEnabled,
+      demoMode,
+      autopilotStateKey: autopilotStateKey(demoMode),
+      maxDiscount,
+      maxMessagesPerDay,
+      dataLoadingStates: JSON.stringify(dataLoadingStates),
     });
-  }
+  }, [opts.source, ready, notReadyReason, customers.length, appointments.length, services.length, todaysAppts.length, emptySlots, scoredDecisions.length, whatsappEnabled, demoMode, maxDiscount, maxMessagesPerDay, dataLoadingStates]);
 
   const log = (entry: RunnerLogEntry) => {
     opts.onLog?.(entry);
