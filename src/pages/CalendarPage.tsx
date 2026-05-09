@@ -1060,9 +1060,10 @@ export default function CalendarPage() {
               >
                 <EmployeeAvatar employee={emp} size="xs" ring={false} />
                 {emp.name}
-                {status === 'afwezig' ? (
-                  <span className="text-[10px] text-destructive">Afwezig</span>
-                ) : (
+                {status !== 'beschikbaar' ? (() => {
+                  const badge = getEmployeeAbsenceBadge(emp, currentDate);
+                  return <span className={cn("text-[10px] px-1.5 py-0.5 rounded", badge?.tone || "text-destructive")}>{badge?.label || 'Afwezig'}</span>;
+                })() : (
                   <span className={cn("text-[10px] px-1 py-0.5 rounded", workloadColors[wl.variant])}>{apptCount}</span>
                 )}
               </button>
