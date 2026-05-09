@@ -112,110 +112,24 @@ export default function AutoRevenuePage() {
   const whatsappEnabled = Boolean(settings?.whatsapp_enabled);
   const campaignsSent = (campaigns?.length || 0) > 0;
 
-  // Read autopilot config (maxDiscount/maxMessagesPerDay) from same localStorage
-  // the Overview engine uses. Keeps demo/live isolation via autopilotStateKey.
-  const [autopilotConfig, setAutopilotConfig] = useState<{ maxDiscount: number; maxMessagesPerDay: number }>(() => {
-    try {
-      const raw = localStorage.getItem(autopilotStateKey(demoMode));
-      const parsed = raw ? JSON.parse(raw) : null;
-      return {
-        maxDiscount: parsed?.maxDiscount ?? 15,
-        maxMessagesPerDay: parsed?.maxMessagesPerDay ?? 10,
-      };
-    } catch {
-      return { maxDiscount: 15, maxMessagesPerDay: 10 };
-    }
-  });
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(autopilotStateKey(demoMode));
-      const parsed = raw ? JSON.parse(raw) : null;
-      setAutopilotConfig({
-        maxDiscount: parsed?.maxDiscount ?? 15,
-        maxMessagesPerDay: parsed?.maxMessagesPerDay ?? 10,
-      });
-    } catch {}
-  }, [demoMode]);
-
-  // Reload trigger so KPIs/feed refetch after a manual run.
+  // Reload trigger so KPIs/feed refetch after a run completes.
   const [reloadKey, setReloadKey] = useState(0);
+  const handleRunComplete = useCallback(() => setReloadKey((k) => k + 1), []);
 
-  // Shared runner — identical DB writes as the Dashboard "Omzet Autopilot" card.
-  const { running, runAutopilot, scoredDecisions, projectedExtraRevenue, rankedCustomers } = useAutoRevenueRunner({
-    maxDiscount: autopilotConfig.maxDiscount,
-    maxMessagesPerDay: autopilotConfig.maxMessagesPerDay,
-  });
-
-  // Visual progress feedback (UI only — does not affect runner logic).
-  const RUN_STEPS = [
-    "Agenda analyseren…",
-    "Lege plekken zoeken…",
-    "Beste klanten selecteren…",
-    "WhatsApp acties voorbereiden…",
-    "Resultaten opslaan…",
-  ];
-  const [currentStep, setCurrentStep] = useState<number>(-1);
-  const [lastSummary, setLastSummary] = useState<{
-    actions: number;
-    revenue: number;
-    customersReached: number;
-    noAction: boolean;
-  } | null>(null);
-
-  // Advance steps while running. Cap at last step until runner finishes.
-  useEffect(() => {
-    if (!running) return;
-    setCurrentStep(0);
-    setLastSummary(null);
-    const id = setInterval(() => {
-      setCurrentStep((s) => Math.min(RUN_STEPS.length - 1, s + 1));
-    }, 700);
-    return () => clearInterval(id);
-  }, [running]);
-
-  const enableAutopilot = useCallback(() => {
+  // Empty-state button shortcut: just enables autopilot in localStorage. The
+  // shared <AutoRevenueRunControl /> handles activation + run on click too.
+  const startAutoRevenue = useCallback(() => {
     try {
       const key = autopilotStateKey(demoMode);
       const raw = localStorage.getItem(key);
       const current = raw ? JSON.parse(raw) : { enabled: false, maxDiscount: 15, maxMessagesPerDay: 10 };
       if (!current.enabled) {
         localStorage.setItem(key, JSON.stringify({ ...current, enabled: true }));
+        setAutopilotEnabled(true);
+        toast.success("Auto Revenue staat nu actief ✅");
       }
-      setAutopilotEnabled(true);
     } catch {}
   }, [demoMode]);
-
-  const handleStartOrRun = useCallback(async () => {
-    if (running) return;
-    const wasEnabled = autopilotEnabled;
-    if (!wasEnabled) {
-      enableAutopilot();
-      toast.success("Auto Revenue staat nu actief ✅");
-    }
-    // Snapshot pre-run signals for the summary card.
-    const actions = scoredDecisions.length;
-    const revenue = projectedExtraRevenue;
-    const cap = Math.max(1, autopilotConfig.maxMessagesPerDay);
-    const customersReached = Math.min(rankedCustomers.length, Math.min(actions, cap));
-    try {
-      await runAutopilot();
-      setCurrentStep(RUN_STEPS.length); // all done
-      setLastSummary({
-        actions,
-        revenue,
-        customersReached,
-        noAction: actions === 0,
-      });
-    } catch (e) {
-      console.warn("auto revenue run failed", e);
-      setCurrentStep(-1);
-    } finally {
-      setReloadKey((k) => k + 1);
-    }
-  }, [running, autopilotEnabled, enableAutopilot, runAutopilot, scoredDecisions, projectedExtraRevenue, rankedCustomers, autopilotConfig.maxMessagesPerDay]);
-
-  // Back-compat alias retained for the empty-state button below.
-  const startAutoRevenue = handleStartOrRun;
 
   const checklistItems = useMemo(() => ([
     { label: "WhatsApp gekoppeld", done: whatsappEnabled, to: "/whatsapp" },
