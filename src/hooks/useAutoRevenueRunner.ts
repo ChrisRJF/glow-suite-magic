@@ -585,6 +585,7 @@ export function useAutoRevenueRunner(
           console.warn("autopilot run finalize failed", err);
         }
       }
+      runningRef.current = false;
       setRunning(false);
     }
   }, [
