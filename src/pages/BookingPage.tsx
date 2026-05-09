@@ -119,6 +119,9 @@ export default function BookingPage() {
   const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
   const [placementOptions, setPlacementOptions] = useState<PlacementOption[]>([]);
   const [selectedPlacementIndex, setSelectedPlacementIndex] = useState(0);
+  const [acceptedGlowsuiteTerms, setAcceptedGlowsuiteTerms] = useState(false);
+  const [acceptedSalonTerms, setAcceptedSalonTerms] = useState(false);
+  const [showTermsError, setShowTermsError] = useState(false);
 
   useEffect(() => {
     if (!salonSlug) return;
