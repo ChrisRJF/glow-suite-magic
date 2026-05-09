@@ -88,6 +88,7 @@ export default function CalendarPage() {
   const { data: services } = useServices();
   const { data: dbEmployees } = useEmployees();
   const { data: apptEmployees, refetch: refetchApptEmps } = useAppointmentEmployees();
+  const { data: availabilityExceptions } = useEmployeeAvailabilityExceptions();
   const { insert, update, remove } = useCrud("appointments");
   const [view, setView] = useState<View>('day');
   const [currentDate, setCurrentDate] = useState(new Date());
