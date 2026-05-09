@@ -305,8 +305,6 @@ export function useAutoRevenueRunner(
       (s, d) => s + d.projectedRevenue,
       0,
     );
-    // eslint-disable-next-line no-console
-    console.log("RUN SOURCE", opts.source, scoredDecisions.length, emptySlots);
     let runId: string | null = null;
     try {
       const { data: runRow } = await supabase
@@ -596,10 +594,8 @@ export function useAutoRevenueRunner(
     demoMode,
     scoredDecisions,
     projectedExtraRevenue,
-    emptySlots,
     rankedCustomers,
     customers,
-    opts.source,
     maxDiscount,
     maxMessagesPerDay,
     insertCampaign,
