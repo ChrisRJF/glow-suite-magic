@@ -254,6 +254,110 @@ export default function AutoRevenuePage() {
       actions={rangeToggle}
     >
       <div className="space-y-6">
+        {/* Hero CTA */}
+        <Card className="overflow-hidden border-primary/20 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent">
+          <CardContent className="p-6 sm:p-8">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
+              <div className="max-w-xl">
+                <Badge variant="outline" className="mb-3 border-primary/30 bg-primary/10 text-primary">
+                  <Sparkles className="w-3 h-3 mr-1" /> AI-aangedreven omzet
+                </Badge>
+                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
+                  Laat GlowSuite automatisch je lege plekken vullen.
+                </h2>
+                <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+                  Wachtlijst, no-show recovery, klanten terughalen en aanbetalingen — in één systeem. Eén keer activeren, daarna draait het op de achtergrond.
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row lg:flex-col gap-2 lg:items-end shrink-0">
+                {autopilotEnabled ? (
+                  <Button size="lg" className="bg-emerald-600 hover:bg-emerald-700 text-white cursor-default" onClick={() => toast("Auto Revenue is al actief.")}>
+                    <CheckCircle2 className="w-4 h-4 mr-2" /> Auto Revenue actief
+                  </Button>
+                ) : (
+                  <Button size="lg" onClick={startAutoRevenue} className="shadow-md">
+                    <Rocket className="w-4 h-4 mr-2" /> Start Auto Revenue
+                  </Button>
+                )}
+                <Button asChild variant="outline" size="lg">
+                  <Link to="/instellingen?section=auto-revenue">
+                    <SettingsIcon className="w-4 h-4 mr-2" /> Instellingen
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Live status strip */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+          <StatusPill tone={autopilotEnabled ? "green" : "yellow"} label={autopilotEnabled ? "Auto Revenue zoekt naar lege plekken…" : "Auto Revenue staat uit"} />
+          <StatusPill tone={waitlistCount > 0 ? "green" : "muted"} label={waitlistCount > 0 ? `${waitlistCount} klanten op de wachtlijst` : "Wachtlijst leeg"} />
+          <StatusPill tone={mollieConnected ? "green" : "yellow"} label={mollieConnected ? "Aanbetalingen actief" : "Aanbetalingen niet ingesteld"} />
+          <StatusPill tone={whatsappEnabled ? "green" : "red"} label={whatsappEnabled ? "WhatsApp verbonden" : "WhatsApp niet verbonden"} />
+        </div>
+
+        {/* Quick start checklist */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <CardTitle className="text-lg">Klaar om te starten</CardTitle>
+                <CardDescription>Vier korte stappen voor maximaal resultaat.</CardDescription>
+              </div>
+              {allReady && (
+                <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">🎉 Volledig actief</Badge>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {checklistItems.map((item) => {
+                const Inner = (
+                  <div className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 transition-colors ${item.done ? "border-emerald-500/30 bg-emerald-500/5" : "border-border bg-card hover:border-primary/40"}`}>
+                    {item.done ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    ) : (
+                      <Circle className="w-4 h-4 text-muted-foreground shrink-0" />
+                    )}
+                    <span className={`text-sm ${item.done ? "text-foreground" : "text-muted-foreground"}`}>{item.label}</span>
+                    {!item.done && item.to && <ArrowRight className="w-3.5 h-3.5 text-muted-foreground ml-auto" />}
+                  </div>
+                );
+                return (
+                  <li key={item.label}>
+                    {item.to && !item.done ? <Link to={item.to}>{Inner}</Link> : Inner}
+                  </li>
+                );
+              })}
+            </ul>
+            {allReady && (
+              <p className="mt-3 text-sm text-emerald-700 dark:text-emerald-400 font-medium">
+                🎉 GlowSuite vult nu automatisch lege plekken voor je.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Onboarding empty state when no activity yet */}
+        {!loading && feed.length === 0 && !autopilotEnabled && (
+          <Card className="border-dashed">
+            <CardContent className="p-6">
+              <h3 className="font-semibold text-base">GlowSuite kan automatisch:</h3>
+              <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
+                <li>• lege plekken vullen</li>
+                <li>• klanten terughalen</li>
+                <li>• no-shows verminderen</li>
+                <li>• omzet verhogen</li>
+              </ul>
+              <p className="text-sm mt-3">Druk op <span className="font-semibold">‘Start Auto Revenue’</span> om te beginnen.</p>
+              <Button className="mt-4" onClick={startAutoRevenue}>
+                <Rocket className="w-4 h-4 mr-2" /> Start Auto Revenue
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {/* KPI cards */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {kpiCards.map((c) => (
