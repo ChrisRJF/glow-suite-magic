@@ -47,8 +47,8 @@ interface AutoRevenueRunControlProps {
 
 export function AutoRevenueRunControl({ bare, onRunComplete, secondary }: AutoRevenueRunControlProps) {
   const { demoMode } = useDemoMode();
-  const { running, runAutopilot, scoredDecisions, projectedExtraRevenue, rankedCustomers } =
-    useAutoRevenueRunner();
+  const { running, runAutopilot, ready, scoredDecisions, projectedExtraRevenue, rankedCustomers } =
+    useAutoRevenueRunner({ source: "auto-revenue-page" });
 
   const [autopilotEnabled, setAutopilotEnabled] = useState<boolean>(() => {
     try {
@@ -81,7 +81,7 @@ export function AutoRevenueRunControl({ bare, onRunComplete, secondary }: AutoRe
   }, [running]);
 
   const handleClick = useCallback(async () => {
-    if (running) return;
+    if (running || !ready) return;
     // Activate autopilot in localStorage if needed (same key as Overview engine).
     if (!autopilotEnabled) {
       try {
@@ -112,13 +112,15 @@ export function AutoRevenueRunControl({ bare, onRunComplete, secondary }: AutoRe
     } finally {
       onRunComplete?.();
     }
-  }, [running, autopilotEnabled, demoMode, scoredDecisions, projectedExtraRevenue, rankedCustomers, runAutopilot, onRunComplete]);
+  }, [running, ready, autopilotEnabled, demoMode, scoredDecisions, projectedExtraRevenue, rankedCustomers, runAutopilot, onRunComplete]);
 
   const button = (
     <div className="flex flex-col sm:flex-row gap-2">
-      <Button size="lg" onClick={handleClick} disabled={running} className="shadow-md">
+      <Button size="lg" onClick={handleClick} disabled={running || !ready} className="shadow-md">
         {running ? (
           <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Bezig…</>
+        ) : !ready ? (
+          <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Gegevens laden…</>
         ) : autopilotEnabled ? (
           <><Zap className="w-4 h-4 mr-2" /> Nu uitvoeren</>
         ) : (
