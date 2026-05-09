@@ -100,6 +100,10 @@ export function useAppointmentEmployees() {
   return useSupabaseQuery("appointment_employees", { orderBy: "created_at", ascending: true });
 }
 
+export function useEmployeeAvailabilityExceptions() {
+  return useSupabaseQuery("employee_availability_exceptions" as any, { orderBy: "start_date", ascending: true });
+}
+
 export function useMollieConnections() {
   return useSupabaseQuery("mollie_connections");
 }
