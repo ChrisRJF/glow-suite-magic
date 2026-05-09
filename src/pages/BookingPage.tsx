@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { services as fallbackServices, formatEuro } from "@/lib/data";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Check, Clock, ArrowLeft, ArrowRight, Calendar, User, CreditCard, Loader2, Plus, Trash2, Users, Zap, AlertCircle, Mail, Shield, Sparkles, RotateCcw, Share2, CalendarPlus, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePaymentRules } from "@/hooks/usePaymentRules";
