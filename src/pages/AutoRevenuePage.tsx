@@ -65,10 +65,73 @@ const MODULES = [
 export default function AutoRevenuePage() {
   const { user } = useAuth();
   const { demoMode } = useDemoMode();
+  const { data: settingsRows } = useSettings();
+  const { data: campaigns } = useCampaigns();
+  const settings = settingsRows[0] as any | undefined;
   const [range, setRange] = useState<Range>("month");
   const [kpis, setKpis] = useState<KPIs>(EMPTY);
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // Auto Revenue (autopilot) on/off — reuses existing localStorage state.
+  const [autopilotEnabled, setAutopilotEnabled] = useState<boolean>(() => {
+    try {
+      const raw = localStorage.getItem(autopilotStateKey(demoMode));
+      if (raw) return Boolean(JSON.parse(raw)?.enabled);
+    } catch {}
+    return false;
+  });
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(autopilotStateKey(demoMode));
+      setAutopilotEnabled(raw ? Boolean(JSON.parse(raw)?.enabled) : false);
+    } catch {
+      setAutopilotEnabled(false);
+    }
+  }, [demoMode]);
+
+  const [mollieConnected, setMollieConnected] = useState(false);
+  const [waitlistCount, setWaitlistCount] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      const [{ count: mollieCount }, { count: waitCount }] = await Promise.all([
+        supabase.from("mollie_connections").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+        supabase.from("waitlist").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("is_demo", demoMode),
+      ]);
+      if (cancelled) return;
+      setMollieConnected((mollieCount || 0) > 0);
+      setWaitlistCount(waitCount || 0);
+    })();
+    return () => { cancelled = true; };
+  }, [user, demoMode]);
+
+  const whatsappEnabled = Boolean(settings?.whatsapp_enabled);
+  const campaignsSent = (campaigns?.length || 0) > 0;
+
+  const startAutoRevenue = useCallback(() => {
+    try {
+      const key = autopilotStateKey(demoMode);
+      const raw = localStorage.getItem(key);
+      const current = raw ? JSON.parse(raw) : { enabled: false, maxDiscount: 15, maxMessagesPerDay: 10 };
+      const next = { ...current, enabled: true };
+      localStorage.setItem(key, JSON.stringify(next));
+      setAutopilotEnabled(true);
+      toast.success("Auto Revenue staat nu actief ✅");
+    } catch (e) {
+      toast.error("Kon Auto Revenue niet activeren. Probeer opnieuw.");
+    }
+  }, [demoMode]);
+
+  const checklistItems = useMemo(() => ([
+    { label: "WhatsApp gekoppeld", done: whatsappEnabled, to: "/whatsapp" },
+    { label: "Betalingen ingesteld", done: mollieConnected, to: "/instellingen?section=payments" },
+    { label: "Auto Revenue actief", done: autopilotEnabled, to: undefined },
+    { label: "Eerste campagne verzonden", done: campaignsSent, to: "/marketing" },
+  ]), [whatsappEnabled, mollieConnected, autopilotEnabled, campaignsSent]);
+  const allReady = checklistItems.every((i) => i.done);
 
   const sinceIso = useMemo(() => rangeStart(range).toISOString(), [range]);
 
