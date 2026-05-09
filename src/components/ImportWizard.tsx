@@ -621,7 +621,7 @@ export function ImportWizard() {
   const targetFields = FIELDS[type];
 
   return (
-    <div className="glass-card p-6 space-y-6">
+    <div className="glass-card p-4 sm:p-6 space-y-6 w-full max-w-full overflow-x-hidden">
       <div>
         <h2 className="text-xl font-semibold mb-1">Data importeren</h2>
         <p className="text-sm text-muted-foreground">
@@ -631,20 +631,20 @@ export function ImportWizard() {
       </div>
 
       {/* Stepper */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2">
+      <div className="flex items-center gap-2 overflow-x-auto max-w-full pb-2 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
         {["Upload", "Bron", "Type", "Mapping", "Preview", "Klaar"].map((label, i) => (
-          <div key={i} className="flex items-center gap-2">
+          <div key={i} className="flex items-center gap-1.5 sm:gap-2">
             <div
-              className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold ${
+              className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-semibold ${
                 i <= step ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
               }`}
             >
               {i + 1}
             </div>
-            <span className={`text-xs whitespace-nowrap ${i === step ? "text-foreground font-medium" : "text-muted-foreground"}`}>
+            <span className={`text-[10px] sm:text-xs whitespace-nowrap ${i === step ? "text-foreground font-medium" : "text-muted-foreground"}`}>
               {label}
             </span>
-            {i < 5 && <div className="w-6 h-px bg-border" />}
+            {i < 5 && <div className="w-3 sm:w-6 h-px bg-border" />}
           </div>
         ))}
       </div>
@@ -654,11 +654,11 @@ export function ImportWizard() {
         <div
           onDrop={onDrop}
           onDragOver={(e) => e.preventDefault()}
-          className="border-2 border-dashed border-border rounded-xl p-10 text-center cursor-pointer hover:bg-secondary/30 transition"
+          className="border-2 border-dashed border-border rounded-xl p-6 sm:p-10 text-center cursor-pointer hover:bg-secondary/30 transition w-full max-w-full"
           onClick={() => fileInputRef.current?.click()}
         >
-          <Upload className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
-          <p className="font-medium">Sleep een CSV of XLSX hierheen</p>
+          <Upload className="w-8 h-8 sm:w-10 sm:h-10 mx-auto text-muted-foreground mb-3" />
+          <p className="font-medium text-sm sm:text-base">Sleep een CSV of XLSX hierheen</p>
           <p className="text-sm text-muted-foreground mt-1">of klik om te bladeren</p>
           <input
             ref={fileInputRef}
@@ -688,7 +688,7 @@ export function ImportWizard() {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex justify-between">
+          <div className="flex justify-between flex-wrap gap-2">
             <Button variant="outline" onClick={reset}><ArrowLeft className="w-4 h-4" />Opnieuw</Button>
             <Button onClick={() => setStep(2)}>Volgende<ArrowRight className="w-4 h-4" /></Button>
           </div>
@@ -709,7 +709,7 @@ export function ImportWizard() {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex justify-between">
+          <div className="flex justify-between flex-wrap gap-2">
             <Button variant="outline" onClick={() => setStep(1)}><ArrowLeft className="w-4 h-4" />Terug</Button>
             <Button onClick={goToMapping}>Auto-detecteer kolommen<ArrowRight className="w-4 h-4" /></Button>
           </div>
@@ -722,8 +722,8 @@ export function ImportWizard() {
           <p className="text-sm text-muted-foreground">
             Controleer de kolomtoewijzing. Auto-detectie gevonden voor {Object.keys(detected).length} velden.
           </p>
-          <div className="border border-border rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="border border-border rounded-xl overflow-x-auto max-w-full">
+            <table className="w-full text-sm min-w-[300px]">
               <thead className="bg-secondary/50">
                 <tr>
                   <th className="text-left p-3">GlowSuite veld</th>
@@ -763,7 +763,7 @@ export function ImportWizard() {
               </tbody>
             </table>
           </div>
-          <div className="flex justify-between">
+          <div className="flex justify-between flex-wrap gap-2">
             <Button variant="outline" onClick={() => setStep(2)}><ArrowLeft className="w-4 h-4" />Terug</Button>
             <Button onClick={() => setStep(4)}>Preview<ArrowRight className="w-4 h-4" /></Button>
           </div>
@@ -776,7 +776,7 @@ export function ImportWizard() {
           <p className="text-sm text-muted-foreground">
             Voorbeeld eerste 20 rijen. {rows.length} rijen totaal worden geïmporteerd ({SOURCE_LABELS[source]} → {TYPE_LABELS[type]}).
           </p>
-          <div className="border border-border rounded-xl overflow-x-auto">
+          <div className="border border-border rounded-xl overflow-x-auto max-w-full">
             <table className="w-full text-xs">
               <thead className="bg-secondary/50">
                 <tr>
@@ -815,11 +815,11 @@ export function ImportWizard() {
               <p className="text-xs text-muted-foreground text-center">{progress}% • importeren…</p>
             </div>
           )}
-          <div className="flex justify-between">
+          <div className="flex justify-between flex-wrap gap-2">
             <Button variant="outline" onClick={() => setStep(3)} disabled={importing}><ArrowLeft className="w-4 h-4" />Terug</Button>
-            <Button onClick={runImport} disabled={importing}>
+            <Button onClick={runImport} disabled={importing} className="w-full sm:w-auto">
               {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-              {importing ? "Bezig…" : `Importeer ${rows.length} rijen`}
+              <span className="truncate">{importing ? "Bezig…" : `Importeer ${rows.length} rijen`}</span>
             </Button>
           </div>
         </div>
@@ -836,8 +836,8 @@ export function ImportWizard() {
           </div>
           {summary.errors.length > 0 && (
             <>
-              <div className="border border-border rounded-xl max-h-64 overflow-y-auto">
-                <table className="w-full text-xs">
+              <div className="border border-border rounded-xl max-h-64 overflow-y-auto overflow-x-auto max-w-full">
+                <table className="w-full text-xs min-w-[300px]">
                   <thead className="bg-secondary/50 sticky top-0">
                     <tr><th className="text-left p-2">Rij</th><th className="text-left p-2">Reden</th></tr>
                   </thead>
@@ -851,13 +851,13 @@ export function ImportWizard() {
                   </tbody>
                 </table>
               </div>
-              <Button variant="outline" onClick={downloadErrorReport}>
+              <Button variant="outline" onClick={downloadErrorReport} className="w-full sm:w-auto">
                 <Download className="w-4 h-4" />Foutenrapport downloaden (CSV)
               </Button>
             </>
           )}
           <div className="flex justify-end">
-            <Button onClick={reset}>Nieuwe import</Button>
+            <Button onClick={reset} className="w-full sm:w-auto">Nieuwe import</Button>
           </div>
         </div>
       )}
