@@ -99,7 +99,7 @@ export default function AutoRevenuePage() {
     (async () => {
       const [{ count: mollieCount }, { count: waitCount }] = await Promise.all([
         supabase.from("mollie_connections").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-        supabase.from("waitlist").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("is_demo", demoMode),
+        supabase.from("waitlist_entries").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("is_demo", demoMode),
       ]);
       if (cancelled) return;
       setMollieConnected((mollieCount || 0) > 0);
