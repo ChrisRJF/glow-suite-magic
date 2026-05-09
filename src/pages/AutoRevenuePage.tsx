@@ -141,10 +141,37 @@ export default function AutoRevenuePage() {
   const [reloadKey, setReloadKey] = useState(0);
 
   // Shared runner — identical DB writes as the Dashboard "Omzet Autopilot" card.
-  const { running, runAutopilot } = useAutoRevenueRunner({
+  const { running, runAutopilot, scoredDecisions, projectedExtraRevenue, rankedCustomers } = useAutoRevenueRunner({
     maxDiscount: autopilotConfig.maxDiscount,
     maxMessagesPerDay: autopilotConfig.maxMessagesPerDay,
   });
+
+  // Visual progress feedback (UI only — does not affect runner logic).
+  const RUN_STEPS = [
+    "Agenda analyseren…",
+    "Lege plekken zoeken…",
+    "Beste klanten selecteren…",
+    "WhatsApp acties voorbereiden…",
+    "Resultaten opslaan…",
+  ];
+  const [currentStep, setCurrentStep] = useState<number>(-1);
+  const [lastSummary, setLastSummary] = useState<{
+    actions: number;
+    revenue: number;
+    customersReached: number;
+    noAction: boolean;
+  } | null>(null);
+
+  // Advance steps while running. Cap at last step until runner finishes.
+  useEffect(() => {
+    if (!running) return;
+    setCurrentStep(0);
+    setLastSummary(null);
+    const id = setInterval(() => {
+      setCurrentStep((s) => Math.min(RUN_STEPS.length - 1, s + 1));
+    }, 700);
+    return () => clearInterval(id);
+  }, [running]);
 
   const enableAutopilot = useCallback(() => {
     try {
@@ -165,16 +192,27 @@ export default function AutoRevenuePage() {
       enableAutopilot();
       toast.success("Auto Revenue staat nu actief ✅");
     }
+    // Snapshot pre-run signals for the summary card.
+    const actions = scoredDecisions.length;
+    const revenue = projectedExtraRevenue;
+    const cap = Math.max(1, autopilotConfig.maxMessagesPerDay);
+    const customersReached = Math.min(rankedCustomers.length, Math.min(actions, cap));
     try {
       await runAutopilot();
-      toast.success("Auto Revenue uitgevoerd ✅");
+      setCurrentStep(RUN_STEPS.length); // all done
+      setLastSummary({
+        actions,
+        revenue,
+        customersReached,
+        noAction: actions === 0,
+      });
     } catch (e) {
-      // runAutopilot already surfaces its own toasts; this is just a safety net.
       console.warn("auto revenue run failed", e);
+      setCurrentStep(-1);
     } finally {
       setReloadKey((k) => k + 1);
     }
-  }, [running, autopilotEnabled, enableAutopilot, runAutopilot]);
+  }, [running, autopilotEnabled, enableAutopilot, runAutopilot, scoredDecisions, projectedExtraRevenue, rankedCustomers, autopilotConfig.maxMessagesPerDay]);
 
   // Back-compat alias retained for the empty-state button below.
   const startAutoRevenue = handleStartOrRun;
