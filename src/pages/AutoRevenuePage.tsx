@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { Sparkles, Clock, RotateCcw, Crown, Gift, CreditCard, ArrowRight, CheckCircle2, XCircle, Hourglass, Wallet, Rocket, Settings as SettingsIcon, Circle } from "lucide-react";
+import { Sparkles, Clock, RotateCcw, Crown, Gift, CreditCard, ArrowRight, CheckCircle2, XCircle, Hourglass, Wallet, Rocket, Settings as SettingsIcon, Circle, Zap, Loader2 } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoMode } from "@/hooks/useDemoMode";
 import { useSettings, useCampaigns } from "@/hooks/useSupabaseData";
+import { useAutoRevenueRunner } from "@/hooks/useAutoRevenueRunner";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEuro } from "@/lib/data";
 import { autopilotStateKey } from "@/lib/demoIsolation";
@@ -111,19 +112,72 @@ export default function AutoRevenuePage() {
   const whatsappEnabled = Boolean(settings?.whatsapp_enabled);
   const campaignsSent = (campaigns?.length || 0) > 0;
 
-  const startAutoRevenue = useCallback(() => {
+  // Read autopilot config (maxDiscount/maxMessagesPerDay) from same localStorage
+  // the Overview engine uses. Keeps demo/live isolation via autopilotStateKey.
+  const [autopilotConfig, setAutopilotConfig] = useState<{ maxDiscount: number; maxMessagesPerDay: number }>(() => {
+    try {
+      const raw = localStorage.getItem(autopilotStateKey(demoMode));
+      const parsed = raw ? JSON.parse(raw) : null;
+      return {
+        maxDiscount: parsed?.maxDiscount ?? 15,
+        maxMessagesPerDay: parsed?.maxMessagesPerDay ?? 10,
+      };
+    } catch {
+      return { maxDiscount: 15, maxMessagesPerDay: 10 };
+    }
+  });
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(autopilotStateKey(demoMode));
+      const parsed = raw ? JSON.parse(raw) : null;
+      setAutopilotConfig({
+        maxDiscount: parsed?.maxDiscount ?? 15,
+        maxMessagesPerDay: parsed?.maxMessagesPerDay ?? 10,
+      });
+    } catch {}
+  }, [demoMode]);
+
+  // Reload trigger so KPIs/feed refetch after a manual run.
+  const [reloadKey, setReloadKey] = useState(0);
+
+  // Shared runner — identical DB writes as the Dashboard "Omzet Autopilot" card.
+  const { running, runAutopilot } = useAutoRevenueRunner({
+    maxDiscount: autopilotConfig.maxDiscount,
+    maxMessagesPerDay: autopilotConfig.maxMessagesPerDay,
+  });
+
+  const enableAutopilot = useCallback(() => {
     try {
       const key = autopilotStateKey(demoMode);
       const raw = localStorage.getItem(key);
       const current = raw ? JSON.parse(raw) : { enabled: false, maxDiscount: 15, maxMessagesPerDay: 10 };
-      const next = { ...current, enabled: true };
-      localStorage.setItem(key, JSON.stringify(next));
+      if (!current.enabled) {
+        localStorage.setItem(key, JSON.stringify({ ...current, enabled: true }));
+      }
       setAutopilotEnabled(true);
-      toast.success("Auto Revenue staat nu actief ✅");
-    } catch (e) {
-      toast.error("Kon Auto Revenue niet activeren. Probeer opnieuw.");
-    }
+    } catch {}
   }, [demoMode]);
+
+  const handleStartOrRun = useCallback(async () => {
+    if (running) return;
+    const wasEnabled = autopilotEnabled;
+    if (!wasEnabled) {
+      enableAutopilot();
+      toast.success("Auto Revenue staat nu actief ✅");
+    }
+    try {
+      await runAutopilot();
+      toast.success("Auto Revenue uitgevoerd ✅");
+    } catch (e) {
+      // runAutopilot already surfaces its own toasts; this is just a safety net.
+      console.warn("auto revenue run failed", e);
+    } finally {
+      setReloadKey((k) => k + 1);
+    }
+  }, [running, autopilotEnabled, enableAutopilot, runAutopilot]);
+
+  // Back-compat alias retained for the empty-state button below.
+  const startAutoRevenue = handleStartOrRun;
 
   const checklistItems = useMemo(() => ([
     { label: "WhatsApp gekoppeld", done: whatsappEnabled, to: "/whatsapp" },
@@ -220,7 +274,7 @@ export default function AutoRevenuePage() {
     return () => {
       cancelled = true;
     };
-  }, [user, demoMode, sinceIso]);
+  }, [user, demoMode, sinceIso, reloadKey]);
 
   const kpiCards = [
     { label: "Extra omzet deze maand", value: formatEuro(kpis.revenue), tone: "from-emerald-500/15 to-emerald-500/5 border-emerald-500/20 text-emerald-700 dark:text-emerald-400" },
@@ -270,15 +324,20 @@ export default function AutoRevenuePage() {
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row lg:flex-col gap-2 lg:items-end shrink-0">
-                {autopilotEnabled ? (
-                  <Button size="lg" className="bg-emerald-600 hover:bg-emerald-700 text-white cursor-default" onClick={() => toast("Auto Revenue is al actief.")}>
-                    <CheckCircle2 className="w-4 h-4 mr-2" /> Auto Revenue actief
-                  </Button>
-                ) : (
-                  <Button size="lg" onClick={startAutoRevenue} className="shadow-md">
-                    <Rocket className="w-4 h-4 mr-2" /> Start Auto Revenue
-                  </Button>
-                )}
+                <Button
+                  size="lg"
+                  onClick={handleStartOrRun}
+                  disabled={running}
+                  className="shadow-md"
+                >
+                  {running ? (
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Bezig…</>
+                  ) : autopilotEnabled ? (
+                    <><Zap className="w-4 h-4 mr-2" /> Nu uitvoeren</>
+                  ) : (
+                    <><Rocket className="w-4 h-4 mr-2" /> Start Auto Revenue</>
+                  )}
+                </Button>
                 <Button asChild variant="outline" size="lg">
                   <Link to="/instellingen?section=auto-revenue">
                     <SettingsIcon className="w-4 h-4 mr-2" /> Instellingen
