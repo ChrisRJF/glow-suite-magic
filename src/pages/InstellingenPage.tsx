@@ -7,8 +7,9 @@ import { useCrud } from "@/hooks/useCrud";
 import {
   User, Building, Bell, Save, CreditCard, Shield, RotateCcw, Loader2,
   Clock, Calendar, Globe, Users, Download, Link2, Plug, CheckCircle2, XCircle,
-  UserCog, AlertTriangle, Plus, Trash2, Facebook, Instagram, ExternalLink, Sparkles, PlayCircle,
+  UserCog, AlertTriangle, Plus, Trash2, Facebook, Instagram, ExternalLink, Sparkles, PlayCircle, FileUp,
 } from "lucide-react";
+import { ImportWizard } from "@/components/ImportWizard";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -439,6 +440,7 @@ export default function InstellingenPage() {
     { id: "klanten", label: "Klanten", icon: Users },
     { id: "integraties", label: "Integrations", icon: Plug },
     { id: "export", label: "Branding & Export", icon: Download },
+    { id: "import", label: "Data importeren", icon: FileUp },
     { id: "rollen", label: "Team", icon: UserCog },
     { id: "demo", label: "Demo", icon: Shield },
   ].filter((tab) => {
@@ -447,6 +449,7 @@ export default function InstellingenPage() {
     if (tab.id === "rollen") return canManageTeam;
     if (tab.id === "integraties") return canManageIntegrations;
     if (tab.id === "demo") return isOwner;
+    if (tab.id === "import") return canManageBusiness;
     return canManageBusiness;
   });
 
