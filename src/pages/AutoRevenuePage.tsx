@@ -479,3 +479,24 @@ function SettingTile({ title, desc }: { title: string; desc: string }) {
     </div>
   );
 }
+
+function StatusPill({ tone, label }: { tone: "green" | "yellow" | "red" | "muted"; label: string }) {
+  const tones: Record<string, string> = {
+    green: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30",
+    yellow: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30",
+    red: "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/30",
+    muted: "bg-muted text-muted-foreground border-border",
+  };
+  const dot: Record<string, string> = {
+    green: "bg-emerald-500",
+    yellow: "bg-amber-500",
+    red: "bg-red-500",
+    muted: "bg-muted-foreground/40",
+  };
+  return (
+    <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 ${tones[tone]}`}>
+      <span className={`h-2 w-2 rounded-full shrink-0 ${tone === "green" ? "animate-pulse" : ""} ${dot[tone]}`} />
+      <span className="truncate">{label}</span>
+    </div>
+  );
+}
