@@ -763,7 +763,7 @@ export function ImportWizard() {
               </tbody>
             </table>
           </div>
-          <div className="flex justify-between">
+          <div className="flex justify-between flex-wrap gap-2">
             <Button variant="outline" onClick={() => setStep(2)}><ArrowLeft className="w-4 h-4" />Terug</Button>
             <Button onClick={() => setStep(4)}>Preview<ArrowRight className="w-4 h-4" /></Button>
           </div>
