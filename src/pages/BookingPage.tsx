@@ -1451,20 +1451,20 @@ export default function BookingPage() {
 
             {!paymentResult && (
               <>
-                <div className="mt-4 space-y-2">
-                  <label className="flex items-start gap-2 cursor-pointer">
+                <div className="mt-4">
+                  <label className="flex items-start gap-2 cursor-pointer mb-2">
                     <Checkbox
                       checked={acceptedGlowsuiteTerms}
                       onCheckedChange={(v) => { setAcceptedGlowsuiteTerms(Boolean(v)); if (v) setShowTermsError(false); }}
-                      className="h-4 w-4 shrink-0 mt-1 rounded-sm border-muted-foreground/30"
+                      className="h-4 w-4 min-h-4 min-w-4 max-h-4 max-w-4 shrink-0 mt-0.5 rounded-[4px] border-muted-foreground/30 p-0 [&_svg]:h-3 [&_svg]:w-3 [&>span]:flex [&>span]:h-full [&>span]:w-full [&>span]:items-center [&>span]:justify-center"
                     />
-                    <span className="text-xs leading-5 text-muted-foreground select-none">
+                    <span className="block text-sm leading-5 text-muted-foreground select-none">
                       Ik ga akkoord met de{" "}
                       <a
                         href="https://glowsuite.nl/voorwaarden"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-primary hover:underline"
+                        className="text-primary hover:underline underline-offset-2"
                         onClick={(e) => e.stopPropagation()}
                       >
                         algemene voorwaarden
@@ -1472,13 +1472,13 @@ export default function BookingPage() {
                       {" "}van GlowSuite.
                     </span>
                   </label>
-                  <label className="flex items-start gap-2 cursor-pointer">
+                  <label className="flex items-start gap-2 cursor-pointer mb-2">
                     <Checkbox
                       checked={acceptedSalonTerms}
                       onCheckedChange={(v) => { setAcceptedSalonTerms(Boolean(v)); if (v) setShowTermsError(false); }}
-                      className="h-4 w-4 shrink-0 mt-1 rounded-sm border-muted-foreground/30"
+                      className="h-4 w-4 min-h-4 min-w-4 max-h-4 max-w-4 shrink-0 mt-0.5 rounded-[4px] border-muted-foreground/30 p-0 [&_svg]:h-3 [&_svg]:w-3 [&>span]:flex [&>span]:h-full [&>span]:w-full [&>span]:items-center [&>span]:justify-center"
                     />
-                    <span className="text-xs leading-5 text-muted-foreground select-none">
+                    <span className="block text-sm leading-5 text-muted-foreground select-none">
                       Ik ga akkoord met de voorwaarden van deze salon/kliniek.
                     </span>
                   </label>
