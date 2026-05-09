@@ -1451,12 +1451,12 @@ export default function BookingPage() {
 
             {!paymentResult && (
               <div className="mt-6 sm:static fixed bottom-0 left-0 right-0 sm:bg-transparent bg-background/95 sm:border-0 border-t border-border sm:p-0 p-4 sm:shadow-none shadow-lg z-40">
-                <div className="rounded-2xl border border-border bg-background/80 px-4 py-3 mt-4 space-y-3 shadow-[var(--shadow-sm)]">
-                  <label className="flex items-center gap-3 cursor-pointer min-h-[44px]">
+                <div className="mt-4 space-y-2">
+                  <label className="flex items-start gap-3 cursor-pointer">
                     <Checkbox
                       checked={acceptedGlowsuiteTerms}
                       onCheckedChange={(v) => { setAcceptedGlowsuiteTerms(Boolean(v)); if (v) setShowTermsError(false); }}
-                      className="h-5 w-5 rounded-md border border-muted-foreground/30 data-[state=checked]:bg-primary data-[state=checked]:border-primary transition-colors focus-visible:ring-2 focus-visible:ring-primary/20"
+                      className="h-4 w-4 mt-0.5 rounded-sm border-muted-foreground/30"
                     />
                     <span className="text-sm leading-5 text-muted-foreground select-none">
                       Ik ga akkoord met de{" "}
@@ -1464,7 +1464,7 @@ export default function BookingPage() {
                         href="https://glowsuite.nl/voorwaarden"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-primary hover:underline underline-offset-2"
+                        className="text-primary hover:underline"
                         onClick={(e) => e.stopPropagation()}
                       >
                         algemene voorwaarden
@@ -1472,18 +1472,18 @@ export default function BookingPage() {
                       {" "}van GlowSuite.
                     </span>
                   </label>
-                  <label className="flex items-center gap-3 cursor-pointer min-h-[44px]">
+                  <label className="flex items-start gap-3 cursor-pointer">
                     <Checkbox
                       checked={acceptedSalonTerms}
                       onCheckedChange={(v) => { setAcceptedSalonTerms(Boolean(v)); if (v) setShowTermsError(false); }}
-                      className="h-5 w-5 rounded-md border border-muted-foreground/30 data-[state=checked]:bg-primary data-[state=checked]:border-primary transition-colors focus-visible:ring-2 focus-visible:ring-primary/20"
+                      className="h-4 w-4 mt-0.5 rounded-sm border-muted-foreground/30"
                     />
                     <span className="text-sm leading-5 text-muted-foreground select-none">
                       Ik ga akkoord met de voorwaarden van deze salon/kliniek.
                     </span>
                   </label>
                   {showTermsError && (
-                    <p className="text-xs text-destructive mt-1 flex items-center gap-1">
+                    <p className="text-xs text-destructive flex items-center gap-1">
                       <AlertCircle className="w-3.5 h-3.5" /> Ga akkoord met de voorwaarden om verder te gaan.
                     </p>
                   )}
