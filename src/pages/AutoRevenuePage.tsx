@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Sparkles, Clock, RotateCcw, Crown, Gift, CreditCard, ArrowRight, CheckCircle2, XCircle, Hourglass, Wallet, Circle } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
@@ -111,8 +111,6 @@ export default function AutoRevenuePage() {
   const whatsappEnabled = Boolean(settings?.whatsapp_enabled);
   const campaignsSent = (campaigns?.length || 0) > 0;
 
-  const [reloadKey] = useState(0);
-
   const checklistItems = useMemo(() => ([
     { label: "WhatsApp gekoppeld", done: whatsappEnabled, to: "/whatsapp" },
     { label: "Betalingen ingesteld", done: mollieConnected, to: "/instellingen?section=payments" },
@@ -208,7 +206,7 @@ export default function AutoRevenuePage() {
     return () => {
       cancelled = true;
     };
-  }, [user, demoMode, sinceIso, reloadKey]);
+  }, [user, demoMode, sinceIso]);
 
   const kpiCards = [
     { label: "Extra omzet deze maand", value: formatEuro(kpis.revenue), tone: "from-emerald-500/15 to-emerald-500/5 border-emerald-500/20 text-emerald-700 dark:text-emerald-400" },
