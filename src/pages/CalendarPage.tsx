@@ -310,7 +310,7 @@ export default function CalendarPage() {
       return displayEmployees.filter((m: any) => getEmployeeStatus(m, currentDate) === 'beschikbaar');
     }
     if (filterAvailability === 'afwezig') {
-      return displayEmployees.filter((m: any) => getEmployeeStatus(m, currentDate) === 'afwezig');
+      return displayEmployees.filter((m: any) => getEmployeeStatus(m, currentDate) !== 'beschikbaar');
     }
     return displayEmployees;
   }, [filterAvailability, currentDate, displayEmployees]);
