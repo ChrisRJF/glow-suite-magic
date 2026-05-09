@@ -256,9 +256,6 @@ export default function AutoRevenuePage() {
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row lg:flex-col gap-2 lg:items-end shrink-0">
-                <Button asChild size="lg">
-                  <a href="#auto-revenue-engine">Start Auto Revenue</a>
-                </Button>
                 <Button asChild variant="outline" size="lg">
                   <Link to="/instellingen?section=auto-revenue">Instellingen</Link>
                 </Button>
@@ -330,10 +327,7 @@ export default function AutoRevenuePage() {
                 <li>• no-shows verminderen</li>
                 <li>• omzet verhogen</li>
               </ul>
-              <p className="text-sm mt-3">Druk op <span className="font-semibold">‘Start Auto Revenue’</span> om te beginnen.</p>
-              <Button className="mt-4" asChild>
-                <a href="#auto-revenue-engine">Start Auto Revenue</a>
-              </Button>
+              <p className="text-sm mt-3">Gebruik de Omzet Autopilot hierboven om te beginnen.</p>
             </CardContent>
           </Card>
         )}
