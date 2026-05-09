@@ -709,7 +709,7 @@ export function ImportWizard() {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex justify-between">
+          <div className="flex justify-between flex-wrap gap-2">
             <Button variant="outline" onClick={() => setStep(1)}><ArrowLeft className="w-4 h-4" />Terug</Button>
             <Button onClick={goToMapping}>Auto-detecteer kolommen<ArrowRight className="w-4 h-4" /></Button>
           </div>
