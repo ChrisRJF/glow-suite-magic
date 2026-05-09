@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Sparkles, Clock, RotateCcw, Crown, Gift, CreditCard, ArrowRight, CheckCircle2, XCircle, Hourglass, Wallet, Rocket, Settings as SettingsIcon, Circle, Zap, Loader2 } from "lucide-react";
+import { Sparkles, Clock, RotateCcw, Crown, Gift, CreditCard, ArrowRight, CheckCircle2, XCircle, Hourglass, Wallet, Circle } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,11 +8,10 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoMode } from "@/hooks/useDemoMode";
 import { useSettings, useCampaigns } from "@/hooks/useSupabaseData";
-import { AutoRevenueRunControl } from "@/components/AutoRevenueRunControl";
+import { AutoRevenueEngine } from "@/components/AutoRevenueEngine";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEuro } from "@/lib/data";
 import { autopilotStateKey } from "@/lib/demoIsolation";
-import { toast } from "sonner";
 
 type Range = "today" | "week" | "month";
 
@@ -112,25 +111,6 @@ export default function AutoRevenuePage() {
   const whatsappEnabled = Boolean(settings?.whatsapp_enabled);
   const campaignsSent = (campaigns?.length || 0) > 0;
 
-  // Reload trigger so KPIs/feed refetch after a run completes.
-  const [reloadKey, setReloadKey] = useState(0);
-  const handleRunComplete = useCallback(() => setReloadKey((k) => k + 1), []);
-
-  // Empty-state button shortcut: just enables autopilot in localStorage. The
-  // shared <AutoRevenueRunControl /> handles activation + run on click too.
-  const startAutoRevenue = useCallback(() => {
-    try {
-      const key = autopilotStateKey(demoMode);
-      const raw = localStorage.getItem(key);
-      const current = raw ? JSON.parse(raw) : { enabled: false, maxDiscount: 15, maxMessagesPerDay: 10 };
-      if (!current.enabled) {
-        localStorage.setItem(key, JSON.stringify({ ...current, enabled: true }));
-        setAutopilotEnabled(true);
-        toast.success("Auto Revenue staat nu actief ✅");
-      }
-    } catch {}
-  }, [demoMode]);
-
   const checklistItems = useMemo(() => ([
     { label: "WhatsApp gekoppeld", done: whatsappEnabled, to: "/whatsapp" },
     { label: "Betalingen ingesteld", done: mollieConnected, to: "/instellingen?section=payments" },
@@ -226,7 +206,7 @@ export default function AutoRevenuePage() {
     return () => {
       cancelled = true;
     };
-  }, [user, demoMode, sinceIso, reloadKey]);
+  }, [user, demoMode, sinceIso]);
 
   const kpiCards = [
     { label: "Extra omzet deze maand", value: formatEuro(kpis.revenue), tone: "from-emerald-500/15 to-emerald-500/5 border-emerald-500/20 text-emerald-700 dark:text-emerald-400" },
@@ -276,23 +256,15 @@ export default function AutoRevenuePage() {
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row lg:flex-col gap-2 lg:items-end shrink-0">
-                <AutoRevenueRunControl
-                  bare
-                  onRunComplete={handleRunComplete}
-                  secondary={
-                    <Button asChild variant="outline" size="lg">
-                      <Link to="/instellingen?section=auto-revenue">
-                        <SettingsIcon className="w-4 h-4 mr-2" /> Instellingen
-                      </Link>
-                    </Button>
-                  }
-                />
+                <Button asChild variant="outline" size="lg">
+                  <Link to="/instellingen?section=auto-revenue">Instellingen</Link>
+                </Button>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Run progress panel is rendered inside <AutoRevenueRunControl /> above */}
+        <AutoRevenueEngine source="auto-revenue" />
 
         {/* Live status strip */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
@@ -355,10 +327,7 @@ export default function AutoRevenuePage() {
                 <li>• no-shows verminderen</li>
                 <li>• omzet verhogen</li>
               </ul>
-              <p className="text-sm mt-3">Druk op <span className="font-semibold">‘Start Auto Revenue’</span> om te beginnen.</p>
-              <Button className="mt-4" onClick={startAutoRevenue}>
-                <Rocket className="w-4 h-4 mr-2" /> Start Auto Revenue
-              </Button>
+              <p className="text-sm mt-3">Gebruik de Omzet Autopilot hierboven om te beginnen.</p>
             </CardContent>
           </Card>
         )}
