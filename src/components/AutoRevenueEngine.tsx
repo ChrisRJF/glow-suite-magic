@@ -91,7 +91,13 @@ const DEMO_STEPS: DemoStep[] = [
   { label: "Afspraken worden ingepland...", duration: 1800 },
 ];
 
-export function AutoRevenueEngine() {
+type AutoRevenueEngineSource = "overview" | "auto-revenue";
+
+interface AutoRevenueEngineProps {
+  source?: AutoRevenueEngineSource;
+}
+
+export function AutoRevenueEngine({ source = "overview" }: AutoRevenueEngineProps) {
   const { user } = useAuth();
   const { demoMode } = useDemoMode();
   const { data: appointments, refetch: refetchAppointments } = useAppointments();
@@ -126,7 +132,7 @@ export function AutoRevenueEngine() {
   } = useAutoRevenueRunner({
     maxDiscount: autopilot.maxDiscount,
     maxMessagesPerDay: autopilot.maxMessagesPerDay,
-    source: "overview",
+    source,
     onLog: addLog,
   });
 
