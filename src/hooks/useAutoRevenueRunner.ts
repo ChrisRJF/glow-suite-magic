@@ -201,6 +201,22 @@ export function useAutoRevenueRunner(
     [customers, appointments],
   );
 
+  // DEV-only diagnostic — compare two consumers (Overview vs Auto Revenue page).
+  if (import.meta.env.DEV) {
+    // eslint-disable-next-line no-console
+    console.log("[AutoRevenueRunControl]", {
+      demoMode,
+      enabled: storedConfig != null,
+      maxDiscount,
+      maxMessagesPerDay,
+      scoredDecisionsCount: scoredDecisions.length,
+      projectedExtraRevenue,
+      emptySlots,
+      customersCount: customers.length,
+      appointmentsCount: appointments.length,
+    });
+  }
+
   const log = (entry: RunnerLogEntry) => {
     opts.onLog?.(entry);
   };
