@@ -1110,7 +1110,7 @@ export default function CalendarPage() {
                     <span className={cn("text-[10px] px-1.5 py-0.5 rounded ml-auto", workloadColors[wl.variant])}>{wl.label}</span>
                   </div>
                   <div className="text-[10px] text-muted-foreground">
-                    {status === 'afwezig' ? 'Niet werkzaam vandaag' : (
+                    {status !== 'beschikbaar' ? (getEmployeeAbsenceBadge(emp, currentDate)?.label || 'Niet werkzaam vandaag') : (
                       <>{apptCount} afspraken · {freeSlots} vrij</>
                     )}
                   </div>
