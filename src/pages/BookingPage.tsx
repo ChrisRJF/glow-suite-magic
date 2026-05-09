@@ -646,7 +646,7 @@ export default function BookingPage() {
         const result = await callPublicBooking<any>({
           action: "create_booking",
           slug: salonSlug,
-          customer: { name, email, phone, privacy_consent: true, marketing_consent: false },
+          customer: { name, email, phone, privacy_consent: true, marketing_consent: false, accepted_glowsuite_terms: true, accepted_salon_terms: true, accepted_terms_at: acceptedTermsAt },
           date: selectedDate,
           time: selectedPlacements[0]?.time || selectedTime,
           service_id: selectedService,
