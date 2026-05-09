@@ -379,6 +379,7 @@ export function useAutoRevenueRunner(
           })
           .eq("id", runId);
       }
+      runningRef.current = false;
       setRunning(false);
       return;
     }
@@ -410,6 +411,7 @@ export function useAutoRevenueRunner(
     try {
       if (scoredDecisions.length === 0) {
         toast("Geen winstgevende lege plekken vandaag — geen actie 👍");
+        runningRef.current = false;
         setRunning(false);
         return;
       }
@@ -422,6 +424,7 @@ export function useAutoRevenueRunner(
               "Schakel WhatsApp in via Instellingen om autopilot acties uit te voeren.",
           },
         );
+        runningRef.current = false;
         setRunning(false);
         return;
       }
