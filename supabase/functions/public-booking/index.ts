@@ -348,6 +348,9 @@ Deno.serve(async (req) => {
         source: "online_booking",
         booking_group_id: bookingRows.length > 1 ? groupId : null,
         payment_type: data.payment.type,
+        accepted_glowsuite_terms: Boolean(data.customer.accepted_glowsuite_terms),
+        accepted_salon_terms: Boolean(data.customer.accepted_salon_terms),
+        accepted_terms_at: data.customer.accepted_terms_at ?? ((data.customer.accepted_glowsuite_terms && data.customer.accepted_salon_terms) ? new Date().toISOString() : null),
       };
     });
 
