@@ -1064,6 +1064,65 @@ export type Database = {
         }
         Relationships: []
       }
+      employee_availability_exceptions: {
+        Row: {
+          created_at: string
+          days_of_week: number[] | null
+          employee_id: string
+          end_date: string | null
+          end_time: string | null
+          id: string
+          is_demo: boolean
+          label: string | null
+          note: string | null
+          start_date: string
+          start_time: string | null
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          days_of_week?: number[] | null
+          employee_id: string
+          end_date?: string | null
+          end_time?: string | null
+          id?: string
+          is_demo?: boolean
+          label?: string | null
+          note?: string | null
+          start_date: string
+          start_time?: string | null
+          type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          days_of_week?: number[] | null
+          employee_id?: string
+          end_date?: string | null
+          end_time?: string | null
+          id?: string
+          is_demo?: boolean
+          label?: string | null
+          note?: string | null
+          start_date?: string
+          start_time?: string | null
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_availability_exceptions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_payroll_adjustments: {
         Row: {
           amount_cents: number
@@ -1188,6 +1247,7 @@ export type Database = {
         Row: {
           break_end: string | null
           break_start: string | null
+          breaks: Json
           color: string
           created_at: string
           email: string | null
@@ -1200,6 +1260,10 @@ export type Database = {
           role: string
           services: Json
           sort_order: number
+          status: string
+          status_from: string | null
+          status_note: string | null
+          status_until: string | null
           updated_at: string
           user_id: string
           working_days: number[]
@@ -1207,6 +1271,7 @@ export type Database = {
         Insert: {
           break_end?: string | null
           break_start?: string | null
+          breaks?: Json
           color?: string
           created_at?: string
           email?: string | null
@@ -1219,6 +1284,10 @@ export type Database = {
           role?: string
           services?: Json
           sort_order?: number
+          status?: string
+          status_from?: string | null
+          status_note?: string | null
+          status_until?: string | null
           updated_at?: string
           user_id: string
           working_days?: number[]
@@ -1226,6 +1295,7 @@ export type Database = {
         Update: {
           break_end?: string | null
           break_start?: string | null
+          breaks?: Json
           color?: string
           created_at?: string
           email?: string | null
@@ -1238,6 +1308,10 @@ export type Database = {
           role?: string
           services?: Json
           sort_order?: number
+          status?: string
+          status_from?: string | null
+          status_note?: string | null
+          status_until?: string | null
           updated_at?: string
           user_id?: string
           working_days?: number[]
