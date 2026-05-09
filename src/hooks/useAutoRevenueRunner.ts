@@ -25,6 +25,7 @@ import { useCrud } from "@/hooks/useCrud";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEuro } from "@/lib/data";
 import { simulateDemoAction } from "@/lib/demoMode";
+import { autopilotStateKey } from "@/lib/demoIsolation";
 import {
   pickTopSlots,
   rankCustomers,
