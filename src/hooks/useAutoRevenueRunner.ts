@@ -47,7 +47,7 @@ export interface UseAutoRevenueRunnerOptions {
   maxDiscount?: number;
   maxMessagesPerDay?: number;
   /** DEV diagnostics source label for comparing the two button consumers. */
-  source?: "overview" | "auto-revenue-page";
+  source?: "overview" | "auto-revenue";
   /** Optional UI logger — engine card animates these. Page does not need it. */
   onLog?: (entry: RunnerLogEntry) => void;
 }
