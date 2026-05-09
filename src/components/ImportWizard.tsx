@@ -722,8 +722,8 @@ export function ImportWizard() {
           <p className="text-sm text-muted-foreground">
             Controleer de kolomtoewijzing. Auto-detectie gevonden voor {Object.keys(detected).length} velden.
           </p>
-          <div className="border border-border rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="border border-border rounded-xl overflow-x-auto max-w-full">
+            <table className="w-full text-sm min-w-[300px]">
               <thead className="bg-secondary/50">
                 <tr>
                   <th className="text-left p-3">GlowSuite veld</th>
