@@ -848,6 +848,8 @@ export default function InstellingenPage() {
           </div>
         )}
 
+        {activeTab === "import" && <ImportWizard />}
+
         {/* User Roles - Enhanced with add/remove */}
         {activeTab === "rollen" && (
           <div className="space-y-8">
