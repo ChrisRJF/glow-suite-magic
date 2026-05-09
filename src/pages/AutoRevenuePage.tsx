@@ -292,76 +292,7 @@ export default function AutoRevenuePage() {
           </CardContent>
         </Card>
 
-        {/* Run progress panel — visible while running or right after completion */}
-        {(running || lastSummary) && (
-          <Card className="border-primary/20">
-            <CardContent className="p-4 sm:p-5">
-              {running ? (
-                <>
-                  <div className="flex items-center gap-2 mb-3">
-                    <Loader2 className="w-4 h-4 text-primary animate-spin" />
-                    <p className="text-sm font-medium">Auto Revenue draait…</p>
-                  </div>
-                  <ul className="space-y-2">
-                    {RUN_STEPS.map((label, i) => {
-                      const done = i < currentStep;
-                      const active = i === currentStep;
-                      return (
-                        <li
-                          key={label}
-                          className={`flex items-center gap-2 text-sm transition-colors ${
-                            done
-                              ? "text-emerald-700 dark:text-emerald-400"
-                              : active
-                                ? "text-foreground font-medium"
-                                : "text-muted-foreground/60"
-                          }`}
-                        >
-                          {done ? (
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                          ) : active ? (
-                            <Loader2 className="w-3.5 h-3.5 text-primary animate-spin shrink-0" />
-                          ) : (
-                            <Circle className="w-3.5 h-3.5 text-muted-foreground/40 shrink-0" />
-                          )}
-                          <span>{label}</span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </>
-              ) : lastSummary ? (
-                lastSummary.noAction ? (
-                  <div className="flex items-start gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
-                    <p className="text-sm">Geen actie nodig — agenda ziet er goed uit 👍</p>
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex items-center gap-2 mb-3">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                      <p className="text-sm font-medium">Auto Revenue uitgevoerd ✅</p>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="rounded-xl border border-border bg-secondary/40 p-3">
-                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Acties</p>
-                        <p className="text-base font-semibold tabular-nums mt-0.5">{lastSummary.actions}</p>
-                      </div>
-                      <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
-                        <p className="text-[10px] uppercase tracking-wider text-emerald-700/80 dark:text-emerald-400/80">Omzet</p>
-                        <p className="text-base font-semibold tabular-nums mt-0.5 text-emerald-700 dark:text-emerald-400">{formatEuro(lastSummary.revenue)}</p>
-                      </div>
-                      <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
-                        <p className="text-[10px] uppercase tracking-wider text-primary/80">Klanten</p>
-                        <p className="text-base font-semibold tabular-nums mt-0.5 text-primary">{lastSummary.customersReached}</p>
-                      </div>
-                    </div>
-                  </>
-                )
-              ) : null}
-            </CardContent>
-          </Card>
-        )}
+        {/* Run progress panel is rendered inside <AutoRevenueRunControl /> above */}
 
         {/* Live status strip */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
