@@ -688,7 +688,7 @@ export function ImportWizard() {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex justify-between">
+          <div className="flex justify-between flex-wrap gap-2">
             <Button variant="outline" onClick={reset}><ArrowLeft className="w-4 h-4" />Opnieuw</Button>
             <Button onClick={() => setStep(2)}>Volgende<ArrowRight className="w-4 h-4" /></Button>
           </div>
