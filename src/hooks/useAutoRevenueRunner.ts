@@ -11,7 +11,7 @@
  *
  * Demo mode never sends real WhatsApp / never inserts campaigns/discounts.
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoMode } from "@/hooks/useDemoMode";
@@ -119,6 +119,7 @@ export function useAutoRevenueRunner(
   const maxMessagesPerDay = opts.maxMessagesPerDay ?? storedConfig.maxMessagesPerDay;
 
   const [running, setRunning] = useState(false);
+  const runningRef = useRef(false);
   const [whatsappEnabled, setWhatsappEnabled] = useState(false);
   const [whatsappSettingsLoading, setWhatsappSettingsLoading] = useState(true);
   void campaigns;
@@ -292,11 +293,12 @@ export function useAutoRevenueRunner(
   };
 
   const runAutopilot = useCallback(async () => {
-    if (!user || running) return;
+    if (!user || runningRef.current) return;
     if (!ready) {
       if (notReadyReason) toast(notReadyReason);
       return;
     }
+    runningRef.current = true;
     setRunning(true);
 
     const expectedTotal = scoredDecisions.reduce(
