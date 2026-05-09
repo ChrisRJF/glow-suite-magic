@@ -1,6 +1,7 @@
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
-import { useAppointments, useCustomers, useServices, useEmployees, useAppointmentEmployees } from "@/hooks/useSupabaseData";
+import { useAppointments, useCustomers, useServices, useEmployees, useAppointmentEmployees, useEmployeeAvailabilityExceptions } from "@/hooks/useSupabaseData";
+import { parseBreaks, getAbsenceForDate, isSlotInBreaks, isSlotBlockedByException, dayOfWeekIso, statusMeta, type EmployeeBreak, type ExceptionRow } from "@/lib/employeeAvailability";
 import { useCrud } from "@/hooks/useCrud";
 import { formatEuro } from "@/lib/data";
 import { useState, useMemo, useEffect } from "react";
