@@ -9,20 +9,14 @@ import {
   Play, RotateCcw, Loader2
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useCustomers, useAppointments, useCampaigns, useServices } from "@/hooks/useSupabaseData";
+import { useAppointments } from "@/hooks/useSupabaseData";
 import { useCrud } from "@/hooks/useCrud";
 import { useDemoMode } from "@/hooks/useDemoMode";
+import { useAutoRevenueRunner } from "@/hooks/useAutoRevenueRunner";
 import { actionLogKey, autopilotLastRunKey, autopilotStateKey, clearLegacyDemoLocalState, demoStateKey } from "@/lib/demoIsolation";
 import { formatEuro } from "@/lib/data";
-import { actionLabel, simulateDemoAction } from "@/lib/demoMode";
-import {
-  pickTopSlots,
-  rankCustomers,
-  buildActionMessage,
-  ACTION_LABELS,
-  type ScoredSlot,
-  type AutopilotAction,
-} from "@/lib/autopilotScoring";
+import { actionLabel } from "@/lib/demoMode";
+import { ACTION_LABELS } from "@/lib/autopilotScoring";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { AutoRevenueMetrics } from "@/components/AutoRevenueMetrics";
