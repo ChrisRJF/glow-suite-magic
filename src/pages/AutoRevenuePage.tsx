@@ -274,7 +274,7 @@ export default function AutoRevenuePage() {
     return () => {
       cancelled = true;
     };
-  }, [user, demoMode, sinceIso]);
+  }, [user, demoMode, sinceIso, reloadKey]);
 
   const kpiCards = [
     { label: "Extra omzet deze maand", value: formatEuro(kpis.revenue), tone: "from-emerald-500/15 to-emerald-500/5 border-emerald-500/20 text-emerald-700 dark:text-emerald-400" },
