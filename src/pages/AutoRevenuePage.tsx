@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoMode } from "@/hooks/useDemoMode";
 import { useSettings, useCampaigns } from "@/hooks/useSupabaseData";
-import { useAutoRevenueRunner } from "@/hooks/useAutoRevenueRunner";
+import { AutoRevenueRunControl } from "@/components/AutoRevenueRunControl";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEuro } from "@/lib/data";
 import { autopilotStateKey } from "@/lib/demoIsolation";
