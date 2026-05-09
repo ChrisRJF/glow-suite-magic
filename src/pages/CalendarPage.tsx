@@ -1055,7 +1055,7 @@ export default function CalendarPage() {
               <button key={emp.id} onClick={() => setSelectedEmployee(emp.id)}
                 className={cn("px-3 py-1.5 rounded-xl text-xs font-medium border transition-all flex items-center gap-1.5",
                   isSelected ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground hover:bg-secondary",
-                  status === 'afwezig' && !isSelected && "opacity-50"
+                  status !== 'beschikbaar' && !isSelected && "opacity-50"
                 )}
               >
                 <EmployeeAvatar employee={emp} size="xs" ring={false} />
