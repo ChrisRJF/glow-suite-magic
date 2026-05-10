@@ -204,7 +204,7 @@ export default function GlowSuiteAIPage() {
   ];
 
   const topCustomers = useMemo(() => {
-    return rankedCustomers.slice(0, 6).map((rc: any) => {
+    return rankedCustomers.slice(0, 5).map((rc: any) => {
       const c = rc.customer;
       const visits = (appointments as any[]).filter(
         (a) => a.customer_id === c.id && a.status !== "geannuleerd",
