@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Calendar, Users, Scissors, X, Globe,
   MessageCircle, CreditCard, TrendingUp, RefreshCw, Megaphone,
   Zap, ShoppingBag, Package, BarChart3, Settings, HelpCircle, LogOut,
-  Sun, Moon, Bot, Clock, Gift, ShoppingCart, Share2, UserPlus, Crown, RotateCcw, Mail, Wallet, Flame,
+  Sun, Moon, Bot, Clock, Gift, ShoppingCart, Share2, UserPlus, Crown, RotateCcw, Mail, Wallet, Flame, Sparkles,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -31,6 +31,7 @@ const navGroups: NavGroup[] = [
     title: "Hoofdmenu",
     items: [
       { label: "Overzicht", icon: LayoutDashboard, path: "/" },
+      { label: "GlowSuite AI", icon: Sparkles, path: "/ai", accent: true, badge: "AI" },
       { label: "Agenda", icon: Calendar, path: "/agenda" },
       { label: "Klanten", icon: Users, path: "/klanten" },
       { label: "Medewerkers", icon: UserPlus, path: "/medewerkers" },
