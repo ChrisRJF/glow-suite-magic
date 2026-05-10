@@ -489,7 +489,7 @@ export default function GlowSuiteAIPage() {
         </div>
 
         {/* Auto Revenue widget */}
-        <Card className="border-primary/15 overflow-hidden">
+        <Card className="relative border-primary/15 overflow-hidden">
           <div
             className="absolute inset-0 pointer-events-none opacity-60"
             style={{
