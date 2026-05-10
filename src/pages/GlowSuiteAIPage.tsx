@@ -298,14 +298,30 @@ export default function GlowSuiteAIPage() {
           <CardContent className="relative p-6 sm:p-8">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
               <div className="max-w-2xl">
-                <Badge variant="outline" className="mb-3 border-primary/30 bg-primary/10 text-primary">
-                  <Sparkles className="w-3 h-3 mr-1" /> AI Command Center
-                </Badge>
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                  <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">
+                    <Sparkles className="w-3 h-3 mr-1" /> AI Command Center
+                  </Badge>
+                  {demoMode ? (
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                      Demo modus
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
+                      <span className="relative flex h-1.5 w-1.5">
+                        <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500/70 opacity-75 animate-ping" />
+                        <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                      </span>
+                      AI actief
+                    </span>
+                  )}
+                </div>
                 <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-balance">
-                  Eén intelligente assistent voor je hele salon.
+                  GlowSuite AI
                 </h2>
                 <p className="text-sm sm:text-base text-muted-foreground mt-2 leading-relaxed">
-                  GlowSuite AI vult lege plekken, heractiveert klanten en stuurt slimme campagnes — automatisch.
+                  Je AI assistent voor omzet, klanten en planning.
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2 text-xs">
                   <span className="px-2.5 py-1 rounded-full bg-card/60 border border-border text-muted-foreground">
