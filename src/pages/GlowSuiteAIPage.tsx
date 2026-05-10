@@ -30,14 +30,13 @@ const TONE_STYLES: Record<FeedItem["tone"], string> = {
   info: "bg-primary/10 text-primary",
 };
 
-const ACTION_CARDS = [
-  { title: "Vul lege plekken", desc: "Bied vrijgekomen tijden direct aan klanten op de wachtlijst.", to: "/wachtlijst", icon: Sparkles, impact: "Tot +€250/dag" },
-  { title: "Heractiveer klanten", desc: "Win klanten terug die >30 dagen niet meer geweest zijn.", to: "/herboekingen", icon: RotateCcw, impact: "Hoge ROI" },
-  { title: "WhatsApp campagne", desc: "Verstuur een persoonlijke campagne naar je top klanten.", to: "/whatsapp", icon: MessageCircle, impact: "Snelle conversie" },
-  { title: "Activeer kortingsactie", desc: "Slim getarget aanbod voor stille dagen.", to: "/marketing", icon: Gift, impact: "Vult lege uren" },
-  { title: "Vraag reviews aan", desc: "Verstuur reviewverzoeken na recente afspraken.", to: "/automatiseringen", icon: Star, impact: "Reputatie ↑" },
-  { title: "Follow-up berichten", desc: "Stuur automatische follow-ups naar terugkerende klanten.", to: "/automatiseringen", icon: TrendingUp, impact: "Loyalty ↑" },
-];
+interface ActionCard {
+  title: string;
+  reason: string;
+  to: string;
+  icon: any;
+  impact: string;
+}
 
 export default function GlowSuiteAIPage() {
   const { user } = useAuth();
