@@ -17,9 +17,16 @@ import {
   CheckCircle2,
   Clock,
   Euro,
+  CreditCard,
+  StickyNote,
+  CalendarX,
+  Flame,
 } from "lucide-react";
 import type { CustomerIntelligence } from "@/hooks/useCustomerIntelligence";
 import { cn } from "@/lib/utils";
+import { usePayments } from "@/hooks/usePayments";
+import { useRebookActions } from "@/hooks/useSupabaseData";
+import type { Tables } from "@/integrations/supabase/types";
 
 const DAYS_NL = ["zo", "ma", "di", "wo", "do", "vr", "za"];
 
