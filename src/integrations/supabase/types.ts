@@ -1412,6 +1412,92 @@ export type Database = {
           },
         ]
       }
+      import_batch_items: {
+        Row: {
+          batch_id: string
+          created_at: string
+          id: string
+          row_id: string
+          table_name: string
+          user_id: string
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          id?: string
+          row_id: string
+          table_name: string
+          user_id: string
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          id?: string
+          row_id?: string
+          table_name?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_batch_items_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "import_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      import_batches: {
+        Row: {
+          created_at: string
+          failed_count: number
+          file_name: string | null
+          id: string
+          import_type: string
+          imported_count: number
+          is_demo: boolean
+          skipped_count: number
+          source: string
+          status: string
+          undone_at: string | null
+          updated_at: string
+          updated_count: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          failed_count?: number
+          file_name?: string | null
+          id?: string
+          import_type: string
+          imported_count?: number
+          is_demo?: boolean
+          skipped_count?: number
+          source: string
+          status?: string
+          undone_at?: string | null
+          updated_at?: string
+          updated_count?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          failed_count?: number
+          file_name?: string | null
+          id?: string
+          import_type?: string
+          imported_count?: number
+          is_demo?: boolean
+          skipped_count?: number
+          source?: string
+          status?: string
+          undone_at?: string | null
+          updated_at?: string
+          updated_count?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       leads: {
         Row: {
           created_at: string
