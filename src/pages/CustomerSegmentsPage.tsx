@@ -120,7 +120,7 @@ export default function CustomerSegmentsPage() {
         )}
 
         {/* Segment grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
           {segments.map((seg) => {
             const meta = SEGMENT_META[seg.key];
             const styles = TONE_STYLES[meta.tone];
