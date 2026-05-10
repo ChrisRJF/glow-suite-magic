@@ -623,7 +623,7 @@ export default function GlowSuiteAIPage() {
                 style={{ animationDelay: `${i * 50}ms` }}
                 className="group hover:border-primary/40 hover:-translate-y-0.5 transition-all animate-fade-in"
               >
-                <CardContent className="p-5 flex flex-col h-full">
+                <CardContent className="p-4 flex flex-col h-full">
                   <div className="flex items-start gap-3">
                     <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
                       <a.icon className="w-4 h-4" />
@@ -633,7 +633,7 @@ export default function GlowSuiteAIPage() {
                       <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{a.reason}</p>
                     </div>
                   </div>
-                  <div className="flex items-center flex-wrap gap-1.5 mt-4">
+                  <div className="flex items-center flex-wrap gap-1.5 mt-3">
                     <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${URGENCY_PILL[a.urgency]}`}>
                       {a.urgency === "high" ? "Urgent" : a.urgency === "med" ? "Aanbevolen" : "Optioneel"}
                     </span>
@@ -644,7 +644,7 @@ export default function GlowSuiteAIPage() {
                       {a.impact}
                     </span>
                   </div>
-                  <div className="flex items-center justify-end mt-4 pt-3 border-t border-border/60">
+                  <div className="flex items-center justify-end mt-3 pt-2 border-t border-border/60">
                     <Button asChild variant="ghost" size="sm" className="group-hover:translate-x-0.5 transition-transform">
                       <Link to={a.to}>
                         Openen <ArrowRight className="w-3.5 h-3.5" />
