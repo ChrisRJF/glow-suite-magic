@@ -364,7 +364,7 @@ export default function GlowSuiteAIPage() {
         <div>
           <div className="flex items-center justify-between mb-3">
             <div>
-              <h3 className="text-lg font-semibold">AI acties</h3>
+              <h3 className="text-lg font-semibold">Aanbevolen acties</h3>
               <p className="text-sm text-muted-foreground">Slimme suggesties op basis van je salon vandaag.</p>
             </div>
           </div>
