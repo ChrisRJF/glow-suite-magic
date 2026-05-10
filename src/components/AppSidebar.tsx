@@ -87,6 +87,7 @@ const navGroups: NavGroup[] = [
     title: "Finance",
     items: [
       { label: "Omzet", icon: TrendingUp, path: "/omzet" },
+      { label: "Eigenaar", icon: Crown, path: "/eigenaar", accent: true, ownerOnly: true },
       { label: "Payroll", icon: Wallet, path: "/payroll" },
       { label: "GlowPay", icon: CreditCard, path: "/glowpay", accent: true },
       { label: "Refunds", icon: RotateCcw, path: "/refunds" },
