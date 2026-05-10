@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import {
   Sparkles, Bot, Zap, Users, AlertTriangle, Clock, CalendarX, Star,
   ArrowRight, Loader2, MessageCircle, Gift, RotateCcw, TrendingUp,
