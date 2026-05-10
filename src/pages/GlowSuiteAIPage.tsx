@@ -476,11 +476,8 @@ export default function GlowSuiteAIPage() {
   );
 
   return (
-    <AppLayout
-      title="GlowSuite AI"
-      subtitle="Je AI assistent voor omzet, klanten en planning."
-    >
-      <div className="space-y-6 pb-[max(env(safe-area-inset-bottom),1rem)]">
+    <AppLayout title="GlowSuite AI">
+      <div className="space-y-5 pb-[max(env(safe-area-inset-bottom),1rem)] -mt-2 sm:-mt-1">
         {/* Hero — live AI control center */}
         <Card className="relative overflow-hidden border-primary/20 animate-fade-in">
           <div
