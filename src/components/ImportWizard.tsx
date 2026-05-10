@@ -1,8 +1,8 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import {
   Select,
@@ -11,21 +11,35 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, Download, Loader2, ArrowLeft, ArrowRight } from "lucide-react";
+import {
+  Upload,
+  FileSpreadsheet,
+  CheckCircle2,
+  AlertTriangle,
+  Download,
+  Loader2,
+  ArrowLeft,
+  ArrowRight,
+  Undo2,
+  Sparkles,
+  Users,
+  Bot,
+} from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoMode } from "@/hooks/useDemoMode";
 
-type ImportType = "customers" | "services" | "appointments" | "employees" | "waitlist";
+type ImportType = "customers" | "services" | "appointments" | "employees" | "memberships";
 type SourceSystem = "salonized" | "fresha" | "treatwell" | "other";
+type DupeStrategy = "skip" | "update" | "new-only";
 
 const TYPE_LABELS: Record<ImportType, string> = {
   customers: "Klanten",
   services: "Behandelingen / Diensten",
   appointments: "Afspraken",
   employees: "Medewerkers / Team",
-  waitlist: "Wachtlijst",
+  memberships: "Memberships / Abonnementen",
 };
 
 const SOURCE_LABELS: Record<SourceSystem, string> = {
@@ -35,7 +49,6 @@ const SOURCE_LABELS: Record<SourceSystem, string> = {
   other: "Excel / Anders",
 };
 
-// Target field definitions per import type
 const FIELDS: Record<ImportType, { key: string; label: string; required?: boolean }[]> = {
   customers: [
     { key: "name", label: "Naam", required: true },
@@ -61,7 +74,7 @@ const FIELDS: Record<ImportType, { key: string; label: string; required?: boolea
     { key: "service_name", label: "Behandeling" },
     { key: "employee_name", label: "Medewerker" },
     { key: "date", label: "Datum", required: true },
-    { key: "start_time", label: "Starttijd" },
+    { key: "start_time", label: "Starttijd", required: true },
     { key: "end_time", label: "Eindtijd" },
     { key: "status", label: "Status" },
     { key: "price", label: "Prijs" },
@@ -75,67 +88,68 @@ const FIELDS: Record<ImportType, { key: string; label: string; required?: boolea
     { key: "working_days", label: "Werkdagen" },
     { key: "color", label: "Kleur" },
   ],
-  waitlist: [
+  memberships: [
     { key: "customer_name", label: "Klant naam" },
     { key: "customer_email", label: "Klant e-mail" },
-    { key: "customer_phone", label: "Klant telefoon" },
-    { key: "service_name", label: "Behandeling" },
-    { key: "preferred_day", label: "Voorkeursdag" },
-    { key: "preferred_time", label: "Voorkeurstijd" },
-    { key: "notes", label: "Notities" },
+    { key: "plan_name", label: "Abonnement", required: true },
+    { key: "status", label: "Status" },
+    { key: "start_date", label: "Startdatum" },
+    { key: "end_date", label: "Einddatum" },
+    { key: "price", label: "Prijs" },
   ],
 };
 
-// Auto-detect: aliases from various sources to target fields
 const ALIASES: Record<ImportType, Record<string, string[]>> = {
   customers: {
-    name: ["name", "naam", "klant", "customer", "full name", "voornaam achternaam", "klantnaam", "first name last name"],
-    email: ["email", "e-mail", "mail", "e mail"],
-    phone: ["phone", "telefoon", "mobile", "mobiel", "tel", "phone number", "telefoonnummer"],
-    birthday: ["birthday", "geboortedatum", "dob", "date of birth", "verjaardag"],
-    notes: ["notes", "notitie", "notities", "opmerking", "comments"],
-    total_spent: ["total spent", "totaal", "total revenue", "lifetime value", "ltv", "totaal besteed"],
+    name: ["name", "naam", "klant", "customer", "full name", "klantnaam", "volledige naam", "first name last name"],
+    email: ["email", "e-mail", "mail", "e mail", "emailadres"],
+    phone: ["phone", "telefoon", "mobile", "mobiel", "tel", "phone number", "telefoonnummer", "gsm"],
+    birthday: ["birthday", "geboortedatum", "dob", "date of birth", "verjaardag", "birth date"],
+    notes: ["notes", "notitie", "notities", "opmerking", "opmerkingen", "comments", "memo"],
+    total_spent: ["total spent", "totaal", "total revenue", "lifetime value", "ltv", "totaal besteed", "omzet", "spent"],
     tags: ["tags", "labels", "label"],
   },
   services: {
-    name: ["name", "naam", "service", "behandeling", "treatment"],
-    duration_minutes: ["duration", "duur", "minutes", "minuten", "duration_minutes", "tijd"],
-    price: ["price", "prijs", "amount", "bedrag", "cost"],
+    name: ["name", "naam", "service", "behandeling", "treatment", "dienst"],
+    duration_minutes: ["duration", "duur", "minutes", "minuten", "duration_minutes", "tijd", "lengte"],
+    price: ["price", "prijs", "amount", "bedrag", "cost", "tarief"],
     category: ["category", "categorie", "group", "groep"],
     description: ["description", "beschrijving", "omschrijving"],
     is_active: ["active", "actief", "enabled", "is_active"],
   },
   appointments: {
     customer_name: ["customer", "klant", "customer name", "klantnaam", "name", "naam"],
-    customer_email: ["email", "customer email", "klant email", "e-mail"],
+    customer_email: ["email", "customer email", "klant email", "e-mail", "klant e-mail"],
     customer_phone: ["phone", "customer phone", "klant telefoon", "telefoon"],
-    service_name: ["service", "behandeling", "treatment", "service name"],
-    employee_name: ["employee", "medewerker", "staff", "stylist", "therapist", "with"],
-    date: ["date", "datum", "appointment date", "afspraakdatum"],
-    start_time: ["start", "starttijd", "from", "begin", "time", "tijd", "start time"],
+    service_name: ["service", "behandeling", "treatment", "service name", "dienst"],
+    employee_name: ["employee", "medewerker", "staff", "stylist", "therapist", "with", "personeel"],
+    date: ["date", "datum", "appointment date", "afspraakdatum", "day"],
+    start_time: ["start", "starttijd", "from", "begin", "time", "tijd", "start time", "begintijd"],
     end_time: ["end", "eindtijd", "to", "tot", "end time"],
-    status: ["status", "state"],
-    price: ["price", "prijs", "amount"],
-    notes: ["notes", "notities", "comments", "opmerking"],
+    status: ["status", "state", "toestand"],
+    price: ["price", "prijs", "amount", "bedrag"],
+    notes: ["notes", "notities", "comments", "opmerking", "opmerkingen"],
   },
   employees: {
-    name: ["name", "naam", "employee", "medewerker"],
+    name: ["name", "naam", "employee", "medewerker", "personeel"],
     email: ["email", "e-mail"],
     phone: ["phone", "telefoon"],
     role: ["role", "functie", "title", "job"],
-    working_days: ["working days", "werkdagen", "days"],
+    working_days: ["working days", "werkdagen", "days", "dagen"],
     color: ["color", "colour", "kleur"],
   },
-  waitlist: {
+  memberships: {
     customer_name: ["customer", "klant", "name", "naam"],
-    customer_email: ["email", "e-mail"],
-    customer_phone: ["phone", "telefoon"],
-    service_name: ["service", "behandeling"],
-    preferred_day: ["preferred day", "voorkeursdag", "day", "dag"],
-    preferred_time: ["preferred time", "voorkeurstijd", "time"],
-    notes: ["notes", "notities"],
+    customer_email: ["email", "e-mail", "klant email"],
+    plan_name: ["plan", "abonnement", "membership", "membership plan", "tier", "pakket"],
+    status: ["status", "state"],
+    start_date: ["start", "start_date", "startdatum", "begin"],
+    end_date: ["end", "end_date", "einddatum", "vervaldatum"],
+    price: ["price", "prijs", "amount", "bedrag"],
   },
 };
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function normalizePhone(raw: string): string | null {
   if (!raw) return null;
@@ -144,22 +158,19 @@ function normalizePhone(raw: string): string | null {
   if (p.startsWith("00")) p = "+" + p.slice(2);
   if (p.startsWith("06") || p.startsWith("0")) p = "+31" + p.slice(1);
   if (!p.startsWith("+")) p = "+" + p;
-  return p;
+  return p.length >= 9 ? p : null;
 }
 
 function parseDutchDate(raw: string): string | null {
   if (!raw) return null;
   const s = String(raw).trim();
-  // yyyy-mm-dd
   let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
   if (m) return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
-  // dd-mm-yyyy or dd/mm/yyyy
   m = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})/);
   if (m) {
     const yyyy = m[3].length === 2 ? "20" + m[3] : m[3];
     return `${yyyy}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
   }
-  // Excel serial date
   if (/^\d+(\.\d+)?$/.test(s)) {
     const n = Number(s);
     if (n > 20000 && n < 80000) {
@@ -177,7 +188,6 @@ function parseTime(raw: string): string | null {
   const s = String(raw).trim();
   const m = s.match(/(\d{1,2})[:.](\d{2})/);
   if (m) return `${m[1].padStart(2, "0")}:${m[2]}:00`;
-  // Excel fraction of day
   if (/^\d*\.\d+$/.test(s)) {
     const n = Number(s);
     const totalMin = Math.round(n * 24 * 60);
@@ -226,11 +236,30 @@ function autoDetect(headers: string[], type: ImportType): Record<string, string>
 
 type Step = 0 | 1 | 2 | 3 | 4 | 5;
 
+interface ImportError {
+  row: number;
+  reason: string;
+  fix: string;
+  original: Record<string, any>;
+}
+
 interface Summary {
   imported: number;
   updated: number;
   skipped: number;
-  errors: { row: number; reason: string }[];
+  errors: ImportError[];
+  batchId: string | null;
+}
+
+interface RecentBatch {
+  id: string;
+  source: string;
+  import_type: string;
+  file_name: string | null;
+  imported_count: number;
+  failed_count: number;
+  created_at: string;
+  undone_at: string | null;
 }
 
 export function ImportWizard() {
@@ -244,9 +273,29 @@ export function ImportWizard() {
   const [source, setSource] = useState<SourceSystem>("other");
   const [type, setType] = useState<ImportType>("customers");
   const [mapping, setMapping] = useState<Record<string, string>>({});
+  const [dupeStrategy, setDupeStrategy] = useState<DupeStrategy>("skip");
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [progressLabel, setProgressLabel] = useState("");
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [recent, setRecent] = useState<RecentBatch[]>([]);
+  const [undoing, setUndoing] = useState<string | null>(null);
+
+  const loadRecent = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("import_batches")
+      .select("id, source, import_type, file_name, imported_count, failed_count, created_at, undone_at")
+      .eq("user_id", user.id)
+      .eq("is_demo", demoMode)
+      .order("created_at", { ascending: false })
+      .limit(5);
+    setRecent((data ?? []) as RecentBatch[]);
+  }, [user, demoMode]);
+
+  useEffect(() => {
+    loadRecent();
+  }, [loadRecent]);
 
   const reset = () => {
     setStep(0);
@@ -256,7 +305,9 @@ export function ImportWizard() {
     setMapping({});
     setSummary(null);
     setProgress(0);
+    setProgressLabel("");
     if (fileInputRef.current) fileInputRef.current.value = "";
+    loadRecent();
   };
 
   const handleFile = useCallback(async (file: File) => {
@@ -321,23 +372,94 @@ export function ImportWizard() {
     return row[col] === undefined || row[col] === null ? "" : String(row[col]).trim();
   };
 
-  // Validate a single row
-  const validateRow = (row: Record<string, any>, idx: number): { ok: boolean; reason?: string } => {
-    if (type === "customers" || type === "services" || type === "employees") {
+  const validateRow = (row: Record<string, any>): { ok: boolean; reason?: string; fix?: string } => {
+    if (type === "customers") {
       const name = getValue(row, "name");
-      if (!name) return { ok: false, reason: "Naam ontbreekt" };
+      const email = getValue(row, "email");
+      const phone = getValue(row, "phone");
+      if (!name && !email && !phone) return { ok: false, reason: "Naam, e-mail of telefoon vereist", fix: "Vul minstens één veld in" };
+      if (email && !EMAIL_RE.test(email)) return { ok: false, reason: "Ongeldig e-mailadres", fix: `Controleer "${email}"` };
+      if (phone && !normalizePhone(phone)) return { ok: false, reason: "Ongeldig telefoonnummer", fix: "Gebruik +316… of 06…" };
+    }
+    if (type === "services") {
+      const name = getValue(row, "name");
+      if (!name) return { ok: false, reason: "Naam ontbreekt", fix: "Vul behandelingsnaam in" };
+      const price = parseNumber(getValue(row, "price"));
+      if (price !== null && price < 0) return { ok: false, reason: "Prijs negatief", fix: "Prijs moet ≥ 0 zijn" };
+      const dur = parseNumber(getValue(row, "duration_minutes"));
+      if (dur !== null && dur <= 0) return { ok: false, reason: "Duur moet > 0 zijn", fix: "Vul minuten in" };
+    }
+    if (type === "employees") {
+      const name = getValue(row, "name");
+      if (!name) return { ok: false, reason: "Naam ontbreekt", fix: "Vul medewerker in" };
+      const email = getValue(row, "email");
+      if (email && !EMAIL_RE.test(email)) return { ok: false, reason: "Ongeldig e-mailadres", fix: `Controleer "${email}"` };
     }
     if (type === "appointments") {
       const date = parseDutchDate(getValue(row, "date"));
-      if (!date) return { ok: false, reason: "Ongeldige of ontbrekende datum" };
-      const hasCustomer = getValue(row, "customer_name") || getValue(row, "customer_email") || getValue(row, "customer_phone");
-      if (!hasCustomer) return { ok: false, reason: "Klant ontbreekt" };
+      if (!date) return { ok: false, reason: "Ongeldige of ontbrekende datum", fix: "Gebruik bv. 31-12-2025" };
+      const start = parseTime(getValue(row, "start_time"));
+      if (!start) return { ok: false, reason: "Ongeldige of ontbrekende starttijd", fix: "Gebruik bv. 09:30" };
+      const hasCustomer =
+        getValue(row, "customer_name") || getValue(row, "customer_email") || getValue(row, "customer_phone");
+      if (!hasCustomer) return { ok: false, reason: "Klant ontbreekt", fix: "Vul naam, e-mail of telefoon in" };
+      const price = parseNumber(getValue(row, "price"));
+      if (price !== null && price < 0) return { ok: false, reason: "Prijs negatief", fix: "Prijs moet ≥ 0 zijn" };
     }
-    if (type === "waitlist") {
-      const hasCustomer = getValue(row, "customer_name") || getValue(row, "customer_email") || getValue(row, "customer_phone");
-      if (!hasCustomer) return { ok: false, reason: "Klant ontbreekt" };
+    if (type === "memberships") {
+      const plan = getValue(row, "plan_name");
+      if (!plan) return { ok: false, reason: "Abonnement ontbreekt", fix: "Vul abonnement-naam in" };
+      const hasCustomer = getValue(row, "customer_name") || getValue(row, "customer_email");
+      if (!hasCustomer) return { ok: false, reason: "Klant ontbreekt", fix: "Vul klant in" };
     }
     return { ok: true };
+  };
+
+  const previewStats = useMemo(() => {
+    let ok = 0;
+    let bad = 0;
+    for (const r of previewRows) {
+      if (validateRow(r).ok) ok++;
+      else bad++;
+    }
+    return { ok, bad };
+  }, [previewRows, mapping, type]);
+
+  const undoBatch = async (batchId: string) => {
+    if (!user) return;
+    if (!confirm("Weet je zeker dat je deze import wilt terugdraaien? Rijen uit deze import worden verwijderd.")) return;
+    setUndoing(batchId);
+    try {
+      const { data: items } = await supabase
+        .from("import_batch_items")
+        .select("table_name, row_id")
+        .eq("batch_id", batchId)
+        .eq("user_id", user.id);
+      const byTable = new Map<string, string[]>();
+      (items ?? []).forEach((it: any) => {
+        const arr = byTable.get(it.table_name) ?? [];
+        arr.push(it.row_id);
+        byTable.set(it.table_name, arr);
+      });
+      for (const [tbl, ids] of byTable) {
+        for (let i = 0; i < ids.length; i += 200) {
+          await supabase.from(tbl as any).delete().in("id", ids.slice(i, i + 200)).eq("user_id", user.id);
+        }
+      }
+      await supabase.from("import_batch_items").delete().eq("batch_id", batchId).eq("user_id", user.id);
+      await supabase
+        .from("import_batches")
+        .update({ status: "undone", undone_at: new Date().toISOString() })
+        .eq("id", batchId)
+        .eq("user_id", user.id);
+      toast.success("Import teruggedraaid.");
+      loadRecent();
+      if (summary?.batchId === batchId) setSummary(null);
+    } catch (e: any) {
+      toast.error("Kon niet terugdraaien: " + e.message);
+    } finally {
+      setUndoing(null);
+    }
   };
 
   const runImport = async () => {
@@ -347,21 +469,45 @@ export function ImportWizard() {
     }
     setImporting(true);
     setProgress(0);
-    const errors: { row: number; reason: string }[] = [];
+    setProgressLabel("Voorbereiden…");
+    const errors: ImportError[] = [];
     let imported = 0;
     let updated = 0;
     let skipped = 0;
+    let batchId: string | null = null;
+
+    const trackedItems: { table_name: string; row_id: string }[] = [];
 
     try {
+      // Create batch row
+      const { data: batch, error: batchErr } = await supabase
+        .from("import_batches")
+        .insert({
+          user_id: user.id,
+          is_demo: demoMode,
+          source,
+          import_type: type,
+          file_name: fileName,
+          status: "running",
+        })
+        .select("id")
+        .single();
+      if (batchErr || !batch) throw new Error(batchErr?.message ?? "Kon batch niet aanmaken");
+      batchId = batch.id;
+
       // Pre-load existing for dedupe
-      const [existingCustomersRes, existingServicesRes, existingEmployeesRes] = await Promise.all([
-        supabase.from("customers").select("id, name, email, phone").eq("user_id", user.id).eq("is_demo", demoMode),
-        supabase.from("services").select("id, name").eq("user_id", user.id).eq("is_demo", demoMode),
-        supabase.from("employees").select("id, name").eq("user_id", user.id).eq("is_demo", demoMode),
+      const [existingCustomersRes, existingServicesRes, existingEmployeesRes, plansRes] = await Promise.all([
+        supabase.from("customers").select("id, name, email, phone, total_spent, notes").eq("user_id", user.id).eq("is_demo", demoMode),
+        supabase.from("services").select("id, name, price, duration_minutes").eq("user_id", user.id).eq("is_demo", demoMode),
+        supabase.from("employees").select("id, name, email").eq("user_id", user.id).eq("is_demo", demoMode),
+        type === "memberships"
+          ? supabase.from("membership_plans").select("id, name").eq("user_id", user.id).eq("is_demo", demoMode)
+          : Promise.resolve({ data: [] as any[] }),
       ]);
       const existingCustomers = existingCustomersRes.data ?? [];
       const existingServices = existingServicesRes.data ?? [];
       const existingEmployees = existingEmployeesRes.data ?? [];
+      const existingPlans = plansRes.data ?? [];
 
       const customerByEmail = new Map<string, string>();
       const customerByPhone = new Map<string, string>();
@@ -371,12 +517,17 @@ export function ImportWizard() {
         if (c.phone) customerByPhone.set(c.phone, c.id);
         if (c.name) customerByName.set(c.name.toLowerCase().trim(), c.id);
       });
-      const serviceByName = new Map<string, { id: string }>();
-      existingServices.forEach((s: any) => serviceByName.set(s.name.toLowerCase().trim(), { id: s.id }));
-      const employeeByName = new Map<string, { id: string }>();
-      existingEmployees.forEach((e: any) => employeeByName.set(e.name.toLowerCase().trim(), { id: e.id }));
+      const serviceByName = new Map<string, string>();
+      existingServices.forEach((s: any) => serviceByName.set(s.name.toLowerCase().trim(), s.id));
+      const employeeByName = new Map<string, string>();
+      existingEmployees.forEach((e: any) => employeeByName.set(e.name.toLowerCase().trim(), e.id));
+      const planByName = new Map<string, string>();
+      existingPlans.forEach((p: any) => planByName.set(p.name.toLowerCase().trim(), p.id));
 
-      // Helpers to ensure entity exists
+      const track = (table: string, id: string) => {
+        trackedItems.push({ table_name: table, row_id: id });
+      };
+
       const ensureCustomer = async (name: string, email: string, phone: string): Promise<string | null> => {
         const e = email ? email.toLowerCase().trim() : "";
         const p = phone ? normalizePhone(phone) ?? "" : "";
@@ -391,6 +542,7 @@ export function ImportWizard() {
           .select("id")
           .single();
         if (error || !data) return null;
+        track("customers", data.id);
         if (e) customerByEmail.set(e, data.id);
         if (p) customerByPhone.set(p, data.id);
         if (n) customerByName.set(n, data.id);
@@ -399,217 +551,389 @@ export function ImportWizard() {
       const ensureService = async (name: string): Promise<string | null> => {
         if (!name) return null;
         const k = name.toLowerCase().trim();
-        if (serviceByName.has(k)) return serviceByName.get(k)!.id;
+        if (serviceByName.has(k)) return serviceByName.get(k)!;
         const { data, error } = await supabase
           .from("services")
           .insert({ user_id: user.id, is_demo: demoMode, name, duration_minutes: 30, price: 0 })
           .select("id")
           .single();
         if (error || !data) return null;
-        serviceByName.set(k, { id: data.id });
+        track("services", data.id);
+        serviceByName.set(k, data.id);
         return data.id;
       };
       const ensureEmployee = async (name: string): Promise<string | null> => {
         if (!name) return null;
         const k = name.toLowerCase().trim();
-        if (employeeByName.has(k)) return employeeByName.get(k)!.id;
+        if (employeeByName.has(k)) return employeeByName.get(k)!;
         const { data, error } = await supabase
           .from("employees")
           .insert({ user_id: user.id, is_demo: demoMode, name })
           .select("id")
           .single();
         if (error || !data) return null;
-        employeeByName.set(k, { id: data.id });
+        track("employees", data.id);
+        employeeByName.set(k, data.id);
         return data.id;
       };
 
-      // Build records
       const total = rows.length;
-      const BATCH = 100;
-      const seenAppts = new Set<string>();
 
-      // Existing appointments for dedupe
-      let existingAppts: any[] = [];
+      const seenAppts = new Set<string>();
       if (type === "appointments") {
         const r = await supabase
           .from("appointments")
           .select("customer_id, appointment_date, start_time")
           .eq("user_id", user.id)
           .eq("is_demo", demoMode);
-        existingAppts = r.data ?? [];
-        existingAppts.forEach((a: any) => {
+        (r.data ?? []).forEach((a: any) => {
           seenAppts.add(`${a.customer_id}|${a.appointment_date}|${a.start_time}`);
         });
       }
 
-      const inserts: any[] = [];
-      const flush = async () => {
-        if (inserts.length === 0) return;
-        const table = type === "waitlist" ? "waitlist_entries" : type;
-        const { error } = await supabase.from(table as any).insert(inserts);
-        if (error) {
-          errors.push({ row: 0, reason: `Batch fout: ${error.message}` });
-        } else {
-          imported += inserts.length;
-        }
-        inserts.length = 0;
-      };
+      setProgressLabel(`Importeren 0/${total}…`);
 
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
+        const rowNum = i + 2;
         setProgress(Math.round(((i + 1) / total) * 100));
-        const v = validateRow(row, i);
+        if (i % 10 === 0) setProgressLabel(`Importeren ${i + 1}/${total}…`);
+        const v = validateRow(row);
         if (!v.ok) {
-          errors.push({ row: i + 2, reason: v.reason ?? "Ongeldige rij" });
+          errors.push({ row: rowNum, reason: v.reason ?? "Ongeldige rij", fix: v.fix ?? "", original: row });
           continue;
         }
 
-        if (type === "customers") {
-          const name = getValue(row, "name");
-          const email = getValue(row, "email").toLowerCase() || null;
-          const phone = normalizePhone(getValue(row, "phone"));
-          // dedupe
-          if (email && customerByEmail.has(email)) {
-            skipped++;
-            continue;
+        try {
+          if (type === "customers") {
+            const name = getValue(row, "name") || getValue(row, "email") || getValue(row, "phone");
+            const email = getValue(row, "email").toLowerCase() || null;
+            const phone = normalizePhone(getValue(row, "phone"));
+            const existingId =
+              (email && customerByEmail.get(email)) || (phone && customerByPhone.get(phone)) || null;
+            if (existingId) {
+              if (dupeStrategy === "skip" || dupeStrategy === "new-only") {
+                skipped++;
+                continue;
+              }
+              // update
+              const notes = [
+                getValue(row, "notes"),
+                getValue(row, "birthday") ? `Geboortedatum: ${getValue(row, "birthday")}` : "",
+                getValue(row, "tags") ? `Tags: ${getValue(row, "tags")}` : "",
+              ].filter(Boolean).join(" | ");
+              const updPayload: any = {
+                name,
+                email,
+                phone,
+                notes: notes || null,
+              };
+              const ts = parseNumber(getValue(row, "total_spent"));
+              if (ts !== null) updPayload.total_spent = ts;
+              const { error } = await supabase
+                .from("customers")
+                .update(updPayload)
+                .eq("id", existingId)
+                .eq("user_id", user.id);
+              if (error) {
+                errors.push({ row: rowNum, reason: "Kon klant niet bijwerken", fix: error.message, original: row });
+              } else {
+                updated++;
+              }
+              continue;
+            }
+            const notes = [
+              getValue(row, "notes"),
+              getValue(row, "birthday") ? `Geboortedatum: ${getValue(row, "birthday")}` : "",
+              getValue(row, "tags") ? `Tags: ${getValue(row, "tags")}` : "",
+            ].filter(Boolean).join(" | ");
+            const { data, error } = await supabase
+              .from("customers")
+              .insert({
+                user_id: user.id,
+                is_demo: demoMode,
+                name,
+                email,
+                phone,
+                notes: notes || null,
+                total_spent: parseNumber(getValue(row, "total_spent")) ?? 0,
+              })
+              .select("id")
+              .single();
+            if (error || !data) {
+              errors.push({ row: rowNum, reason: "Kon klant niet aanmaken", fix: error?.message ?? "", original: row });
+              continue;
+            }
+            track("customers", data.id);
+            if (email) customerByEmail.set(email, data.id);
+            if (phone) customerByPhone.set(phone, data.id);
+            customerByName.set(name.toLowerCase().trim(), data.id);
+            imported++;
+          } else if (type === "services") {
+            const name = getValue(row, "name");
+            const k = name.toLowerCase().trim();
+            const existingId = serviceByName.get(k);
+            if (existingId) {
+              if (dupeStrategy === "skip" || dupeStrategy === "new-only") {
+                skipped++;
+                continue;
+              }
+              const { error } = await supabase
+                .from("services")
+                .update({
+                  name,
+                  duration_minutes: parseNumber(getValue(row, "duration_minutes")) ?? 30,
+                  price: parseNumber(getValue(row, "price")) ?? 0,
+                  category: getValue(row, "category") || null,
+                  description: getValue(row, "description") || null,
+                })
+                .eq("id", existingId)
+                .eq("user_id", user.id);
+              if (error) errors.push({ row: rowNum, reason: "Kon dienst niet bijwerken", fix: error.message, original: row });
+              else updated++;
+              continue;
+            }
+            const { data, error } = await supabase
+              .from("services")
+              .insert({
+                user_id: user.id,
+                is_demo: demoMode,
+                name,
+                duration_minutes: parseNumber(getValue(row, "duration_minutes")) ?? 30,
+                price: parseNumber(getValue(row, "price")) ?? 0,
+                category: getValue(row, "category") || null,
+                description: getValue(row, "description") || null,
+                is_active: getValue(row, "is_active") ? parseBool(getValue(row, "is_active")) : true,
+              })
+              .select("id")
+              .single();
+            if (error || !data) {
+              errors.push({ row: rowNum, reason: "Kon dienst niet aanmaken", fix: error?.message ?? "", original: row });
+              continue;
+            }
+            track("services", data.id);
+            serviceByName.set(k, data.id);
+            imported++;
+          } else if (type === "employees") {
+            const name = getValue(row, "name");
+            const k = name.toLowerCase().trim();
+            const email = getValue(row, "email").toLowerCase() || null;
+            const existingId = employeeByName.get(k);
+            if (existingId) {
+              if (dupeStrategy === "skip" || dupeStrategy === "new-only") {
+                skipped++;
+                continue;
+              }
+              const { error } = await supabase
+                .from("employees")
+                .update({
+                  name,
+                  email,
+                  phone: normalizePhone(getValue(row, "phone")),
+                  role: getValue(row, "role") || "medewerker",
+                })
+                .eq("id", existingId)
+                .eq("user_id", user.id);
+              if (error) errors.push({ row: rowNum, reason: "Kon medewerker niet bijwerken", fix: error.message, original: row });
+              else updated++;
+              continue;
+            }
+            const wd = getValue(row, "working_days");
+            const workingDays = wd
+              ? wd.split(/[,;\s]+/).map((d) => Number(d)).filter((n) => !isNaN(n) && n >= 0 && n <= 6)
+              : [1, 2, 3, 4, 5];
+            const { data, error } = await supabase
+              .from("employees")
+              .insert({
+                user_id: user.id,
+                is_demo: demoMode,
+                name,
+                email,
+                phone: normalizePhone(getValue(row, "phone")),
+                role: getValue(row, "role") || "medewerker",
+                color: getValue(row, "color") || "#7B61FF",
+                working_days: workingDays,
+              })
+              .select("id")
+              .single();
+            if (error || !data) {
+              errors.push({ row: rowNum, reason: "Kon medewerker niet aanmaken", fix: error?.message ?? "", original: row });
+              continue;
+            }
+            track("employees", data.id);
+            employeeByName.set(k, data.id);
+            imported++;
+          } else if (type === "appointments") {
+            const cName = getValue(row, "customer_name");
+            const cEmail = getValue(row, "customer_email");
+            const cPhone = getValue(row, "customer_phone");
+            const customerId = await ensureCustomer(cName, cEmail, cPhone);
+            if (!customerId) {
+              errors.push({ row: rowNum, reason: "Kon klant niet aanmaken/koppelen", fix: "Controleer klantvelden", original: row });
+              continue;
+            }
+            const sName = getValue(row, "service_name");
+            const serviceId = sName ? await ensureService(sName) : null;
+            const eName = getValue(row, "employee_name");
+            const employeeId = eName ? await ensureEmployee(eName) : null;
+            const date = parseDutchDate(getValue(row, "date"))!;
+            const start = parseTime(getValue(row, "start_time")) || "09:00:00";
+            const end = parseTime(getValue(row, "end_time"));
+            const dedupeKey = `${customerId}|${date}|${start}`;
+            if (seenAppts.has(dedupeKey)) {
+              if (dupeStrategy === "skip" || dupeStrategy === "new-only") {
+                skipped++;
+                continue;
+              }
+            }
+            const { data, error } = await supabase
+              .from("appointments")
+              .insert({
+                user_id: user.id,
+                is_demo: demoMode,
+                customer_id: customerId,
+                service_id: serviceId,
+                employee_id: employeeId,
+                appointment_date: date,
+                start_time: start,
+                end_time: end,
+                status: getValue(row, "status") || "scheduled",
+                price: parseNumber(getValue(row, "price")),
+                notes: getValue(row, "notes") || null,
+                source: "import",
+              })
+              .select("id")
+              .single();
+            if (error || !data) {
+              errors.push({ row: rowNum, reason: "Kon afspraak niet aanmaken", fix: error?.message ?? "", original: row });
+              continue;
+            }
+            track("appointments", data.id);
+            seenAppts.add(dedupeKey);
+            imported++;
+          } else if (type === "memberships") {
+            const cName = getValue(row, "customer_name");
+            const cEmail = getValue(row, "customer_email");
+            const customerId = await ensureCustomer(cName, cEmail, "");
+            if (!customerId) {
+              errors.push({ row: rowNum, reason: "Kon klant niet koppelen", fix: "Controleer klantvelden", original: row });
+              continue;
+            }
+            const planName = getValue(row, "plan_name");
+            const pk = planName.toLowerCase().trim();
+            let planId = planByName.get(pk);
+            if (!planId) {
+              const priceVal = parseNumber(getValue(row, "price")) ?? 0;
+              const { data, error } = await supabase
+                .from("membership_plans")
+                .insert({
+                  user_id: user.id,
+                  is_demo: demoMode,
+                  name: planName,
+                  price: priceVal,
+                  billing_interval: "month",
+                  is_active: true,
+                })
+                .select("id")
+                .single();
+              if (error || !data) {
+                errors.push({ row: rowNum, reason: "Kon abonnement niet aanmaken", fix: error?.message ?? "", original: row });
+                continue;
+              }
+              planId = data.id;
+              planByName.set(pk, planId);
+              track("membership_plans", planId);
+            }
+            const start = parseDutchDate(getValue(row, "start_date")) || new Date().toISOString().slice(0, 10);
+            const end = parseDutchDate(getValue(row, "end_date"));
+            const status = getValue(row, "status") || "active";
+            const { data, error } = await supabase
+              .from("customer_memberships")
+              .insert({
+                user_id: user.id,
+                is_demo: demoMode,
+                customer_id: customerId,
+                membership_plan_id: planId,
+                status,
+                start_date: start,
+                current_period_start: start,
+                current_period_end: end,
+              })
+              .select("id")
+              .single();
+            if (error || !data) {
+              errors.push({ row: rowNum, reason: "Kon membership niet aanmaken", fix: error?.message ?? "", original: row });
+              continue;
+            }
+            track("customer_memberships", data.id);
+            imported++;
           }
-          if (phone && customerByPhone.has(phone)) {
-            skipped++;
-            continue;
-          }
-          const notes = [getValue(row, "notes"), getValue(row, "birthday") ? `Geboortedatum: ${getValue(row, "birthday")}` : "", getValue(row, "tags") ? `Tags: ${getValue(row, "tags")}` : ""]
-            .filter(Boolean)
-            .join(" | ");
-          inserts.push({
-            user_id: user.id,
-            is_demo: demoMode,
-            name,
-            email,
-            phone,
-            notes: notes || null,
-            total_spent: parseNumber(getValue(row, "total_spent")) ?? 0,
-          });
-          if (email) customerByEmail.set(email, "pending");
-          if (phone) customerByPhone.set(phone, "pending");
-        } else if (type === "services") {
-          const name = getValue(row, "name");
-          if (serviceByName.has(name.toLowerCase().trim())) {
-            skipped++;
-            continue;
-          }
-          inserts.push({
-            user_id: user.id,
-            is_demo: demoMode,
-            name,
-            duration_minutes: parseNumber(getValue(row, "duration_minutes")) ?? 30,
-            price: parseNumber(getValue(row, "price")) ?? 0,
-            category: getValue(row, "category") || null,
-            description: getValue(row, "description") || null,
-            is_active: getValue(row, "is_active") ? parseBool(getValue(row, "is_active")) : true,
-          });
-          serviceByName.set(name.toLowerCase().trim(), { id: "pending" });
-        } else if (type === "employees") {
-          const name = getValue(row, "name");
-          if (employeeByName.has(name.toLowerCase().trim())) {
-            skipped++;
-            continue;
-          }
-          const wd = getValue(row, "working_days");
-          const workingDays = wd
-            ? wd.split(/[,;\s]+/).map((d) => Number(d)).filter((n) => !isNaN(n) && n >= 0 && n <= 6)
-            : [1, 2, 3, 4, 5];
-          inserts.push({
-            user_id: user.id,
-            is_demo: demoMode,
-            name,
-            email: getValue(row, "email").toLowerCase() || null,
-            phone: normalizePhone(getValue(row, "phone")),
-            role: getValue(row, "role") || "medewerker",
-            color: getValue(row, "color") || "#7B61FF",
-            working_days: workingDays,
-          });
-          employeeByName.set(name.toLowerCase().trim(), { id: "pending" });
-        } else if (type === "appointments") {
-          // resolve refs (must flush before to keep customer ids in sync)
-          await flush();
-          const cName = getValue(row, "customer_name");
-          const cEmail = getValue(row, "customer_email");
-          const cPhone = getValue(row, "customer_phone");
-          const customerId = await ensureCustomer(cName, cEmail, cPhone);
-          if (!customerId) {
-            errors.push({ row: i + 2, reason: "Kon klant niet aanmaken" });
-            continue;
-          }
-          const sName = getValue(row, "service_name");
-          const serviceId = sName ? await ensureService(sName) : null;
-          const eName = getValue(row, "employee_name");
-          const employeeId = eName ? await ensureEmployee(eName) : null;
-          const date = parseDutchDate(getValue(row, "date"))!;
-          const start = parseTime(getValue(row, "start_time")) || "09:00:00";
-          const end = parseTime(getValue(row, "end_time"));
-          const dedupeKey = `${customerId}|${date}|${start}`;
-          if (seenAppts.has(dedupeKey)) {
-            skipped++;
-            continue;
-          }
-          seenAppts.add(dedupeKey);
-          inserts.push({
-            user_id: user.id,
-            is_demo: demoMode,
-            customer_id: customerId,
-            service_id: serviceId,
-            employee_id: employeeId,
-            appointment_date: date,
-            start_time: start,
-            end_time: end,
-            status: getValue(row, "status") || "scheduled",
-            price: parseNumber(getValue(row, "price")),
-            notes: getValue(row, "notes") || null,
-            source: "import",
-          });
-        } else if (type === "waitlist") {
-          await flush();
-          const cName = getValue(row, "customer_name");
-          const cEmail = getValue(row, "customer_email");
-          const cPhone = getValue(row, "customer_phone");
-          const customerId = await ensureCustomer(cName, cEmail, cPhone);
-          if (!customerId) {
-            errors.push({ row: i + 2, reason: "Kon klant niet aanmaken" });
-            continue;
-          }
-          const sName = getValue(row, "service_name");
-          const serviceId = sName ? await ensureService(sName) : null;
-          inserts.push({
-            user_id: user.id,
-            is_demo: demoMode,
-            customer_id: customerId,
-            service_id: serviceId,
-            preferred_day: getValue(row, "preferred_day") || null,
-            preferred_time: getValue(row, "preferred_time") || null,
-            notes: getValue(row, "notes") || null,
-            status: "active",
-          });
+        } catch (rowErr: any) {
+          errors.push({ row: rowNum, reason: "Onverwachte fout", fix: rowErr?.message ?? "", original: row });
         }
-
-        if (inserts.length >= BATCH) await flush();
       }
-      await flush();
 
-      setSummary({ imported, updated, skipped, errors });
+      // Persist tracked items in batches
+      if (trackedItems.length > 0) {
+        const payload = trackedItems.map((it) => ({
+          batch_id: batchId,
+          user_id: user.id,
+          table_name: it.table_name,
+          row_id: it.row_id,
+        }));
+        for (let i = 0; i < payload.length; i += 500) {
+          await supabase.from("import_batch_items").insert(payload.slice(i, i + 500));
+        }
+      }
+
+      // Update batch summary
+      await supabase
+        .from("import_batches")
+        .update({
+          imported_count: imported,
+          updated_count: updated,
+          skipped_count: skipped,
+          failed_count: errors.length,
+          status: errors.length === 0 ? "completed" : "completed_with_errors",
+        })
+        .eq("id", batchId);
+
+      setSummary({ imported, updated, skipped, errors, batchId });
       setStep(5);
       if (errors.length === 0) toast.success(`${imported} rijen geïmporteerd.`);
       else toast.warning(`${imported} geïmporteerd, ${errors.length} fouten.`);
+      loadRecent();
     } catch (e: any) {
       toast.error("Importfout: " + e.message);
+      if (batchId) {
+        await supabase
+          .from("import_batches")
+          .update({ status: "failed", failed_count: errors.length })
+          .eq("id", batchId);
+      }
     } finally {
       setImporting(false);
+      setProgressLabel("");
     }
   };
 
   const downloadErrorReport = () => {
-    if (!summary) return;
-    const csv = "rij,reden\n" + summary.errors.map((e) => `${e.row},"${e.reason.replace(/"/g, '""')}"`).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
+    if (!summary || summary.errors.length === 0) return;
+    const originalKeys = Array.from(
+      new Set(summary.errors.flatMap((e) => Object.keys(e.original ?? {})))
+    );
+    const headerRow = ["rij", "reden", "voorgestelde fix", ...originalKeys];
+    const escape = (v: any) => {
+      const s = v === null || v === undefined ? "" : String(v);
+      return `"${s.replace(/"/g, '""')}"`;
+    };
+    const lines = [headerRow.map(escape).join(",")];
+    for (const e of summary.errors) {
+      lines.push(
+        [e.row, e.reason, e.fix, ...originalKeys.map((k) => e.original?.[k] ?? "")].map(escape).join(",")
+      );
+    }
+    const blob = new Blob(["\ufeff" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -619,19 +943,20 @@ export function ImportWizard() {
   };
 
   const targetFields = FIELDS[type];
+  const missingRequired = targetFields.filter((f) => f.required && !mapping[f.key]);
 
   return (
-    <div className="glass-card p-4 sm:p-6 space-y-6 w-full max-w-full overflow-x-hidden">
+    <div className="glass-card p-4 sm:p-6 space-y-6 w-full max-w-full overflow-x-hidden pb-[env(safe-area-inset-bottom)]">
       <div>
         <h2 className="text-xl font-semibold mb-1">Data importeren</h2>
         <p className="text-sm text-muted-foreground">
-          Migreer klanten, afspraken, behandelingen en team vanuit Salonized, Fresha, Treatwell of Excel.
+          Migreer klanten, afspraken, behandelingen, team en memberships vanuit Salonized, Fresha, Treatwell of Excel.
           {demoMode ? " (Demo modus actief — import gaat naar demo data.)" : ""}
         </p>
       </div>
 
       {/* Stepper */}
-      <div className="flex items-center gap-2 overflow-x-auto max-w-full pb-2 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
+      <div className="flex items-center gap-2 overflow-x-auto max-w-full pb-2 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
         {["Upload", "Bron", "Type", "Mapping", "Preview", "Klaar"].map((label, i) => (
           <div key={i} className="flex items-center gap-1.5 sm:gap-2">
             <div
@@ -651,22 +976,58 @@ export function ImportWizard() {
 
       {/* Step 0: Upload */}
       {step === 0 && (
-        <div
-          onDrop={onDrop}
-          onDragOver={(e) => e.preventDefault()}
-          className="border-2 border-dashed border-border rounded-xl p-6 sm:p-10 text-center cursor-pointer hover:bg-secondary/30 transition w-full max-w-full"
-          onClick={() => fileInputRef.current?.click()}
-        >
-          <Upload className="w-8 h-8 sm:w-10 sm:h-10 mx-auto text-muted-foreground mb-3" />
-          <p className="font-medium text-sm sm:text-base">Sleep een CSV of XLSX hierheen</p>
-          <p className="text-sm text-muted-foreground mt-1">of klik om te bladeren</p>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv,.xlsx,.xls,.txt"
-            className="hidden"
-            onChange={onPickFile}
-          />
+        <div className="space-y-4">
+          <div
+            onDrop={onDrop}
+            onDragOver={(e) => e.preventDefault()}
+            className="border-2 border-dashed border-border rounded-xl p-6 sm:p-10 text-center cursor-pointer hover:bg-secondary/30 transition w-full max-w-full"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Upload className="w-8 h-8 sm:w-10 sm:h-10 mx-auto text-muted-foreground mb-3" />
+            <p className="font-medium text-sm sm:text-base">Sleep een CSV of XLSX hierheen</p>
+            <p className="text-sm text-muted-foreground mt-1">of klik om te bladeren</p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv,.xlsx,.xls,.txt"
+              className="hidden"
+              onChange={onPickFile}
+            />
+          </div>
+
+          {recent.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">Recente imports</p>
+              <div className="space-y-2">
+                {recent.map((b) => (
+                  <div key={b.id} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-border bg-card">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">
+                        {TYPE_LABELS[b.import_type as ImportType] ?? b.import_type} · {SOURCE_LABELS[b.source as SourceSystem] ?? b.source}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {new Date(b.created_at).toLocaleString("nl-NL")} · {b.imported_count} geïmporteerd
+                        {b.failed_count ? ` · ${b.failed_count} fouten` : ""}
+                        {b.undone_at ? " · ongedaan gemaakt" : ""}
+                      </p>
+                    </div>
+                    {!b.undone_at && b.imported_count > 0 && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => undoBatch(b.id)}
+                        disabled={undoing === b.id}
+                        className="shrink-0"
+                      >
+                        {undoing === b.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Undo2 className="w-3.5 h-3.5" />}
+                        <span className="ml-1.5 hidden sm:inline">Ongedaan</span>
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -675,7 +1036,7 @@ export function ImportWizard() {
         <div className="space-y-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <FileSpreadsheet className="w-4 h-4" />
-            {fileName} • {rows.length} rijen
+            <span className="truncate">{fileName} • {rows.length} rijen</span>
           </div>
           <div>
             <label className="text-sm font-medium block mb-2">Bron systeem</label>
@@ -687,6 +1048,9 @@ export function ImportWizard() {
                 ))}
               </SelectContent>
             </Select>
+            <p className="text-xs text-muted-foreground mt-1">
+              Kolommen worden automatisch herkend op basis van het bronsysteem.
+            </p>
           </div>
           <div className="flex justify-between flex-wrap gap-2">
             <Button variant="outline" onClick={reset}><ArrowLeft className="w-4 h-4" />Opnieuw</Button>
@@ -709,6 +1073,17 @@ export function ImportWizard() {
               </SelectContent>
             </Select>
           </div>
+          <div>
+            <label className="text-sm font-medium block mb-2">Bij duplicaten</label>
+            <Select value={dupeStrategy} onValueChange={(v) => setDupeStrategy(v as DupeStrategy)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="skip">Duplicaten overslaan (aanbevolen)</SelectItem>
+                <SelectItem value="update">Bestaande bijwerken</SelectItem>
+                <SelectItem value="new-only">Alleen nieuwe importeren</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div className="flex justify-between flex-wrap gap-2">
             <Button variant="outline" onClick={() => setStep(1)}><ArrowLeft className="w-4 h-4" />Terug</Button>
             <Button onClick={goToMapping}>Auto-detecteer kolommen<ArrowRight className="w-4 h-4" /></Button>
@@ -720,11 +1095,11 @@ export function ImportWizard() {
       {step === 3 && (
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Controleer de kolomtoewijzing. Auto-detectie gevonden voor {Object.keys(detected).length} velden.
+            Controleer de kolomtoewijzing. Auto-detectie vond {Object.keys(detected).length} velden.
           </p>
-          <div className="border border-border rounded-xl overflow-x-auto max-w-full">
+          <div className="border border-border rounded-xl overflow-x-auto overflow-y-auto max-w-full max-h-[60vh]">
             <table className="w-full text-sm min-w-[300px]">
-              <thead className="bg-secondary/50">
+              <thead className="bg-secondary/50 sticky top-0">
                 <tr>
                   <th className="text-left p-3">GlowSuite veld</th>
                   <th className="text-left p-3">Kolom in bestand</th>
@@ -733,7 +1108,7 @@ export function ImportWizard() {
               <tbody>
                 {targetFields.map((f) => (
                   <tr key={f.key} className="border-t border-border">
-                    <td className="p-3">
+                    <td className="p-3 align-top">
                       {f.label}
                       {f.required && <span className="text-destructive ml-1">*</span>}
                     </td>
@@ -763,9 +1138,16 @@ export function ImportWizard() {
               </tbody>
             </table>
           </div>
+          {missingRequired.length > 0 && (
+            <p className="text-xs text-destructive">
+              Vereiste velden ontbreken: {missingRequired.map((f) => f.label).join(", ")}
+            </p>
+          )}
           <div className="flex justify-between flex-wrap gap-2">
             <Button variant="outline" onClick={() => setStep(2)}><ArrowLeft className="w-4 h-4" />Terug</Button>
-            <Button onClick={() => setStep(4)}>Preview<ArrowRight className="w-4 h-4" /></Button>
+            <Button onClick={() => setStep(4)} disabled={missingRequired.length > 0}>
+              Preview<ArrowRight className="w-4 h-4" />
+            </Button>
           </div>
         </div>
       )}
@@ -773,12 +1155,19 @@ export function ImportWizard() {
       {/* Step 4: Preview */}
       {step === 4 && (
         <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Voorbeeld eerste 20 rijen. {rows.length} rijen totaal worden geïmporteerd ({SOURCE_LABELS[source]} → {TYPE_LABELS[type]}).
-          </p>
-          <div className="border border-border rounded-xl overflow-x-auto max-w-full">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <p className="text-sm text-muted-foreground">
+              {rows.length} rijen ({SOURCE_LABELS[source]} → {TYPE_LABELS[type]})
+            </p>
+            <p className="text-xs">
+              <span className="text-success">{previewStats.ok} OK</span>
+              {previewStats.bad > 0 && <span className="text-destructive ml-2">{previewStats.bad} fout</span>}
+              <span className="text-muted-foreground ml-2">(eerste 20)</span>
+            </p>
+          </div>
+          <div className="border border-border rounded-xl overflow-x-auto overflow-y-auto max-w-full max-h-[60vh]">
             <table className="w-full text-xs">
-              <thead className="bg-secondary/50">
+              <thead className="bg-secondary/50 sticky top-0">
                 <tr>
                   <th className="text-left p-2">#</th>
                   {targetFields.filter((f) => mapping[f.key]).map((f) => (
@@ -789,7 +1178,7 @@ export function ImportWizard() {
               </thead>
               <tbody>
                 {previewRows.map((row, i) => {
-                  const v = validateRow(row, i);
+                  const v = validateRow(row);
                   return (
                     <tr key={i} className="border-t border-border">
                       <td className="p-2 text-muted-foreground">{i + 2}</td>
@@ -812,12 +1201,14 @@ export function ImportWizard() {
           {importing && (
             <div className="space-y-2">
               <Progress value={progress} />
-              <p className="text-xs text-muted-foreground text-center">{progress}% • importeren…</p>
+              <p className="text-xs text-muted-foreground text-center">{progressLabel || `${progress}%`}</p>
             </div>
           )}
           <div className="flex justify-between flex-wrap gap-2">
-            <Button variant="outline" onClick={() => setStep(3)} disabled={importing}><ArrowLeft className="w-4 h-4" />Terug</Button>
-            <Button onClick={runImport} disabled={importing} className="w-full sm:w-auto">
+            <Button variant="outline" onClick={() => setStep(3)} disabled={importing}>
+              <ArrowLeft className="w-4 h-4" />Terug
+            </Button>
+            <Button onClick={runImport} disabled={importing || previewStats.ok === 0} className="w-full sm:w-auto">
               {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
               <span className="truncate">{importing ? "Bezig…" : `Importeer ${rows.length} rijen`}</span>
             </Button>
@@ -831,32 +1222,72 @@ export function ImportWizard() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <SummaryCard label="Geïmporteerd" value={summary.imported} variant="success" />
             <SummaryCard label="Bijgewerkt" value={summary.updated} />
-            <SummaryCard label="Duplicaten" value={summary.skipped} />
+            <SummaryCard label="Overgeslagen" value={summary.skipped} />
             <SummaryCard label="Fouten" value={summary.errors.length} variant={summary.errors.length > 0 ? "destructive" : undefined} />
           </div>
+
+          {(type === "customers" || type === "appointments") && summary.imported > 0 && (
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-3">
+              <div className="flex items-start gap-2">
+                <Sparkles className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                <p className="text-sm">
+                  GlowSuite heeft je klanten geanalyseerd en AI segmenten bijgewerkt.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <Button asChild variant="outline" size="sm">
+                  <Link to="/klanten"><Users className="w-3.5 h-3.5" />Bekijk klanten</Link>
+                </Button>
+                <Button asChild variant="outline" size="sm">
+                  <Link to="/segmenten"><Sparkles className="w-3.5 h-3.5" />AI segmenten</Link>
+                </Button>
+                <Button asChild variant="outline" size="sm">
+                  <Link to="/glowsuite-ai"><Bot className="w-3.5 h-3.5" />GlowSuite AI</Link>
+                </Button>
+              </div>
+            </div>
+          )}
+
           {summary.errors.length > 0 && (
             <>
               <div className="border border-border rounded-xl max-h-64 overflow-y-auto overflow-x-auto max-w-full">
                 <table className="w-full text-xs min-w-[300px]">
                   <thead className="bg-secondary/50 sticky top-0">
-                    <tr><th className="text-left p-2">Rij</th><th className="text-left p-2">Reden</th></tr>
+                    <tr>
+                      <th className="text-left p-2">Rij</th>
+                      <th className="text-left p-2">Reden</th>
+                      <th className="text-left p-2">Fix</th>
+                    </tr>
                   </thead>
                   <tbody>
                     {summary.errors.slice(0, 100).map((e, i) => (
                       <tr key={i} className="border-t border-border">
                         <td className="p-2">{e.row}</td>
                         <td className="p-2 text-destructive">{e.reason}</td>
+                        <td className="p-2 text-muted-foreground">{e.fix}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
               <Button variant="outline" onClick={downloadErrorReport} className="w-full sm:w-auto">
-                <Download className="w-4 h-4" />Foutenrapport downloaden (CSV)
+                <Download className="w-4 h-4" />Foutbestand downloaden (CSV)
               </Button>
             </>
           )}
-          <div className="flex justify-end">
+
+          <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
+            {summary.batchId && summary.imported > 0 && (
+              <Button
+                variant="outline"
+                onClick={() => undoBatch(summary.batchId!)}
+                disabled={undoing === summary.batchId}
+                className="w-full sm:w-auto"
+              >
+                {undoing === summary.batchId ? <Loader2 className="w-4 h-4 animate-spin" /> : <Undo2 className="w-4 h-4" />}
+                Import ongedaan maken
+              </Button>
+            )}
             <Button onClick={reset} className="w-full sm:w-auto">Nieuwe import</Button>
           </div>
         </div>
@@ -865,13 +1296,25 @@ export function ImportWizard() {
   );
 }
 
-function SummaryCard({ label, value, variant }: { label: string; value: number; variant?: "success" | "destructive" }) {
-  const color =
-    variant === "success" ? "text-success" : variant === "destructive" ? "text-destructive" : "text-foreground";
+function SummaryCard({
+  label,
+  value,
+  variant,
+}: {
+  label: string;
+  value: number;
+  variant?: "success" | "destructive";
+}) {
+  const tone =
+    variant === "success"
+      ? "text-success"
+      : variant === "destructive"
+      ? "text-destructive"
+      : "text-foreground";
   return (
-    <div className="bg-secondary/30 rounded-xl p-4">
+    <div className="p-3 rounded-xl border border-border bg-card">
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={`text-2xl font-semibold ${color}`}>{value}</p>
+      <p className={`text-2xl font-semibold ${tone}`}>{value}</p>
     </div>
   );
 }
