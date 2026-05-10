@@ -209,6 +209,15 @@ export function AppSidebar() {
         )}
         <item.icon className={cn("w-[18px] h-[18px] shrink-0", item.ai && "text-primary", item.accent && !item.ai && "text-primary/85")} />
         <span className="flex-1 truncate">{item.label}</span>
+        {item.live && (
+          <span className="inline-flex items-center gap-1 text-[9.5px] font-semibold px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500/70 opacity-75 animate-ping" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            </span>
+            LIVE
+          </span>
+        )}
         {item.badge && (
           <span
             className={cn(
