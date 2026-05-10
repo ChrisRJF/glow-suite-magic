@@ -22,6 +22,7 @@ interface NavItem {
   badge?: string;
   accent?: boolean;
   ai?: boolean;
+  live?: boolean;
   ownerOnly?: boolean;
   staffOnly?: boolean;
 }
