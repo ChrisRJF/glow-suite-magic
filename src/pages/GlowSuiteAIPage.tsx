@@ -190,9 +190,17 @@ export default function GlowSuiteAIPage() {
     { label: "Potentiële extra omzet", value: formatEuro(projectedExtraRevenue), icon: TrendingUp, accent: "from-emerald-500/15 to-emerald-500/0 text-emerald-600 dark:text-emerald-400" },
     { label: "Lege plekken vandaag", value: emptySlots, icon: CalendarX, accent: "from-primary/15 to-primary/0 text-primary" },
     { label: "Churn risico klanten", value: intelligence.churnRisk, icon: AlertTriangle, accent: "from-amber-500/15 to-amber-500/0 text-amber-600 dark:text-amber-400" },
-    { label: "Klaar voor follow-up", value: intelligence.followUp, icon: Clock, accent: "from-primary/15 to-primary/0 text-primary" },
-    { label: "No-show risico's", value: intelligence.noShowRisk, icon: XCircle, accent: "from-rose-500/15 to-rose-500/0 text-rose-600 dark:text-rose-400" },
-    { label: "AI acties vandaag", value: filledCount, icon: Sparkles, accent: "from-primary/15 to-primary/0 text-primary" },
+    { label: "Follow-ups klaar", value: intelligence.followUp, icon: Clock, accent: "from-primary/15 to-primary/0 text-primary" },
+    { label: "Wacht op betaling", value: pendingPayments, icon: Hourglass, accent: "from-violet-500/15 to-violet-500/0 text-violet-600 dark:text-violet-400" },
+    { label: "No-show risico", value: intelligence.noShowRisk, icon: XCircle, accent: "from-rose-500/15 to-rose-500/0 text-rose-600 dark:text-rose-400" },
+  ];
+
+  const ACTION_CARDS: ActionCard[] = [
+    { title: "Vul lege plekken", reason: `${emptySlots} open uren vandaag`, to: "/wachtlijst", icon: Sparkles, impact: `Tot ${formatEuro(projectedExtraRevenue)} extra` },
+    { title: "Heractiveer klanten", reason: `${inactiveCustomers.length} klanten >30 dagen weg`, to: "/herboekingen", icon: RotateCcw, impact: "Hoge ROI" },
+    { title: "Verstuur follow-up", reason: `${intelligence.followUp} klanten klaar voor follow-up`, to: "/automatiseringen", icon: MessageCircle, impact: "Loyalty ↑" },
+    { title: "Vraag reviews aan", reason: "Recente afspraken zonder review", to: "/automatiseringen", icon: Star, impact: "Reputatie ↑" },
+    { title: "Check wachtlijst", reason: "Klanten die wachten op een plek", to: "/wachtlijst", icon: Clock, impact: "Snelle conversie" },
   ];
 
   const topCustomers = useMemo(() => {
