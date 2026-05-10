@@ -115,6 +115,11 @@ export default function GlowSuiteAIPage() {
           .reduce((sum, p) => sum + Number(p.amount || 0), 0);
         setRecoveredRevenue(revenue);
         setFilledCount(offers.filter((o) => o.status === "paid").length);
+        setPendingPayments(offers.filter((o) => o.status === "pending_payment").length);
+        if (runs.length > 0) {
+          setLatestRunAt(runs[0].started_at);
+          setLatestRunStatus(runs[0].status);
+        }
 
         // Combine into one chronological feed
         const items: FeedItem[] = [];
