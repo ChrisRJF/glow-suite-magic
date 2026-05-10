@@ -39,12 +39,11 @@ interface NavGroup {
 // ───────────────────────────────────────────────────────────
 const navGroups: NavGroup[] = [
   {
-    title: "GlowSuite AI",
+    title: "AI Systemen",
     ai: true,
     defaultOpen: true,
     items: [
-      { label: "AI Command Center", icon: Sparkles, path: "/ai", ai: true, badge: "AI" },
-      { label: "Auto Revenue", icon: Flame, path: "/auto-revenue", accent: true },
+      { label: "Auto Revenue", icon: Flame, path: "/auto-revenue", accent: true, live: true },
       { label: "Omzet Autopilot", icon: Zap, path: "/acties" },
       { label: "AI Insights", icon: Brain, path: "/ai#insights", routePath: "/ai" },
       { label: "AI Activiteit", icon: Activity, path: "/ai#activity", routePath: "/ai" },
