@@ -476,11 +476,8 @@ export default function GlowSuiteAIPage() {
   );
 
   return (
-    <AppLayout
-      title="GlowSuite AI"
-      subtitle="Je AI assistent voor omzet, klanten en planning."
-    >
-      <div className="space-y-6 pb-[max(env(safe-area-inset-bottom),1rem)]">
+    <AppLayout title="GlowSuite AI">
+      <div className="space-y-5 pb-[max(env(safe-area-inset-bottom),1rem)] -mt-2 sm:-mt-1">
         {/* Hero — live AI control center */}
         <Card className="relative overflow-hidden border-primary/20 animate-fade-in">
           <div
@@ -584,20 +581,20 @@ export default function GlowSuiteAIPage() {
 
         {/* Smart insight chips */}
         <div id="insights" className="scroll-mt-20">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-2">
             <h3 className="text-lg font-semibold">Vandaag in één oogopslag</h3>
             <span className="text-[11px] text-muted-foreground">{demoMode ? "Demo data" : "Live data"}</span>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
             {insightCards.map((c, i) => (
               <div
                 key={c.label}
                 style={{ animationDelay: `${i * 40}ms` }}
-                className={`relative rounded-2xl border border-border/70 p-4 bg-gradient-to-br ${c.accent} transition-all hover:border-primary/30 hover:-translate-y-0.5 animate-fade-in`}
+                className={`relative rounded-2xl border border-border/70 p-3 bg-gradient-to-br ${c.accent} transition-all hover:border-primary/30 hover:-translate-y-0.5 animate-fade-in`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <c.icon className="w-4 h-4 opacity-70" />
-                  <p className="text-2xl font-semibold tabular-nums text-foreground leading-none">
+                  <p className="text-xl font-semibold tabular-nums text-foreground leading-none">
                     {c.isCurrency ? (
                       <AnimatedCounter value={Number(c.value) || 0} format={(n) => formatEuro(n)} />
                     ) : (
@@ -605,7 +602,7 @@ export default function GlowSuiteAIPage() {
                     )}
                   </p>
                 </div>
-                <p className="text-[12px] mt-3 leading-snug text-foreground/90">{c.label}</p>
+                <p className="text-[11px] mt-1.5 leading-snug text-foreground/90">{c.label}</p>
               </div>
             ))}
           </div>
@@ -626,7 +623,7 @@ export default function GlowSuiteAIPage() {
                 style={{ animationDelay: `${i * 50}ms` }}
                 className="group hover:border-primary/40 hover:-translate-y-0.5 transition-all animate-fade-in"
               >
-                <CardContent className="p-5 flex flex-col h-full">
+                <CardContent className="p-4 flex flex-col h-full">
                   <div className="flex items-start gap-3">
                     <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
                       <a.icon className="w-4 h-4" />
@@ -636,7 +633,7 @@ export default function GlowSuiteAIPage() {
                       <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{a.reason}</p>
                     </div>
                   </div>
-                  <div className="flex items-center flex-wrap gap-1.5 mt-4">
+                  <div className="flex items-center flex-wrap gap-1.5 mt-3">
                     <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${URGENCY_PILL[a.urgency]}`}>
                       {a.urgency === "high" ? "Urgent" : a.urgency === "med" ? "Aanbevolen" : "Optioneel"}
                     </span>
@@ -647,7 +644,7 @@ export default function GlowSuiteAIPage() {
                       {a.impact}
                     </span>
                   </div>
-                  <div className="flex items-center justify-end mt-4 pt-3 border-t border-border/60">
+                  <div className="flex items-center justify-end mt-3 pt-2 border-t border-border/60">
                     <Button asChild variant="ghost" size="sm" className="group-hover:translate-x-0.5 transition-transform">
                       <Link to={a.to}>
                         Openen <ArrowRight className="w-3.5 h-3.5" />
