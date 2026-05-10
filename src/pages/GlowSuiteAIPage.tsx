@@ -61,6 +61,9 @@ export default function GlowSuiteAIPage() {
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [recoveredRevenue, setRecoveredRevenue] = useState(0);
   const [filledCount, setFilledCount] = useState(0);
+  const [pendingPayments, setPendingPayments] = useState(0);
+  const [latestRunAt, setLatestRunAt] = useState<string | null>(null);
+  const [latestRunStatus, setLatestRunStatus] = useState<string | null>(null);
 
   // Today range
   const sinceIso = useMemo(() => {
