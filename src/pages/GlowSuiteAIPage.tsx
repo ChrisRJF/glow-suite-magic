@@ -581,20 +581,20 @@ export default function GlowSuiteAIPage() {
 
         {/* Smart insight chips */}
         <div id="insights" className="scroll-mt-20">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-2">
             <h3 className="text-lg font-semibold">Vandaag in één oogopslag</h3>
             <span className="text-[11px] text-muted-foreground">{demoMode ? "Demo data" : "Live data"}</span>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
             {insightCards.map((c, i) => (
               <div
                 key={c.label}
                 style={{ animationDelay: `${i * 40}ms` }}
-                className={`relative rounded-2xl border border-border/70 p-4 bg-gradient-to-br ${c.accent} transition-all hover:border-primary/30 hover:-translate-y-0.5 animate-fade-in`}
+                className={`relative rounded-2xl border border-border/70 p-3 bg-gradient-to-br ${c.accent} transition-all hover:border-primary/30 hover:-translate-y-0.5 animate-fade-in`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <c.icon className="w-4 h-4 opacity-70" />
-                  <p className="text-2xl font-semibold tabular-nums text-foreground leading-none">
+                  <p className="text-xl font-semibold tabular-nums text-foreground leading-none">
                     {c.isCurrency ? (
                       <AnimatedCounter value={Number(c.value) || 0} format={(n) => formatEuro(n)} />
                     ) : (
@@ -602,7 +602,7 @@ export default function GlowSuiteAIPage() {
                     )}
                   </p>
                 </div>
-                <p className="text-[12px] mt-3 leading-snug text-foreground/90">{c.label}</p>
+                <p className="text-[11px] mt-1.5 leading-snug text-foreground/90">{c.label}</p>
               </div>
             ))}
           </div>
