@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Calendar, Users, Scissors, X, Globe,
   MessageCircle, CreditCard, TrendingUp, RefreshCw, Megaphone,
   Zap, ShoppingBag, Package, BarChart3, Settings, HelpCircle, LogOut,
-  Sun, Moon, Bot, Clock, Gift, ShoppingCart, Share2, UserPlus, Crown, RotateCcw, Mail, Wallet, Flame, Sparkles, ChevronDown, Database, ShieldCheck, Rocket,
+  Sun, Moon, Bot, Clock, Gift, ShoppingCart, Share2, UserPlus, RotateCcw, Mail, Wallet, Sparkles, ChevronDown, ShieldCheck, Rocket, Brain, Activity, Flame,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -17,6 +17,8 @@ interface NavItem {
   label: string;
   icon: typeof LayoutDashboard;
   path: string;
+  /** Optional path used purely for permission/route check when `path` contains a hash. */
+  routePath?: string;
   badge?: string;
   accent?: boolean;
   ai?: boolean;
@@ -27,21 +29,29 @@ interface NavItem {
 interface NavGroup {
   title: string;
   items: NavItem[];
-  defaultOpenMobile?: boolean;
+  defaultOpen?: boolean;
+  ai?: boolean;
 }
 
-const aiItem: NavItem = {
-  label: "GlowSuite AI",
-  icon: Sparkles,
-  path: "/ai",
-  badge: "AI",
-  ai: true,
-};
-
+// ───────────────────────────────────────────────────────────
+// ONE centralized sidebar config
+// ───────────────────────────────────────────────────────────
 const navGroups: NavGroup[] = [
   {
+    title: "GlowSuite AI",
+    ai: true,
+    defaultOpen: true,
+    items: [
+      { label: "AI Command Center", icon: Sparkles, path: "/ai", ai: true, badge: "AI" },
+      { label: "Auto Revenue", icon: Flame, path: "/auto-revenue", accent: true },
+      { label: "Omzet Autopilot", icon: Zap, path: "/acties" },
+      { label: "AI Insights", icon: Brain, path: "/ai#insights", routePath: "/ai" },
+      { label: "AI Activiteit", icon: Activity, path: "/ai#activity", routePath: "/ai" },
+    ],
+  },
+  {
     title: "Operatie",
-    defaultOpenMobile: true,
+    defaultOpen: true,
     items: [
       { label: "Overzicht", icon: LayoutDashboard, path: "/" },
       { label: "Agenda", icon: Calendar, path: "/agenda" },
@@ -64,20 +74,12 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    title: "Auto Revenue",
-    items: [
-      { label: "🔥 Auto Revenue", icon: Flame, path: "/auto-revenue", accent: true, badge: "AI" },
-      { label: "Autopilot", icon: Zap, path: "/acties" },
-    ],
-  },
-  {
     title: "Commerce",
     items: [
-      { label: "GlowPay", icon: CreditCard, path: "/glowpay", accent: true },
       { label: "Kassa", icon: ShoppingBag, path: "/kassa" },
       { label: "Producten", icon: Package, path: "/producten" },
-      { label: "Webshop", icon: ShoppingCart, path: "/webshop" },
       { label: "Cadeaubonnen", icon: Gift, path: "/cadeaubonnen" },
+      { label: "Webshop", icon: ShoppingCart, path: "/webshop" },
       { label: "Abonnementen", icon: CreditCard, path: "/abonnementen" },
     ],
   },
@@ -85,24 +87,25 @@ const navGroups: NavGroup[] = [
     title: "Finance",
     items: [
       { label: "Omzet", icon: TrendingUp, path: "/omzet" },
-      { label: "Eigenaar", icon: Crown, path: "/eigenaar", accent: true },
       { label: "Payroll", icon: Wallet, path: "/payroll" },
-      { label: "Rapporten", icon: BarChart3, path: "/rapporten" },
+      { label: "GlowPay", icon: CreditCard, path: "/glowpay", accent: true },
       { label: "Refunds", icon: RotateCcw, path: "/refunds" },
+      { label: "Rapporten", icon: BarChart3, path: "/rapporten" },
     ],
   },
   {
     title: "Beheer",
     items: [
       { label: "Instellingen", icon: Settings, path: "/instellingen" },
+      { label: "Support", icon: HelpCircle, path: "/support" },
       { label: "Launch Status", icon: Rocket, path: "/launch-status", ownerOnly: true },
       { label: "QA Status", icon: ShieldCheck, path: "/qa-status", staffOnly: true },
       { label: "Email previews", icon: Mail, path: "/admin/email-templates", staffOnly: true },
-      { label: "Demo verzoeken", icon: Database, path: "/admin/demo-requests", staffOnly: true },
-      { label: "Support", icon: HelpCircle, path: "/support" },
     ],
   },
 ];
+
+const STORAGE_KEY = "glowsuite:sidebar:open-groups";
 
 export function AppSidebar() {
   const location = useLocation();
@@ -121,36 +124,55 @@ export function AppSidebar() {
           items: group.items.filter((item) => {
             if (item.ownerOnly && !isOwner) return false;
             if (item.staffOnly && !isStaffAdmin) return false;
-            return canAccessRoute(item.path, roles);
+            return canAccessRoute(item.routePath ?? item.path, roles);
           }),
         }))
         .filter((group) => group.items.length > 0),
     [roles, isOwner, isStaffAdmin]
   );
 
+  const isItemActive = (item: NavItem) => {
+    const [path, hash] = item.path.split("#");
+    if (location.pathname !== path) return false;
+    if (hash) return location.hash === `#${hash}`;
+    return !location.hash || !visibleGroups.some(g => g.items.some(i => i.path.startsWith(`${path}#`) && i.path !== item.path && location.hash === `#${i.path.split("#")[1]}`));
+  };
+
   // Track which group contains the active route to auto-open it
   const activeGroupTitle = useMemo(() => {
     for (const g of visibleGroups) {
-      if (g.items.some((i) => i.path === location.pathname)) return g.title;
+      if (g.items.some(isItemActive)) return g.title;
     }
     return null;
-  }, [visibleGroups, location.pathname]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleGroups, location.pathname, location.hash]);
 
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return {};
+  });
 
-  // Initialize / sync defaults whenever the active group changes
+  // Initialize / sync defaults
   useEffect(() => {
     setOpenGroups((prev) => {
       const next = { ...prev };
       for (const g of visibleGroups) {
         if (next[g.title] === undefined) {
-          next[g.title] = g.defaultOpenMobile === true || g.title === activeGroupTitle;
+          next[g.title] = g.defaultOpen === true || g.title === activeGroupTitle;
         }
       }
       if (activeGroupTitle) next[activeGroupTitle] = true;
       return next;
     });
   }, [activeGroupTitle, visibleGroups]);
+
+  // Persist collapse state
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(openGroups)); } catch {}
+  }, [openGroups]);
 
   useEffect(() => {
     const open = () => setMobileOpen(true);
@@ -162,7 +184,7 @@ export function AppSidebar() {
     setOpenGroups((p) => ({ ...p, [title]: !p[title] }));
 
   const renderItem = (item: NavItem) => {
-    const isActive = location.pathname === item.path;
+    const isActive = isItemActive(item);
     const tourAttr = item.path === "/eigenaar" ? "owner-mode" : undefined;
     return (
       <Link
@@ -171,12 +193,12 @@ export function AppSidebar() {
         data-tour={tourAttr}
         onClick={() => setMobileOpen(false)}
         className={cn(
-          "relative flex items-center gap-3 px-3 py-1.5 rounded-xl text-[13.5px] transition-all duration-150",
+          "relative flex items-center gap-3 px-3 min-h-11 lg:min-h-9 py-2 lg:py-1.5 rounded-xl text-[14px] lg:text-[13.5px] transition-all duration-150",
           isActive
             ? item.ai
               ? "bg-gradient-to-r from-primary/20 via-fuchsia-500/15 to-primary/10 text-primary font-semibold shadow-[0_0_0_1px_hsl(var(--primary)/0.15)]"
               : "bg-secondary text-foreground font-semibold"
-            : "text-muted-foreground hover:text-foreground hover:bg-secondary/60",
+            : "text-muted-foreground hover:text-foreground hover:bg-secondary/60 active:bg-secondary",
           item.ai && !isActive && "text-primary/90 hover:text-primary",
           item.accent && !isActive && !item.ai && "text-primary/85"
         )}
@@ -184,7 +206,7 @@ export function AppSidebar() {
         {isActive && !item.ai && (
           <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-primary" />
         )}
-        <item.icon className={cn("w-[17px] h-[17px] shrink-0", item.ai && "text-primary")} />
+        <item.icon className={cn("w-[18px] h-[18px] shrink-0", item.ai && "text-primary", item.accent && !item.ai && "text-primary/85")} />
         <span className="flex-1 truncate">{item.label}</span>
         {item.badge && (
           <span
@@ -194,8 +216,6 @@ export function AppSidebar() {
                 ? "bg-gradient-to-r from-primary to-fuchsia-500 text-white"
                 : isActive
                 ? "bg-primary/20 text-primary"
-                : item.accent
-                ? "bg-primary/15 text-primary"
                 : "bg-secondary text-muted-foreground"
             )}
           >
@@ -205,8 +225,6 @@ export function AppSidebar() {
       </Link>
     );
   };
-
-  const aiActive = location.pathname === aiItem.path;
 
   return (
     <>
@@ -219,68 +237,88 @@ export function AppSidebar() {
 
       <aside
         className={cn(
-          "fixed lg:sticky top-0 left-0 z-50 h-[100dvh] w-[86vw] max-w-[300px] lg:w-[260px] flex flex-col bg-card/95 lg:bg-card/60 backdrop-blur-xl border-r border-border transition-transform duration-300 overflow-y-auto overscroll-contain",
+          "fixed lg:sticky top-0 left-0 z-50 h-[100dvh] w-[84vw] max-w-[296px] lg:w-[260px] flex flex-col bg-card/95 lg:bg-card/60 backdrop-blur-xl border-r border-border transition-transform duration-300",
           mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
-        style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
+        style={{
+          paddingTop: "env(safe-area-inset-top)",
+          paddingBottom: "env(safe-area-inset-bottom)",
+        }}
       >
-        <button
-          onClick={() => setMobileOpen(false)}
-          aria-label="Menu sluiten"
-          className="absolute top-3 right-3 lg:hidden inline-flex items-center justify-center h-11 w-11 rounded-xl hover:bg-secondary active:scale-95 transition"
-        >
-          <X className="w-5 h-5" />
-        </button>
-
-        <div className="px-5 pt-6 pb-3">
-          <img src={logoFull} alt="GlowSuite" className="hidden lg:block h-9 w-auto object-contain" />
-          <img src={logoIcon} alt="GlowSuite" className="lg:hidden h-9 w-9 rounded-xl object-contain" />
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 lg:px-5 pt-4 lg:pt-6 pb-2 shrink-0">
+          <Link to="/ai" onClick={() => setMobileOpen(false)} className="flex items-center gap-2">
+            <img src={logoFull} alt="GlowSuite" className="hidden lg:block h-9 w-auto object-contain" />
+            <img src={logoIcon} alt="GlowSuite" className="lg:hidden h-9 w-9 rounded-xl object-contain" />
+          </Link>
+          <button
+            onClick={() => setMobileOpen(false)}
+            aria-label="Menu sluiten"
+            className="lg:hidden inline-flex items-center justify-center h-10 w-10 rounded-xl hover:bg-secondary active:scale-95 transition"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
-        {/* Pinned AI item */}
-        <div className="px-3 pb-2">
+        {/* Pinned premium AI CTA card */}
+        <div className="px-3 pb-2 shrink-0">
           <Link
-            to={aiItem.path}
+            to="/ai"
             onClick={() => setMobileOpen(false)}
             className={cn(
-              "group relative flex items-center gap-3 px-3 py-2.5 rounded-2xl text-[14px] font-semibold transition-all overflow-hidden",
-              "border border-primary/20",
-              aiActive
-                ? "bg-gradient-to-r from-primary/25 via-fuchsia-500/20 to-primary/15 text-primary shadow-[0_4px_24px_-8px_hsl(var(--primary)/0.45)]"
-                : "bg-gradient-to-r from-primary/10 via-fuchsia-500/10 to-primary/5 text-primary/95 hover:from-primary/15 hover:via-fuchsia-500/15 hover:to-primary/10"
+              "group relative flex items-center gap-3 px-3 py-3 rounded-2xl text-[14px] font-semibold transition-all overflow-hidden",
+              "border border-primary/25 bg-gradient-to-r from-primary/15 via-fuchsia-500/12 to-primary/5",
+              "hover:from-primary/20 hover:via-fuchsia-500/18 hover:to-primary/10 active:scale-[0.99]",
+              location.pathname === "/ai" && !location.hash && "shadow-[0_4px_24px_-8px_hsl(var(--primary)/0.45)]"
             )}
           >
-            <Sparkles className="w-[18px] h-[18px] shrink-0 text-primary" />
+            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-fuchsia-500 text-white flex items-center justify-center shrink-0 shadow-[0_4px_14px_-4px_hsl(var(--primary)/0.6)]">
+              <Sparkles className="w-4 h-4" />
+            </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <span className="truncate">GlowSuite AI</span>
+                <span className="truncate text-foreground">GlowSuite AI</span>
                 <span className="text-[9.5px] font-semibold px-1.5 py-0.5 rounded-md bg-gradient-to-r from-primary to-fuchsia-500 text-white">
                   AI
                 </span>
               </div>
-              <p className="hidden lg:block text-[10.5px] font-normal text-muted-foreground truncate">
-                Je salon assistent
+              <p className="text-[11px] font-normal text-muted-foreground truncate">
+                Command Center
               </p>
             </div>
           </Link>
         </div>
 
-        <nav className="flex-1 px-3 pb-2">
-          {visibleGroups.map((group) => {
+        {/* Scrollable nav */}
+        <nav className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 pb-4">
+          {visibleGroups.map((group, idx) => {
             const isOpen = openGroups[group.title] ?? false;
             return (
-              <div key={group.title} className="mb-2">
+              <div
+                key={group.title}
+                className={cn(
+                  "mb-1.5",
+                  idx > 0 && "mt-1",
+                  group.ai && "rounded-2xl bg-gradient-to-b from-primary/[0.06] to-transparent border border-primary/15 p-1.5"
+                )}
+              >
                 <button
                   type="button"
                   onClick={() => toggleGroup(group.title)}
-                  className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg group hover:bg-secondary/40 transition"
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-secondary/40 transition"
                 >
-                  <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-semibold">
+                  <span
+                    className={cn(
+                      "text-[10px] uppercase tracking-[0.14em] font-semibold",
+                      group.ai ? "text-primary/90" : "text-muted-foreground/70"
+                    )}
+                  >
                     {group.title}
                   </span>
                   <ChevronDown
                     className={cn(
-                      "w-3.5 h-3.5 text-muted-foreground/60 transition-transform duration-200",
+                      "w-3.5 h-3.5 transition-transform duration-200",
+                      group.ai ? "text-primary/70" : "text-muted-foreground/60",
                       isOpen ? "rotate-0" : "-rotate-90"
                     )}
                   />
@@ -295,21 +333,28 @@ export function AppSidebar() {
           })}
         </nav>
 
-        <div className="p-3 border-t border-border">
+        {/* Sticky bottom user profile */}
+        <div className="p-3 border-t border-border bg-card/95 backdrop-blur-xl shrink-0">
           <div className="flex items-center gap-3 px-2">
-            <img src={logoIcon} alt="GlowSuite" className="w-8 h-8 rounded-lg object-contain" />
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary/20 to-fuchsia-500/20 flex items-center justify-center text-primary font-semibold text-sm shrink-0">
+              {(user?.email?.[0] || "G").toUpperCase()}
+            </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{user?.email?.split("@")[0] || "Gebruiker"}</p>
               <p className="text-xs text-muted-foreground truncate">{user?.email || ""}</p>
             </div>
             <button
               onClick={toggleTheme}
-              className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+              className="p-2 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
               title={theme === "dark" ? "Licht thema" : "Donker thema"}
             >
               {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
-            <button onClick={signOut} className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors" title="Uitloggen">
+            <button
+              onClick={signOut}
+              className="p-2 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+              title="Uitloggen"
+            >
               <LogOut className="w-4 h-4" />
             </button>
           </div>

@@ -220,6 +220,18 @@ export default function GlowSuiteAIPage() {
     });
   }, [rankedCustomers, appointments]);
 
+  // Smooth scroll to anchor when navigating to /ai#insights or /ai#activity
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const hash = window.location.hash.replace("#", "");
+    if (!hash) return;
+    const t = setTimeout(() => {
+      const el = document.getElementById(hash);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 120);
+    return () => clearTimeout(t);
+  }, []);
+
   const heroAction = (
     <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
       <Button
@@ -294,7 +306,7 @@ export default function GlowSuiteAIPage() {
         </Card>
 
         {/* Today insight grid */}
-        <div>
+        <div id="insights" className="scroll-mt-20">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-lg font-semibold">Vandaag in één oogopslag</h3>
             <span className="text-xs text-muted-foreground">{demoMode ? "Demo data" : "Live"}</span>
@@ -395,7 +407,7 @@ export default function GlowSuiteAIPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card id="activity" className="scroll-mt-20">
             <CardHeader className="pb-3">
               <div className="flex items-center gap-2">
                 <Activity className="w-4 h-4 text-primary" />
