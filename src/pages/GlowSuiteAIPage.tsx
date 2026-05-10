@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
-  Sparkles, Bot, Zap, Users, AlertTriangle, Clock, CalendarX, Star,
-  ArrowRight, Loader2, MessageCircle, Gift, RotateCcw, TrendingUp,
+  Sparkles, Zap, AlertTriangle, Clock, CalendarX, Star,
+  ArrowRight, Loader2, MessageCircle, RotateCcw, TrendingUp,
   CheckCircle2, Hourglass, XCircle, Activity,
 } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
@@ -30,14 +30,13 @@ const TONE_STYLES: Record<FeedItem["tone"], string> = {
   info: "bg-primary/10 text-primary",
 };
 
-const ACTION_CARDS = [
-  { title: "Vul lege plekken", desc: "Bied vrijgekomen tijden direct aan klanten op de wachtlijst.", to: "/wachtlijst", icon: Sparkles, impact: "Tot +€250/dag" },
-  { title: "Heractiveer klanten", desc: "Win klanten terug die >30 dagen niet meer geweest zijn.", to: "/herboekingen", icon: RotateCcw, impact: "Hoge ROI" },
-  { title: "WhatsApp campagne", desc: "Verstuur een persoonlijke campagne naar je top klanten.", to: "/whatsapp", icon: MessageCircle, impact: "Snelle conversie" },
-  { title: "Activeer kortingsactie", desc: "Slim getarget aanbod voor stille dagen.", to: "/marketing", icon: Gift, impact: "Vult lege uren" },
-  { title: "Vraag reviews aan", desc: "Verstuur reviewverzoeken na recente afspraken.", to: "/automatiseringen", icon: Star, impact: "Reputatie ↑" },
-  { title: "Follow-up berichten", desc: "Stuur automatische follow-ups naar terugkerende klanten.", to: "/automatiseringen", icon: TrendingUp, impact: "Loyalty ↑" },
-];
+interface ActionCard {
+  title: string;
+  reason: string;
+  to: string;
+  icon: any;
+  impact: string;
+}
 
 export default function GlowSuiteAIPage() {
   const { user } = useAuth();
@@ -62,6 +61,9 @@ export default function GlowSuiteAIPage() {
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [recoveredRevenue, setRecoveredRevenue] = useState(0);
   const [filledCount, setFilledCount] = useState(0);
+  const [pendingPayments, setPendingPayments] = useState(0);
+  const [latestRunAt, setLatestRunAt] = useState<string | null>(null);
+  const [latestRunStatus, setLatestRunStatus] = useState<string | null>(null);
 
   // Today range
   const sinceIso = useMemo(() => {
@@ -113,6 +115,11 @@ export default function GlowSuiteAIPage() {
           .reduce((sum, p) => sum + Number(p.amount || 0), 0);
         setRecoveredRevenue(revenue);
         setFilledCount(offers.filter((o) => o.status === "paid").length);
+        setPendingPayments(offers.filter((o) => o.status === "pending_payment").length);
+        if (runs.length > 0) {
+          setLatestRunAt(runs[0].started_at);
+          setLatestRunStatus(runs[0].status);
+        }
 
         // Combine into one chronological feed
         const items: FeedItem[] = [];
@@ -183,13 +190,21 @@ export default function GlowSuiteAIPage() {
     { label: "Potentiële extra omzet", value: formatEuro(projectedExtraRevenue), icon: TrendingUp, accent: "from-emerald-500/15 to-emerald-500/0 text-emerald-600 dark:text-emerald-400" },
     { label: "Lege plekken vandaag", value: emptySlots, icon: CalendarX, accent: "from-primary/15 to-primary/0 text-primary" },
     { label: "Churn risico klanten", value: intelligence.churnRisk, icon: AlertTriangle, accent: "from-amber-500/15 to-amber-500/0 text-amber-600 dark:text-amber-400" },
-    { label: "Klaar voor follow-up", value: intelligence.followUp, icon: Clock, accent: "from-primary/15 to-primary/0 text-primary" },
-    { label: "No-show risico's", value: intelligence.noShowRisk, icon: XCircle, accent: "from-rose-500/15 to-rose-500/0 text-rose-600 dark:text-rose-400" },
-    { label: "AI acties vandaag", value: filledCount, icon: Sparkles, accent: "from-primary/15 to-primary/0 text-primary" },
+    { label: "Follow-ups klaar", value: intelligence.followUp, icon: Clock, accent: "from-primary/15 to-primary/0 text-primary" },
+    { label: "Wacht op betaling", value: pendingPayments, icon: Hourglass, accent: "from-violet-500/15 to-violet-500/0 text-violet-600 dark:text-violet-400" },
+    { label: "No-show risico", value: intelligence.noShowRisk, icon: XCircle, accent: "from-rose-500/15 to-rose-500/0 text-rose-600 dark:text-rose-400" },
+  ];
+
+  const ACTION_CARDS: ActionCard[] = [
+    { title: "Vul lege plekken", reason: `${emptySlots} open uren vandaag`, to: "/wachtlijst", icon: Sparkles, impact: `Tot ${formatEuro(projectedExtraRevenue)} extra` },
+    { title: "Heractiveer klanten", reason: `${inactiveCustomers.length} klanten >30 dagen weg`, to: "/herboekingen", icon: RotateCcw, impact: "Hoge ROI" },
+    { title: "Verstuur follow-up", reason: `${intelligence.followUp} klanten klaar voor follow-up`, to: "/automatiseringen", icon: MessageCircle, impact: "Loyalty ↑" },
+    { title: "Vraag reviews aan", reason: "Recente afspraken zonder review", to: "/automatiseringen", icon: Star, impact: "Reputatie ↑" },
+    { title: "Check wachtlijst", reason: "Klanten die wachten op een plek", to: "/wachtlijst", icon: Clock, impact: "Snelle conversie" },
   ];
 
   const topCustomers = useMemo(() => {
-    return rankedCustomers.slice(0, 6).map((rc: any) => {
+    return rankedCustomers.slice(0, 5).map((rc: any) => {
       const c = rc.customer;
       const visits = (appointments as any[]).filter(
         (a) => a.customer_id === c.id && a.status !== "geannuleerd",
@@ -258,8 +273,8 @@ export default function GlowSuiteAIPage() {
         )}
       </Button>
       <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
-        <Link to="/automatiseringen">
-          <Bot className="w-4 h-4" /> Automatiseringen
+        <Link to="/auto-revenue">
+          <Zap className="w-4 h-4" /> Bekijk Auto Revenue
         </Link>
       </Button>
     </div>
@@ -283,14 +298,30 @@ export default function GlowSuiteAIPage() {
           <CardContent className="relative p-6 sm:p-8">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
               <div className="max-w-2xl">
-                <Badge variant="outline" className="mb-3 border-primary/30 bg-primary/10 text-primary">
-                  <Sparkles className="w-3 h-3 mr-1" /> AI Command Center
-                </Badge>
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                  <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">
+                    <Sparkles className="w-3 h-3 mr-1" /> AI Command Center
+                  </Badge>
+                  {demoMode ? (
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                      Demo modus
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
+                      <span className="relative flex h-1.5 w-1.5">
+                        <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500/70 opacity-75 animate-ping" />
+                        <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                      </span>
+                      AI actief
+                    </span>
+                  )}
+                </div>
                 <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-balance">
-                  Eén intelligente assistent voor je hele salon.
+                  GlowSuite AI
                 </h2>
                 <p className="text-sm sm:text-base text-muted-foreground mt-2 leading-relaxed">
-                  GlowSuite AI vult lege plekken, heractiveert klanten en stuurt slimme campagnes — automatisch.
+                  Je AI assistent voor omzet, klanten en planning.
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2 text-xs">
                   <span className="px-2.5 py-1 rounded-full bg-card/60 border border-border text-muted-foreground">
@@ -333,7 +364,7 @@ export default function GlowSuiteAIPage() {
         <div>
           <div className="flex items-center justify-between mb-3">
             <div>
-              <h3 className="text-lg font-semibold">AI acties</h3>
+              <h3 className="text-lg font-semibold">Aanbevolen acties</h3>
               <p className="text-sm text-muted-foreground">Slimme suggesties op basis van je salon vandaag.</p>
             </div>
           </div>
@@ -347,7 +378,7 @@ export default function GlowSuiteAIPage() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold leading-tight">{a.title}</p>
-                      <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{a.desc}</p>
+                      <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{a.reason}</p>
                     </div>
                   </div>
                   <div className="flex items-center justify-between mt-4 pt-3 border-t border-border/60">
@@ -415,15 +446,21 @@ export default function GlowSuiteAIPage() {
             <CardHeader className="pb-3">
               <div className="flex items-center gap-2">
                 <Activity className="w-4 h-4 text-primary" />
-                <CardTitle className="text-lg">Wat AI deed</CardTitle>
+                <CardTitle className="text-lg">Wat GlowSuite AI vandaag deed</CardTitle>
               </div>
-              <CardDescription>De recentste acties.</CardDescription>
+              <CardDescription>De recentste acties van je AI assistent.</CardDescription>
             </CardHeader>
             <CardContent>
               {feed.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-6 text-center">
-                  Nog geen activiteit. Klik op "AI uitvoeren" om te starten.
-                </p>
+                <div className="py-10 px-4 flex flex-col items-center text-center">
+                  <div className="h-12 w-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-3">
+                    <Sparkles className="w-5 h-5" />
+                  </div>
+                  <p className="text-sm font-medium">Nog geen AI activiteit</p>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-[240px] leading-relaxed">
+                    Zodra GlowSuite AI acties uitvoert, zie je ze hier.
+                  </p>
+                </div>
               ) : (
                 <ul className="space-y-3">
                   {feed.map((item) => {
@@ -451,25 +488,60 @@ export default function GlowSuiteAIPage() {
           </Card>
         </div>
 
-        {/* Auto Revenue integration footer */}
-        <Card className="border-primary/15 bg-gradient-to-br from-primary/5 to-transparent">
-          <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
-            <div className="flex items-start sm:items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-primary/15 text-primary flex items-center justify-center shrink-0">
-                <Zap className="w-5 h-5" />
+        {/* Auto Revenue widget */}
+        <Card className="border-primary/15 overflow-hidden">
+          <div
+            className="absolute inset-0 pointer-events-none opacity-60"
+            style={{
+              background:
+                "radial-gradient(600px 200px at 0% 0%, hsl(var(--primary) / 0.10), transparent 60%)",
+            }}
+          />
+          <CardContent className="relative p-5 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
+              <div className="flex items-start gap-3 min-w-0">
+                <div className="h-10 w-10 rounded-xl bg-primary/15 text-primary flex items-center justify-center shrink-0">
+                  <Zap className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-semibold leading-tight">Auto Revenue</p>
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                      {latestRunStatus === "completed" ? "Actief" : latestRunAt ? "Standby" : "Klaar"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {latestRunAt
+                      ? `Laatste run: ${new Date(latestRunAt).toLocaleString("nl-NL", { dateStyle: "short", timeStyle: "short" })}`
+                      : "Nog geen run vandaag"}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="font-semibold leading-tight">Auto Revenue draait op de achtergrond</p>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  Vandaag teruggewonnen: {formatEuro(recoveredRevenue)} · {filledCount} plekken gevuld
-                </p>
+              <Button asChild variant="outline" className="w-full sm:w-auto shrink-0">
+                <Link to="/auto-revenue">
+                  Open Auto Revenue <ArrowRight className="w-4 h-4" />
+                </Link>
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-5">
+              <div className="rounded-xl border border-border/70 bg-card/50 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Verwachte omzet</p>
+                <p className="text-base font-semibold tabular-nums mt-0.5">{formatEuro(projectedExtraRevenue)}</p>
+              </div>
+              <div className="rounded-xl border border-border/70 bg-card/50 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Teruggewonnen</p>
+                <p className="text-base font-semibold tabular-nums mt-0.5 text-emerald-600 dark:text-emerald-400">{formatEuro(recoveredRevenue)}</p>
+              </div>
+              <div className="rounded-xl border border-border/70 bg-card/50 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Plekken gevuld</p>
+                <p className="text-base font-semibold tabular-nums mt-0.5">{filledCount}</p>
+              </div>
+              <div className="rounded-xl border border-border/70 bg-card/50 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Wacht op betaling</p>
+                <p className="text-base font-semibold tabular-nums mt-0.5">{pendingPayments}</p>
               </div>
             </div>
-            <Button asChild variant="outline" className="w-full sm:w-auto">
-              <Link to="/auto-revenue">
-                Open Auto Revenue <ArrowRight className="w-4 h-4" />
-              </Link>
-            </Button>
           </CardContent>
         </Card>
       </div>
