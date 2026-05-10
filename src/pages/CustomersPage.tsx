@@ -194,9 +194,11 @@ export default function CustomersPage() {
                   <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/50"><Phone className="w-4 h-4 text-muted-foreground" /><span className="text-sm">{selectedCustomer.phone || '—'}</span></div>
                   <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/50"><Mail className="w-4 h-4 text-muted-foreground" /><span className="text-sm">{selectedCustomer.email || '—'}</span></div>
                 </div>
-                {/* Customer Value Intelligence */}
+                {/* AI-powered customer intelligence */}
                 <div className="mb-6">
-                  <CustomerValueIntel customer={selectedCustomer} appointments={appointments} services={services} />
+                  {intelById.get(selectedCustomer.id) ? (
+                    <CustomerAIProfile intel={intelById.get(selectedCustomer.id)!} />
+                  ) : null}
                 </div>
                 {/* No-show score */}
                 {((selectedCustomer.no_show_count || 0) > 0 || (selectedCustomer.cancellation_count || 0) > 0) && (
