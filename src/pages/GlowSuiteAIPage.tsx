@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import {
   Sparkles, Bot, Zap, Users, AlertTriangle, Clock, CalendarX, Star,
   ArrowRight, Loader2, MessageCircle, Gift, RotateCcw, TrendingUp,
@@ -41,6 +41,7 @@ const ACTION_CARDS = [
 
 export default function GlowSuiteAIPage() {
   const { user } = useAuth();
+  const location = useLocation();
   const { demoMode } = useDemoMode();
   const { data: customers } = useCustomers();
   const { data: appointments } = useAppointments();
@@ -223,14 +224,17 @@ export default function GlowSuiteAIPage() {
   // Smooth scroll to anchor when navigating to /ai#insights or /ai#activity
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const hash = window.location.hash.replace("#", "");
-    if (!hash) return;
+    const hash = location.hash.replace("#", "");
+    if (!hash) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
     const t = setTimeout(() => {
       const el = document.getElementById(hash);
       if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 120);
     return () => clearTimeout(t);
-  }, []);
+  }, [location.hash]);
 
   const heroAction = (
     <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">

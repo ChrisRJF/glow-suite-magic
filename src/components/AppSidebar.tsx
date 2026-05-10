@@ -22,6 +22,7 @@ interface NavItem {
   badge?: string;
   accent?: boolean;
   ai?: boolean;
+  live?: boolean;
   ownerOnly?: boolean;
   staffOnly?: boolean;
 }
@@ -38,12 +39,11 @@ interface NavGroup {
 // ───────────────────────────────────────────────────────────
 const navGroups: NavGroup[] = [
   {
-    title: "GlowSuite AI",
+    title: "AI Systemen",
     ai: true,
     defaultOpen: true,
     items: [
-      { label: "AI Command Center", icon: Sparkles, path: "/ai", ai: true, badge: "AI" },
-      { label: "Auto Revenue", icon: Flame, path: "/auto-revenue", accent: true },
+      { label: "Auto Revenue", icon: Flame, path: "/auto-revenue", accent: true, live: true },
       { label: "Omzet Autopilot", icon: Zap, path: "/acties" },
       { label: "AI Insights", icon: Brain, path: "/ai#insights", routePath: "/ai" },
       { label: "AI Activiteit", icon: Activity, path: "/ai#activity", routePath: "/ai" },
@@ -209,6 +209,15 @@ export function AppSidebar() {
         )}
         <item.icon className={cn("w-[18px] h-[18px] shrink-0", item.ai && "text-primary", item.accent && !item.ai && "text-primary/85")} />
         <span className="flex-1 truncate">{item.label}</span>
+        {item.live && (
+          <span className="inline-flex items-center gap-1 text-[9.5px] font-semibold px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500/70 opacity-75 animate-ping" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            </span>
+            LIVE
+          </span>
+        )}
         {item.badge && (
           <span
             className={cn(
@@ -262,21 +271,23 @@ export function AppSidebar() {
         </div>
 
         {/* Pinned premium AI CTA card */}
-        <div className="px-3 pb-2 shrink-0">
+        <div className="px-3 pb-3 shrink-0">
           <Link
             to="/ai"
             onClick={() => setMobileOpen(false)}
             className={cn(
-              "group relative flex items-center gap-3 px-3 py-3 rounded-2xl text-[14px] font-semibold transition-all overflow-hidden",
-              "border border-primary/25 bg-gradient-to-r from-primary/15 via-fuchsia-500/12 to-primary/5",
-              "hover:from-primary/20 hover:via-fuchsia-500/18 hover:to-primary/10 active:scale-[0.99]",
-              location.pathname === "/ai" && !location.hash && "shadow-[0_4px_24px_-8px_hsl(var(--primary)/0.45)]"
+              "group relative flex items-center gap-3 px-3.5 py-3.5 rounded-2xl text-[14px] font-semibold transition-all overflow-hidden",
+              "border border-primary/20 bg-gradient-to-br from-primary/12 via-fuchsia-500/10 to-primary/[0.04]",
+              "shadow-[0_8px_28px_-12px_hsl(var(--primary)/0.35)] hover:shadow-[0_10px_32px_-10px_hsl(var(--primary)/0.5)]",
+              "hover:from-primary/18 hover:via-fuchsia-500/15 hover:to-primary/8 active:scale-[0.99]",
+              location.pathname === "/ai" && !location.hash && "ring-1 ring-primary/30"
             )}
           >
+            <div className="absolute -top-8 -right-8 h-24 w-24 rounded-full bg-primary/20 blur-2xl pointer-events-none" />
             <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-fuchsia-500 text-white flex items-center justify-center shrink-0 shadow-[0_4px_14px_-4px_hsl(var(--primary)/0.6)]">
               <Sparkles className="w-4 h-4" />
             </div>
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 relative">
               <div className="flex items-center gap-2">
                 <span className="truncate text-foreground">GlowSuite AI</span>
                 <span className="text-[9.5px] font-semibold px-1.5 py-0.5 rounded-md bg-gradient-to-r from-primary to-fuchsia-500 text-white">
@@ -336,7 +347,7 @@ export function AppSidebar() {
 
         {/* Sticky bottom user profile */}
         <div className="p-3 border-t border-border bg-card/95 backdrop-blur-xl shrink-0">
-          <div className="flex items-center gap-3 px-2">
+          <div className="flex items-center gap-2 pl-2 pr-3">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary/20 to-fuchsia-500/20 flex items-center justify-center text-primary font-semibold text-sm shrink-0">
               {(user?.email?.[0] || "G").toUpperCase()}
             </div>
