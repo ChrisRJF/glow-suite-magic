@@ -378,7 +378,7 @@ export default function GlowSuiteAIPage() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold leading-tight">{a.title}</p>
-                      <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{a.desc}</p>
+                      <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{a.reason}</p>
                     </div>
                   </div>
                   <div className="flex items-center justify-between mt-4 pt-3 border-t border-border/60">
