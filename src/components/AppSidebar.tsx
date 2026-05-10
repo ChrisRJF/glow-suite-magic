@@ -4,9 +4,9 @@ import {
   LayoutDashboard, Calendar, Users, Scissors, X, Globe,
   MessageCircle, CreditCard, TrendingUp, RefreshCw, Megaphone,
   Zap, ShoppingBag, Package, BarChart3, Settings, HelpCircle, LogOut,
-  Sun, Moon, Bot, Clock, Gift, ShoppingCart, Share2, UserPlus, Crown, RotateCcw, Mail, Wallet, Flame, Sparkles,
+  Sun, Moon, Bot, Clock, Gift, ShoppingCart, Share2, UserPlus, Crown, RotateCcw, Mail, Wallet, Flame, Sparkles, ChevronDown, Database, ShieldCheck, Rocket,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useUserRole, canAccessRoute } from "@/hooks/useUserRole";
@@ -19,45 +19,48 @@ interface NavItem {
   path: string;
   badge?: string;
   accent?: boolean;
+  ai?: boolean;
+  ownerOnly?: boolean;
+  staffOnly?: boolean;
 }
 
 interface NavGroup {
   title: string;
   items: NavItem[];
+  defaultOpenMobile?: boolean;
 }
+
+const aiItem: NavItem = {
+  label: "GlowSuite AI",
+  icon: Sparkles,
+  path: "/ai",
+  badge: "AI",
+  ai: true,
+};
 
 const navGroups: NavGroup[] = [
   {
-    title: "Hoofdmenu",
+    title: "Operatie",
+    defaultOpenMobile: true,
     items: [
       { label: "Overzicht", icon: LayoutDashboard, path: "/" },
-      { label: "GlowSuite AI", icon: Sparkles, path: "/ai", accent: true, badge: "AI" },
       { label: "Agenda", icon: Calendar, path: "/agenda" },
       { label: "Klanten", icon: Users, path: "/klanten" },
       { label: "Medewerkers", icon: UserPlus, path: "/medewerkers" },
-      { label: "Omzet", icon: TrendingUp, path: "/omzet" },
+      { label: "Behandelingen", icon: Scissors, path: "/behandelingen" },
+      { label: "Online Boeken", icon: Globe, path: "/boeken" },
     ],
   },
   {
     title: "Groei",
     items: [
       { label: "Marketing", icon: Megaphone, path: "/marketing" },
-      { label: "Social Studio", icon: Share2, path: "/social-studio" },
+      { label: "WhatsApp", icon: MessageCircle, path: "/whatsapp" },
       { label: "Leads", icon: UserPlus, path: "/leads" },
       { label: "Wachtlijst", icon: Clock, path: "/wachtlijst" },
       { label: "Herboekingen", icon: RefreshCw, path: "/herboekingen" },
-      { label: "WhatsApp", icon: MessageCircle, path: "/whatsapp" },
+      { label: "Social Studio", icon: Share2, path: "/social-studio" },
       { label: "Automations", icon: Bot, path: "/automatiseringen" },
-    ],
-  },
-  {
-    title: "Financiën",
-    items: [
-      { label: "Eigenaar", icon: Crown, path: "/eigenaar", accent: true },
-      { label: "Payroll", icon: Wallet, path: "/payroll" },
-      { label: "Rapporten", icon: BarChart3, path: "/rapporten" },
-      { label: "GlowPay", icon: CreditCard, path: "/glowpay", accent: true },
-      { label: "Refunds", icon: RotateCcw, path: "/refunds" },
     ],
   },
   {
@@ -68,22 +71,37 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    title: "Beheer",
+    title: "Commerce",
     items: [
-      { label: "Behandelingen", icon: Scissors, path: "/behandelingen" },
-      { label: "Online Boeken", icon: Globe, path: "/boeken" },
+      { label: "GlowPay", icon: CreditCard, path: "/glowpay", accent: true },
       { label: "Kassa", icon: ShoppingBag, path: "/kassa" },
       { label: "Producten", icon: Package, path: "/producten" },
-      { label: "Cadeaubonnen", icon: Gift, path: "/cadeaubonnen" },
       { label: "Webshop", icon: ShoppingCart, path: "/webshop" },
+      { label: "Cadeaubonnen", icon: Gift, path: "/cadeaubonnen" },
       { label: "Abonnementen", icon: CreditCard, path: "/abonnementen" },
     ],
   },
-];
-
-const bottomItems: NavItem[] = [
-  { label: "Instellingen", icon: Settings, path: "/instellingen" },
-  { label: "Support", icon: HelpCircle, path: "/support" },
+  {
+    title: "Finance",
+    items: [
+      { label: "Omzet", icon: TrendingUp, path: "/omzet" },
+      { label: "Eigenaar", icon: Crown, path: "/eigenaar", accent: true },
+      { label: "Payroll", icon: Wallet, path: "/payroll" },
+      { label: "Rapporten", icon: BarChart3, path: "/rapporten" },
+      { label: "Refunds", icon: RotateCcw, path: "/refunds" },
+    ],
+  },
+  {
+    title: "Beheer",
+    items: [
+      { label: "Instellingen", icon: Settings, path: "/instellingen" },
+      { label: "Launch Status", icon: Rocket, path: "/launch-status", ownerOnly: true },
+      { label: "QA Status", icon: ShieldCheck, path: "/qa-status", staffOnly: true },
+      { label: "Email previews", icon: Mail, path: "/admin/email-templates", staffOnly: true },
+      { label: "Demo verzoeken", icon: Database, path: "/admin/demo-requests", staffOnly: true },
+      { label: "Support", icon: HelpCircle, path: "/support" },
+    ],
+  },
 ];
 
 export function AppSidebar() {
@@ -93,22 +111,102 @@ export function AppSidebar() {
   const { theme, toggleTheme } = useTheme();
   const { roles, isOwner } = useUserRole();
 
-  // Filter nav items by role permissions
-  const visibleGroups = navGroups
-    .map((group) => ({
-      ...group,
-      items: group.items.filter((item) => canAccessRoute(item.path, roles)),
-    }))
-    .filter((group) => group.items.length > 0);
+  const isStaffAdmin = roles.some((r) => ["eigenaar", "manager", "admin"].includes(r));
 
-  const visibleBottom = bottomItems.filter((item) => canAccessRoute(item.path, roles));
+  const visibleGroups = useMemo(
+    () =>
+      navGroups
+        .map((group) => ({
+          ...group,
+          items: group.items.filter((item) => {
+            if (item.ownerOnly && !isOwner) return false;
+            if (item.staffOnly && !isStaffAdmin) return false;
+            return canAccessRoute(item.path, roles);
+          }),
+        }))
+        .filter((group) => group.items.length > 0),
+    [roles, isOwner, isStaffAdmin]
+  );
 
-  // Listen for open events from the mobile topbar
+  // Track which group contains the active route to auto-open it
+  const activeGroupTitle = useMemo(() => {
+    for (const g of visibleGroups) {
+      if (g.items.some((i) => i.path === location.pathname)) return g.title;
+    }
+    return null;
+  }, [visibleGroups, location.pathname]);
+
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+
+  // Initialize / sync defaults whenever the active group changes
+  useEffect(() => {
+    setOpenGroups((prev) => {
+      const next = { ...prev };
+      for (const g of visibleGroups) {
+        if (next[g.title] === undefined) {
+          next[g.title] = g.defaultOpenMobile === true || g.title === activeGroupTitle;
+        }
+      }
+      if (activeGroupTitle) next[activeGroupTitle] = true;
+      return next;
+    });
+  }, [activeGroupTitle, visibleGroups]);
+
   useEffect(() => {
     const open = () => setMobileOpen(true);
     window.addEventListener("glowsuite:open-sidebar", open);
     return () => window.removeEventListener("glowsuite:open-sidebar", open);
   }, []);
+
+  const toggleGroup = (title: string) =>
+    setOpenGroups((p) => ({ ...p, [title]: !p[title] }));
+
+  const renderItem = (item: NavItem) => {
+    const isActive = location.pathname === item.path;
+    const tourAttr = item.path === "/eigenaar" ? "owner-mode" : undefined;
+    return (
+      <Link
+        key={item.path}
+        to={item.path}
+        data-tour={tourAttr}
+        onClick={() => setMobileOpen(false)}
+        className={cn(
+          "relative flex items-center gap-3 px-3 py-1.5 rounded-xl text-[13.5px] transition-all duration-150",
+          isActive
+            ? item.ai
+              ? "bg-gradient-to-r from-primary/20 via-fuchsia-500/15 to-primary/10 text-primary font-semibold shadow-[0_0_0_1px_hsl(var(--primary)/0.15)]"
+              : "bg-secondary text-foreground font-semibold"
+            : "text-muted-foreground hover:text-foreground hover:bg-secondary/60",
+          item.ai && !isActive && "text-primary/90 hover:text-primary",
+          item.accent && !isActive && !item.ai && "text-primary/85"
+        )}
+      >
+        {isActive && !item.ai && (
+          <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-primary" />
+        )}
+        <item.icon className={cn("w-[17px] h-[17px] shrink-0", item.ai && "text-primary")} />
+        <span className="flex-1 truncate">{item.label}</span>
+        {item.badge && (
+          <span
+            className={cn(
+              "text-[9.5px] font-semibold px-1.5 py-0.5 rounded-md",
+              item.ai
+                ? "bg-gradient-to-r from-primary to-fuchsia-500 text-white"
+                : isActive
+                ? "bg-primary/20 text-primary"
+                : item.accent
+                ? "bg-primary/15 text-primary"
+                : "bg-secondary text-muted-foreground"
+            )}
+          >
+            {item.badge}
+          </span>
+        )}
+      </Link>
+    );
+  };
+
+  const aiActive = location.pathname === aiItem.path;
 
   return (
     <>
@@ -139,123 +237,63 @@ export function AppSidebar() {
           <img src={logoIcon} alt="GlowSuite" className="lg:hidden h-9 w-9 rounded-xl object-contain" />
         </div>
 
-        <nav className="flex-1 px-3 py-2">
-          {visibleGroups.map((group) => (
-            <div key={group.title} className="mb-5">
-              <p className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground/60 font-semibold px-3 mb-2">
-                {group.title}
-              </p>
-              <div className="flex flex-col gap-0.5">
-                {group.items.map((item) => {
-                  const isActive = location.pathname === item.path;
-                  const tourAttr = item.path === "/eigenaar" ? "owner-mode" : undefined;
-                  return (
-                    <Link
-                      key={item.path}
-                      to={item.path}
-                      data-tour={tourAttr}
-                      onClick={() => setMobileOpen(false)}
-                      className={cn(
-                        "relative flex items-center gap-3 px-3 py-2 rounded-xl text-[14px] transition-all duration-150",
-                        isActive
-                          ? "bg-primary/12 text-primary font-semibold"
-                          : "text-muted-foreground hover:text-foreground hover:bg-secondary/60",
-                        item.accent && !isActive && "text-primary/85"
-                      )}
-                    >
-                      {isActive && (
-                        <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-primary" />
-                      )}
-                      <item.icon className="w-[18px] h-[18px] shrink-0" />
-                      <span className="flex-1">{item.label}</span>
-                      {item.badge && (
-                        <span
-                          className={cn(
-                            "text-[10px] font-semibold px-1.5 py-0.5 rounded-md",
-                            isActive
-                              ? "bg-primary/20 text-primary"
-                              : item.accent
-                              ? "bg-primary/15 text-primary"
-                              : "bg-secondary text-muted-foreground"
-                          )}
-                        >
-                          {item.badge}
-                        </span>
-                      )}
-                    </Link>
-                  );
-                })}
+        {/* Pinned AI item */}
+        <div className="px-3 pb-2">
+          <Link
+            to={aiItem.path}
+            onClick={() => setMobileOpen(false)}
+            className={cn(
+              "group relative flex items-center gap-3 px-3 py-2.5 rounded-2xl text-[14px] font-semibold transition-all overflow-hidden",
+              "border border-primary/20",
+              aiActive
+                ? "bg-gradient-to-r from-primary/25 via-fuchsia-500/20 to-primary/15 text-primary shadow-[0_4px_24px_-8px_hsl(var(--primary)/0.45)]"
+                : "bg-gradient-to-r from-primary/10 via-fuchsia-500/10 to-primary/5 text-primary/95 hover:from-primary/15 hover:via-fuchsia-500/15 hover:to-primary/10"
+            )}
+          >
+            <Sparkles className="w-[18px] h-[18px] shrink-0 text-primary" />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="truncate">GlowSuite AI</span>
+                <span className="text-[9.5px] font-semibold px-1.5 py-0.5 rounded-md bg-gradient-to-r from-primary to-fuchsia-500 text-white">
+                  AI
+                </span>
               </div>
+              <p className="hidden lg:block text-[10.5px] font-normal text-muted-foreground truncate">
+                Je salon assistent
+              </p>
             </div>
-          ))}
-        </nav>
+          </Link>
+        </div>
 
-        <div className="px-3 pb-2 border-t border-border pt-2">
-          {isOwner && (
-            <Link
-              to="/launch-status"
-              onClick={() => setMobileOpen(false)}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all",
-                location.pathname === "/launch-status"
-                  ? "bg-primary/15 text-primary font-medium"
-                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-              )}
-            >
-              <Settings className="w-[18px] h-[18px]" />
-              <span>Launch Status</span>
-            </Link>
-          )}
-          {roles.some((role) => ["eigenaar", "manager", "admin"].includes(role)) && (
-            <>
-              <Link
-                to="/admin/email-templates"
-                onClick={() => setMobileOpen(false)}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all",
-                  location.pathname === "/admin/email-templates"
-                    ? "bg-primary/15 text-primary font-medium"
-                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-                )}
-              >
-                <Mail className="w-[18px] h-[18px]" />
-                <span>Email previews</span>
-              </Link>
-              <Link
-                to="/qa-status"
-                onClick={() => setMobileOpen(false)}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all",
-                  location.pathname === "/qa-status"
-                    ? "bg-primary/15 text-primary font-medium"
-                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-                )}
-              >
-                <Settings className="w-[18px] h-[18px]" />
-                <span>QA Status</span>
-              </Link>
-            </>
-          )}
-          {visibleBottom.map((item) => {
-            const isActive = location.pathname === item.path;
+        <nav className="flex-1 px-3 pb-2">
+          {visibleGroups.map((group) => {
+            const isOpen = openGroups[group.title] ?? false;
             return (
-              <Link
-                key={item.path}
-                to={item.path}
-                onClick={() => setMobileOpen(false)}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all",
-                  isActive
-                    ? "bg-primary/15 text-primary font-medium"
-                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+              <div key={group.title} className="mb-2">
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(group.title)}
+                  className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg group hover:bg-secondary/40 transition"
+                >
+                  <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 font-semibold">
+                    {group.title}
+                  </span>
+                  <ChevronDown
+                    className={cn(
+                      "w-3.5 h-3.5 text-muted-foreground/60 transition-transform duration-200",
+                      isOpen ? "rotate-0" : "-rotate-90"
+                    )}
+                  />
+                </button>
+                {isOpen && (
+                  <div className="flex flex-col gap-0.5 mt-1">
+                    {group.items.map(renderItem)}
+                  </div>
                 )}
-              >
-                <item.icon className="w-[18px] h-[18px]" />
-                <span>{item.label}</span>
-              </Link>
+              </div>
             );
           })}
-        </div>
+        </nav>
 
         <div className="p-3 border-t border-border">
           <div className="flex items-center gap-3 px-2">
