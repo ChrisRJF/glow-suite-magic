@@ -200,25 +200,7 @@ export default function CustomersPage() {
                     <CustomerAIProfile intel={intelById.get(selectedCustomer.id)!} />
                   ) : null}
                 </div>
-                {/* No-show score */}
-                {((selectedCustomer.no_show_count || 0) > 0 || (selectedCustomer.cancellation_count || 0) > 0) && (
-                  <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 mb-4">
-                    <p className="text-xs font-medium text-destructive">⚠️ No-show: {selectedCustomer.no_show_count || 0} · Annuleringen: {selectedCustomer.cancellation_count || 0}</p>
-                  </div>
-                )}
                 {selectedCustomer.notes && <div className="p-3 rounded-xl bg-secondary/50 mb-4"><p className="text-xs text-muted-foreground mb-1">Notities</p><p className="text-sm">{selectedCustomer.notes}</p></div>}
-                {selectedIntel.custAppts.length > 0 && (
-                  <div className="mb-4">
-                    <p className="text-xs text-muted-foreground mb-2">Laatste afspraken</p>
-                    {selectedIntel.custAppts.slice(0, 3).map(a => (
-                      <div key={a.id} className="flex justify-between text-xs py-1.5 border-b border-border last:border-0">
-                        <span>{new Date(a.appointment_date).toLocaleDateString('nl-NL')}</span>
-                        <span className="text-muted-foreground">{a.status}</span>
-                        <span className="font-medium">{formatEuro(Number(a.price) || 0)}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </>
             )}
           </div>
