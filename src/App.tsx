@@ -9,6 +9,7 @@ import { RoleProtectedRoute } from "@/components/RoleProtectedRoute";
 import DashboardPage from "./pages/DashboardPage";
 import CalendarPage from "./pages/CalendarPage";
 import CustomersPage from "./pages/CustomersPage";
+import CustomerSegmentsPage from "./pages/CustomerSegmentsPage";
 import ServicesPage from "./pages/ServicesPage";
 import BookingPage from "./pages/BookingPage";
 import WhatsAppPage from "./pages/WhatsAppPage";
@@ -118,6 +119,7 @@ const App = () => (
               <Route path="/prijzen" element={<PricingPage />} />
               <Route path="/agenda" element={<RoleProtectedRoute><CalendarPage /></RoleProtectedRoute>} />
               <Route path="/klanten" element={<RoleProtectedRoute><CustomersPage /></RoleProtectedRoute>} />
+              <Route path="/segmenten" element={<RoleProtectedRoute><CustomerSegmentsPage /></RoleProtectedRoute>} />
               <Route path="/behandelingen" element={<RoleProtectedRoute><ServicesPage /></RoleProtectedRoute>} />
               <Route path="/whatsapp" element={<RoleProtectedRoute><WhatsAppPage /></RoleProtectedRoute>} />
               <Route path="/abonnementen" element={<RoleProtectedRoute><MembershipsPage /></RoleProtectedRoute>} />
