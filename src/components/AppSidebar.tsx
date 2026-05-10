@@ -271,21 +271,23 @@ export function AppSidebar() {
         </div>
 
         {/* Pinned premium AI CTA card */}
-        <div className="px-3 pb-2 shrink-0">
+        <div className="px-3 pb-3 shrink-0">
           <Link
             to="/ai"
             onClick={() => setMobileOpen(false)}
             className={cn(
-              "group relative flex items-center gap-3 px-3 py-3 rounded-2xl text-[14px] font-semibold transition-all overflow-hidden",
-              "border border-primary/25 bg-gradient-to-r from-primary/15 via-fuchsia-500/12 to-primary/5",
-              "hover:from-primary/20 hover:via-fuchsia-500/18 hover:to-primary/10 active:scale-[0.99]",
-              location.pathname === "/ai" && !location.hash && "shadow-[0_4px_24px_-8px_hsl(var(--primary)/0.45)]"
+              "group relative flex items-center gap-3 px-3.5 py-3.5 rounded-2xl text-[14px] font-semibold transition-all overflow-hidden",
+              "border border-primary/20 bg-gradient-to-br from-primary/12 via-fuchsia-500/10 to-primary/[0.04]",
+              "shadow-[0_8px_28px_-12px_hsl(var(--primary)/0.35)] hover:shadow-[0_10px_32px_-10px_hsl(var(--primary)/0.5)]",
+              "hover:from-primary/18 hover:via-fuchsia-500/15 hover:to-primary/8 active:scale-[0.99]",
+              location.pathname === "/ai" && !location.hash && "ring-1 ring-primary/30"
             )}
           >
+            <div className="absolute -top-8 -right-8 h-24 w-24 rounded-full bg-primary/20 blur-2xl pointer-events-none" />
             <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-fuchsia-500 text-white flex items-center justify-center shrink-0 shadow-[0_4px_14px_-4px_hsl(var(--primary)/0.6)]">
               <Sparkles className="w-4 h-4" />
             </div>
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 relative">
               <div className="flex items-center gap-2">
                 <span className="truncate text-foreground">GlowSuite AI</span>
                 <span className="text-[9.5px] font-semibold px-1.5 py-0.5 rounded-md bg-gradient-to-r from-primary to-fuchsia-500 text-white">
