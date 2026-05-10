@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
-  Sparkles, Bot, Zap, Users, AlertTriangle, Clock, CalendarX, Star,
-  ArrowRight, Loader2, MessageCircle, Gift, RotateCcw, TrendingUp,
+  Sparkles, Zap, AlertTriangle, Clock, CalendarX, Star,
+  ArrowRight, Loader2, MessageCircle, RotateCcw, TrendingUp,
   CheckCircle2, Hourglass, XCircle, Activity,
 } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
