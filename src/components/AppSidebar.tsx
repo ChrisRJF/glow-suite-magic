@@ -347,7 +347,7 @@ export function AppSidebar() {
 
         {/* Sticky bottom user profile */}
         <div className="p-3 border-t border-border bg-card/95 backdrop-blur-xl shrink-0">
-          <div className="flex items-center gap-3 px-2">
+          <div className="flex items-center gap-2 pl-2 pr-3">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary/20 to-fuchsia-500/20 flex items-center justify-center text-primary font-semibold text-sm shrink-0">
               {(user?.email?.[0] || "G").toUpperCase()}
             </div>
