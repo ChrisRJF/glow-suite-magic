@@ -18,6 +18,7 @@ export default function CustomersPage() {
   const { data: customers, loading, refetch } = useCustomers();
   const { data: appointments } = useAppointments();
   const { data: services } = useServices();
+  const { byId: intelById } = useCustomerIntelligence();
   const { insert, update, remove } = useCrud("customers");
   const { can } = useUserRole();
   const [searchParams] = useSearchParams();
