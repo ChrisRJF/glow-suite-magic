@@ -41,6 +41,7 @@ const ACTION_CARDS = [
 
 export default function GlowSuiteAIPage() {
   const { user } = useAuth();
+  const location = useLocation();
   const { demoMode } = useDemoMode();
   const { data: customers } = useCustomers();
   const { data: appointments } = useAppointments();
