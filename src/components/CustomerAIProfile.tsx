@@ -346,56 +346,8 @@ export function CustomerAIProfile({ intel }: Props) {
         </div>
       )}
 
-      {/* Timeline */}
-      {intel.appointments.length > 0 && (
-        <div>
-          <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-2">
-            Tijdlijn
-          </p>
-          <div className="space-y-1.5">
-            {intel.appointments.slice(0, 6).map((a) => {
-              const d = new Date(a.appointment_date);
-              const isPast = d.getTime() < Date.now();
-              const tone =
-                a.status === "geannuleerd"
-                  ? "destructive"
-                  : a.status === "no-show"
-                  ? "warning"
-                  : !isPast
-                  ? "primary"
-                  : "success";
-              const toneDot = {
-                primary: "bg-primary",
-                warning: "bg-warning",
-                success: "bg-emerald-500",
-                destructive: "bg-destructive",
-              }[tone];
-              return (
-                <div
-                  key={a.id}
-                  className="flex items-center gap-2.5 p-2 rounded-lg bg-secondary/40 border border-border/60"
-                >
-                  <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", toneDot)} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-medium truncate">
-                      {d.toLocaleDateString("nl-NL", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })}
-                      {a.start_time ? ` · ${a.start_time.slice(0, 5)}` : ""}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground truncate capitalize">{a.status}</p>
-                  </div>
-                  <span className="text-[11px] font-semibold tabular-nums">
-                    {formatEuro(Number(a.price) || 0)}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      {/* Intelligente tijdlijn */}
+      <CustomerTimeline customerId={c.id} appointments={intel.appointments} notes={c.notes || ""} />
 
       {/* Quick AI Actions */}
       <div className="grid grid-cols-2 gap-2 pt-1">
@@ -403,7 +355,7 @@ export function CustomerAIProfile({ intel }: Props) {
           variant="outline"
           size="sm"
           className="h-9 text-xs"
-          onClick={() => navigate(`/whatsapp?customer=${c.id}`)}
+          onClick={() => navigate(`/whatsapp?customer=${c.id}&intent=followup`)}
         >
           <Send className="w-3.5 h-3.5" /> WhatsApp
         </Button>
@@ -427,7 +379,7 @@ export function CustomerAIProfile({ intel }: Props) {
           variant="outline"
           size="sm"
           className="h-9 text-xs"
-          onClick={() => navigate(`/automatiseringen?customer=${c.id}`)}
+          onClick={() => navigate(`/automatiseringen?customer=${c.id}&intent=followup`)}
         >
           <Clock className="w-3.5 h-3.5" /> Follow-up
         </Button>
