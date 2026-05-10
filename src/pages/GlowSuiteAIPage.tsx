@@ -273,8 +273,8 @@ export default function GlowSuiteAIPage() {
         )}
       </Button>
       <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
-        <Link to="/automatiseringen">
-          <Bot className="w-4 h-4" /> Automatiseringen
+        <Link to="/auto-revenue">
+          <Zap className="w-4 h-4" /> Bekijk Auto Revenue
         </Link>
       </Button>
     </div>
