@@ -1,6 +1,6 @@
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
-import { useCustomers, useAppointments, useServices } from "@/hooks/useSupabaseData";
+import { useCustomers, useAppointments } from "@/hooks/useSupabaseData";
 import { useCrud } from "@/hooks/useCrud";
 import { formatEuro } from "@/lib/data";
 import { useState, useMemo, useEffect } from "react";
@@ -17,7 +17,6 @@ import { useCustomerIntelligence } from "@/hooks/useCustomerIntelligence";
 export default function CustomersPage() {
   const { data: customers, loading, refetch } = useCustomers();
   const { data: appointments } = useAppointments();
-  const { data: services } = useServices();
   const { byId: intelById } = useCustomerIntelligence();
   const { insert, update, remove } = useCrud("customers");
   const { can } = useUserRole();
