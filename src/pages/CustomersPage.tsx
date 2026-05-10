@@ -9,9 +9,10 @@ import { Search, Phone, Mail, Calendar, Euro, ArrowRight, X, Plus, Trash2, Penci
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { CustomerValueIntel } from "@/components/CustomerValueIntel";
+import { CustomerAIProfile } from "@/components/CustomerAIProfile";
 import type { Tables } from "@/integrations/supabase/types";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useCustomerIntelligence } from "@/hooks/useCustomerIntelligence";
 
 export default function CustomersPage() {
   const { data: customers, loading, refetch } = useCustomers();
