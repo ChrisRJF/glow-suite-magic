@@ -82,7 +82,7 @@ interface Recommendation {
 
 function buildRecommendations(i: CustomerIntelligence, customerId: string): Recommendation[] {
   const recs: Recommendation[] = [];
-  const route = (path: string) => `${path}?customer=${customerId}`;
+  const cid = encodeURIComponent(customerId);
 
   if (i.churnRisk >= 60) {
     recs.push({
@@ -93,7 +93,7 @@ function buildRecommendations(i: CustomerIntelligence, customerId: string): Reco
       impact: `+${formatEuro(i.avgSpend)} per terugkomst`,
       icon: Sparkles,
       cta: "Win-back sturen",
-      route: route("/marketing"),
+      route: `/marketing?segment=churn&customer=${cid}`,
       tone: "destructive",
     });
   }
@@ -108,7 +108,7 @@ function buildRecommendations(i: CustomerIntelligence, customerId: string): Reco
       impact: `+${formatEuro(i.avgSpend)}`,
       icon: Calendar,
       cta: "Plan afspraak",
-      route: route("/agenda"),
+      route: `/agenda?customer=${cid}`,
       tone: "primary",
     });
   }
@@ -121,7 +121,7 @@ function buildRecommendations(i: CustomerIntelligence, customerId: string): Reco
       impact: `+${formatEuro(i.avgSpend * 3)} jaar`,
       icon: Gift,
       cta: "Open abonnementen",
-      route: route("/abonnementen"),
+      route: `/abonnementen?customer=${cid}`,
       tone: "success",
     });
   }
@@ -134,7 +134,7 @@ function buildRecommendations(i: CustomerIntelligence, customerId: string): Reco
       impact: `+${formatEuro(Math.round(i.avgSpend * 0.4))}`,
       icon: TrendingUp,
       cta: "Stuur voorstel",
-      route: route("/marketing"),
+      route: `/marketing?segment=upsell&customer=${cid}`,
       tone: "primary",
     });
   }
@@ -147,7 +147,7 @@ function buildRecommendations(i: CustomerIntelligence, customerId: string): Reco
       impact: `+social proof`,
       icon: Star,
       cta: "Review vragen",
-      route: route("/whatsapp"),
+      route: `/whatsapp?customer=${cid}&intent=review`,
       tone: "success",
     });
   }
@@ -160,7 +160,7 @@ function buildRecommendations(i: CustomerIntelligence, customerId: string): Reco
       impact: `-€${Math.round(i.avgSpend)} verlies`,
       icon: AlertTriangle,
       cta: "WhatsApp sturen",
-      route: route("/whatsapp"),
+      route: `/whatsapp?customer=${cid}&intent=reminder`,
       tone: "warning",
     });
   }
