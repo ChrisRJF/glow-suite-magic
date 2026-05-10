@@ -446,15 +446,21 @@ export default function GlowSuiteAIPage() {
             <CardHeader className="pb-3">
               <div className="flex items-center gap-2">
                 <Activity className="w-4 h-4 text-primary" />
-                <CardTitle className="text-lg">Wat AI deed</CardTitle>
+                <CardTitle className="text-lg">Wat GlowSuite AI vandaag deed</CardTitle>
               </div>
-              <CardDescription>De recentste acties.</CardDescription>
+              <CardDescription>De recentste acties van je AI assistent.</CardDescription>
             </CardHeader>
             <CardContent>
               {feed.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-6 text-center">
-                  Nog geen activiteit. Klik op "AI uitvoeren" om te starten.
-                </p>
+                <div className="py-10 px-4 flex flex-col items-center text-center">
+                  <div className="h-12 w-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-3">
+                    <Sparkles className="w-5 h-5" />
+                  </div>
+                  <p className="text-sm font-medium">Nog geen AI activiteit</p>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-[240px] leading-relaxed">
+                    Zodra GlowSuite AI acties uitvoert, zie je ze hier.
+                  </p>
+                </div>
               ) : (
                 <ul className="space-y-3">
                   {feed.map((item) => {
@@ -482,25 +488,60 @@ export default function GlowSuiteAIPage() {
           </Card>
         </div>
 
-        {/* Auto Revenue integration footer */}
-        <Card className="border-primary/15 bg-gradient-to-br from-primary/5 to-transparent">
-          <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
-            <div className="flex items-start sm:items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-primary/15 text-primary flex items-center justify-center shrink-0">
-                <Zap className="w-5 h-5" />
+        {/* Auto Revenue widget */}
+        <Card className="border-primary/15 overflow-hidden">
+          <div
+            className="absolute inset-0 pointer-events-none opacity-60"
+            style={{
+              background:
+                "radial-gradient(600px 200px at 0% 0%, hsl(var(--primary) / 0.10), transparent 60%)",
+            }}
+          />
+          <CardContent className="relative p-5 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
+              <div className="flex items-start gap-3 min-w-0">
+                <div className="h-10 w-10 rounded-xl bg-primary/15 text-primary flex items-center justify-center shrink-0">
+                  <Zap className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-semibold leading-tight">Auto Revenue</p>
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                      {latestRunStatus === "completed" ? "Actief" : latestRunAt ? "Standby" : "Klaar"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {latestRunAt
+                      ? `Laatste run: ${new Date(latestRunAt).toLocaleString("nl-NL", { dateStyle: "short", timeStyle: "short" })}`
+                      : "Nog geen run vandaag"}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="font-semibold leading-tight">Auto Revenue draait op de achtergrond</p>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  Vandaag teruggewonnen: {formatEuro(recoveredRevenue)} · {filledCount} plekken gevuld
-                </p>
+              <Button asChild variant="outline" className="w-full sm:w-auto shrink-0">
+                <Link to="/auto-revenue">
+                  Open Auto Revenue <ArrowRight className="w-4 h-4" />
+                </Link>
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-5">
+              <div className="rounded-xl border border-border/70 bg-card/50 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Verwachte omzet</p>
+                <p className="text-base font-semibold tabular-nums mt-0.5">{formatEuro(projectedExtraRevenue)}</p>
+              </div>
+              <div className="rounded-xl border border-border/70 bg-card/50 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Teruggewonnen</p>
+                <p className="text-base font-semibold tabular-nums mt-0.5 text-emerald-600 dark:text-emerald-400">{formatEuro(recoveredRevenue)}</p>
+              </div>
+              <div className="rounded-xl border border-border/70 bg-card/50 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Plekken gevuld</p>
+                <p className="text-base font-semibold tabular-nums mt-0.5">{filledCount}</p>
+              </div>
+              <div className="rounded-xl border border-border/70 bg-card/50 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Wacht op betaling</p>
+                <p className="text-base font-semibold tabular-nums mt-0.5">{pendingPayments}</p>
               </div>
             </div>
-            <Button asChild variant="outline" className="w-full sm:w-auto">
-              <Link to="/auto-revenue">
-                Open Auto Revenue <ArrowRight className="w-4 h-4" />
-              </Link>
-            </Button>
           </CardContent>
         </Card>
       </div>
