@@ -1,6 +1,6 @@
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
-import { useCustomers, useAppointments, useServices } from "@/hooks/useSupabaseData";
+import { useCustomers, useAppointments } from "@/hooks/useSupabaseData";
 import { useCrud } from "@/hooks/useCrud";
 import { formatEuro } from "@/lib/data";
 import { useState, useMemo, useEffect } from "react";
@@ -9,14 +9,15 @@ import { Search, Phone, Mail, Calendar, Euro, ArrowRight, X, Plus, Trash2, Penci
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { CustomerValueIntel } from "@/components/CustomerValueIntel";
+import { CustomerAIProfile } from "@/components/CustomerAIProfile";
 import type { Tables } from "@/integrations/supabase/types";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useCustomerIntelligence } from "@/hooks/useCustomerIntelligence";
 
 export default function CustomersPage() {
   const { data: customers, loading, refetch } = useCustomers();
   const { data: appointments } = useAppointments();
-  const { data: services } = useServices();
+  const { byId: intelById } = useCustomerIntelligence();
   const { insert, update, remove } = useCrud("customers");
   const { can } = useUserRole();
   const [searchParams] = useSearchParams();
@@ -192,29 +193,13 @@ export default function CustomersPage() {
                   <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/50"><Phone className="w-4 h-4 text-muted-foreground" /><span className="text-sm">{selectedCustomer.phone || '—'}</span></div>
                   <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/50"><Mail className="w-4 h-4 text-muted-foreground" /><span className="text-sm">{selectedCustomer.email || '—'}</span></div>
                 </div>
-                {/* Customer Value Intelligence */}
+                {/* AI-powered customer intelligence */}
                 <div className="mb-6">
-                  <CustomerValueIntel customer={selectedCustomer} appointments={appointments} services={services} />
+                  {intelById.get(selectedCustomer.id) ? (
+                    <CustomerAIProfile intel={intelById.get(selectedCustomer.id)!} />
+                  ) : null}
                 </div>
-                {/* No-show score */}
-                {((selectedCustomer.no_show_count || 0) > 0 || (selectedCustomer.cancellation_count || 0) > 0) && (
-                  <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 mb-4">
-                    <p className="text-xs font-medium text-destructive">⚠️ No-show: {selectedCustomer.no_show_count || 0} · Annuleringen: {selectedCustomer.cancellation_count || 0}</p>
-                  </div>
-                )}
                 {selectedCustomer.notes && <div className="p-3 rounded-xl bg-secondary/50 mb-4"><p className="text-xs text-muted-foreground mb-1">Notities</p><p className="text-sm">{selectedCustomer.notes}</p></div>}
-                {selectedIntel.custAppts.length > 0 && (
-                  <div className="mb-4">
-                    <p className="text-xs text-muted-foreground mb-2">Laatste afspraken</p>
-                    {selectedIntel.custAppts.slice(0, 3).map(a => (
-                      <div key={a.id} className="flex justify-between text-xs py-1.5 border-b border-border last:border-0">
-                        <span>{new Date(a.appointment_date).toLocaleDateString('nl-NL')}</span>
-                        <span className="text-muted-foreground">{a.status}</span>
-                        <span className="font-medium">{formatEuro(Number(a.price) || 0)}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </>
             )}
           </div>

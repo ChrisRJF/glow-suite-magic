@@ -47,6 +47,7 @@ const navGroups: NavGroup[] = [
       { label: "Omzet Autopilot", icon: Zap, path: "/acties" },
       { label: "AI Insights", icon: Brain, path: "/ai#insights", routePath: "/ai" },
       { label: "AI Activiteit", icon: Activity, path: "/ai#activity", routePath: "/ai" },
+      { label: "AI Segmenten", icon: Users, path: "/segmenten" },
     ],
   },
   {
