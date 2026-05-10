@@ -18,6 +18,7 @@ import HerboekingenPage from "./pages/HerboekingenPage";
 import MarketingPage from "./pages/MarketingPage";
 import ActiesPage from "./pages/ActiesPage";
 import AutoRevenuePage from "./pages/AutoRevenuePage";
+import GlowSuiteAIPage from "./pages/GlowSuiteAIPage";
 import KassaPage from "./pages/KassaPage";
 import GlowPayPage from "./pages/GlowPayPage";
 import ProductenPage from "./pages/ProductenPage";
@@ -125,6 +126,7 @@ const App = () => (
               <Route path="/marketing" element={<RoleProtectedRoute><MarketingPage /></RoleProtectedRoute>} />
               <Route path="/acties" element={<RoleProtectedRoute><ActiesPage /></RoleProtectedRoute>} />
               <Route path="/auto-revenue" element={<RoleProtectedRoute><AutoRevenuePage /></RoleProtectedRoute>} />
+              <Route path="/ai" element={<RoleProtectedRoute><GlowSuiteAIPage /></RoleProtectedRoute>} />
               <Route path="/glowpay" element={<RoleProtectedRoute><GlowPayPage /></RoleProtectedRoute>} />
               <Route path="/refunds" element={<RoleProtectedRoute><RefundsPage /></RoleProtectedRoute>} />
               <Route path="/kassa" element={<RoleProtectedRoute><KassaPage /></RoleProtectedRoute>} />
