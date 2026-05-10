@@ -394,3 +394,181 @@ export function CustomerAIProfile({ intel }: Props) {
     </div>
   );
 }
+
+// ───────────────────────────────────────────────────────────
+// Intelligente klant-tijdlijn — read only, bestaande data
+// ───────────────────────────────────────────────────────────
+type TimelineKind =
+  | "afspraak"
+  | "no-show"
+  | "betaling"
+  | "campagne"
+  | "follow-up"
+  | "auto-revenue"
+  | "notitie";
+
+interface TimelineItem {
+  id: string;
+  date: number;
+  kind: TimelineKind;
+  title: string;
+  subtitle?: string;
+  amount?: number;
+  badge?: string;
+  badgeTone?: "primary" | "success" | "warning" | "destructive" | "muted";
+}
+
+const KIND_META: Record<
+  TimelineKind,
+  { icon: typeof Calendar; bg: string; fg: string }
+> = {
+  afspraak: { icon: Calendar, bg: "bg-primary/15", fg: "text-primary" },
+  "no-show": { icon: CalendarX, bg: "bg-destructive/15", fg: "text-destructive" },
+  betaling: { icon: CreditCard, bg: "bg-emerald-500/15", fg: "text-emerald-600 dark:text-emerald-400" },
+  campagne: { icon: Send, bg: "bg-fuchsia-500/15", fg: "text-fuchsia-600 dark:text-fuchsia-400" },
+  "follow-up": { icon: Clock, bg: "bg-sky-500/15", fg: "text-sky-600 dark:text-sky-400" },
+  "auto-revenue": { icon: Flame, bg: "bg-orange-500/15", fg: "text-orange-600 dark:text-orange-400" },
+  notitie: { icon: StickyNote, bg: "bg-muted text-foreground", fg: "text-foreground" },
+};
+
+const BADGE_TONE: Record<string, string> = {
+  primary: "bg-primary/10 text-primary",
+  success: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+  warning: "bg-warning/15 text-warning",
+  destructive: "bg-destructive/10 text-destructive",
+  muted: "bg-secondary text-muted-foreground",
+};
+
+function CustomerTimeline({
+  customerId,
+  appointments,
+  notes,
+}: {
+  customerId: string;
+  appointments: Tables<"appointments">[];
+  notes: string;
+}) {
+  const { data: payments } = usePayments();
+  const { data: rebookActions } = useRebookActions();
+
+  const items = useMemo<TimelineItem[]>(() => {
+    const list: TimelineItem[] = [];
+
+    appointments.forEach((a) => {
+      const t = new Date(a.appointment_date).getTime();
+      const isNoShow = a.status === "no-show";
+      list.push({
+        id: `appt-${a.id}`,
+        date: t,
+        kind: isNoShow ? "no-show" : "afspraak",
+        title: isNoShow ? "Niet komen opdagen" : "Afspraak",
+        subtitle: a.start_time ? `${a.start_time.slice(0, 5)}${a.end_time ? `–${a.end_time.slice(0, 5)}` : ""}` : undefined,
+        amount: Number(a.price) || 0,
+        badge: a.status,
+        badgeTone:
+          a.status === "geannuleerd"
+            ? "destructive"
+            : a.status === "no-show"
+            ? "warning"
+            : a.status === "voltooid"
+            ? "success"
+            : "primary",
+      });
+    });
+
+    (payments as any[])
+      .filter((p) => p.customer_id === customerId)
+      .forEach((p) => {
+        const t = new Date(p.paid_at || p.created_at).getTime();
+        list.push({
+          id: `pay-${p.id}`,
+          date: t,
+          kind: "betaling",
+          title: p.status === "paid" ? "Betaling ontvangen" : `Betaling ${p.status}`,
+          subtitle: p.method || p.payment_method || p.provider || undefined,
+          amount: Number(p.amount) || 0,
+          badge: p.status,
+          badgeTone: p.status === "paid" ? "success" : p.status === "failed" ? "destructive" : "muted",
+        });
+      });
+
+    (rebookActions as any[])
+      .filter((r) => r.customer_id === customerId)
+      .forEach((r) => {
+        list.push({
+          id: `rb-${r.id}`,
+          date: new Date(r.created_at).getTime(),
+          kind: "follow-up",
+          title: "Herboeking voorgesteld",
+          subtitle: r.suggested_date
+            ? new Date(r.suggested_date).toLocaleDateString("nl-NL", { day: "numeric", month: "short" })
+            : undefined,
+          badge: r.status,
+          badgeTone: r.status === "geboekt" ? "success" : r.status === "afgewezen" ? "destructive" : "primary",
+        });
+      });
+
+    if (notes && notes.trim().length > 0) {
+      list.push({
+        id: "note",
+        date: Date.now() - 86400000 * 0.001, // bovenaan recent
+        kind: "notitie",
+        title: "Notitie",
+        subtitle: notes.length > 100 ? notes.slice(0, 100) + "…" : notes,
+      });
+    }
+
+    return list.sort((a, b) => b.date - a.date).slice(0, 12);
+  }, [appointments, payments, rebookActions, customerId, notes]);
+
+  if (items.length === 0) return null;
+
+  return (
+    <div>
+      <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-2">
+        Tijdlijn
+      </p>
+      <div className="space-y-1.5">
+        {items.map((it) => {
+          const meta = KIND_META[it.kind];
+          const Icon = meta.icon;
+          const d = new Date(it.date);
+          return (
+            <div
+              key={it.id}
+              className="flex items-start gap-2.5 p-2 rounded-lg bg-secondary/40 border border-border/60"
+            >
+              <div className={cn("h-6 w-6 rounded-md flex items-center justify-center shrink-0", meta.bg, meta.fg)}>
+                <Icon className="w-3 h-3" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <p className="text-[11px] font-semibold leading-tight truncate">{it.title}</p>
+                  {it.badge && (
+                    <span
+                      className={cn(
+                        "text-[9px] font-semibold px-1.5 py-0.5 rounded-md capitalize",
+                        BADGE_TONE[it.badgeTone || "muted"]
+                      )}
+                    >
+                      {it.badge}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[10px] text-muted-foreground truncate">
+                  {d.toLocaleDateString("nl-NL", { day: "numeric", month: "short", year: "numeric" })}
+                  {it.subtitle ? ` · ${it.subtitle}` : ""}
+                </p>
+              </div>
+              {typeof it.amount === "number" && it.amount > 0 && (
+                <span className="text-[11px] font-semibold tabular-nums shrink-0">
+                  {formatEuro(it.amount)}
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
