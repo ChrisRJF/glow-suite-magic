@@ -378,7 +378,9 @@ Deno.serve(async (req) => {
     let paymentInitError: string | null = null;
 
     if (data.payment.required && primaryAppointment) {
-      const provider = ((ctx.settings as any).payment_provider as string) || "mollie";
+      const providerSetting = ((ctx.settings as any).payment_provider as string) || "mollie";
+      const fallbackEnabled = Boolean((ctx.settings as any).payment_provider_fallback_enabled);
+      let provider = providerSetting;
       const isDemo = Boolean(ctx.settings.demo_mode);
       const salonSlugForMeta = ctx.settings.public_slug || slugify(ctx.settings.salon_name || "salon");
 
