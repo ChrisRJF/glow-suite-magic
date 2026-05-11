@@ -277,6 +277,7 @@ export default function InstellingenPage() {
         whatsapp_enabled: notifications.whatsapp,
         mollie_mode: mollieMode,
         payment_provider: paymentProvider,
+        payment_provider_fallback_enabled: paymentFallback,
         deposit_new_client: depositNewClient,
         deposit_percentage: depositPct,
         full_prepay_threshold: fullPrepayThreshold,
