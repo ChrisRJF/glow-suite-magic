@@ -800,12 +800,76 @@ export default function InstellingenPage() {
                   <p className="text-[11px] text-muted-foreground">Kaart, wallets, lokaal</p>
                 </button>
               </div>
+              {/* Provider status labels */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="rounded-lg border border-border bg-secondary/30 p-2 flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-medium">Mollie</span>
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-success/15 text-success">Fallback actief</span>
+                </div>
+                <div className="rounded-lg border border-border bg-secondary/30 p-2 flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-medium">Viva</span>
+                  {paymentProvider !== "viva" ? (
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-secondary text-muted-foreground">Niet actief</span>
+                  ) : vivaStatus?.environment === "live" && vivaStatus?.configured ? (
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-success/15 text-success">Klaar voor live</span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-warning/15 text-warning">Testmodus</span>
+                  )}
+                </div>
+              </div>
+
               {paymentProvider === "viva" && (
-                <div className="rounded-lg bg-warning/10 border border-warning/30 p-3 text-[11px] text-warning-foreground">
-                  Viva is nog niet gekoppeld. Vraag GlowSuite support om je Viva-account te activeren.
+                <div className="space-y-3">
+                  {!vivaStatus?.configured && (
+                    <div className="rounded-lg bg-warning/10 border border-warning/30 p-3 text-[11px] text-warning-foreground">
+                      Viva credentials of source code ontbreken. Vraag GlowSuite support om je account te activeren.
+                    </div>
+                  )}
+
+                  {/* Viva readiness checklist */}
+                  <div className="rounded-xl border border-border bg-background/60 p-3">
+                    <p className="text-xs font-semibold mb-2">Viva readiness checklist</p>
+                    <div className="space-y-1.5">
+                      {[
+                        { key: "credentials", label: "Credentials aanwezig", auto: Boolean(vivaStatus?.credentials_present) },
+                        { key: "source_code", label: "Source code aanwezig", auto: Boolean(vivaStatus?.source_code_present) },
+                        { key: "demo_test", label: "Demo betaling getest", auto: false },
+                        { key: "webhook_received", label: "Webhook ontvangen", auto: false },
+                        { key: "appointment_confirmed", label: "Betaalde afspraak bevestigd", auto: false },
+                        { key: "failure_handled", label: "Mislukte betaling verwerkt", auto: false },
+                        { key: "auto_revenue", label: "Auto Revenue payment link getest", auto: false },
+                      ].map((item) => {
+                        const checked = item.auto || Boolean(vivaChecklist[item.key]);
+                        return (
+                          <label key={item.key} className="flex items-center gap-2 text-[11px] cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              disabled={item.auto}
+                              onChange={() => !item.auto && toggleVivaChecklist(item.key)}
+                              className="h-3.5 w-3.5 rounded border-border accent-primary"
+                            />
+                            <span className={checked ? "text-foreground" : "text-muted-foreground"}>{item.label}</span>
+                            {item.auto && <span className="text-[10px] text-success ml-auto">auto</span>}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Fallback toggle */}
+                  <div className="rounded-xl border border-border bg-background/60 p-3 flex items-center justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[12px] font-medium">Automatisch terugvallen op Mollie</p>
+                      <p className="text-[10px] text-muted-foreground">Bij een Viva-fout wordt de betaling automatisch via Mollie afgehandeld.</p>
+                    </div>
+                    <Switch checked={paymentFallback} onCheckedChange={setPaymentFallback} />
+                  </div>
                 </div>
               )}
-              <p className="text-[11px] text-muted-foreground">Standaard: Mollie. Wijzigingen worden direct toegepast op nieuwe betalingen.</p>
+
+              <p className="text-[11px] text-muted-foreground">Standaard: Mollie. Viva wordt de standaard provider zodra alle tests groen zijn.</p>
+
             </div>
 
             <div className="glass-card p-4 flex flex-col gap-4 border border-primary/10">
