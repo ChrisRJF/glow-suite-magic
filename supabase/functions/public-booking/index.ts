@@ -416,8 +416,13 @@ Deno.serve(async (req) => {
             },
           });
         } else if (!isVivaConfigured()) {
-          paymentInitError = "Viva is nog niet gekoppeld. Je afspraak is opgeslagen, maar betaling kon niet worden gestart.";
-          paymentStatus = "payment_pending";
+          if (fallbackEnabled) {
+            console.warn("[public-booking] Viva not configured, falling back to Mollie");
+            provider = "mollie";
+          } else {
+            paymentInitError = "Viva is nog niet gekoppeld. Je afspraak is opgeslagen, maar betaling kon niet worden gestart.";
+            paymentStatus = "payment_pending";
+          }
         } else {
           try {
             const origin = req.headers.get("origin") || "https://glowsuite.nl";
