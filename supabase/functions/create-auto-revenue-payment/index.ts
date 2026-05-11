@@ -134,6 +134,43 @@ Deno.serve(async (req) => {
     const sourceTag = paymentMode === "full" ? "auto_revenue_full" : "auto_revenue_deposit";
     const description = paymentMode === "full" ? "GlowSuite Volledige betaling" : "GlowSuite Aanbetaling";
 
+    // Provider routing: if Viva selected, delegate (handles both demo and live).
+    if (provider === "viva") {
+      const { data: customer } = await admin
+        .from("customers")
+        .select("name, email, phone")
+        .eq("id", customer_id)
+        .maybeSingle();
+
+      const { data: result, error: vivaErr } = await admin.functions.invoke("create-viva-payment", {
+        body: {
+          appointment_id,
+          customer_id,
+          offer_id,
+          amount_cents: totalCents,
+          payment_type: paymentType,
+          source: "auto_revenue",
+          description,
+          customer: customer ? { fullName: customer.name || undefined, email: customer.email || undefined, phone: customer.phone || undefined } : undefined,
+          is_demo: demoMode,
+        },
+        headers: { Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+      });
+      if (vivaErr || (result as any)?.error) {
+        return json({ error: (result as any)?.error || vivaErr?.message || "Viva fout" }, 400);
+      }
+      return json({
+        success: true,
+        demo: !!(result as any)?.demo,
+        checkout_url: (result as any)?.checkout_url,
+        payment: { id: (result as any)?.payment_id },
+        deposit_cents: depositCents,
+        platform_fee_cents: PLATFORM_FEE_CENTS,
+        total_amount_cents: totalCents,
+        provider: "viva",
+      });
+    }
+
     if (demoMode) {
       const fakeId = `demo_ar_${crypto.randomUUID().slice(0, 8)}`;
       const checkoutUrl = `${REDIRECT_BASE}/boeken?status=demo-payment&offer=${offer_id}`;
