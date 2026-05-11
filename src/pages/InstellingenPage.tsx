@@ -57,6 +57,7 @@ export default function InstellingenPage() {
   const [notifications, setNotifications] = useState({ email: true, whatsapp: false, push: false });
   const [demoMode, setDemoMode] = useState(false);
   const [mollieMode, setMollieMode] = useState("test");
+  const [paymentProvider, setPaymentProvider] = useState<"mollie" | "viva">("mollie");
   const [depositNewClient, setDepositNewClient] = useState(true);
   const [depositPct, setDepositPct] = useState(50);
   const [fullPrepayThreshold, setFullPrepayThreshold] = useState(150);
