@@ -61,6 +61,12 @@ export default function InstellingenPage() {
   const [paymentFallback, setPaymentFallback] = useState(false);
   const [vivaStatus, setVivaStatus] = useState<{ configured: boolean; environment: "demo" | "live"; credentials_present: boolean; source_code_present: boolean } | null>(null);
   const [vivaChecklist, setVivaChecklist] = useState<Record<string, boolean>>({});
+  const [vivaTestAmount, setVivaTestAmount] = useState("1.00");
+  const [vivaTestEmail, setVivaTestEmail] = useState("test@example.com");
+  const [vivaTestName, setVivaTestName] = useState("Test Klant");
+  const [vivaTestLoading, setVivaTestLoading] = useState(false);
+  const [vivaTestResult, setVivaTestResult] = useState<{ checkout_url: string; payment_id?: string; order_code?: string } | null>(null);
+  const vivaWebhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/viva-webhook`;
   const [depositNewClient, setDepositNewClient] = useState(true);
   const [depositPct, setDepositPct] = useState(50);
   const [fullPrepayThreshold, setFullPrepayThreshold] = useState(150);
@@ -173,6 +179,38 @@ export default function InstellingenPage() {
       try { if (user) localStorage.setItem(`viva_checklist_${user.id}`, JSON.stringify(next)); } catch {}
       return next;
     });
+  };
+
+  const runVivaTest = async () => {
+    setVivaTestLoading(true);
+    setVivaTestResult(null);
+    try {
+      const cents = Math.round(parseFloat(vivaTestAmount.replace(",", ".")) * 100);
+      if (!cents || cents < 30) {
+        toast.error("Bedrag moet minimaal €0,30 zijn");
+        return;
+      }
+      const { data, error } = await supabase.functions.invoke("create-viva-payment", {
+        body: {
+          amount_cents: cents,
+          payment_type: "other",
+          source: "manual",
+          description: "Viva test betaling",
+          customer: { fullName: vivaTestName, email: vivaTestEmail },
+        },
+      });
+      if (error || (data as any)?.error) {
+        toast.error((data as any)?.error || error?.message || "Test mislukt");
+        return;
+      }
+      const res = data as any;
+      setVivaTestResult({ checkout_url: res.checkout_url, payment_id: res.payment_id, order_code: res.order_code });
+      toast.success("Viva testbetaling aangemaakt");
+    } catch (e: any) {
+      toast.error(e?.message || "Test mislukt");
+    } finally {
+      setVivaTestLoading(false);
+    }
   };
 
   const callMollieConnect = async (body: Record<string, any>) => {
@@ -865,6 +903,40 @@ export default function InstellingenPage() {
                     </div>
                     <Switch checked={paymentFallback} onCheckedChange={setPaymentFallback} />
                   </div>
+
+                  {/* Webhook URL */}
+                  <div className="rounded-xl border border-border bg-background/60 p-3">
+                    <p className="text-[11px] font-semibold mb-1">Webhook URL</p>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 text-[10px] bg-muted/50 rounded px-2 py-1 break-all">{vivaWebhookUrl}</code>
+                      <Button type="button" size="sm" variant="ghost" className="h-7 text-[10px]" onClick={() => { navigator.clipboard.writeText(vivaWebhookUrl); toast.success("Gekopieerd"); }}>Kopieer</Button>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-1">Voeg deze URL toe in je Viva Smart Checkout webhook-instellingen.</p>
+                  </div>
+
+                  {/* Test panel */}
+                  {isOwner && (
+                    <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-2">
+                      <p className="text-[11px] font-semibold">Test Viva Smart Checkout</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        <input type="number" step="0.01" min="0.30" value={vivaTestAmount} onChange={(e) => setVivaTestAmount(e.target.value)} className="text-[11px] h-8 rounded-md border border-border bg-background px-2" placeholder="Bedrag €" />
+                        <input type="text" value={vivaTestName} onChange={(e) => setVivaTestName(e.target.value)} className="text-[11px] h-8 rounded-md border border-border bg-background px-2" placeholder="Naam" />
+                        <input type="email" value={vivaTestEmail} onChange={(e) => setVivaTestEmail(e.target.value)} className="text-[11px] h-8 rounded-md border border-border bg-background px-2" placeholder="E-mail" />
+                      </div>
+                      <Button type="button" size="sm" disabled={vivaTestLoading} onClick={runVivaTest} className="w-full h-8 text-[11px]">
+                        {vivaTestLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : "Maak Viva testbetaling"}
+                      </Button>
+                      {vivaTestResult && (
+                        <div className="text-[10px] space-y-1 pt-1 border-t border-border">
+                          <p><span className="text-muted-foreground">Order code:</span> <code>{vivaTestResult.order_code}</code></p>
+                          <p><span className="text-muted-foreground">Payment ID:</span> <code className="break-all">{vivaTestResult.payment_id}</code></p>
+                          <a href={vivaTestResult.checkout_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                            Open Viva Checkout <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 

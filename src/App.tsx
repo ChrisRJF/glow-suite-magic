@@ -30,6 +30,8 @@ import LoginPage from "./pages/LoginPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import LaunchStatusPage from "./pages/LaunchStatusPage";
 import MollieCallbackPage from "./pages/MollieCallbackPage";
+import PaymentSuccessPage from "./pages/PaymentSuccessPage";
+import PaymentFailedPage from "./pages/PaymentFailedPage";
 import NotFound from "./pages/NotFound";
 import AutomatiseringenPage from "./pages/AutomatiseringenPage";
 import WachtlijstPage from "./pages/WachtlijstPage";
@@ -100,6 +102,8 @@ const App = () => (
               <Route path="/login" element={<AuthRoute><LoginPage /></AuthRoute>} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/integrations/mollie/callback" element={<MollieCallbackPage />} />
+              <Route path="/payment/success" element={<PaymentSuccessPage />} />
+              <Route path="/payment/failed" element={<PaymentFailedPage />} />
               <Route path="/boeken" element={<BookingPage />} />
               <Route path="/boeken/:salonSlug" element={<BookingPage />} />
               <Route path="/shop/:salonSlug" element={<ShopPage />} />
