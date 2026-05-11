@@ -69,6 +69,7 @@ Deno.serve(async (req) => {
 
     const eventData = payload?.EventData || payload?.eventData || payload || {};
     const eventTypeId = Number(payload?.EventTypeId ?? payload?.eventTypeId ?? 0) || undefined;
+    console.log("[viva-webhook] event type:", eventTypeId, "tx:", transactionId, "orderCode:", orderCode);
     const transactionId = String(eventData?.TransactionId ?? eventData?.transactionId ?? "");
     const orderCodeRaw = eventData?.OrderCode ?? eventData?.orderCode;
     const orderCode = orderCodeRaw != null ? String(orderCodeRaw) : null;
