@@ -168,6 +168,21 @@ export default function InstellingenPage() {
     supabase.functions.invoke("viva-status", { body: {} }).then(({ data }) => {
       if (data && typeof data === "object") setVivaStatus(data as any);
     }).catch(() => {});
+    // Load Viva webhook diagnostics
+    (async () => {
+      try {
+        const [recv, proc, failed] = await Promise.all([
+          (supabase as any).from("viva_webhook_events").select("created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+          (supabase as any).from("viva_webhook_events").select("processed_at").eq("user_id", user.id).eq("processed", true).order("processed_at", { ascending: false }).limit(1).maybeSingle(),
+          (supabase as any).from("viva_webhook_events").select("id", { count: "exact", head: true }).eq("user_id", user.id).not("error", "is", null),
+        ]);
+        setVivaDiag({
+          last_received: (recv?.data as any)?.created_at || null,
+          last_processed: (proc?.data as any)?.processed_at || null,
+          failed_count: (failed as any)?.count || 0,
+        });
+      } catch {}
+    })();
     // Load Viva readiness checklist from localStorage (per-user)
     try {
       const raw = localStorage.getItem(`viva_checklist_${user.id}`);
