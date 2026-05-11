@@ -135,7 +135,7 @@ Deno.serve(async (req) => {
     const sourceTag = paymentMode === "full" ? "auto_revenue_full" : "auto_revenue_deposit";
     const description = paymentMode === "full" ? "GlowSuite Volledige betaling" : "GlowSuite Aanbetaling";
 
-    // Provider routing: if Viva selected, delegate (handles both demo and live).
+    // Provider routing: if Viva selected, use shared helpers directly (service-role context).
     if (provider === "viva") {
       const { data: customer } = await admin
         .from("customers")
@@ -143,33 +143,71 @@ Deno.serve(async (req) => {
         .eq("id", customer_id)
         .maybeSingle();
 
-      const { data: result, error: vivaErr } = await admin.functions.invoke("create-viva-payment", {
-        body: {
-          appointment_id,
-          customer_id,
-          offer_id,
-          amount_cents: totalCents,
-          payment_type: paymentType,
-          source: "auto_revenue",
-          description,
-          customer: customer ? { fullName: customer.name || undefined, email: customer.email || undefined, phone: customer.phone || undefined } : undefined,
-          is_demo: demoMode,
-        },
-        headers: { Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
-      });
-      if (vivaErr || (result as any)?.error) {
-        return json({ error: (result as any)?.error || vivaErr?.message || "Viva fout" }, 400);
-      }
-      return json({
-        success: true,
-        demo: !!(result as any)?.demo,
-        checkout_url: (result as any)?.checkout_url,
-        payment: { id: (result as any)?.payment_id },
+      const baseMeta = {
+        provider: "viva" as const,
+        source: sourceTag,
+        payment_mode: paymentMode,
+        offer_id,
+        appointment_id,
+        customer_id,
         deposit_cents: depositCents,
         platform_fee_cents: PLATFORM_FEE_CENTS,
         total_amount_cents: totalCents,
-        provider: "viva",
-      });
+        payment_type: paymentType,
+      };
+
+      if (demoMode) {
+        const fakeOrderCode = `demo_viva_${crypto.randomUUID().slice(0, 8)}`;
+        const checkoutUrl = `${REDIRECT_BASE}/boeken?status=demo-viva-payment&offer=${offer_id}`;
+        const { data: payment } = await admin
+          .from("payments")
+          .insert({
+            user_id, appointment_id, customer_id,
+            mollie_payment_id: fakeOrderCode,
+            checkout_reference: fakeOrderCode,
+            amount: totalCents / 100, currency: "EUR",
+            payment_type: paymentType, status: "pending",
+            method: "viva", is_demo: true, provider: "viva",
+            metadata: { ...baseMeta, viva_order_code: fakeOrderCode, checkout_url: checkoutUrl, simulated: true },
+          })
+          .select().single();
+        return json({ success: true, demo: true, provider: "viva", checkout_url: checkoutUrl, payment, deposit_cents: depositCents, platform_fee_cents: PLATFORM_FEE_CENTS, total_amount_cents: totalCents });
+      }
+
+      if (!isVivaConfigured()) {
+        return json({ error: "Viva is nog niet gekoppeld.", requiresSetup: true }, 400);
+      }
+
+      try {
+        const order = await createVivaOrder({
+          amountCents: totalCents,
+          description,
+          customerEmail: customer?.email || undefined,
+          customerFullName: customer?.name || undefined,
+          customerPhone: customer?.phone || undefined,
+          successUrl: `${REDIRECT_BASE}/boeken?status=payment-return&offer=${offer_id}`,
+          failureUrl: `${REDIRECT_BASE}/boeken?status=payment-failed&offer=${offer_id}`,
+          source: "auto_revenue",
+          paymentType: paymentType === "full" ? "full" : "deposit",
+        });
+        const checkoutUrl = vivaCheckoutUrl(order.orderCode);
+        const { data: payment } = await admin
+          .from("payments")
+          .insert({
+            user_id, appointment_id, customer_id,
+            mollie_payment_id: order.orderCode,
+            checkout_reference: order.orderCode,
+            amount: totalCents / 100, currency: "EUR",
+            payment_type: paymentType, status: "pending",
+            method: "viva", is_demo: false, provider: "viva",
+            metadata: { ...baseMeta, viva_order_code: order.orderCode, checkout_url: checkoutUrl },
+          })
+          .select().single();
+        return json({ success: true, demo: false, provider: "viva", checkout_url: checkoutUrl, payment, deposit_cents: depositCents, platform_fee_cents: PLATFORM_FEE_CENTS, total_amount_cents: totalCents });
+      } catch (e) {
+        console.error("Viva order creation failed (auto-revenue)", e);
+        return json({ error: "Viva-betaling kon niet worden gestart." }, 502);
+      }
     }
 
     if (demoMode) {
