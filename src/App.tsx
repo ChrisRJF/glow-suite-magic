@@ -30,6 +30,8 @@ import LoginPage from "./pages/LoginPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import LaunchStatusPage from "./pages/LaunchStatusPage";
 import MollieCallbackPage from "./pages/MollieCallbackPage";
+import PaymentSuccessPage from "./pages/PaymentSuccessPage";
+import PaymentFailedPage from "./pages/PaymentFailedPage";
 import NotFound from "./pages/NotFound";
 import AutomatiseringenPage from "./pages/AutomatiseringenPage";
 import WachtlijstPage from "./pages/WachtlijstPage";
