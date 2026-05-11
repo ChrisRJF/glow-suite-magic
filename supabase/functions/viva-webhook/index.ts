@@ -11,6 +11,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function text(body: string, status = 200) {
+  return new Response(body, {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "text/plain" },
+  });
+}
+
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
