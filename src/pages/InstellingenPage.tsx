@@ -155,8 +155,25 @@ export default function InstellingenPage() {
   useEffect(() => {
     if (!user || !canManageIntegrations) return;
     fetchMollieStatus();
+    // Load Viva status from edge function
+    supabase.functions.invoke("viva-status", { body: {} }).then(({ data }) => {
+      if (data && typeof data === "object") setVivaStatus(data as any);
+    }).catch(() => {});
+    // Load Viva readiness checklist from localStorage (per-user)
+    try {
+      const raw = localStorage.getItem(`viva_checklist_${user.id}`);
+      if (raw) setVivaChecklist(JSON.parse(raw));
+    } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, canManageIntegrations]);
+
+  const toggleVivaChecklist = (key: string) => {
+    setVivaChecklist((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      try { if (user) localStorage.setItem(`viva_checklist_${user.id}`, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
 
   const callMollieConnect = async (body: Record<string, any>) => {
     const { data: { session } } = await supabase.auth.getSession();
