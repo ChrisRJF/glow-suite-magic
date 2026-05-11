@@ -181,7 +181,37 @@ export default function InstellingenPage() {
     });
   };
 
-  const callMollieConnect = async (body: Record<string, any>) => {
+  const runVivaTest = async () => {
+    setVivaTestLoading(true);
+    setVivaTestResult(null);
+    try {
+      const cents = Math.round(parseFloat(vivaTestAmount.replace(",", ".")) * 100);
+      if (!cents || cents < 30) {
+        toast.error("Bedrag moet minimaal €0,30 zijn");
+        return;
+      }
+      const { data, error } = await supabase.functions.invoke("create-viva-payment", {
+        body: {
+          amount_cents: cents,
+          payment_type: "other",
+          source: "manual",
+          description: "Viva test betaling",
+          customer: { fullName: vivaTestName, email: vivaTestEmail },
+        },
+      });
+      if (error || (data as any)?.error) {
+        toast.error((data as any)?.error || error?.message || "Test mislukt");
+        return;
+      }
+      const res = data as any;
+      setVivaTestResult({ checkout_url: res.checkout_url, payment_id: res.payment_id, order_code: res.order_code });
+      toast.success("Viva testbetaling aangemaakt");
+    } catch (e: any) {
+      toast.error(e?.message || "Test mislukt");
+    } finally {
+      setVivaTestLoading(false);
+    }
+  };
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) throw new Error("Je sessie is verlopen. Log opnieuw in.");
     const { data, error } = await supabase.functions.invoke("mollie-connect", {
