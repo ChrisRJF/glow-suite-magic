@@ -11,6 +11,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function text(body: string, status = 200) {
+  return new Response(body, {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "text/plain" },
+  });
+}
+
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -36,15 +43,24 @@ async function sendWhiteLabelEmail(supabase: ReturnType<typeof createClient>, bo
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const method = req.method;
+  const userAgent = req.headers.get("user-agent") || "";
+  console.log("[viva-webhook] method:", method, "ua:", userAgent);
 
-  // Viva sends a GET request when registering the webhook to retrieve the Key.
-  // We don't currently use a verification key; respond OK so registration succeeds.
-  if (req.method === "GET") {
-    return json({ Key: Deno.env.get("VIVA_WEBHOOK_KEY") || "glowsuite" });
+  if (method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  // Viva sends GET/HEAD verification requests before accepting the webhook URL.
+  if (method === "GET") {
+    console.log("[viva-webhook] verification ping");
+    return text("OK");
   }
 
-  if (req.method !== "POST") return json({ error: "Methode niet toegestaan" }, 405);
+  if (method === "HEAD") {
+    console.log("[viva-webhook] verification ping (HEAD)");
+    return new Response(null, { status: 200, headers: corsHeaders });
+  }
+
+  if (method !== "POST") return json({ error: "Methode niet toegestaan" }, 405);
 
   try {
     const bodyText = await req.text();
@@ -57,6 +73,7 @@ Deno.serve(async (req) => {
     const orderCodeRaw = eventData?.OrderCode ?? eventData?.orderCode;
     const orderCode = orderCodeRaw != null ? String(orderCodeRaw) : null;
     const statusId = String(eventData?.StatusId ?? eventData?.statusId ?? "");
+    console.log("[viva-webhook] event type:", eventTypeId, "tx:", transactionId, "orderCode:", orderCode);
 
     if (!transactionId && !orderCode) return json({ error: "Geen orderCode of transactionId" }, 400);
 
