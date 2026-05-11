@@ -932,6 +932,30 @@ export default function InstellingenPage() {
                     <p className="text-[10px] text-muted-foreground mt-1">Voeg deze URL toe in je Viva Smart Checkout webhook-instellingen.</p>
                   </div>
 
+                  {/* Diagnostics */}
+                  <div className="rounded-xl border border-border bg-background/60 p-3 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[11px] font-semibold">Viva diagnostiek</p>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full ${vivaActivation === "active" ? "bg-success/15 text-success" : vivaActivation === "rejected" ? "bg-destructive/15 text-destructive" : "bg-muted text-muted-foreground"}`}>
+                        Activatie: {vivaActivation.replace(/_/g, " ")}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-[10px]">
+                      <div>
+                        <p className="text-muted-foreground">Laatst ontvangen</p>
+                        <p className="font-medium">{vivaDiag?.last_received ? new Date(vivaDiag.last_received).toLocaleString("nl-NL") : "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Laatst verwerkt</p>
+                        <p className="font-medium">{vivaDiag?.last_processed ? new Date(vivaDiag.last_processed).toLocaleString("nl-NL") : "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Mislukt</p>
+                        <p className={`font-medium ${vivaDiag && vivaDiag.failed_count > 0 ? "text-destructive" : ""}`}>{vivaDiag?.failed_count ?? 0}</p>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Test panel */}
                   {isOwner && (
                     <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-2">
