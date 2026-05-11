@@ -1,16 +1,53 @@
-import { Link } from "react-router-dom";
-import { CheckCircle2 } from "lucide-react";
+import { Link, useSearchParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { CheckCircle2, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function PaymentSuccessPage() {
+  const [params] = useSearchParams();
+  const transactionId = params.get("t") || params.get("transaction_id");
+  const orderCode = params.get("s") || params.get("order_code");
+  const [state, setState] = useState<"checking" | "paid" | "pending" | "failed">(
+    transactionId || orderCode ? "checking" : "pending",
+  );
+
+  useEffect(() => {
+    if (!transactionId && !orderCode) return;
+    let cancelled = false;
+    // Give the webhook ~2.5s to arrive first, then fall back to verify endpoint.
+    const t = setTimeout(async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("verify-viva-payment", {
+          body: { transaction_id: transactionId, order_code: orderCode },
+        });
+        if (cancelled) return;
+        if (error) { setState("pending"); return; }
+        const status = (data as any)?.status;
+        if (status === "paid") setState("paid");
+        else if (status === "failed" || status === "cancelled") setState("failed");
+        else setState("pending");
+      } catch {
+        if (!cancelled) setState("pending");
+      }
+    }, 2500);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [transactionId, orderCode]);
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="max-w-md w-full text-center space-y-5 p-8 rounded-2xl border border-border bg-card shadow-sm">
         <div className="mx-auto w-14 h-14 rounded-full bg-success/15 flex items-center justify-center">
-          <CheckCircle2 className="w-7 h-7 text-success" />
+          {state === "checking" ? <Loader2 className="w-7 h-7 text-success animate-spin" /> : <CheckCircle2 className="w-7 h-7 text-success" />}
         </div>
-        <h1 className="text-xl font-semibold">Betaling ontvangen</h1>
+        <h1 className="text-xl font-semibold">
+          {state === "paid" ? "Betaling bevestigd" : state === "failed" ? "Betaling niet voltooid" : "Betaling ontvangen"}
+        </h1>
         <p className="text-sm text-muted-foreground">
-          We verwerken je afspraak. Je ontvangt zo een bevestiging per e-mail of WhatsApp.
+          {state === "checking"
+            ? "We controleren je betaling…"
+            : state === "failed"
+            ? "Probeer het opnieuw of neem contact op met de salon."
+            : "We verwerken je afspraak. Je ontvangt zo een bevestiging per e-mail of WhatsApp."}
         </p>
         <Link to="/" className="inline-block text-sm text-primary hover:underline">Terug naar GlowSuite</Link>
       </div>
