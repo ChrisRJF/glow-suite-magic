@@ -108,6 +108,7 @@ export default function InstellingenPage() {
       setDemoMode(s.demo_mode || false);
       setMollieMode(s.mollie_mode || 'test');
       setPaymentProvider((s.payment_provider === 'viva' ? 'viva' : 'mollie'));
+      setPaymentFallback(Boolean(s.payment_provider_fallback_enabled));
       setDepositNewClient(s.deposit_new_client ?? true);
       setDepositPct(s.deposit_percentage ?? 50);
       setFullPrepayThreshold(Number(s.full_prepay_threshold) || 150);
