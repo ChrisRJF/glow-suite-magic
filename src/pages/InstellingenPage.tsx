@@ -212,6 +212,8 @@ export default function InstellingenPage() {
       setVivaTestLoading(false);
     }
   };
+
+  const callMollieConnect = async (body: Record<string, any>) => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) throw new Error("Je sessie is verlopen. Log opnieuw in.");
     const { data, error } = await supabase.functions.invoke("mollie-connect", {
