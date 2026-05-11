@@ -3,6 +3,7 @@
 // Demo mode: never calls Mollie — returns a simulated checkout URL.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { createVivaOrder, vivaCheckoutUrl, isVivaConfigured } from "../_shared/viva.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
