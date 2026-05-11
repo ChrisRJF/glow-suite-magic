@@ -121,7 +121,7 @@ Deno.serve(async (req) => {
     // Check if demo mode + provider selection
     const { data: settings } = await supabase
       .from("settings")
-      .select("id, demo_mode, is_demo, mollie_mode, payment_provider")
+      .select("id, demo_mode, is_demo, mollie_mode, payment_provider, payment_provider_fallback_enabled")
       .eq("user_id", user.id)
       .maybeSingle();
 
@@ -143,18 +143,25 @@ Deno.serve(async (req) => {
         },
       });
       if (vivaErr || (result as any)?.error) {
-        return new Response(JSON.stringify({ error: (result as any)?.error || vivaErr?.message || "Viva fout" }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        const fallbackEnabled = Boolean((settings as any)?.payment_provider_fallback_enabled);
+        const errMsg = (result as any)?.error || vivaErr?.message || "Viva fout";
+        if (!fallbackEnabled) {
+          return new Response(JSON.stringify({ error: errMsg, provider: "viva", fallbackAvailable: false }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        // Fallback enabled — fall through to Mollie below
+        console.warn("[create-payment] Viva failed, falling back to Mollie:", errMsg);
+      } else {
+        return new Response(JSON.stringify({
+          success: true,
+          demo: !!(result as any)?.demo,
+          provider: "viva",
+          payment: { id: (result as any)?.payment_id },
+          checkoutUrl: (result as any)?.checkout_url,
+        }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-      return new Response(JSON.stringify({
-        success: true,
-        demo: !!(result as any)?.demo,
-        provider: "viva",
-        payment: { id: (result as any)?.payment_id },
-        checkoutUrl: (result as any)?.checkout_url,
-      }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
 

@@ -65,7 +65,7 @@ async function getSalon(supabase: ReturnType<typeof createClient>, slug: string)
   const normalized = slugify(slug);
   const { data: settingsRows, error } = await supabase
     .from("settings")
-    .select("id, user_id, salon_name, opening_hours, demo_mode, is_demo, deposit_new_client, deposit_percentage, full_prepay_threshold, skip_prepay_vip, deposit_noshow_risk, group_bookings_enabled, mollie_mode, whitelabel_branding, public_slug, show_prices_online, public_employees_enabled, cancellation_notice, payment_provider")
+    .select("id, user_id, salon_name, opening_hours, demo_mode, is_demo, deposit_new_client, deposit_percentage, full_prepay_threshold, skip_prepay_vip, deposit_noshow_risk, group_bookings_enabled, mollie_mode, whitelabel_branding, public_slug, show_prices_online, public_employees_enabled, cancellation_notice, payment_provider, payment_provider_fallback_enabled")
     .or(`public_slug.eq.${normalized},public_slug.eq.${slug}`)
     .limit(1);
 
@@ -75,7 +75,7 @@ async function getSalon(supabase: ReturnType<typeof createClient>, slug: string)
   if (!settings) {
     const { data: fallbackRows } = await supabase
       .from("settings")
-      .select("id, user_id, salon_name, opening_hours, demo_mode, is_demo, deposit_new_client, deposit_percentage, full_prepay_threshold, skip_prepay_vip, deposit_noshow_risk, group_bookings_enabled, mollie_mode, whitelabel_branding, public_slug, show_prices_online, public_employees_enabled, cancellation_notice, payment_provider")
+      .select("id, user_id, salon_name, opening_hours, demo_mode, is_demo, deposit_new_client, deposit_percentage, full_prepay_threshold, skip_prepay_vip, deposit_noshow_risk, group_bookings_enabled, mollie_mode, whitelabel_branding, public_slug, show_prices_online, public_employees_enabled, cancellation_notice, payment_provider, payment_provider_fallback_enabled")
       .limit(200);
     settings = fallbackRows?.find((row: any) => slugify(row.salon_name || "") === normalized);
   }
@@ -378,7 +378,9 @@ Deno.serve(async (req) => {
     let paymentInitError: string | null = null;
 
     if (data.payment.required && primaryAppointment) {
-      const provider = ((ctx.settings as any).payment_provider as string) || "mollie";
+      const providerSetting = ((ctx.settings as any).payment_provider as string) || "mollie";
+      const fallbackEnabled = Boolean((ctx.settings as any).payment_provider_fallback_enabled);
+      let provider = providerSetting;
       const isDemo = Boolean(ctx.settings.demo_mode);
       const salonSlugForMeta = ctx.settings.public_slug || slugify(ctx.settings.salon_name || "salon");
 
@@ -414,8 +416,13 @@ Deno.serve(async (req) => {
             },
           });
         } else if (!isVivaConfigured()) {
-          paymentInitError = "Viva is nog niet gekoppeld. Je afspraak is opgeslagen, maar betaling kon niet worden gestart.";
-          paymentStatus = "payment_pending";
+          if (fallbackEnabled) {
+            console.warn("[public-booking] Viva not configured, falling back to Mollie");
+            provider = "mollie";
+          } else {
+            paymentInitError = "Viva is nog niet gekoppeld. Je afspraak is opgeslagen, maar betaling kon niet worden gestart.";
+            paymentStatus = "payment_pending";
+          }
         } else {
           try {
             const origin = req.headers.get("origin") || "https://glowsuite.nl";
@@ -460,12 +467,18 @@ Deno.serve(async (req) => {
             });
           } catch (e) {
             console.error("Viva order failed (public booking)", e);
-            paymentInitError = "Betaling kon niet worden gestart. Je afspraak is opgeslagen met betaalstatus in afwachting.";
-            paymentStatus = "payment_pending";
+            if (fallbackEnabled) {
+              console.warn("[public-booking] Viva failed, falling back to Mollie");
+              provider = "mollie";
+            } else {
+              paymentInitError = "Betaling kon niet worden gestart. Je afspraak is opgeslagen met betaalstatus in afwachting.";
+              paymentStatus = "payment_pending";
+            }
           }
         }
-      } else {
-        // Mollie (default) — unchanged
+      }
+      if (provider === "mollie") {
+        // Mollie (default fallback) — unchanged
         const payment = await createMolliePayment({
           req,
           supabase,

@@ -1,0 +1,1 @@
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS payment_provider_fallback_enabled boolean NOT NULL DEFAULT false;

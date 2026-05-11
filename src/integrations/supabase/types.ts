@@ -2439,6 +2439,7 @@ export type Database = {
           mollie_mode: string | null
           opening_hours: Json | null
           payment_provider: string
+          payment_provider_fallback_enabled: boolean
           public_employees_enabled: boolean | null
           public_slug: string | null
           salon_name: string | null
@@ -2482,6 +2483,7 @@ export type Database = {
           mollie_mode?: string | null
           opening_hours?: Json | null
           payment_provider?: string
+          payment_provider_fallback_enabled?: boolean
           public_employees_enabled?: boolean | null
           public_slug?: string | null
           salon_name?: string | null
@@ -2525,6 +2527,7 @@ export type Database = {
           mollie_mode?: string | null
           opening_hours?: Json | null
           payment_provider?: string
+          payment_provider_fallback_enabled?: boolean
           public_employees_enabled?: boolean | null
           public_slug?: string | null
           salon_name?: string | null
