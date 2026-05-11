@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
     const input = parsed.data;
     const { data: settings } = await admin
       .from("settings")
-      .select("id, demo_mode, is_demo, payment_provider")
+      .select("id, demo_mode, is_demo, payment_provider, viva_status, viva_live_enabled, viva_demo_enabled")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -75,6 +75,21 @@ Deno.serve(async (req) => {
 
     const demoMode = input.is_demo === true || Boolean(settings?.is_demo || settings?.demo_mode);
     const amountEuros = Number((input.amount_cents / 100).toFixed(2));
+
+    // Activation gate: only "active" salons may create LIVE Viva orders.
+    if (!demoMode) {
+      const vivaStatus = String(settings?.viva_status || "not_started");
+      const liveAllowed = vivaStatus === "active" && settings?.viva_live_enabled !== false;
+      if (!liveAllowed) {
+        return json({
+          error: "Viva activatie nog niet voltooid voor deze salon.",
+          requiresActivation: true,
+          viva_status: vivaStatus,
+        }, 403);
+      }
+    } else if (settings?.viva_demo_enabled === false) {
+      return json({ error: "Viva demo is uitgeschakeld." }, 403);
+    }
 
     const baseMetadata = {
       provider: "viva",
