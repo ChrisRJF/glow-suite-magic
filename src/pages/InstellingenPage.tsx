@@ -66,6 +66,8 @@ export default function InstellingenPage() {
   const [vivaTestName, setVivaTestName] = useState("Test Klant");
   const [vivaTestLoading, setVivaTestLoading] = useState(false);
   const [vivaTestResult, setVivaTestResult] = useState<{ checkout_url: string; payment_id?: string; order_code?: string } | null>(null);
+  const [vivaActivation, setVivaActivation] = useState<string>("not_started");
+  const [vivaDiag, setVivaDiag] = useState<{ last_received: string | null; last_processed: string | null; failed_count: number } | null>(null);
   const vivaWebhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/viva-webhook`;
   const [depositNewClient, setDepositNewClient] = useState(true);
   const [depositPct, setDepositPct] = useState(50);
@@ -115,6 +117,7 @@ export default function InstellingenPage() {
       setMollieMode(s.mollie_mode || 'test');
       setPaymentProvider((s.payment_provider === 'viva' ? 'viva' : 'mollie'));
       setPaymentFallback(Boolean(s.payment_provider_fallback_enabled));
+      setVivaActivation(String(s.viva_status || 'not_started'));
       setDepositNewClient(s.deposit_new_client ?? true);
       setDepositPct(s.deposit_percentage ?? 50);
       setFullPrepayThreshold(Number(s.full_prepay_threshold) || 150);
@@ -165,6 +168,21 @@ export default function InstellingenPage() {
     supabase.functions.invoke("viva-status", { body: {} }).then(({ data }) => {
       if (data && typeof data === "object") setVivaStatus(data as any);
     }).catch(() => {});
+    // Load Viva webhook diagnostics
+    (async () => {
+      try {
+        const [recv, proc, failed] = await Promise.all([
+          (supabase as any).from("viva_webhook_events").select("created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+          (supabase as any).from("viva_webhook_events").select("processed_at").eq("user_id", user.id).eq("processed", true).order("processed_at", { ascending: false }).limit(1).maybeSingle(),
+          (supabase as any).from("viva_webhook_events").select("id", { count: "exact", head: true }).eq("user_id", user.id).not("error", "is", null),
+        ]);
+        setVivaDiag({
+          last_received: (recv?.data as any)?.created_at || null,
+          last_processed: (proc?.data as any)?.processed_at || null,
+          failed_count: (failed as any)?.count || 0,
+        });
+      } catch {}
+    })();
     // Load Viva readiness checklist from localStorage (per-user)
     try {
       const raw = localStorage.getItem(`viva_checklist_${user.id}`);
@@ -912,6 +930,30 @@ export default function InstellingenPage() {
                       <Button type="button" size="sm" variant="ghost" className="h-7 text-[10px]" onClick={() => { navigator.clipboard.writeText(vivaWebhookUrl); toast.success("Gekopieerd"); }}>Kopieer</Button>
                     </div>
                     <p className="text-[10px] text-muted-foreground mt-1">Voeg deze URL toe in je Viva Smart Checkout webhook-instellingen.</p>
+                  </div>
+
+                  {/* Diagnostics */}
+                  <div className="rounded-xl border border-border bg-background/60 p-3 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[11px] font-semibold">Viva diagnostiek</p>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full ${vivaActivation === "active" ? "bg-success/15 text-success" : vivaActivation === "rejected" ? "bg-destructive/15 text-destructive" : "bg-muted text-muted-foreground"}`}>
+                        Activatie: {vivaActivation.replace(/_/g, " ")}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-[10px]">
+                      <div>
+                        <p className="text-muted-foreground">Laatst ontvangen</p>
+                        <p className="font-medium">{vivaDiag?.last_received ? new Date(vivaDiag.last_received).toLocaleString("nl-NL") : "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Laatst verwerkt</p>
+                        <p className="font-medium">{vivaDiag?.last_processed ? new Date(vivaDiag.last_processed).toLocaleString("nl-NL") : "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Mislukt</p>
+                        <p className={`font-medium ${vivaDiag && vivaDiag.failed_count > 0 ? "text-destructive" : ""}`}>{vivaDiag?.failed_count ?? 0}</p>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Test panel */}

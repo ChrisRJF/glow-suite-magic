@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.viva-webhook]
 verify_jwt = false
+
+[functions.verify-viva-payment]
+verify_jwt = false

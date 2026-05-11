@@ -2448,6 +2448,12 @@ export type Database = {
           timezone: string | null
           updated_at: string
           user_id: string
+          viva_client_id: string | null
+          viva_demo_enabled: boolean
+          viva_live_enabled: boolean
+          viva_merchant_id: string | null
+          viva_source_code: string | null
+          viva_status: string
           webshop_enabled: boolean | null
           whatsapp_enabled: boolean | null
           whitelabel_branding: Json | null
@@ -2492,6 +2498,12 @@ export type Database = {
           timezone?: string | null
           updated_at?: string
           user_id: string
+          viva_client_id?: string | null
+          viva_demo_enabled?: boolean
+          viva_live_enabled?: boolean
+          viva_merchant_id?: string | null
+          viva_source_code?: string | null
+          viva_status?: string
           webshop_enabled?: boolean | null
           whatsapp_enabled?: boolean | null
           whitelabel_branding?: Json | null
@@ -2536,6 +2548,12 @@ export type Database = {
           timezone?: string | null
           updated_at?: string
           user_id?: string
+          viva_client_id?: string | null
+          viva_demo_enabled?: boolean
+          viva_live_enabled?: boolean
+          viva_merchant_id?: string | null
+          viva_source_code?: string | null
+          viva_status?: string
           webshop_enabled?: boolean | null
           whatsapp_enabled?: boolean | null
           whitelabel_branding?: Json | null
@@ -2842,6 +2860,63 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      viva_webhook_events: {
+        Row: {
+          created_at: string
+          error: string | null
+          event_id: string | null
+          event_type: string | null
+          event_type_id: number | null
+          id: string
+          is_demo: boolean
+          order_code: string | null
+          payment_id: string | null
+          processed: boolean
+          processed_at: string | null
+          raw_payload: Json
+          retry_count: number
+          status: string | null
+          transaction_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          event_id?: string | null
+          event_type?: string | null
+          event_type_id?: number | null
+          id?: string
+          is_demo?: boolean
+          order_code?: string | null
+          payment_id?: string | null
+          processed?: boolean
+          processed_at?: string | null
+          raw_payload?: Json
+          retry_count?: number
+          status?: string | null
+          transaction_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          event_id?: string | null
+          event_type?: string | null
+          event_type_id?: number | null
+          id?: string
+          is_demo?: boolean
+          order_code?: string | null
+          payment_id?: string | null
+          processed?: boolean
+          processed_at?: string | null
+          raw_payload?: Json
+          retry_count?: number
+          status?: string | null
+          transaction_id?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }

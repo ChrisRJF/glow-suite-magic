@@ -1,7 +1,7 @@
 // Viva Smart Checkout webhook.
-// Handles Transaction Payment Created (1796) and Transaction Failed (1797).
-// Mirrors mollie-webhook behaviour: updates payments, appointments, auto_revenue_offers, memberships
-// and triggers WhatsApp confirmation on paid.
+// Source of truth for inbound Viva events. Stores every payload in the
+// viva_webhook_events ledger BEFORE side-effects so duplicates and
+// failures are recoverable. Returns 2xx fast.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getVivaTransaction } from "../_shared/viva.ts";
@@ -12,29 +12,32 @@ const corsHeaders = {
 };
 
 function text(body: string, status = 200) {
-  return new Response(body, {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "text/plain" },
-  });
+  return new Response(body, { status, headers: { ...corsHeaders, "Content-Type": "text/plain" } });
 }
-
 function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
+  return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
 
 function slugify(value: string) {
   return value.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "").slice(0, 48) || "salon";
 }
 
-function mapVivaStatus(statusId: string, eventTypeId?: number): "paid" | "failed" | "expired" | "cancelled" | "pending" {
-  // Viva statusId: F = finished/paid, X = cancelled, E = error, A = authorized, M = pending
+function mapVivaStatus(statusId: string, eventTypeId?: number): "paid" | "failed" | "expired" | "cancelled" | "pending" | "refunded" {
+  if (eventTypeId === 1798 || eventTypeId === 1799) return "refunded";
   if (statusId === "F" || eventTypeId === 1796) return "paid";
   if (eventTypeId === 1797 || statusId === "E") return "failed";
   if (statusId === "X") return "cancelled";
   return "pending";
+}
+
+// Allowed payment status transitions (idempotent state machine).
+const TERMINAL = new Set(["paid", "refunded", "partially_refunded"]);
+function canTransition(from: string, to: string): boolean {
+  if (from === to) return false; // no-op
+  if (from === "pending") return ["paid", "failed", "cancelled", "expired"].includes(to);
+  if (from === "paid") return ["refunded", "partially_refunded"].includes(to);
+  // Never demote a paid/refunded payment back to failed
+  return false;
 }
 
 async function sendWhiteLabelEmail(supabase: ReturnType<typeof createClient>, body: Record<string, unknown>) {
@@ -44,96 +47,182 @@ async function sendWhiteLabelEmail(supabase: ReturnType<typeof createClient>, bo
 
 Deno.serve(async (req) => {
   const method = req.method;
-  const userAgent = req.headers.get("user-agent") || "";
-  console.log("[viva-webhook] method:", method, "ua:", userAgent);
+  console.log("[viva-webhook] method:", method, "ua:", req.headers.get("user-agent") || "");
 
   if (method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-
-  // Viva sends GET/HEAD verification requests before accepting the webhook URL.
-  if (method === "GET") {
-    console.log("[viva-webhook] verification ping");
-    return text("OK");
-  }
-
-  if (method === "HEAD") {
-    console.log("[viva-webhook] verification ping (HEAD)");
-    return new Response(null, { status: 200, headers: corsHeaders });
-  }
-
+  if (method === "GET") { console.log("[viva-webhook] verification ping"); return text("OK"); }
+  if (method === "HEAD") return new Response(null, { status: 200, headers: corsHeaders });
   if (method !== "POST") return json({ error: "Methode niet toegestaan" }, 405);
 
+  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+  let payload: Record<string, unknown> = {};
+  let bodyText = "";
   try {
-    const bodyText = await req.text();
-    let payload: any = {};
-    try { payload = JSON.parse(bodyText); } catch { /* ignore */ }
+    bodyText = await req.text();
+    if (bodyText) payload = JSON.parse(bodyText);
+  } catch {
+    // keep payload empty
+  }
 
-    const eventData = payload?.EventData || payload?.eventData || payload || {};
-    const eventTypeId = Number(payload?.EventTypeId ?? payload?.eventTypeId ?? 0) || undefined;
-    const transactionId = String(eventData?.TransactionId ?? eventData?.transactionId ?? "");
-    const orderCodeRaw = eventData?.OrderCode ?? eventData?.orderCode;
-    const orderCode = orderCodeRaw != null ? String(orderCodeRaw) : null;
-    const statusId = String(eventData?.StatusId ?? eventData?.statusId ?? "");
-    console.log("[viva-webhook] event type:", eventTypeId, "tx:", transactionId, "orderCode:", orderCode);
+  const p: any = payload;
+  const eventData = p?.EventData || p?.eventData || p || {};
+  const eventTypeId = Number(p?.EventTypeId ?? p?.eventTypeId ?? 0) || null;
+  const eventId = p?.EventId != null ? String(p.EventId) : (p?.eventId != null ? String(p.eventId) : null);
+  const transactionId = String(eventData?.TransactionId ?? eventData?.transactionId ?? "") || null;
+  const orderCodeRaw = eventData?.OrderCode ?? eventData?.orderCode;
+  const orderCode = orderCodeRaw != null ? String(orderCodeRaw) : null;
+  const statusId = String(eventData?.StatusId ?? eventData?.statusId ?? "") || null;
+  const status = mapVivaStatus(statusId || "", eventTypeId || undefined);
+  const eventTypeName = String(p?.EventTypeName || p?.eventTypeName || (eventTypeId ? `event_${eventTypeId}` : "unknown"));
 
-    if (!transactionId && !orderCode) return json({ error: "Geen orderCode of transactionId" }, 400);
+  console.log("[viva-webhook] event:", eventTypeId, eventTypeName, "tx:", transactionId, "orderCode:", orderCode, "status:", status);
 
-    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  // STEP 1 — write ledger FIRST (idempotent via unique indexes).
+  let ledgerId: string | null = null;
+  {
+    const { data: inserted, error: insErr } = await supabase
+      .from("viva_webhook_events")
+      .insert({
+        event_id: eventId,
+        event_type: eventTypeName,
+        event_type_id: eventTypeId,
+        order_code: orderCode,
+        transaction_id: transactionId,
+        status,
+        raw_payload: payload as any,
+      })
+      .select("id")
+      .maybeSingle();
+    if (insErr) {
+      // Duplicate (unique violation) -> still ack 200 so Viva stops retrying.
+      const msg = String(insErr.message || "");
+      if (msg.includes("duplicate") || (insErr as any).code === "23505") {
+        console.log("[viva-webhook] duplicate event ignored");
+        return json({ success: true, duplicate: true });
+      }
+      console.error("[viva-webhook] ledger insert failed", insErr);
+      // Still try to process — but ack regardless to avoid Viva retry storms.
+    } else {
+      ledgerId = inserted?.id ?? null;
+    }
+  }
 
-    // Locate payment by orderCode (stored in metadata.viva_order_code OR mollie_payment_id slot OR checkout_reference).
-    let paymentQuery = orderCode
-      ? supabase.from("payments").select("*").or(`mollie_payment_id.eq.${orderCode},checkout_reference.eq.${orderCode}`).eq("provider", "viva").limit(1).maybeSingle()
-      : supabase.from("payments").select("*").contains("metadata", { viva_transaction_id: transactionId }).limit(1).maybeSingle();
+  if (!transactionId && !orderCode) {
+    return json({ success: true, ignored: "no_identifiers" });
+  }
 
-    const { data: payment } = await paymentQuery;
-    if (!payment) return json({ error: "Betaling niet gevonden", orderCode, transactionId }, 404);
+  try {
+    // Locate payment by orderCode or stored transactionId.
+    let payment: any = null;
+    if (orderCode) {
+      const { data } = await supabase
+        .from("payments")
+        .select("*")
+        .or(`mollie_payment_id.eq.${orderCode},checkout_reference.eq.${orderCode}`)
+        .eq("provider", "viva")
+        .limit(1)
+        .maybeSingle();
+      payment = data;
+    }
+    if (!payment && transactionId) {
+      const { data } = await supabase
+        .from("payments")
+        .select("*")
+        .contains("metadata", { viva_transaction_id: transactionId })
+        .limit(1)
+        .maybeSingle();
+      payment = data;
+    }
 
-    if (payment.is_demo) return json({ success: true, demo: true });
+    if (!payment) {
+      if (ledgerId) {
+        await supabase.from("viva_webhook_events")
+          .update({ error: "payment_not_found", processed: false })
+          .eq("id", ledgerId);
+      }
+      return json({ success: true, ignored: "payment_not_found" });
+    }
 
-    // Optional: fetch authoritative transaction details from Viva
-    let txStatus = mapVivaStatus(statusId, eventTypeId);
+    // Tag ledger with user/payment for merchant isolation.
+    if (ledgerId) {
+      await supabase.from("viva_webhook_events").update({
+        user_id: payment.user_id,
+        is_demo: !!payment.is_demo,
+        payment_id: payment.id,
+      }).eq("id", ledgerId);
+    }
+
+    if (payment.is_demo) {
+      if (ledgerId) await supabase.from("viva_webhook_events").update({ processed: true, processed_at: new Date().toISOString() }).eq("id", ledgerId);
+      return json({ success: true, demo: true });
+    }
+
+    // Authoritative status via Viva API when possible.
     let resolvedOrderCode = orderCode || (payment.metadata as any)?.viva_order_code || null;
+    let providerFeeCents: number | null = null;
+    let txAmountCents: number | null = null;
+    let resolvedStatus = status;
     if (transactionId) {
       try {
         const tx = await getVivaTransaction(transactionId);
-        txStatus = mapVivaStatus(tx.statusId, eventTypeId);
+        resolvedStatus = mapVivaStatus(tx.statusId, eventTypeId || undefined);
         resolvedOrderCode = resolvedOrderCode || tx.orderCode;
+        txAmountCents = tx.amount;
+        // tx.totalFee not in shared helper; attempt via raw json
+        const txAny = tx as any;
+        if (typeof txAny.totalFee === "number") providerFeeCents = Math.round(txAny.totalFee * 100);
       } catch (e) {
-        console.warn("Viva transaction lookup failed; using event payload only", e);
+        console.warn("Viva tx lookup failed", e);
       }
     }
 
-    // Idempotency: if already paid, skip mutating side-effects.
-    if (payment.status === "paid" && txStatus === "paid") {
-      return json({ success: true, idempotent: true });
+    // Idempotent state machine guard.
+    const currentStatus = String(payment.status || "pending");
+    const targetStatus = resolvedStatus === "refunded" ? "refunded" : resolvedStatus;
+    if (!canTransition(currentStatus, targetStatus)) {
+      if (ledgerId) await supabase.from("viva_webhook_events").update({ processed: true, processed_at: new Date().toISOString(), error: `noop_${currentStatus}_${targetStatus}` }).eq("id", ledgerId);
+      return json({ success: true, idempotent: true, from: currentStatus, to: targetStatus });
     }
 
-    const isPaid = txStatus === "paid";
-    const isFailed = ["failed", "expired", "cancelled"].includes(txStatus);
-    const newStatus = isPaid ? "paid" : isFailed ? txStatus : "pending";
+    const isPaid = targetStatus === "paid";
+    const isFailed = ["failed", "expired", "cancelled"].includes(targetStatus);
+    const isRefund = targetStatus === "refunded";
+
+    // Build merged metadata. Fees stored once (only when first paid).
+    const existingMeta = (payment.metadata as any) || {};
+    const feeAlreadyStored = existingMeta.platform_fee_cents != null || existingMeta.glowpay_margin_cents != null;
+    const metaUpdates: Record<string, unknown> = {
+      ...existingMeta,
+      viva_order_code: resolvedOrderCode,
+      viva_transaction_id: transactionId || existingMeta.viva_transaction_id || null,
+      viva_status_id: statusId || existingMeta.viva_status_id || null,
+      viva_event_type_id: eventTypeId || existingMeta.viva_event_type_id || null,
+      viva_source_code: existingMeta.viva_source_code || Deno.env.get("VIVA_SOURCE_CODE") || null,
+    };
+    if (isPaid && !feeAlreadyStored) {
+      metaUpdates.platform_fee_cents = 0;
+      metaUpdates.glowpay_margin_cents = 0;
+      if (providerFeeCents != null) metaUpdates.provider_fee_cents = providerFeeCents;
+    }
 
     await supabase
       .from("payments")
       .update({
-        status: newStatus,
-        paid_at: isPaid ? new Date().toISOString() : null,
+        status: targetStatus,
+        paid_at: isPaid ? new Date().toISOString() : payment.paid_at,
         webhook_received_at: new Date().toISOString(),
         last_status_sync_at: new Date().toISOString(),
-        failure_reason: isFailed ? txStatus : null,
-        metadata: {
-          ...(payment.metadata || {}),
-          viva_order_code: resolvedOrderCode,
-          viva_transaction_id: transactionId || null,
-          viva_status_id: statusId || null,
-          viva_event_type_id: eventTypeId || null,
-        },
+        failure_reason: isFailed ? targetStatus : payment.failure_reason,
+        metadata: metaUpdates,
       })
       .eq("id", payment.id);
 
     const arSources = ["auto_revenue", "auto_revenue_deposit", "auto_revenue_full"];
-    const isAutoRevenue = arSources.includes((payment.metadata as any)?.source);
-    const appointmentId = payment.appointment_id || (payment.metadata as any)?.appointment_id || null;
+    const isAutoRevenue = arSources.includes(existingMeta?.source);
+    const appointmentId = payment.appointment_id || existingMeta?.appointment_id || null;
 
-    if (appointmentId) {
+    if (appointmentId && !isRefund) {
       const amountPaid = isPaid ? Number(payment.amount || 0) : 0;
       const apptStatus = isAutoRevenue && isPaid ? "gepland"
         : isAutoRevenue && isFailed ? "geannuleerd"
@@ -155,7 +244,7 @@ Deno.serve(async (req) => {
       await supabase.from("appointments").update(updatePayload).eq("id", appointmentId);
 
       if (isAutoRevenue) {
-        const offerId = (payment.metadata as any)?.offer_id;
+        const offerId = existingMeta?.offer_id;
         if (offerId) {
           const offerStatus = isPaid ? "paid" : isFailed ? "expired" : "pending_payment";
           await supabase
@@ -167,14 +256,14 @@ Deno.serve(async (req) => {
       }
     }
 
-    const membershipId = payment.membership_id || (payment.metadata as any)?.membership_id;
-    if (membershipId) {
+    const membershipId = payment.membership_id || existingMeta?.membership_id;
+    if (membershipId && !isRefund) {
       const membershipStatus = isPaid ? "active" : isFailed ? "payment_issue" : "active";
       await supabase.from("customer_memberships").update({
         status: membershipStatus,
         last_payment_status: isPaid ? "paid" : isFailed ? "failed" : "open",
         next_payment_at: isPaid ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() : null,
-        failure_reason: isFailed ? txStatus : null,
+        failure_reason: isFailed ? targetStatus : null,
         updated_at: new Date().toISOString(),
       }).eq("id", membershipId).eq("user_id", payment.user_id);
     }
@@ -233,9 +322,21 @@ Deno.serve(async (req) => {
       }
     }
 
-    return json({ success: true, status: newStatus });
+    if (ledgerId) {
+      await supabase.from("viva_webhook_events")
+        .update({ processed: true, processed_at: new Date().toISOString() })
+        .eq("id", ledgerId);
+    }
+
+    return json({ success: true, status: targetStatus });
   } catch (error) {
-    console.error("viva-webhook error", error);
-    return json({ error: (error as Error).message || "Webhook fout" }, 500);
+    console.error("viva-webhook processing error", error);
+    if (ledgerId) {
+      await supabase.from("viva_webhook_events")
+        .update({ error: String((error as Error).message || error), retry_count: 1 })
+        .eq("id", ledgerId);
+    }
+    // Always 200 so Viva does not hammer retries; ledger captures the failure.
+    return json({ success: true, deferred: true });
   }
 });
