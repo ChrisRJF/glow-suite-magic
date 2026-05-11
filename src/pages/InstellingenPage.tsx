@@ -272,6 +272,7 @@ export default function InstellingenPage() {
         email_enabled: notifications.email,
         whatsapp_enabled: notifications.whatsapp,
         mollie_mode: mollieMode,
+        payment_provider: paymentProvider,
         deposit_new_client: depositNewClient,
         deposit_percentage: depositPct,
         full_prepay_threshold: fullPrepayThreshold,
