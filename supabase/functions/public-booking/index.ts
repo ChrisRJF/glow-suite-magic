@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { z } from "https://esm.sh/zod@3.23.8";
+import { createVivaOrder, vivaCheckoutUrl, isVivaConfigured } from "../_shared/viva.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -64,7 +65,7 @@ async function getSalon(supabase: ReturnType<typeof createClient>, slug: string)
   const normalized = slugify(slug);
   const { data: settingsRows, error } = await supabase
     .from("settings")
-    .select("id, user_id, salon_name, opening_hours, demo_mode, is_demo, deposit_new_client, deposit_percentage, full_prepay_threshold, skip_prepay_vip, deposit_noshow_risk, group_bookings_enabled, mollie_mode, whitelabel_branding, public_slug, show_prices_online, public_employees_enabled, cancellation_notice")
+    .select("id, user_id, salon_name, opening_hours, demo_mode, is_demo, deposit_new_client, deposit_percentage, full_prepay_threshold, skip_prepay_vip, deposit_noshow_risk, group_bookings_enabled, mollie_mode, whitelabel_branding, public_slug, show_prices_online, public_employees_enabled, cancellation_notice, payment_provider")
     .or(`public_slug.eq.${normalized},public_slug.eq.${slug}`)
     .limit(1);
 
@@ -74,7 +75,7 @@ async function getSalon(supabase: ReturnType<typeof createClient>, slug: string)
   if (!settings) {
     const { data: fallbackRows } = await supabase
       .from("settings")
-      .select("id, user_id, salon_name, opening_hours, demo_mode, is_demo, deposit_new_client, deposit_percentage, full_prepay_threshold, skip_prepay_vip, deposit_noshow_risk, group_bookings_enabled, mollie_mode, whitelabel_branding, public_slug, show_prices_online, public_employees_enabled, cancellation_notice")
+      .select("id, user_id, salon_name, opening_hours, demo_mode, is_demo, deposit_new_client, deposit_percentage, full_prepay_threshold, skip_prepay_vip, deposit_noshow_risk, group_bookings_enabled, mollie_mode, whitelabel_branding, public_slug, show_prices_online, public_employees_enabled, cancellation_notice, payment_provider")
       .limit(200);
     settings = fallbackRows?.find((row: any) => slugify(row.salon_name || "") === normalized);
   }
@@ -377,49 +378,139 @@ Deno.serve(async (req) => {
     let paymentInitError: string | null = null;
 
     if (data.payment.required && primaryAppointment) {
-      const payment = await createMolliePayment({
-        req,
-        supabase,
-        amount: data.payment.amount,
-        paymentType: data.payment.type,
-        method: data.payment.method,
-        appointmentId: primaryAppointment.id,
-        customerId,
-        salonId: ctx.settings.public_slug || slugify(ctx.settings.salon_name || "salon"),
-        salonOwnerId: ctx.settings.user_id,
-        settingsId: ctx.settings.id,
-        bookingToken: primaryAppointment.booking_token,
-        isDemo: Boolean(ctx.settings.demo_mode),
-      });
-      if (payment.setupError) {
-        paymentInitError = payment.setupError;
-        paymentStatus = "payment_pending";
-      } else {
-        paymentStatus = payment.demo ? "paid" : "pending";
-        checkoutUrl = payment.checkoutUrl;
-        await supabase.from("payments").insert({
-          user_id: ctx.settings.user_id,
-          appointment_id: primaryAppointment.id,
-          customer_id: customerId,
-          mollie_payment_id: payment.mollieId,
-          amount: data.payment.amount,
-          currency: "EUR",
-          payment_type: data.payment.type,
-          status: paymentStatus,
-          method: data.payment.method,
-          mollie_method: data.payment.method,
-          is_demo: Boolean(ctx.settings.demo_mode),
-          provider: Boolean(ctx.settings.is_demo || ctx.settings.demo_mode) ? "demo" : "mollie",
-          checkout_reference: primaryAppointment.booking_reference,
-          metadata: {
+      const provider = ((ctx.settings as any).payment_provider as string) || "mollie";
+      const isDemo = Boolean(ctx.settings.demo_mode);
+      const salonSlugForMeta = ctx.settings.public_slug || slugify(ctx.settings.salon_name || "salon");
+
+      if (provider === "viva") {
+        // Viva flow
+        if (isDemo) {
+          const fakeOrderCode = `demo_viva_${crypto.randomUUID().slice(0, 8)}`;
+          checkoutUrl = `/boeken/${salonSlugForMeta}?status=demo-viva-payment&booking=${primaryAppointment.booking_token}`;
+          paymentStatus = "paid";
+          await supabase.from("payments").insert({
+            user_id: ctx.settings.user_id,
             appointment_id: primaryAppointment.id,
             customer_id: customerId,
-            salon_id: ctx.settings.public_slug || slugify(ctx.settings.salon_name || "salon"),
-            booking_token: primaryAppointment.booking_token,
+            mollie_payment_id: fakeOrderCode,
+            checkout_reference: fakeOrderCode,
+            amount: data.payment.amount,
+            currency: "EUR",
             payment_type: data.payment.type,
-          },
+            status: "paid",
+            method: "viva",
+            is_demo: true,
+            provider: "viva",
+            metadata: {
+              provider: "viva",
+              source: "public_booking",
+              viva_order_code: fakeOrderCode,
+              appointment_id: primaryAppointment.id,
+              customer_id: customerId,
+              salon_id: salonSlugForMeta,
+              booking_token: primaryAppointment.booking_token,
+              payment_type: data.payment.type,
+              simulated: true,
+            },
+          });
+        } else if (!isVivaConfigured()) {
+          paymentInitError = "Viva is nog niet gekoppeld. Je afspraak is opgeslagen, maar betaling kon niet worden gestart.";
+          paymentStatus = "payment_pending";
+        } else {
+          try {
+            const origin = req.headers.get("origin") || "https://glowsuite.nl";
+            const returnUrl = `${origin}/boeken/${salonSlugForMeta}?status=payment-return&booking=${primaryAppointment.booking_token}`;
+            const order = await createVivaOrder({
+              amountCents: Math.round(Number(data.payment.amount) * 100),
+              description: `GlowSuite ${data.payment.type === "deposit" ? "aanbetaling" : "betaling"}`,
+              customerEmail: email,
+              customerFullName: data.customer.name,
+              customerPhone: data.customer.phone,
+              successUrl: returnUrl,
+              failureUrl: returnUrl,
+              source: "public_booking",
+              paymentType: data.payment.type === "deposit" ? "deposit" : "full",
+            });
+            checkoutUrl = vivaCheckoutUrl(order.orderCode);
+            paymentStatus = "pending";
+            await supabase.from("payments").insert({
+              user_id: ctx.settings.user_id,
+              appointment_id: primaryAppointment.id,
+              customer_id: customerId,
+              mollie_payment_id: order.orderCode,
+              checkout_reference: order.orderCode,
+              amount: data.payment.amount,
+              currency: "EUR",
+              payment_type: data.payment.type,
+              status: "pending",
+              method: "viva",
+              is_demo: false,
+              provider: "viva",
+              metadata: {
+                provider: "viva",
+                source: "public_booking",
+                viva_order_code: order.orderCode,
+                appointment_id: primaryAppointment.id,
+                customer_id: customerId,
+                salon_id: salonSlugForMeta,
+                booking_token: primaryAppointment.booking_token,
+                payment_type: data.payment.type,
+                checkout_url: checkoutUrl,
+              },
+            });
+          } catch (e) {
+            console.error("Viva order failed (public booking)", e);
+            paymentInitError = "Betaling kon niet worden gestart. Je afspraak is opgeslagen met betaalstatus in afwachting.";
+            paymentStatus = "payment_pending";
+          }
+        }
+      } else {
+        // Mollie (default) — unchanged
+        const payment = await createMolliePayment({
+          req,
+          supabase,
+          amount: data.payment.amount,
+          paymentType: data.payment.type,
+          method: data.payment.method,
+          appointmentId: primaryAppointment.id,
+          customerId,
+          salonId: salonSlugForMeta,
+          salonOwnerId: ctx.settings.user_id,
+          settingsId: ctx.settings.id,
+          bookingToken: primaryAppointment.booking_token,
+          isDemo,
         });
+        if (payment.setupError) {
+          paymentInitError = payment.setupError;
+          paymentStatus = "payment_pending";
+        } else {
+          paymentStatus = payment.demo ? "paid" : "pending";
+          checkoutUrl = payment.checkoutUrl;
+          await supabase.from("payments").insert({
+            user_id: ctx.settings.user_id,
+            appointment_id: primaryAppointment.id,
+            customer_id: customerId,
+            mollie_payment_id: payment.mollieId,
+            amount: data.payment.amount,
+            currency: "EUR",
+            payment_type: data.payment.type,
+            status: paymentStatus,
+            method: data.payment.method,
+            mollie_method: data.payment.method,
+            is_demo: isDemo,
+            provider: Boolean(ctx.settings.is_demo || ctx.settings.demo_mode) ? "demo" : "mollie",
+            checkout_reference: primaryAppointment.booking_reference,
+            metadata: {
+              appointment_id: primaryAppointment.id,
+              customer_id: customerId,
+              salon_id: salonSlugForMeta,
+              booking_token: primaryAppointment.booking_token,
+              payment_type: data.payment.type,
+            },
+          });
+        }
       }
+
       const nextPaymentStatus = paymentStatus === "paid" ? "paid" : paymentInitError ? "payment_failed" : "pending";
       await supabase.from("appointments").update({ payment_status: nextPaymentStatus, status: paymentStatus === "paid" ? "confirmed" : "pending_confirmation" }).eq("booking_group_id", groupId);
       await supabase.from("appointments").update({ payment_status: nextPaymentStatus, status: paymentStatus === "paid" ? "confirmed" : "pending_confirmation" }).eq("id", primaryAppointment.id);

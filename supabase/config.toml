@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.whatsapp-inbound]
 verify_jwt = false
+
+[functions.viva-webhook]
+verify_jwt = false
