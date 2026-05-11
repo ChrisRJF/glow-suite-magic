@@ -121,7 +121,7 @@ Deno.serve(async (req) => {
     // Check if demo mode + provider selection
     const { data: settings } = await supabase
       .from("settings")
-      .select("id, demo_mode, is_demo, mollie_mode, payment_provider")
+      .select("id, demo_mode, is_demo, mollie_mode, payment_provider, payment_provider_fallback_enabled")
       .eq("user_id", user.id)
       .maybeSingle();
 
