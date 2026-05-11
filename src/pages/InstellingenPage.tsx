@@ -104,6 +104,7 @@ export default function InstellingenPage() {
       setNotifications({ email: s.email_enabled || false, whatsapp: s.whatsapp_enabled || false, push: false });
       setDemoMode(s.demo_mode || false);
       setMollieMode(s.mollie_mode || 'test');
+      setPaymentProvider((s.payment_provider === 'viva' ? 'viva' : 'mollie'));
       setDepositNewClient(s.deposit_new_client ?? true);
       setDepositPct(s.deposit_percentage ?? 50);
       setFullPrepayThreshold(Number(s.full_prepay_threshold) || 150);
