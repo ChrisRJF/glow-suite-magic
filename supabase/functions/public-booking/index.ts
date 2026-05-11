@@ -511,6 +511,11 @@ Deno.serve(async (req) => {
         }
       }
 
+      const nextPaymentStatus = paymentStatus === "paid" ? "paid" : paymentInitError ? "payment_failed" : "pending";
+      await supabase.from("appointments").update({ payment_status: nextPaymentStatus, status: paymentStatus === "paid" ? "confirmed" : "pending_confirmation" }).eq("booking_group_id", groupId);
+      await supabase.from("appointments").update({ payment_status: nextPaymentStatus, status: paymentStatus === "paid" ? "confirmed" : "pending_confirmation" }).eq("id", primaryAppointment.id);
+    }
+
     if (primaryAppointment) {
       const salonSlug = ctx.settings.public_slug || slugify(ctx.settings.salon_name || "salon");
       const serviceSlug = slugify(mainService.name || "service");
