@@ -118,14 +118,45 @@ Deno.serve(async (req) => {
     const { appointment_id, customer_id, membership_id, payment_type, method, source, redirect_url } = parsed.data;
     const amount = source === "test_button" ? 1 : parsed.data.amount;
 
-    // Check if demo mode
+    // Check if demo mode + provider selection
     const { data: settings } = await supabase
       .from("settings")
-      .select("id, demo_mode, is_demo, mollie_mode")
+      .select("id, demo_mode, is_demo, mollie_mode, payment_provider")
       .eq("user_id", user.id)
       .maybeSingle();
 
     const demoMode = Boolean(settings?.is_demo || settings?.demo_mode);
+    const provider = ((settings as any)?.payment_provider as string) || "mollie";
+
+    // Route to Viva when selected (test_button stays on Mollie since it tests Mollie Connect specifically)
+    if (provider === "viva" && source !== "test_button") {
+      const { data: result, error: vivaErr } = await supabase.functions.invoke("create-viva-payment", {
+        body: {
+          appointment_id,
+          customer_id,
+          membership_id,
+          amount_cents: Math.round(amount * 100),
+          payment_type: payment_type === "membership" ? "subscription" : payment_type === "remainder" || payment_type === "webshop" ? "full" : payment_type,
+          source: payment_type === "membership" ? "membership" : "manual",
+          is_demo: demoMode,
+          redirect_url,
+        },
+      });
+      if (vivaErr || (result as any)?.error) {
+        return new Response(JSON.stringify({ error: (result as any)?.error || vivaErr?.message || "Viva fout" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({
+        success: true,
+        demo: !!(result as any)?.demo,
+        provider: "viva",
+        payment: { id: (result as any)?.payment_id },
+        checkoutUrl: (result as any)?.checkout_url,
+      }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
 
     if (demoMode) {
       const demoStatuses = ["paid", "failed", "cancelled"];
