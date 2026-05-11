@@ -43,15 +43,24 @@ async function sendWhiteLabelEmail(supabase: ReturnType<typeof createClient>, bo
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const method = req.method;
+  const userAgent = req.headers.get("user-agent") || "";
+  console.log("[viva-webhook] method:", method, "ua:", userAgent);
 
-  // Viva sends a GET request when registering the webhook to retrieve the Key.
-  // We don't currently use a verification key; respond OK so registration succeeds.
-  if (req.method === "GET") {
-    return json({ Key: Deno.env.get("VIVA_WEBHOOK_KEY") || "glowsuite" });
+  if (method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  // Viva sends GET/HEAD verification requests before accepting the webhook URL.
+  if (method === "GET") {
+    console.log("[viva-webhook] verification ping");
+    return text("OK");
   }
 
-  if (req.method !== "POST") return json({ error: "Methode niet toegestaan" }, 405);
+  if (method === "HEAD") {
+    console.log("[viva-webhook] verification ping (HEAD)");
+    return new Response(null, { status: 200, headers: corsHeaders });
+  }
+
+  if (method !== "POST") return json({ error: "Methode niet toegestaan" }, 405);
 
   try {
     const bodyText = await req.text();
