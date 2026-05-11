@@ -23,3 +23,9 @@ verify_jwt = false
 
 [functions.verify-viva-payment]
 verify_jwt = false
+
+[functions.viva-debug-ping]
+verify_jwt = false
+
+[functions.viva-webhook-proxy]
+verify_jwt = false

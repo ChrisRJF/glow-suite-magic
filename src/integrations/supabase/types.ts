@@ -2863,6 +2863,39 @@ export type Database = {
         }
         Relationships: []
       }
+      viva_webhook_debug_logs: {
+        Row: {
+          body_preview: string | null
+          created_at: string
+          headers: Json | null
+          id: string
+          method: string | null
+          query: Json | null
+          source_ip: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          body_preview?: string | null
+          created_at?: string
+          headers?: Json | null
+          id?: string
+          method?: string | null
+          query?: Json | null
+          source_ip?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          body_preview?: string | null
+          created_at?: string
+          headers?: Json | null
+          id?: string
+          method?: string | null
+          query?: Json | null
+          source_ip?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       viva_webhook_events: {
         Row: {
           created_at: string

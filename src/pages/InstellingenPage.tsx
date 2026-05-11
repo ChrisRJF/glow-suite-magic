@@ -67,7 +67,7 @@ export default function InstellingenPage() {
   const [vivaTestLoading, setVivaTestLoading] = useState(false);
   const [vivaTestResult, setVivaTestResult] = useState<{ checkout_url: string; payment_id?: string; order_code?: string } | null>(null);
   const [vivaActivation, setVivaActivation] = useState<string>("not_started");
-  const [vivaDiag, setVivaDiag] = useState<{ last_received: string | null; last_processed: string | null; failed_count: number } | null>(null);
+  const [vivaDiag, setVivaDiag] = useState<{ last_received: string | null; last_processed: string | null; failed_count: number; total_hits: number; last_post: string | null; malformed_count: number; latest_headers: Record<string, unknown> | null } | null>(null);
   const vivaWebhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/viva-webhook`;
   const [depositNewClient, setDepositNewClient] = useState(true);
   const [depositPct, setDepositPct] = useState(50);
@@ -171,15 +171,23 @@ export default function InstellingenPage() {
     // Load Viva webhook diagnostics
     (async () => {
       try {
-        const [recv, proc, failed] = await Promise.all([
+        const [recv, proc, failed, totalHits, lastPost, latestDebug, malformed] = await Promise.all([
           (supabase as any).from("viva_webhook_events").select("created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
           (supabase as any).from("viva_webhook_events").select("processed_at").eq("user_id", user.id).eq("processed", true).order("processed_at", { ascending: false }).limit(1).maybeSingle(),
           (supabase as any).from("viva_webhook_events").select("id", { count: "exact", head: true }).eq("user_id", user.id).not("error", "is", null),
+          (supabase as any).from("viva_webhook_debug_logs").select("id", { count: "exact", head: true }),
+          (supabase as any).from("viva_webhook_debug_logs").select("created_at").eq("method", "POST").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+          (supabase as any).from("viva_webhook_debug_logs").select("created_at, headers").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+          (supabase as any).from("viva_webhook_events").select("id", { count: "exact", head: true }).eq("error", "malformed_or_empty_payload"),
         ]);
         setVivaDiag({
-          last_received: (recv?.data as any)?.created_at || null,
+          last_received: (latestDebug?.data as any)?.created_at || (recv?.data as any)?.created_at || null,
           last_processed: (proc?.data as any)?.processed_at || null,
           failed_count: (failed as any)?.count || 0,
+          total_hits: (totalHits as any)?.count || 0,
+          last_post: (lastPost?.data as any)?.created_at || null,
+          malformed_count: (malformed as any)?.count || 0,
+          latest_headers: ((latestDebug?.data as any)?.headers as Record<string, unknown>) || null,
         });
       } catch {}
     })();
@@ -940,10 +948,22 @@ export default function InstellingenPage() {
                         Activatie: {vivaActivation.replace(/_/g, " ")}
                       </span>
                     </div>
-                    <div className="grid grid-cols-3 gap-2 text-[10px]">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px]">
                       <div>
                         <p className="text-muted-foreground">Laatst ontvangen</p>
                         <p className="font-medium">{vivaDiag?.last_received ? new Date(vivaDiag.last_received).toLocaleString("nl-NL") : "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Webhook hits</p>
+                        <p className="font-medium">{vivaDiag?.total_hits ?? 0}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Laatste POST</p>
+                        <p className="font-medium">{vivaDiag?.last_post ? new Date(vivaDiag.last_post).toLocaleString("nl-NL") : "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Malformed</p>
+                        <p className={`font-medium ${vivaDiag && vivaDiag.malformed_count > 0 ? "text-destructive" : ""}`}>{vivaDiag?.malformed_count ?? 0}</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground">Laatst verwerkt</p>
@@ -953,6 +973,12 @@ export default function InstellingenPage() {
                         <p className="text-muted-foreground">Mislukt</p>
                         <p className={`font-medium ${vivaDiag && vivaDiag.failed_count > 0 ? "text-destructive" : ""}`}>{vivaDiag?.failed_count ?? 0}</p>
                       </div>
+                    </div>
+                    <div className="pt-2 border-t border-border">
+                      <p className="text-[10px] text-muted-foreground mb-1">Laatste headers</p>
+                      <pre className="max-h-28 overflow-auto rounded-md bg-muted/50 p-2 text-[9px] leading-relaxed whitespace-pre-wrap break-all">
+                        {vivaDiag?.latest_headers ? JSON.stringify(vivaDiag.latest_headers, null, 2) : "—"}
+                      </pre>
                     </div>
                   </div>
 
