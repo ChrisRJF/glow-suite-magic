@@ -58,6 +58,9 @@ export default function InstellingenPage() {
   const [demoMode, setDemoMode] = useState(false);
   const [mollieMode, setMollieMode] = useState("test");
   const [paymentProvider, setPaymentProvider] = useState<"mollie" | "viva">("mollie");
+  const [paymentFallback, setPaymentFallback] = useState(false);
+  const [vivaStatus, setVivaStatus] = useState<{ configured: boolean; environment: "demo" | "live"; credentials_present: boolean; source_code_present: boolean } | null>(null);
+  const [vivaChecklist, setVivaChecklist] = useState<Record<string, boolean>>({});
   const [depositNewClient, setDepositNewClient] = useState(true);
   const [depositPct, setDepositPct] = useState(50);
   const [fullPrepayThreshold, setFullPrepayThreshold] = useState(150);
