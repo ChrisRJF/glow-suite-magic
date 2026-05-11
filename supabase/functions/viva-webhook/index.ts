@@ -5,18 +5,14 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getVivaTransaction } from "../_shared/viva.ts";
+import { diagnosticCorsHeaders, okText, parseVivaPayload, writeWebhookDebugLog } from "../_shared/vivaDiagnostics.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+const corsHeaders = diagnosticCorsHeaders;
 
-function text(body: string, status = 200) {
-  return new Response(body, { status, headers: { ...corsHeaders, "Content-Type": "text/plain" } });
-}
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-}
+// Temporary Viva webhook onboarding diagnostics.
+// curl GET: curl -i "https://ueqhckkuuwdsrjrdczbb.supabase.co/functions/v1/viva-webhook?check=1"
+// curl POST json: curl -i -X POST "https://ueqhckkuuwdsrjrdczbb.supabase.co/functions/v1/viva-webhook" -H "Content-Type: application/json" --data '{"EventTypeId":1796,"EventData":{"OrderCode":"test","StatusId":"F"}}'
+// curl POST form: curl -i -X POST "https://ueqhckkuuwdsrjrdczbb.supabase.co/functions/v1/viva-webhook" -H "Content-Type: application/x-www-form-urlencoded" --data-urlencode 'EventTypeId=1796' --data-urlencode 'EventData={"OrderCode":"test","StatusId":"F"}'
 
 function slugify(value: string) {
   return value.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "").slice(0, 48) || "salon";
@@ -46,27 +42,38 @@ async function sendWhiteLabelEmail(supabase: ReturnType<typeof createClient>, bo
 }
 
 Deno.serve(async (req) => {
-  const method = req.method;
-  console.log("[viva-webhook] method:", method, "ua:", req.headers.get("user-agent") || "");
-
-  if (method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  if (method === "GET") { console.log("[viva-webhook] verification ping"); return text("OK"); }
-  if (method === "HEAD") return new Response(null, { status: 200, headers: corsHeaders });
-  if (method !== "POST") return json({ error: "Methode niet toegestaan" }, 405);
-
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const method = req.method;
+  const contentType = req.headers.get("content-type") || "";
+  let rawBody = "";
+  try {
+    rawBody = await req.clone().text();
+    await writeWebhookDebugLog(supabase, req, rawBody, "viva-webhook");
+  } catch (diagErr) {
+    console.error("[viva-webhook] diagnostics failed", diagErr);
+  }
+
+  console.log("[viva-webhook] method:", method, "ua:", req.headers.get("user-agent") || "", "content-type:", contentType);
+
+  if (["OPTIONS", "GET", "HEAD"].includes(method)) {
+    console.log("[viva-webhook] verification ping", method);
+    return okText();
+  }
+  if (method !== "POST") return okText();
 
   let payload: Record<string, unknown> = {};
-  let bodyText = "";
   try {
-    bodyText = await req.text();
-    if (bodyText) payload = JSON.parse(bodyText);
-  } catch {
+    payload = parseVivaPayload(contentType, rawBody);
+  } catch (parseErr) {
+    console.warn("[viva-webhook] payload parse failed", parseErr);
     // keep payload empty
   }
 
   const p: any = payload;
-  const eventData = p?.EventData || p?.eventData || p || {};
+  let eventData = p?.EventData || p?.eventData || p || {};
+  if (typeof eventData === "string") {
+    try { eventData = JSON.parse(eventData); } catch { eventData = {}; }
+  }
   const eventTypeId = Number(p?.EventTypeId ?? p?.eventTypeId ?? 0) || null;
   const eventId = p?.EventId != null ? String(p.EventId) : (p?.eventId != null ? String(p.eventId) : null);
   const transactionId = String(eventData?.TransactionId ?? eventData?.transactionId ?? "") || null;
@@ -99,7 +106,7 @@ Deno.serve(async (req) => {
       const msg = String(insErr.message || "");
       if (msg.includes("duplicate") || (insErr as any).code === "23505") {
         console.log("[viva-webhook] duplicate event ignored");
-        return json({ success: true, duplicate: true });
+        return okText();
       }
       console.error("[viva-webhook] ledger insert failed", insErr);
       // Still try to process — but ack regardless to avoid Viva retry storms.
@@ -109,7 +116,12 @@ Deno.serve(async (req) => {
   }
 
   if (!transactionId && !orderCode) {
-    return json({ success: true, ignored: "no_identifiers" });
+    if (ledgerId) {
+      await supabase.from("viva_webhook_events")
+        .update({ error: "malformed_or_empty_payload", processed: true, processed_at: new Date().toISOString() })
+        .eq("id", ledgerId);
+    }
+    return okText();
   }
 
   try {
@@ -141,7 +153,7 @@ Deno.serve(async (req) => {
           .update({ error: "payment_not_found", processed: false })
           .eq("id", ledgerId);
       }
-      return json({ success: true, ignored: "payment_not_found" });
+      return okText();
     }
 
     // Tag ledger with user/payment for merchant isolation.
@@ -155,7 +167,7 @@ Deno.serve(async (req) => {
 
     if (payment.is_demo) {
       if (ledgerId) await supabase.from("viva_webhook_events").update({ processed: true, processed_at: new Date().toISOString() }).eq("id", ledgerId);
-      return json({ success: true, demo: true });
+      return okText();
     }
 
     // Authoritative status via Viva API when possible.
@@ -182,7 +194,7 @@ Deno.serve(async (req) => {
     const targetStatus = resolvedStatus === "refunded" ? "refunded" : resolvedStatus;
     if (!canTransition(currentStatus, targetStatus)) {
       if (ledgerId) await supabase.from("viva_webhook_events").update({ processed: true, processed_at: new Date().toISOString(), error: `noop_${currentStatus}_${targetStatus}` }).eq("id", ledgerId);
-      return json({ success: true, idempotent: true, from: currentStatus, to: targetStatus });
+      return okText();
     }
 
     const isPaid = targetStatus === "paid";
@@ -328,7 +340,7 @@ Deno.serve(async (req) => {
         .eq("id", ledgerId);
     }
 
-    return json({ success: true, status: targetStatus });
+    return okText();
   } catch (error) {
     console.error("viva-webhook processing error", error);
     if (ledgerId) {
@@ -337,6 +349,6 @@ Deno.serve(async (req) => {
         .eq("id", ledgerId);
     }
     // Always 200 so Viva does not hammer retries; ledger captures the failure.
-    return json({ success: true, deferred: true });
+    return okText();
   }
 });
