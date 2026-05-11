@@ -81,11 +81,11 @@ Deno.serve(async (req) => {
       return json({ error: "user_id, appointment_id, offer_id, customer_id verplicht" }, 400);
     }
 
-    // Load settings (deposit config + payment mode + demo flag)
+    // Load settings (deposit config + payment mode + demo flag + provider)
     const { data: settings } = await admin
       .from("settings")
       .select(
-        "id, demo_mode, is_demo, auto_revenue_payment_mode, auto_revenue_deposit_enabled, auto_revenue_deposit_type, auto_revenue_deposit_fixed_cents, auto_revenue_deposit_percentage_bps, auto_revenue_deposit_min_cents, auto_revenue_deposit_max_cents",
+        "id, demo_mode, is_demo, payment_provider, auto_revenue_payment_mode, auto_revenue_deposit_enabled, auto_revenue_deposit_type, auto_revenue_deposit_fixed_cents, auto_revenue_deposit_percentage_bps, auto_revenue_deposit_min_cents, auto_revenue_deposit_max_cents",
       )
       .eq("user_id", user_id)
       .order("created_at", { ascending: false })
@@ -95,10 +95,12 @@ Deno.serve(async (req) => {
     const demoMode = bodyIsDemo === true || Boolean((settings as any)?.is_demo || (settings as any)?.demo_mode);
     const paymentMode: "none" | "deposit" | "full" =
       (bodyMode as any) || ((settings as any)?.auto_revenue_payment_mode as any) || "deposit";
+    const provider = ((settings as any)?.payment_provider as string) || "mollie";
 
     if (paymentMode === "none") {
       return json({ error: "payment_mode=none vereist geen betaling" }, 400);
     }
+
 
     // Load appointment to compute base amount (price)
     const { data: appt } = await admin
