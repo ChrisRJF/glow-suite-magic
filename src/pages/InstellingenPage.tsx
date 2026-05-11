@@ -61,6 +61,12 @@ export default function InstellingenPage() {
   const [paymentFallback, setPaymentFallback] = useState(false);
   const [vivaStatus, setVivaStatus] = useState<{ configured: boolean; environment: "demo" | "live"; credentials_present: boolean; source_code_present: boolean } | null>(null);
   const [vivaChecklist, setVivaChecklist] = useState<Record<string, boolean>>({});
+  const [vivaTestAmount, setVivaTestAmount] = useState("1.00");
+  const [vivaTestEmail, setVivaTestEmail] = useState("test@example.com");
+  const [vivaTestName, setVivaTestName] = useState("Test Klant");
+  const [vivaTestLoading, setVivaTestLoading] = useState(false);
+  const [vivaTestResult, setVivaTestResult] = useState<{ checkout_url: string; payment_id?: string; order_code?: string } | null>(null);
+  const vivaWebhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/viva-webhook`;
   const [depositNewClient, setDepositNewClient] = useState(true);
   const [depositPct, setDepositPct] = useState(50);
   const [fullPrepayThreshold, setFullPrepayThreshold] = useState(150);
