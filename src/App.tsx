@@ -102,6 +102,8 @@ const App = () => (
               <Route path="/login" element={<AuthRoute><LoginPage /></AuthRoute>} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/integrations/mollie/callback" element={<MollieCallbackPage />} />
+              <Route path="/payment/success" element={<PaymentSuccessPage />} />
+              <Route path="/payment/failed" element={<PaymentFailedPage />} />
               <Route path="/boeken" element={<BookingPage />} />
               <Route path="/boeken/:salonSlug" element={<BookingPage />} />
               <Route path="/shop/:salonSlug" element={<ShopPage />} />
