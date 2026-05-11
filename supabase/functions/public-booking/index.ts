@@ -467,12 +467,18 @@ Deno.serve(async (req) => {
             });
           } catch (e) {
             console.error("Viva order failed (public booking)", e);
-            paymentInitError = "Betaling kon niet worden gestart. Je afspraak is opgeslagen met betaalstatus in afwachting.";
-            paymentStatus = "payment_pending";
+            if (fallbackEnabled) {
+              console.warn("[public-booking] Viva failed, falling back to Mollie");
+              provider = "mollie";
+            } else {
+              paymentInitError = "Betaling kon niet worden gestart. Je afspraak is opgeslagen met betaalstatus in afwachting.";
+              paymentStatus = "payment_pending";
+            }
           }
         }
-      } else {
-        // Mollie (default) — unchanged
+      }
+      if (provider === "mollie") {
+        // Mollie (default fallback) — unchanged
         const payment = await createMolliePayment({
           req,
           supabase,
