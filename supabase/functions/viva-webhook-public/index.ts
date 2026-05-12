@@ -87,9 +87,10 @@ async function fetchVivaWebhookKey(): Promise<string> {
     return cachedKey.value;
   }
 
-  // 3) Retrieve from Viva.
+  // 3) Retrieve from Viva. The endpoint requires Bearer auth via OAuth2.
+  const url = `${vivaApiBase()}/api/messages/config/token`;
   const token = await getVivaToken();
-  const res = await fetch(`${vivaApiBase()}/messages/config/token`, {
+  const res = await fetch(url, {
     method: "GET",
     headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
   });
@@ -97,7 +98,7 @@ async function fetchVivaWebhookKey(): Promise<string> {
   let data: any = {};
   try { data = JSON.parse(text); } catch { /* keep text */ }
   if (!res.ok) {
-    throw new Error(`Viva key fetch error (${res.status}): ${text.slice(0, 300)}`);
+    throw new Error(`Viva key fetch error (${res.status} @ ${url}): ${text.slice(0, 300)}`);
   }
   const key = data?.Key || data?.key || "";
   if (!key) throw new Error(`Viva returned no key: ${text.slice(0, 200)}`);
