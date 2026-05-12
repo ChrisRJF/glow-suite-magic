@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.viva-webhook-proxy]
 verify_jwt = false
+
+[functions.viva-webhook-public]
+verify_jwt = false
