@@ -171,7 +171,7 @@ export default function InstellingenPage() {
     // Load Viva webhook diagnostics
     (async () => {
       try {
-        const [recv, proc, failed, totalHits, lastPost, latestDebug, malformed] = await Promise.all([
+        const [recv, proc, failed, totalHits, lastPost, latestDebug, malformed, lastFallback, fallbackCount] = await Promise.all([
           (supabase as any).from("viva_webhook_events").select("created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
           (supabase as any).from("viva_webhook_events").select("processed_at").eq("user_id", user.id).eq("processed", true).order("processed_at", { ascending: false }).limit(1).maybeSingle(),
           (supabase as any).from("viva_webhook_events").select("id", { count: "exact", head: true }).eq("user_id", user.id).not("error", "is", null),
@@ -179,6 +179,8 @@ export default function InstellingenPage() {
           (supabase as any).from("viva_webhook_debug_logs").select("created_at").eq("method", "POST").order("created_at", { ascending: false }).limit(1).maybeSingle(),
           (supabase as any).from("viva_webhook_debug_logs").select("created_at, headers").order("created_at", { ascending: false }).limit(1).maybeSingle(),
           (supabase as any).from("viva_webhook_events").select("id", { count: "exact", head: true }).eq("error", "malformed_or_empty_payload"),
+          (supabase as any).from("viva_webhook_events").select("created_at").eq("user_id", user.id).eq("source", "redirect_fallback").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+          (supabase as any).from("viva_webhook_events").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("source", "redirect_fallback"),
         ]);
         setVivaDiag({
           last_received: (latestDebug?.data as any)?.created_at || (recv?.data as any)?.created_at || null,
@@ -186,6 +188,8 @@ export default function InstellingenPage() {
           failed_count: (failed as any)?.count || 0,
           total_hits: (totalHits as any)?.count || 0,
           last_post: (lastPost?.data as any)?.created_at || null,
+          last_redirect_fallback: (lastFallback?.data as any)?.created_at || null,
+          redirect_fallback_count: (fallbackCount as any)?.count || 0,
           malformed_count: (malformed as any)?.count || 0,
           latest_headers: ((latestDebug?.data as any)?.headers as Record<string, unknown>) || null,
         });
