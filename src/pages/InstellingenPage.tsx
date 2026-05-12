@@ -1024,7 +1024,36 @@ export default function InstellingenPage() {
                         <p className="text-muted-foreground">Fallback syncs</p>
                         <p className="font-medium">{vivaDiag?.redirect_fallback_count ?? 0}</p>
                       </div>
+                      <div>
+                        <p className="text-muted-foreground">Live webhook POSTs</p>
+                        <p className="font-medium">{vivaDiag?.live_webhook_count ?? 0}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Laatste live webhook</p>
+                        <p className="font-medium">{vivaDiag?.last_live_webhook ? new Date(vivaDiag.last_live_webhook).toLocaleString("nl-NL") : "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Reconciliation syncs</p>
+                        <p className="font-medium">{vivaDiag?.reconciliation_count ?? 0}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Laatste reconciliation</p>
+                        <p className="font-medium">{vivaDiag?.last_reconciliation ? new Date(vivaDiag.last_reconciliation).toLocaleString("nl-NL") : "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Pending &gt; 15 min</p>
+                        <p className={`font-medium ${vivaDiag && vivaDiag.pending_old_count > 0 ? "text-destructive" : ""}`}>{vivaDiag?.pending_old_count ?? 0}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Mislukte sync (24u)</p>
+                        <p className={`font-medium ${vivaDiag && vivaDiag.failed_sync_count > 0 ? "text-destructive" : ""}`}>{vivaDiag?.failed_sync_count ?? 0}</p>
+                      </div>
                     </div>
+                    {vivaDiag?.has_viva_payments && (!vivaDiag.last_live_webhook || new Date(vivaDiag.last_live_webhook).getTime() < Date.now() - 24 * 60 * 60 * 1000) && (
+                      <div className="mt-2 rounded-lg border border-destructive/40 bg-destructive/10 p-2 text-[10px] text-destructive">
+                        ⚠ Geen live webhook POST in de laatste 24 uur, maar er zijn wel Viva-betalingen. Controleer de webhook-configuratie in Viva. Reconciliation vangt dit automatisch op, maar live POSTs zijn sneller.
+                      </div>
+                    )}
                     <div className="pt-2 border-t border-border">
                       <p className="text-[10px] text-muted-foreground mb-1">Laatste headers</p>
                       <pre className="max-h-28 overflow-auto rounded-md bg-muted/50 p-2 text-[9px] leading-relaxed whitespace-pre-wrap break-all">
