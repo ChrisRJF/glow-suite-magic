@@ -2911,6 +2911,7 @@ export type Database = {
           processed_at: string | null
           raw_payload: Json
           retry_count: number
+          source: string
           status: string | null
           transaction_id: string | null
           user_id: string | null
@@ -2929,6 +2930,7 @@ export type Database = {
           processed_at?: string | null
           raw_payload?: Json
           retry_count?: number
+          source?: string
           status?: string | null
           transaction_id?: string | null
           user_id?: string | null
@@ -2947,6 +2949,7 @@ export type Database = {
           processed_at?: string | null
           raw_payload?: Json
           retry_count?: number
+          source?: string
           status?: string | null
           transaction_id?: string | null
           user_id?: string | null
