@@ -188,7 +188,15 @@ export default function InstellingenPage() {
     // Load Viva webhook diagnostics
     (async () => {
       try {
-        const [recv, proc, failed, totalHits, lastPost, latestDebug, malformed, lastFallback, fallbackCount] = await Promise.all([
+        const fifteenMinAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const [
+          recv, proc, failed, totalHits, lastPost, latestDebug, malformed,
+          lastFallback, fallbackCount,
+          lastReconciliation, reconciliationCount,
+          lastLiveWebhook, liveWebhookCount,
+          pendingOld, failedSync, hasViva,
+        ] = await Promise.all([
           (supabase as any).from("viva_webhook_events").select("created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
           (supabase as any).from("viva_webhook_events").select("processed_at").eq("user_id", user.id).eq("processed", true).order("processed_at", { ascending: false }).limit(1).maybeSingle(),
           (supabase as any).from("viva_webhook_events").select("id", { count: "exact", head: true }).eq("user_id", user.id).not("error", "is", null),
@@ -198,6 +206,13 @@ export default function InstellingenPage() {
           (supabase as any).from("viva_webhook_events").select("id", { count: "exact", head: true }).eq("error", "malformed_or_empty_payload"),
           (supabase as any).from("viva_webhook_events").select("created_at").eq("user_id", user.id).eq("source", "redirect_fallback").order("created_at", { ascending: false }).limit(1).maybeSingle(),
           (supabase as any).from("viva_webhook_events").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("source", "redirect_fallback"),
+          (supabase as any).from("viva_webhook_events").select("created_at").eq("user_id", user.id).eq("source", "reconciliation").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+          (supabase as any).from("viva_webhook_events").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("source", "reconciliation"),
+          (supabase as any).from("viva_webhook_events").select("created_at").eq("user_id", user.id).eq("source", "webhook").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+          (supabase as any).from("viva_webhook_events").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("source", "webhook"),
+          (supabase as any).from("payments").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("provider", "viva").eq("is_demo", false).in("status", ["pending", "open", "processing"]).lt("created_at", fifteenMinAgo),
+          (supabase as any).from("viva_webhook_events").select("id", { count: "exact", head: true }).eq("user_id", user.id).not("error", "is", null).gte("created_at", twentyFourHoursAgo),
+          (supabase as any).from("payments").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("provider", "viva").eq("is_demo", false),
         ]);
         setVivaDiag({
           last_received: (latestDebug?.data as any)?.created_at || (recv?.data as any)?.created_at || null,
@@ -207,6 +222,13 @@ export default function InstellingenPage() {
           last_post: (lastPost?.data as any)?.created_at || null,
           last_redirect_fallback: (lastFallback?.data as any)?.created_at || null,
           redirect_fallback_count: (fallbackCount as any)?.count || 0,
+          last_reconciliation: (lastReconciliation?.data as any)?.created_at || null,
+          reconciliation_count: (reconciliationCount as any)?.count || 0,
+          last_live_webhook: (lastLiveWebhook?.data as any)?.created_at || null,
+          live_webhook_count: (liveWebhookCount as any)?.count || 0,
+          pending_old_count: (pendingOld as any)?.count || 0,
+          failed_sync_count: (failedSync as any)?.count || 0,
+          has_viva_payments: ((hasViva as any)?.count || 0) > 0,
           malformed_count: (malformed as any)?.count || 0,
           latest_headers: ((latestDebug?.data as any)?.headers as Record<string, unknown>) || null,
         });
