@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.retrieve-viva-webhook-key]
 verify_jwt = false
+
+[functions.viva-payment-reconcile]
+verify_jwt = false

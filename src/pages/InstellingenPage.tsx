@@ -67,7 +67,24 @@ export default function InstellingenPage() {
   const [vivaTestLoading, setVivaTestLoading] = useState(false);
   const [vivaTestResult, setVivaTestResult] = useState<{ checkout_url: string; payment_id?: string; order_code?: string } | null>(null);
   const [vivaActivation, setVivaActivation] = useState<string>("not_started");
-  const [vivaDiag, setVivaDiag] = useState<{ last_received: string | null; last_processed: string | null; failed_count: number; total_hits: number; last_post: string | null; last_redirect_fallback: string | null; redirect_fallback_count: number; malformed_count: number; latest_headers: Record<string, unknown> | null } | null>(null);
+  const [vivaDiag, setVivaDiag] = useState<{
+    last_received: string | null;
+    last_processed: string | null;
+    failed_count: number;
+    total_hits: number;
+    last_post: string | null;
+    last_redirect_fallback: string | null;
+    redirect_fallback_count: number;
+    last_reconciliation: string | null;
+    reconciliation_count: number;
+    last_live_webhook: string | null;
+    live_webhook_count: number;
+    pending_old_count: number;
+    failed_sync_count: number;
+    has_viva_payments: boolean;
+    malformed_count: number;
+    latest_headers: Record<string, unknown> | null;
+  } | null>(null);
   const vivaWebhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/viva-webhook`;
   const [depositNewClient, setDepositNewClient] = useState(true);
   const [depositPct, setDepositPct] = useState(50);
@@ -171,7 +188,15 @@ export default function InstellingenPage() {
     // Load Viva webhook diagnostics
     (async () => {
       try {
-        const [recv, proc, failed, totalHits, lastPost, latestDebug, malformed, lastFallback, fallbackCount] = await Promise.all([
+        const fifteenMinAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const [
+          recv, proc, failed, totalHits, lastPost, latestDebug, malformed,
+          lastFallback, fallbackCount,
+          lastReconciliation, reconciliationCount,
+          lastLiveWebhook, liveWebhookCount,
+          pendingOld, failedSync, hasViva,
+        ] = await Promise.all([
           (supabase as any).from("viva_webhook_events").select("created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
           (supabase as any).from("viva_webhook_events").select("processed_at").eq("user_id", user.id).eq("processed", true).order("processed_at", { ascending: false }).limit(1).maybeSingle(),
           (supabase as any).from("viva_webhook_events").select("id", { count: "exact", head: true }).eq("user_id", user.id).not("error", "is", null),
@@ -181,6 +206,13 @@ export default function InstellingenPage() {
           (supabase as any).from("viva_webhook_events").select("id", { count: "exact", head: true }).eq("error", "malformed_or_empty_payload"),
           (supabase as any).from("viva_webhook_events").select("created_at").eq("user_id", user.id).eq("source", "redirect_fallback").order("created_at", { ascending: false }).limit(1).maybeSingle(),
           (supabase as any).from("viva_webhook_events").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("source", "redirect_fallback"),
+          (supabase as any).from("viva_webhook_events").select("created_at").eq("user_id", user.id).eq("source", "reconciliation").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+          (supabase as any).from("viva_webhook_events").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("source", "reconciliation"),
+          (supabase as any).from("viva_webhook_events").select("created_at").eq("user_id", user.id).eq("source", "webhook").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+          (supabase as any).from("viva_webhook_events").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("source", "webhook"),
+          (supabase as any).from("payments").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("provider", "viva").eq("is_demo", false).in("status", ["pending", "open", "processing"]).lt("created_at", fifteenMinAgo),
+          (supabase as any).from("viva_webhook_events").select("id", { count: "exact", head: true }).eq("user_id", user.id).not("error", "is", null).gte("created_at", twentyFourHoursAgo),
+          (supabase as any).from("payments").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("provider", "viva").eq("is_demo", false),
         ]);
         setVivaDiag({
           last_received: (latestDebug?.data as any)?.created_at || (recv?.data as any)?.created_at || null,
@@ -190,6 +222,13 @@ export default function InstellingenPage() {
           last_post: (lastPost?.data as any)?.created_at || null,
           last_redirect_fallback: (lastFallback?.data as any)?.created_at || null,
           redirect_fallback_count: (fallbackCount as any)?.count || 0,
+          last_reconciliation: (lastReconciliation?.data as any)?.created_at || null,
+          reconciliation_count: (reconciliationCount as any)?.count || 0,
+          last_live_webhook: (lastLiveWebhook?.data as any)?.created_at || null,
+          live_webhook_count: (liveWebhookCount as any)?.count || 0,
+          pending_old_count: (pendingOld as any)?.count || 0,
+          failed_sync_count: (failedSync as any)?.count || 0,
+          has_viva_payments: ((hasViva as any)?.count || 0) > 0,
           malformed_count: (malformed as any)?.count || 0,
           latest_headers: ((latestDebug?.data as any)?.headers as Record<string, unknown>) || null,
         });
@@ -985,7 +1024,36 @@ export default function InstellingenPage() {
                         <p className="text-muted-foreground">Fallback syncs</p>
                         <p className="font-medium">{vivaDiag?.redirect_fallback_count ?? 0}</p>
                       </div>
+                      <div>
+                        <p className="text-muted-foreground">Live webhook POSTs</p>
+                        <p className="font-medium">{vivaDiag?.live_webhook_count ?? 0}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Laatste live webhook</p>
+                        <p className="font-medium">{vivaDiag?.last_live_webhook ? new Date(vivaDiag.last_live_webhook).toLocaleString("nl-NL") : "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Reconciliation syncs</p>
+                        <p className="font-medium">{vivaDiag?.reconciliation_count ?? 0}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Laatste reconciliation</p>
+                        <p className="font-medium">{vivaDiag?.last_reconciliation ? new Date(vivaDiag.last_reconciliation).toLocaleString("nl-NL") : "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Pending &gt; 15 min</p>
+                        <p className={`font-medium ${vivaDiag && vivaDiag.pending_old_count > 0 ? "text-destructive" : ""}`}>{vivaDiag?.pending_old_count ?? 0}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Mislukte sync (24u)</p>
+                        <p className={`font-medium ${vivaDiag && vivaDiag.failed_sync_count > 0 ? "text-destructive" : ""}`}>{vivaDiag?.failed_sync_count ?? 0}</p>
+                      </div>
                     </div>
+                    {vivaDiag?.has_viva_payments && (!vivaDiag.last_live_webhook || new Date(vivaDiag.last_live_webhook).getTime() < Date.now() - 24 * 60 * 60 * 1000) && (
+                      <div className="mt-2 rounded-lg border border-destructive/40 bg-destructive/10 p-2 text-[10px] text-destructive">
+                        ⚠ Geen live webhook POST in de laatste 24 uur, maar er zijn wel Viva-betalingen. Controleer de webhook-configuratie in Viva. Reconciliation vangt dit automatisch op, maar live POSTs zijn sneller.
+                      </div>
+                    )}
                     <div className="pt-2 border-t border-border">
                       <p className="text-[10px] text-muted-foreground mb-1">Laatste headers</p>
                       <pre className="max-h-28 overflow-auto rounded-md bg-muted/50 p-2 text-[9px] leading-relaxed whitespace-pre-wrap break-all">
