@@ -156,7 +156,7 @@ Deno.serve(async (req) => {
 
   if (method === "GET") {
     logRequest(req, { response: "json_key", viva_webhook_key_configured: keyConfigured });
-    return okJsonKey();
+    return await okJsonKey();
   }
 
   if (method === "HEAD" || method === "OPTIONS") {
