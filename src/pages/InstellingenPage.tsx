@@ -977,6 +977,14 @@ export default function InstellingenPage() {
                         <p className="text-muted-foreground">Mislukt</p>
                         <p className={`font-medium ${vivaDiag && vivaDiag.failed_count > 0 ? "text-destructive" : ""}`}>{vivaDiag?.failed_count ?? 0}</p>
                       </div>
+                      <div>
+                        <p className="text-muted-foreground">Laatste redirect fallback</p>
+                        <p className="font-medium">{vivaDiag?.last_redirect_fallback ? new Date(vivaDiag.last_redirect_fallback).toLocaleString("nl-NL") : "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Fallback syncs</p>
+                        <p className="font-medium">{vivaDiag?.redirect_fallback_count ?? 0}</p>
+                      </div>
                     </div>
                     <div className="pt-2 border-t border-border">
                       <p className="text-[10px] text-muted-foreground mb-1">Laatste headers</p>
