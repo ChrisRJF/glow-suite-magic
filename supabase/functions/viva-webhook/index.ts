@@ -99,6 +99,7 @@ Deno.serve(async (req) => {
         order_code: orderCode,
         transaction_id: transactionId,
         status,
+        source: eventSource,
         raw_payload: payload as any,
       })
       .select("id")
