@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.viva-webhook-public]
 verify_jwt = false
+
+[functions.retrieve-viva-webhook-key]
+verify_jwt = false
