@@ -188,7 +188,7 @@ export default function InstellingenPage() {
     // Load Viva webhook diagnostics
     (async () => {
       try {
-        const fifteenMinAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+        const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
         const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
         const [
           recv, proc, failed, totalHits, lastPost, latestDebug, malformed,
