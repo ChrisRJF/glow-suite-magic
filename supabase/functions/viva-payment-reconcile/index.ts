@@ -81,11 +81,7 @@ async function recordFailure(
     console.error("[viva-reconcile] recordFailure failed", e);
   }
 }
-  unchanged: number;
-  failed: number;
-  no_transaction_id: number;
-  details: Array<Record<string, unknown>>;
-}
+
 
 async function reconcileOnce(): Promise<ReconcileSummary> {
   const supabase = createClient(
