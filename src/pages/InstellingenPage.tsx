@@ -1041,7 +1041,7 @@ export default function InstellingenPage() {
                         <p className="font-medium">{vivaDiag?.last_reconciliation ? new Date(vivaDiag.last_reconciliation).toLocaleString("nl-NL") : "—"}</p>
                       </div>
                       <div>
-                        <p className="text-muted-foreground">Pending &gt; 15 min</p>
+                        <p className="text-muted-foreground">Pending &gt; 10 min</p>
                         <p className={`font-medium ${vivaDiag && vivaDiag.pending_old_count > 0 ? "text-destructive" : ""}`}>{vivaDiag?.pending_old_count ?? 0}</p>
                       </div>
                       <div>
