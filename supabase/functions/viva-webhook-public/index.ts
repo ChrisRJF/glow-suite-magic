@@ -66,9 +66,15 @@ function logRequest(req: Request, extra: Record<string, unknown> = {}) {
 
 Deno.serve(async (req) => {
   const method = req.method.toUpperCase();
-  logRequest(req);
+  const keyConfigured = Boolean(Deno.env.get("VIVA_WEBHOOK_KEY"));
+  logRequest(req, { viva_webhook_key_configured: keyConfigured });
 
-  if (method === "GET" || method === "HEAD" || method === "OPTIONS") {
+  if (method === "GET") {
+    logRequest(req, { response: "json_key", viva_webhook_key_configured: keyConfigured });
+    return okJsonKey();
+  }
+
+  if (method === "HEAD" || method === "OPTIONS") {
     return ok();
   }
 
