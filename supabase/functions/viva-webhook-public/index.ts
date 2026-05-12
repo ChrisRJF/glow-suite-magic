@@ -87,12 +87,18 @@ async function fetchVivaWebhookKey(): Promise<string> {
     return cachedKey.value;
   }
 
-  // 3) Retrieve from Viva. The endpoint requires Bearer auth via OAuth2.
+  // 3) Retrieve from Viva. The endpoint requires Basic auth with Merchant ID + API Key
+  // (separate from the OAuth2 client credentials used for Smart Checkout).
+  const merchantId = Deno.env.get("VIVA_MERCHANT_ID");
+  const apiKey = Deno.env.get("VIVA_API_KEY");
+  if (!merchantId || !apiKey) {
+    throw new Error("VIVA_MERCHANT_ID / VIVA_API_KEY not configured");
+  }
   const url = `${vivaApiBase()}/api/messages/config/token`;
-  const token = await getVivaToken();
+  const basic = btoa(`${merchantId}:${apiKey}`);
   const res = await fetch(url, {
     method: "GET",
-    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+    headers: { Authorization: `Basic ${basic}`, Accept: "application/json" },
   });
   const text = await res.text();
   let data: any = {};
