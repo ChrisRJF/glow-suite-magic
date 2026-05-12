@@ -43,10 +43,11 @@ let cachedKey: { value: string; fetchedAt: number } | null = null;
 const KEY_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 function vivaApiBase(): string {
+  // Webhook key endpoint lives on the main vivapayments.com domain (not the api subdomain).
   const env = (Deno.env.get("VIVA_ENVIRONMENT") || "demo").toLowerCase();
   return env === "live"
-    ? "https://api.vivapayments.com"
-    : "https://demo-api.vivapayments.com";
+    ? "https://www.vivapayments.com"
+    : "https://demo.vivapayments.com";
 }
 
 function vivaAccountsBase(): string {
