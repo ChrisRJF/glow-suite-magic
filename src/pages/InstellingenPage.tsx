@@ -67,7 +67,7 @@ export default function InstellingenPage() {
   const [vivaTestLoading, setVivaTestLoading] = useState(false);
   const [vivaTestResult, setVivaTestResult] = useState<{ checkout_url: string; payment_id?: string; order_code?: string } | null>(null);
   const [vivaActivation, setVivaActivation] = useState<string>("not_started");
-  const [vivaDiag, setVivaDiag] = useState<{ last_received: string | null; last_processed: string | null; failed_count: number; total_hits: number; last_post: string | null; malformed_count: number; latest_headers: Record<string, unknown> | null } | null>(null);
+  const [vivaDiag, setVivaDiag] = useState<{ last_received: string | null; last_processed: string | null; failed_count: number; total_hits: number; last_post: string | null; last_redirect_fallback: string | null; redirect_fallback_count: number; malformed_count: number; latest_headers: Record<string, unknown> | null } | null>(null);
   const vivaWebhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/viva-webhook`;
   const [depositNewClient, setDepositNewClient] = useState(true);
   const [depositPct, setDepositPct] = useState(50);
@@ -171,7 +171,7 @@ export default function InstellingenPage() {
     // Load Viva webhook diagnostics
     (async () => {
       try {
-        const [recv, proc, failed, totalHits, lastPost, latestDebug, malformed] = await Promise.all([
+        const [recv, proc, failed, totalHits, lastPost, latestDebug, malformed, lastFallback, fallbackCount] = await Promise.all([
           (supabase as any).from("viva_webhook_events").select("created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
           (supabase as any).from("viva_webhook_events").select("processed_at").eq("user_id", user.id).eq("processed", true).order("processed_at", { ascending: false }).limit(1).maybeSingle(),
           (supabase as any).from("viva_webhook_events").select("id", { count: "exact", head: true }).eq("user_id", user.id).not("error", "is", null),
@@ -179,6 +179,8 @@ export default function InstellingenPage() {
           (supabase as any).from("viva_webhook_debug_logs").select("created_at").eq("method", "POST").order("created_at", { ascending: false }).limit(1).maybeSingle(),
           (supabase as any).from("viva_webhook_debug_logs").select("created_at, headers").order("created_at", { ascending: false }).limit(1).maybeSingle(),
           (supabase as any).from("viva_webhook_events").select("id", { count: "exact", head: true }).eq("error", "malformed_or_empty_payload"),
+          (supabase as any).from("viva_webhook_events").select("created_at").eq("user_id", user.id).eq("source", "redirect_fallback").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+          (supabase as any).from("viva_webhook_events").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("source", "redirect_fallback"),
         ]);
         setVivaDiag({
           last_received: (latestDebug?.data as any)?.created_at || (recv?.data as any)?.created_at || null,
@@ -186,6 +188,8 @@ export default function InstellingenPage() {
           failed_count: (failed as any)?.count || 0,
           total_hits: (totalHits as any)?.count || 0,
           last_post: (lastPost?.data as any)?.created_at || null,
+          last_redirect_fallback: (lastFallback?.data as any)?.created_at || null,
+          redirect_fallback_count: (fallbackCount as any)?.count || 0,
           malformed_count: (malformed as any)?.count || 0,
           latest_headers: ((latestDebug?.data as any)?.headers as Record<string, unknown>) || null,
         });
@@ -972,6 +976,14 @@ export default function InstellingenPage() {
                       <div>
                         <p className="text-muted-foreground">Mislukt</p>
                         <p className={`font-medium ${vivaDiag && vivaDiag.failed_count > 0 ? "text-destructive" : ""}`}>{vivaDiag?.failed_count ?? 0}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Laatste redirect fallback</p>
+                        <p className="font-medium">{vivaDiag?.last_redirect_fallback ? new Date(vivaDiag.last_redirect_fallback).toLocaleString("nl-NL") : "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Fallback syncs</p>
+                        <p className="font-medium">{vivaDiag?.redirect_fallback_count ?? 0}</p>
                       </div>
                     </div>
                     <div className="pt-2 border-t border-border">

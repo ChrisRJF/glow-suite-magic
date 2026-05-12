@@ -82,6 +82,8 @@ Deno.serve(async (req) => {
   const statusId = String(eventData?.StatusId ?? eventData?.statusId ?? "") || null;
   const status = mapVivaStatus(statusId || "", eventTypeId || undefined);
   const eventTypeName = String(p?.EventTypeName || p?.eventTypeName || (eventTypeId ? `event_${eventTypeId}` : "unknown"));
+  const eventSource: "webhook" | "redirect_fallback" =
+    p?._source === "redirect_fallback" ? "redirect_fallback" : "webhook";
 
   console.log("[viva-webhook] event:", eventTypeId, eventTypeName, "tx:", transactionId, "orderCode:", orderCode, "status:", status);
 
@@ -97,6 +99,7 @@ Deno.serve(async (req) => {
         order_code: orderCode,
         transaction_id: transactionId,
         status,
+        source: eventSource,
         raw_payload: payload as any,
       })
       .select("id")

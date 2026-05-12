@@ -14,22 +14,29 @@ export default function PaymentSuccessPage() {
   useEffect(() => {
     if (!transactionId && !orderCode) return;
     let cancelled = false;
-    // Give the webhook ~2.5s to arrive first, then fall back to verify endpoint.
-    const t = setTimeout(async () => {
+    const delays = [1500, 2500, 4000, 6000, 8000];
+    let attempt = 0;
+    const tick = async () => {
       try {
         const { data, error } = await supabase.functions.invoke("verify-viva-payment", {
           body: { transaction_id: transactionId, order_code: orderCode },
         });
         if (cancelled) return;
-        if (error) { setState("pending"); return; }
-        const status = (data as any)?.status;
-        if (status === "paid") setState("paid");
-        else if (status === "failed" || status === "cancelled") setState("failed");
-        else setState("pending");
-      } catch {
-        if (!cancelled) setState("pending");
+        if (!error) {
+          const status = (data as any)?.status;
+          if (status === "paid") { setState("paid"); return; }
+          if (status === "failed" || status === "cancelled") { setState("failed"); return; }
+        }
+      } catch { /* swallow */ }
+      attempt += 1;
+      if (cancelled) return;
+      if (attempt < delays.length) {
+        setTimeout(tick, delays[attempt]);
+      } else {
+        setState("pending");
       }
-    }, 2500);
+    };
+    const t = setTimeout(tick, delays[0]);
     return () => { cancelled = true; clearTimeout(t); };
   }, [transactionId, orderCode]);
 
