@@ -18,6 +18,11 @@ const baseHeaders: HeadersInit = {
   "Access-Control-Allow-Headers": "*",
 };
 
+const jsonHeaders: HeadersInit = {
+  ...baseHeaders,
+  "Content-Type": "application/json; charset=utf-8",
+};
+
 const HOP_BY_HOP = new Set([
   "host",
   "content-length",
@@ -28,6 +33,11 @@ const HOP_BY_HOP = new Set([
 
 function ok() {
   return new Response("OK", { status: 200, headers: baseHeaders });
+}
+
+function okJsonKey() {
+  const key = Deno.env.get("VIVA_WEBHOOK_KEY") || "";
+  return new Response(JSON.stringify({ Key: key }), { status: 200, headers: jsonHeaders });
 }
 
 function logRequest(req: Request, extra: Record<string, unknown> = {}) {
