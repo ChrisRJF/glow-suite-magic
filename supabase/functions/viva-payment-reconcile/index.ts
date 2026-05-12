@@ -91,6 +91,7 @@ async function reconcileOnce(): Promise<ReconcileSummary> {
       tx = await getVivaTransaction(transactionId);
     } catch (e) {
       summary.failed++;
+      const errMsg = String((e as Error)?.message || e).slice(0, 500);
       console.warn(`[viva-reconcile] viva lookup failed for tx=${transactionId}`, e);
       await supabase.from("payments").update({
         metadata: {
@@ -98,9 +99,15 @@ async function reconcileOnce(): Promise<ReconcileSummary> {
           reconcile_attempts: attemptCount,
           last_reconcile_attempt_at: lastAttemptAt,
           last_reconcile_result: "viva_lookup_failed",
-          last_reconcile_error: String((e as Error)?.message || e).slice(0, 300),
+          last_reconcile_error: errMsg,
         },
       }).eq("id", p.id);
+      await recordFailure(supabase, {
+        user_id: p.user_id, payment_id: p.id, transaction_id: transactionId,
+        order_code: orderCode, retry_count: attemptCount,
+        error: `viva_lookup_failed: ${errMsg}`,
+        payload: { transactionId, orderCode },
+      });
       continue;
     }
 
@@ -113,9 +120,6 @@ async function reconcileOnce(): Promise<ReconcileSummary> {
       continue;
     }
 
-    // Re-invoke webhook with synthetic payload — this updates the payment AND
-    // performs all merchant-isolated side-effects (appointment/customer/email/
-    // WhatsApp/auto-revenue/membership) through the single canonical pipeline.
     const eventTypeId = newStatus === "paid" ? 1796 : newStatus === "failed" ? 1797 : 1797;
     const syntheticPayload = {
       EventTypeId: eventTypeId,
@@ -135,10 +139,12 @@ async function reconcileOnce(): Promise<ReconcileSummary> {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(syntheticPayload),
       });
+      if (!res.ok) throw new Error(`webhook returned ${res.status}`);
       summary.updated++;
       summary.details.push({ payment_id: p.id, transaction_id: transactionId, viva_status: tx.statusId, mapped: newStatus, webhook_status: res.status });
     } catch (e) {
       summary.failed++;
+      const errMsg = String((e as Error)?.message || e).slice(0, 500);
       console.error(`[viva-reconcile] self-invoke webhook failed for payment=${p.id}`, e);
       await supabase.from("payments").update({
         metadata: {
@@ -146,8 +152,15 @@ async function reconcileOnce(): Promise<ReconcileSummary> {
           reconcile_attempts: attemptCount,
           last_reconcile_attempt_at: lastAttemptAt,
           last_reconcile_result: "webhook_invoke_failed",
-          last_reconcile_error: String((e as Error)?.message || e).slice(0, 300),
+          last_reconcile_error: errMsg,
         },
+      }).eq("id", p.id);
+      await recordFailure(supabase, {
+        user_id: p.user_id, payment_id: p.id, transaction_id: transactionId,
+        order_code: orderCode, retry_count: attemptCount,
+        error: `webhook_invoke_failed: ${errMsg}`,
+        payload: syntheticPayload,
+      });
       }).eq("id", p.id);
     }
   }
