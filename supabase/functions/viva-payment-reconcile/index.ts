@@ -206,7 +206,6 @@ async function reconcileOnce(): Promise<ReconcileSummary> {
         error: `webhook_invoke_failed: ${errMsg}`,
         payload: syntheticPayload,
       });
-      }).eq("id", p.id);
     }
   }
 
