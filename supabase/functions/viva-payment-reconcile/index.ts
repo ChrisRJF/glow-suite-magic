@@ -38,6 +38,55 @@ interface ReconcileSummary {
   details: Array<Record<string, unknown>>;
 }
 
+const DLQ_THRESHOLD = 5; // promote to DLQ after this many failed retries
+
+async function recordFailure(
+  supabase: ReturnType<typeof createClient>,
+  args: {
+    user_id: string | null;
+    payment_id: string;
+    transaction_id: string | null;
+    order_code: string | null;
+    retry_count: number;
+    error: string;
+    payload: unknown;
+  },
+) {
+  try {
+    if (args.retry_count >= DLQ_THRESHOLD) {
+      await supabase.from("viva_dead_letter_queue").insert({
+        user_id: args.user_id,
+        source: "reconciliation",
+        event_type: "reconcile_failure",
+        order_code: args.order_code,
+        transaction_id: args.transaction_id,
+        payment_id: args.payment_id,
+        retry_count: args.retry_count,
+        error: args.error,
+        payload: args.payload as any,
+      });
+    }
+    if (args.user_id) {
+      await supabase.from("admin_notifications").insert({
+        user_id: args.user_id,
+        type: "viva_reconcile_failure",
+        severity: args.retry_count >= DLQ_THRESHOLD ? "critical" : "warning",
+        title: "Viva sync mislukt",
+        body: `Reconciliation kon Viva-betaling niet synchroniseren (poging ${args.retry_count}).`,
+        payload: { payment_id: args.payment_id, transaction_id: args.transaction_id, order_code: args.order_code, error: args.error },
+        link: "/instellingen?tab=integrations",
+      });
+    }
+  } catch (e) {
+    console.error("[viva-reconcile] recordFailure failed", e);
+  }
+}
+  unchanged: number;
+  failed: number;
+  no_transaction_id: number;
+  details: Array<Record<string, unknown>>;
+}
+
 async function reconcileOnce(): Promise<ReconcileSummary> {
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
