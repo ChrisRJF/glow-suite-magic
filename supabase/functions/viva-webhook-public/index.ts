@@ -35,10 +35,97 @@ function ok() {
   return new Response("OK", { status: 200, headers: baseHeaders });
 }
 
-function okJsonKey() {
-  const key = Deno.env.get("VIVA_WEBHOOK_KEY") || "";
-  return new Response(JSON.stringify({ Key: key }), { status: 200, headers: jsonHeaders });
+// In-memory cache for the Viva webhook verification key.
+// Viva expects GET to return { "Key": "<verification key>" }.
+// We fetch it on-demand from Viva using existing OAuth credentials so no
+// manual VIVA_WEBHOOK_KEY secret has to be configured.
+let cachedKey: { value: string; fetchedAt: number } | null = null;
+const KEY_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+function vivaApiBase(): string {
+  // Webhook key endpoint lives on the main vivapayments.com domain (not the api subdomain).
+  const env = (Deno.env.get("VIVA_ENVIRONMENT") || "demo").toLowerCase();
+  return env === "live"
+    ? "https://www.vivapayments.com"
+    : "https://demo.vivapayments.com";
 }
+
+function vivaAccountsBase(): string {
+  const env = (Deno.env.get("VIVA_ENVIRONMENT") || "demo").toLowerCase();
+  return env === "live"
+    ? "https://accounts.vivapayments.com"
+    : "https://demo-accounts.vivapayments.com";
+}
+
+async function getVivaToken(): Promise<string> {
+  const clientId = Deno.env.get("VIVA_CLIENT_ID");
+  const clientSecret = Deno.env.get("VIVA_CLIENT_SECRET");
+  if (!clientId || !clientSecret) throw new Error("Viva credentials missing");
+  const basic = btoa(`${clientId}:${clientSecret}`);
+  const res = await fetch(`${vivaAccountsBase()}/connect/token`, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${basic}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: "grant_type=client_credentials",
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data?.access_token) {
+    throw new Error(`Viva token error (${res.status}): ${JSON.stringify(data).slice(0, 300)}`);
+  }
+  return data.access_token as string;
+}
+
+async function fetchVivaWebhookKey(): Promise<string> {
+  // 1) Prefer manually configured secret if present.
+  const manual = Deno.env.get("VIVA_WEBHOOK_KEY");
+  if (manual) return manual;
+
+  // 2) Use cached key while fresh.
+  if (cachedKey && Date.now() - cachedKey.fetchedAt < KEY_TTL_MS) {
+    return cachedKey.value;
+  }
+
+  // 3) Retrieve from Viva. The endpoint requires Bearer auth via OAuth2.
+  const url = `${vivaApiBase()}/api/messages/config/token`;
+  const token = await getVivaToken();
+  const res = await fetch(url, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+  });
+  const text = await res.text();
+  let data: any = {};
+  try { data = JSON.parse(text); } catch { /* keep text */ }
+  if (!res.ok) {
+    throw new Error(`Viva key fetch error (${res.status} @ ${url}): ${text.slice(0, 300)}`);
+  }
+  const key = data?.Key || data?.key || "";
+  if (!key) throw new Error(`Viva returned no key: ${text.slice(0, 200)}`);
+  cachedKey = { value: key, fetchedAt: Date.now() };
+  return key;
+}
+
+async function okJsonKey() {
+  try {
+    const key = await fetchVivaWebhookKey();
+    console.log(JSON.stringify({
+      fn: "viva-webhook-public",
+      stage: "key_response",
+      source: Deno.env.get("VIVA_WEBHOOK_KEY") ? "secret" : "viva_api",
+      key_len: key.length,
+    }));
+    return new Response(JSON.stringify({ Key: key }), { status: 200, headers: jsonHeaders });
+  } catch (err) {
+    console.error("[viva-webhook-public] key fetch failed", err);
+    // Still return 200 so Viva does not loop on retries; empty key signals misconfig.
+    return new Response(JSON.stringify({ Key: "", error: String((err as Error)?.message || err) }), {
+      status: 200,
+      headers: jsonHeaders,
+    });
+  }
+}
+
 
 function logRequest(req: Request, extra: Record<string, unknown> = {}) {
   try {
@@ -71,7 +158,7 @@ Deno.serve(async (req) => {
 
   if (method === "GET") {
     logRequest(req, { response: "json_key", viva_webhook_key_configured: keyConfigured });
-    return okJsonKey();
+    return await okJsonKey();
   }
 
   if (method === "HEAD" || method === "OPTIONS") {
