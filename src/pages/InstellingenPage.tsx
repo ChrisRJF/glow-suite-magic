@@ -210,7 +210,7 @@ export default function InstellingenPage() {
           (supabase as any).from("viva_webhook_events").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("source", "reconciliation"),
           (supabase as any).from("viva_webhook_events").select("created_at").eq("user_id", user.id).eq("source", "webhook").order("created_at", { ascending: false }).limit(1).maybeSingle(),
           (supabase as any).from("viva_webhook_events").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("source", "webhook"),
-          (supabase as any).from("payments").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("provider", "viva").eq("is_demo", false).in("status", ["pending", "open", "processing"]).lt("created_at", fifteenMinAgo),
+          (supabase as any).from("payments").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("provider", "viva").eq("is_demo", false).in("status", ["pending", "open", "processing"]).lt("created_at", tenMinAgo),
           (supabase as any).from("viva_webhook_events").select("id", { count: "exact", head: true }).eq("user_id", user.id).not("error", "is", null).gte("created_at", twentyFourHoursAgo),
           (supabase as any).from("payments").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("provider", "viva").eq("is_demo", false),
         ]);
