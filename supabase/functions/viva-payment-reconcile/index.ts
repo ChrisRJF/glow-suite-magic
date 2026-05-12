@@ -38,6 +38,51 @@ interface ReconcileSummary {
   details: Array<Record<string, unknown>>;
 }
 
+const DLQ_THRESHOLD = 5; // promote to DLQ after this many failed retries
+
+async function recordFailure(
+  supabase: ReturnType<typeof createClient>,
+  args: {
+    user_id: string | null;
+    payment_id: string;
+    transaction_id: string | null;
+    order_code: string | null;
+    retry_count: number;
+    error: string;
+    payload: unknown;
+  },
+) {
+  try {
+    if (args.retry_count >= DLQ_THRESHOLD) {
+      await supabase.from("viva_dead_letter_queue").insert({
+        user_id: args.user_id,
+        source: "reconciliation",
+        event_type: "reconcile_failure",
+        order_code: args.order_code,
+        transaction_id: args.transaction_id,
+        payment_id: args.payment_id,
+        retry_count: args.retry_count,
+        error: args.error,
+        payload: args.payload as any,
+      });
+    }
+    if (args.user_id) {
+      await supabase.from("admin_notifications").insert({
+        user_id: args.user_id,
+        type: "viva_reconcile_failure",
+        severity: args.retry_count >= DLQ_THRESHOLD ? "critical" : "warning",
+        title: "Viva sync mislukt",
+        body: `Reconciliation kon Viva-betaling niet synchroniseren (poging ${args.retry_count}).`,
+        payload: { payment_id: args.payment_id, transaction_id: args.transaction_id, order_code: args.order_code, error: args.error },
+        link: "/instellingen?tab=integrations",
+      });
+    }
+  } catch (e) {
+    console.error("[viva-reconcile] recordFailure failed", e);
+  }
+}
+
+
 async function reconcileOnce(): Promise<ReconcileSummary> {
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -91,6 +136,7 @@ async function reconcileOnce(): Promise<ReconcileSummary> {
       tx = await getVivaTransaction(transactionId);
     } catch (e) {
       summary.failed++;
+      const errMsg = String((e as Error)?.message || e).slice(0, 500);
       console.warn(`[viva-reconcile] viva lookup failed for tx=${transactionId}`, e);
       await supabase.from("payments").update({
         metadata: {
@@ -98,9 +144,15 @@ async function reconcileOnce(): Promise<ReconcileSummary> {
           reconcile_attempts: attemptCount,
           last_reconcile_attempt_at: lastAttemptAt,
           last_reconcile_result: "viva_lookup_failed",
-          last_reconcile_error: String((e as Error)?.message || e).slice(0, 300),
+          last_reconcile_error: errMsg,
         },
       }).eq("id", p.id);
+      await recordFailure(supabase, {
+        user_id: p.user_id, payment_id: p.id, transaction_id: transactionId,
+        order_code: orderCode, retry_count: attemptCount,
+        error: `viva_lookup_failed: ${errMsg}`,
+        payload: { transactionId, orderCode },
+      });
       continue;
     }
 
@@ -113,9 +165,6 @@ async function reconcileOnce(): Promise<ReconcileSummary> {
       continue;
     }
 
-    // Re-invoke webhook with synthetic payload — this updates the payment AND
-    // performs all merchant-isolated side-effects (appointment/customer/email/
-    // WhatsApp/auto-revenue/membership) through the single canonical pipeline.
     const eventTypeId = newStatus === "paid" ? 1796 : newStatus === "failed" ? 1797 : 1797;
     const syntheticPayload = {
       EventTypeId: eventTypeId,
@@ -135,10 +184,12 @@ async function reconcileOnce(): Promise<ReconcileSummary> {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(syntheticPayload),
       });
+      if (!res.ok) throw new Error(`webhook returned ${res.status}`);
       summary.updated++;
       summary.details.push({ payment_id: p.id, transaction_id: transactionId, viva_status: tx.statusId, mapped: newStatus, webhook_status: res.status });
     } catch (e) {
       summary.failed++;
+      const errMsg = String((e as Error)?.message || e).slice(0, 500);
       console.error(`[viva-reconcile] self-invoke webhook failed for payment=${p.id}`, e);
       await supabase.from("payments").update({
         metadata: {
@@ -146,9 +197,15 @@ async function reconcileOnce(): Promise<ReconcileSummary> {
           reconcile_attempts: attemptCount,
           last_reconcile_attempt_at: lastAttemptAt,
           last_reconcile_result: "webhook_invoke_failed",
-          last_reconcile_error: String((e as Error)?.message || e).slice(0, 300),
+          last_reconcile_error: errMsg,
         },
       }).eq("id", p.id);
+      await recordFailure(supabase, {
+        user_id: p.user_id, payment_id: p.id, transaction_id: transactionId,
+        order_code: orderCode, retry_count: attemptCount,
+        error: `webhook_invoke_failed: ${errMsg}`,
+        payload: syntheticPayload,
+      });
     }
   }
 

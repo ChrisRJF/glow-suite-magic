@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_notifications: {
+        Row: {
+          acknowledged_at: string | null
+          body: string | null
+          created_at: string
+          id: string
+          link: string | null
+          payload: Json
+          severity: string
+          title: string
+          type: string
+          user_id: string | null
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          body?: string | null
+          created_at?: string
+          id?: string
+          link?: string | null
+          payload?: Json
+          severity?: string
+          title: string
+          type: string
+          user_id?: string | null
+        }
+        Update: {
+          acknowledged_at?: string | null
+          body?: string | null
+          created_at?: string
+          id?: string
+          link?: string | null
+          payload?: Json
+          severity?: string
+          title?: string
+          type?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       analytics_events: {
         Row: {
           created_at: string
@@ -2860,6 +2899,51 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      viva_dead_letter_queue: {
+        Row: {
+          created_at: string
+          error: string | null
+          event_type: string | null
+          id: string
+          order_code: string | null
+          payload: Json
+          payment_id: string | null
+          resolved_at: string | null
+          retry_count: number
+          source: string
+          transaction_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          event_type?: string | null
+          id?: string
+          order_code?: string | null
+          payload?: Json
+          payment_id?: string | null
+          resolved_at?: string | null
+          retry_count?: number
+          source?: string
+          transaction_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          event_type?: string | null
+          id?: string
+          order_code?: string | null
+          payload?: Json
+          payment_id?: string | null
+          resolved_at?: string | null
+          retry_count?: number
+          source?: string
+          transaction_id?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }

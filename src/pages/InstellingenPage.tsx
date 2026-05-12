@@ -188,7 +188,7 @@ export default function InstellingenPage() {
     // Load Viva webhook diagnostics
     (async () => {
       try {
-        const fifteenMinAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+        const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
         const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
         const [
           recv, proc, failed, totalHits, lastPost, latestDebug, malformed,
@@ -210,7 +210,7 @@ export default function InstellingenPage() {
           (supabase as any).from("viva_webhook_events").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("source", "reconciliation"),
           (supabase as any).from("viva_webhook_events").select("created_at").eq("user_id", user.id).eq("source", "webhook").order("created_at", { ascending: false }).limit(1).maybeSingle(),
           (supabase as any).from("viva_webhook_events").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("source", "webhook"),
-          (supabase as any).from("payments").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("provider", "viva").eq("is_demo", false).in("status", ["pending", "open", "processing"]).lt("created_at", fifteenMinAgo),
+          (supabase as any).from("payments").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("provider", "viva").eq("is_demo", false).in("status", ["pending", "open", "processing"]).lt("created_at", tenMinAgo),
           (supabase as any).from("viva_webhook_events").select("id", { count: "exact", head: true }).eq("user_id", user.id).not("error", "is", null).gte("created_at", twentyFourHoursAgo),
           (supabase as any).from("payments").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("provider", "viva").eq("is_demo", false),
         ]);
@@ -1041,7 +1041,7 @@ export default function InstellingenPage() {
                         <p className="font-medium">{vivaDiag?.last_reconciliation ? new Date(vivaDiag.last_reconciliation).toLocaleString("nl-NL") : "—"}</p>
                       </div>
                       <div>
-                        <p className="text-muted-foreground">Pending &gt; 15 min</p>
+                        <p className="text-muted-foreground">Pending &gt; 10 min</p>
                         <p className={`font-medium ${vivaDiag && vivaDiag.pending_old_count > 0 ? "text-destructive" : ""}`}>{vivaDiag?.pending_old_count ?? 0}</p>
                       </div>
                       <div>
@@ -1049,11 +1049,22 @@ export default function InstellingenPage() {
                         <p className={`font-medium ${vivaDiag && vivaDiag.failed_sync_count > 0 ? "text-destructive" : ""}`}>{vivaDiag?.failed_sync_count ?? 0}</p>
                       </div>
                     </div>
-                    {vivaDiag?.has_viva_payments && (!vivaDiag.last_live_webhook || new Date(vivaDiag.last_live_webhook).getTime() < Date.now() - 24 * 60 * 60 * 1000) && (
-                      <div className="mt-2 rounded-lg border border-destructive/40 bg-destructive/10 p-2 text-[10px] text-destructive">
-                        ⚠ Geen live webhook POST in de laatste 24 uur, maar er zijn wel Viva-betalingen. Controleer de webhook-configuratie in Viva. Reconciliation vangt dit automatisch op, maar live POSTs zijn sneller.
-                      </div>
-                    )}
+                    {(() => {
+                      if (!vivaDiag?.has_viva_payments) return null;
+                      const issues: string[] = [];
+                      const noWebhook15 = !vivaDiag.last_live_webhook || new Date(vivaDiag.last_live_webhook).getTime() < Date.now() - 15 * 60 * 1000;
+                      if (noWebhook15) issues.push("Geen webhook POST in de laatste 15 minuten.");
+                      if ((vivaDiag.pending_old_count ?? 0) > 0) issues.push(`${vivaDiag.pending_old_count} betaling(en) langer dan 10 min in pending.`);
+                      if ((vivaDiag.failed_sync_count ?? 0) > 0) issues.push(`${vivaDiag.failed_sync_count} mislukte sync(s) in laatste 24u.`);
+                      if (!issues.length) return null;
+                      return (
+                        <div className="mt-2 rounded-lg border border-destructive/40 bg-destructive/10 p-2 text-[10px] text-destructive space-y-1">
+                          <p className="font-semibold">⚠ Viva betaalpipeline aandacht nodig</p>
+                          {issues.map((i) => <p key={i}>• {i}</p>)}
+                          <p className="opacity-80">Reconciliation vangt dit automatisch op, maar live webhooks zijn sneller.</p>
+                        </div>
+                      );
+                    })()}
                     <div className="pt-2 border-t border-border">
                       <p className="text-[10px] text-muted-foreground mb-1">Laatste headers</p>
                       <pre className="max-h-28 overflow-auto rounded-md bg-muted/50 p-2 text-[9px] leading-relaxed whitespace-pre-wrap break-all">

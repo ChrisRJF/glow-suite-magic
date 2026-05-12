@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.viva-payment-reconcile]
 verify_jwt = false
+
+[functions.viva-payment-health]
+verify_jwt = false
