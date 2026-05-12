@@ -67,7 +67,7 @@ export default function InstellingenPage() {
   const [vivaTestLoading, setVivaTestLoading] = useState(false);
   const [vivaTestResult, setVivaTestResult] = useState<{ checkout_url: string; payment_id?: string; order_code?: string } | null>(null);
   const [vivaActivation, setVivaActivation] = useState<string>("not_started");
-  const [vivaDiag, setVivaDiag] = useState<{ last_received: string | null; last_processed: string | null; failed_count: number; total_hits: number; last_post: string | null; malformed_count: number; latest_headers: Record<string, unknown> | null } | null>(null);
+  const [vivaDiag, setVivaDiag] = useState<{ last_received: string | null; last_processed: string | null; failed_count: number; total_hits: number; last_post: string | null; last_redirect_fallback: string | null; redirect_fallback_count: number; malformed_count: number; latest_headers: Record<string, unknown> | null } | null>(null);
   const vivaWebhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/viva-webhook`;
   const [depositNewClient, setDepositNewClient] = useState(true);
   const [depositPct, setDepositPct] = useState(50);
