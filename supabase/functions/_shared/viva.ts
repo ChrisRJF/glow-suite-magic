@@ -31,6 +31,10 @@ export function vivaCheckoutUrl(orderCode: string) {
 // Token cache lives only within one edge invocation; that is fine.
 let cachedToken: { value: string; expiresAt: number } | null = null;
 
+export async function getVivaAccessToken(): Promise<string> {
+  return getAccessToken();
+}
+
 async function getAccessToken(): Promise<string> {
   if (cachedToken && cachedToken.expiresAt > Date.now() + 60_000) return cachedToken.value;
   const env = vivaEnv();
