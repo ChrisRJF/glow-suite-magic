@@ -1049,11 +1049,22 @@ export default function InstellingenPage() {
                         <p className={`font-medium ${vivaDiag && vivaDiag.failed_sync_count > 0 ? "text-destructive" : ""}`}>{vivaDiag?.failed_sync_count ?? 0}</p>
                       </div>
                     </div>
-                    {vivaDiag?.has_viva_payments && (!vivaDiag.last_live_webhook || new Date(vivaDiag.last_live_webhook).getTime() < Date.now() - 24 * 60 * 60 * 1000) && (
-                      <div className="mt-2 rounded-lg border border-destructive/40 bg-destructive/10 p-2 text-[10px] text-destructive">
-                        ⚠ Geen live webhook POST in de laatste 24 uur, maar er zijn wel Viva-betalingen. Controleer de webhook-configuratie in Viva. Reconciliation vangt dit automatisch op, maar live POSTs zijn sneller.
-                      </div>
-                    )}
+                    {(() => {
+                      if (!vivaDiag?.has_viva_payments) return null;
+                      const issues: string[] = [];
+                      const noWebhook15 = !vivaDiag.last_live_webhook || new Date(vivaDiag.last_live_webhook).getTime() < Date.now() - 15 * 60 * 1000;
+                      if (noWebhook15) issues.push("Geen webhook POST in de laatste 15 minuten.");
+                      if ((vivaDiag.pending_old_count ?? 0) > 0) issues.push(`${vivaDiag.pending_old_count} betaling(en) langer dan 10 min in pending.`);
+                      if ((vivaDiag.failed_sync_count ?? 0) > 0) issues.push(`${vivaDiag.failed_sync_count} mislukte sync(s) in laatste 24u.`);
+                      if (!issues.length) return null;
+                      return (
+                        <div className="mt-2 rounded-lg border border-destructive/40 bg-destructive/10 p-2 text-[10px] text-destructive space-y-1">
+                          <p className="font-semibold">⚠ Viva betaalpipeline aandacht nodig</p>
+                          {issues.map((i) => <p key={i}>• {i}</p>)}
+                          <p className="opacity-80">Reconciliation vangt dit automatisch op, maar live webhooks zijn sneller.</p>
+                        </div>
+                      );
+                    })()}
                     <div className="pt-2 border-t border-border">
                       <p className="text-[10px] text-muted-foreground mb-1">Laatste headers</p>
                       <pre className="max-h-28 overflow-auto rounded-md bg-muted/50 p-2 text-[9px] leading-relaxed whitespace-pre-wrap break-all">
