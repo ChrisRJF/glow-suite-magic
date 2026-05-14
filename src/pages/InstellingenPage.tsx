@@ -85,6 +85,10 @@ export default function InstellingenPage() {
     has_viva_payments: boolean;
     malformed_count: number;
     latest_headers: Record<string, unknown> | null;
+    terminals_active: number;
+    last_terminal_payment: string | null;
+    failed_terminal_count: number;
+    pending_terminal_old: number;
   } | null>(null);
   const vivaWebhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/viva-webhook`;
   const [depositNewClient, setDepositNewClient] = useState(true);
