@@ -1924,6 +1924,7 @@ export type Database = {
           payment_type: string
           provider: string | null
           refunded_amount: number
+          refunded_at: string | null
           status: string
           updated_at: string
           user_id: string
@@ -1951,6 +1952,7 @@ export type Database = {
           payment_type?: string
           provider?: string | null
           refunded_amount?: number
+          refunded_at?: string | null
           status?: string
           updated_at?: string
           user_id: string
@@ -1978,6 +1980,7 @@ export type Database = {
           payment_type?: string
           provider?: string | null
           refunded_amount?: number
+          refunded_at?: string | null
           status?: string
           updated_at?: string
           user_id?: string
