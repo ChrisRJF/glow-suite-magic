@@ -30,6 +30,7 @@ export default function KassaPage() {
   const [paid, setPaid] = useState(false);
   const [selectedMethod, setSelectedMethod] = useState("pin");
   const [selectedCustomer, setSelectedCustomer] = useState<string>("");
+  const [terminalOpen, setTerminalOpen] = useState(false);
 
   const allItems = [
     ...services.filter(s => s.is_active).map(s => ({ id: s.id, name: s.name, price: s.price, type: 'service' })),
