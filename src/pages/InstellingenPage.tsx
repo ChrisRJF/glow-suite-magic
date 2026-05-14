@@ -1058,10 +1058,26 @@ export default function InstellingenPage() {
                         <p className="text-muted-foreground">Pending &gt; 10 min</p>
                         <p className={`font-medium ${vivaDiag && vivaDiag.pending_old_count > 0 ? "text-destructive" : ""}`}>{vivaDiag?.pending_old_count ?? 0}</p>
                       </div>
-                      <div>
-                        <p className="text-muted-foreground">Mislukte sync (24u)</p>
-                        <p className={`font-medium ${vivaDiag && vivaDiag.failed_sync_count > 0 ? "text-destructive" : ""}`}>{vivaDiag?.failed_sync_count ?? 0}</p>
-                      </div>
+                       <div>
+                         <p className="text-muted-foreground">Mislukte sync (24u)</p>
+                         <p className={`font-medium ${vivaDiag && vivaDiag.failed_sync_count > 0 ? "text-destructive" : ""}`}>{vivaDiag?.failed_sync_count ?? 0}</p>
+                       </div>
+                       <div>
+                         <p className="text-muted-foreground">Terminals actief</p>
+                         <p className="font-medium">{vivaDiag?.terminals_active ?? 0}</p>
+                       </div>
+                       <div>
+                         <p className="text-muted-foreground">Laatste terminal-betaling</p>
+                         <p className="font-medium">{vivaDiag?.last_terminal_payment ? new Date(vivaDiag.last_terminal_payment).toLocaleString("nl-NL") : "—"}</p>
+                       </div>
+                       <div>
+                         <p className="text-muted-foreground">Mislukte terminal (24u)</p>
+                         <p className={`font-medium ${vivaDiag && vivaDiag.failed_terminal_count > 0 ? "text-destructive" : ""}`}>{vivaDiag?.failed_terminal_count ?? 0}</p>
+                       </div>
+                       <div>
+                         <p className="text-muted-foreground">Pending terminal &gt; 5 min</p>
+                         <p className={`font-medium ${vivaDiag && vivaDiag.pending_terminal_old > 0 ? "text-destructive" : ""}`}>{vivaDiag?.pending_terminal_old ?? 0}</p>
+                       </div>
                     </div>
                     {(() => {
                       if (!vivaDiag?.has_viva_payments) return null;
