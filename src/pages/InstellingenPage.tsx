@@ -1073,7 +1073,10 @@ export default function InstellingenPage() {
                     </div>
                   </div>
 
-                  {/* Test panel */}
+                  {/* Cloud Terminals */}
+                  <TerminalsCard />
+
+
                   {isOwner && (
                     <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-2">
                       <p className="text-[11px] font-semibold">Test Viva Smart Checkout</p>
