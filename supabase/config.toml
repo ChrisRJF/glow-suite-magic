@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.viva-payment-health]
 verify_jwt = false
+
+[functions.viva-sync-payouts]
+verify_jwt = false

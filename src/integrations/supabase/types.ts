@@ -2950,6 +2950,141 @@ export type Database = {
         }
         Relationships: []
       }
+      viva_payout_transactions: {
+        Row: {
+          created_at: string
+          currency: string
+          fee_amount: number
+          gross_amount: number
+          id: string
+          is_demo: boolean
+          matched: boolean
+          mismatch_reason: string | null
+          net_amount: number
+          payment_id: string | null
+          payout_id: string | null
+          raw_payload: Json | null
+          transaction_date: string | null
+          user_id: string
+          viva_order_code: string | null
+          viva_transaction_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          fee_amount?: number
+          gross_amount?: number
+          id?: string
+          is_demo?: boolean
+          matched?: boolean
+          mismatch_reason?: string | null
+          net_amount?: number
+          payment_id?: string | null
+          payout_id?: string | null
+          raw_payload?: Json | null
+          transaction_date?: string | null
+          user_id: string
+          viva_order_code?: string | null
+          viva_transaction_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          fee_amount?: number
+          gross_amount?: number
+          id?: string
+          is_demo?: boolean
+          matched?: boolean
+          mismatch_reason?: string | null
+          net_amount?: number
+          payment_id?: string | null
+          payout_id?: string | null
+          raw_payload?: Json | null
+          transaction_date?: string | null
+          user_id?: string
+          viva_order_code?: string | null
+          viva_transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "viva_payout_transactions_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "viva_payout_transactions_payout_id_fkey"
+            columns: ["payout_id"]
+            isOneToOne: false
+            referencedRelation: "viva_payouts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      viva_payouts: {
+        Row: {
+          created_at: string
+          currency: string
+          fee_amount: number
+          gross_amount: number
+          id: string
+          is_demo: boolean
+          merchant_id: string | null
+          mismatch: boolean
+          mismatch_reason: string | null
+          net_amount: number
+          payout_date: string | null
+          payout_id: string
+          payout_status: string
+          raw_payload: Json | null
+          source_code: string | null
+          synced_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          fee_amount?: number
+          gross_amount?: number
+          id?: string
+          is_demo?: boolean
+          merchant_id?: string | null
+          mismatch?: boolean
+          mismatch_reason?: string | null
+          net_amount?: number
+          payout_date?: string | null
+          payout_id: string
+          payout_status?: string
+          raw_payload?: Json | null
+          source_code?: string | null
+          synced_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          fee_amount?: number
+          gross_amount?: number
+          id?: string
+          is_demo?: boolean
+          merchant_id?: string | null
+          mismatch?: boolean
+          mismatch_reason?: string | null
+          net_amount?: number
+          payout_date?: string | null
+          payout_id?: string
+          payout_status?: string
+          raw_payload?: Json | null
+          source_code?: string | null
+          synced_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       viva_webhook_debug_logs: {
         Row: {
           body_preview: string | null
@@ -2998,8 +3133,11 @@ export type Database = {
           processed_at: string | null
           raw_payload: Json
           retry_count: number
+          signature_valid: boolean | null
           source: string
           status: string | null
+          suspicious: boolean
+          suspicious_reason: string | null
           transaction_id: string | null
           user_id: string | null
         }
@@ -3017,8 +3155,11 @@ export type Database = {
           processed_at?: string | null
           raw_payload?: Json
           retry_count?: number
+          signature_valid?: boolean | null
           source?: string
           status?: string | null
+          suspicious?: boolean
+          suspicious_reason?: string | null
           transaction_id?: string | null
           user_id?: string | null
         }
@@ -3036,8 +3177,11 @@ export type Database = {
           processed_at?: string | null
           raw_payload?: Json
           retry_count?: number
+          signature_valid?: boolean | null
           source?: string
           status?: string | null
+          suspicious?: boolean
+          suspicious_reason?: string | null
           transaction_id?: string | null
           user_id?: string | null
         }
@@ -3482,7 +3626,18 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      viva_settlement_summary: {
+        Row: {
+          estimated_settled_total: number | null
+          failed_payment_count: number | null
+          glowpay_margin_total: number | null
+          payment_count: number | null
+          total_paid_volume: number | null
+          total_refunds: number | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       bootstrap_current_user: { Args: never; Returns: Json }

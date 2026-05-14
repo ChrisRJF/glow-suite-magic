@@ -89,6 +89,39 @@ Deno.serve(async (req) => {
 
   console.log("[viva-webhook] event:", eventTypeId, eventTypeName, "tx:", transactionId, "orderCode:", orderCode, "status:", status);
 
+  // ---- Webhook security checks (non-breaking) ----
+  // 1. Optional signature header check vs VIVA_WEBHOOK_KEY secret.
+  // 2. Replay protection: event timestamp older than 24h is suspicious.
+  // 3. Unknown event with no identifiers is suspicious.
+  const sigHeader = req.headers.get("viva-signature") || req.headers.get("x-viva-signature") || req.headers.get("x-signature") || null;
+  const expectedKey = Deno.env.get("VIVA_WEBHOOK_KEY") || null;
+  let signatureValid: boolean | null = null;
+  if (sigHeader && expectedKey) signatureValid = sigHeader.trim() === expectedKey.trim();
+  else if (expectedKey) signatureValid = null; // Viva rarely sends explicit signature header; do not reject
+
+  let suspicious = false;
+  const suspiciousReasons: string[] = [];
+  if (sigHeader && expectedKey && signatureValid === false) {
+    suspicious = true; suspiciousReasons.push("invalid_signature");
+  }
+  const eventTimestampRaw = (p?.Created || p?.created || (eventData as any)?.InsDate || (eventData as any)?.insDate || null) as string | null;
+  if (eventTimestampRaw) {
+    const ts = Date.parse(String(eventTimestampRaw));
+    if (Number.isFinite(ts) && Date.now() - ts > 24 * 60 * 60 * 1000) {
+      suspicious = true; suspiciousReasons.push("replay_or_stale_event");
+    }
+  }
+  if (!eventTypeId && !transactionId && !orderCode && rawBody.trim().length > 0) {
+    suspicious = true; suspiciousReasons.push("unrecognized_payload");
+  }
+  if (suspicious) {
+    console.warn("[viva-webhook] suspicious request", JSON.stringify({
+      reasons: suspiciousReasons,
+      ua: req.headers.get("user-agent") || null,
+      has_sig: !!sigHeader,
+    }));
+  }
+
   // STEP 1 — write ledger FIRST (idempotent via unique indexes).
   let ledgerId: string | null = null;
   {
@@ -103,6 +136,9 @@ Deno.serve(async (req) => {
         status,
         source: eventSource,
         raw_payload: payload as any,
+        signature_valid: signatureValid,
+        suspicious,
+        suspicious_reason: suspicious ? suspiciousReasons.join(",") : null,
       })
       .select("id")
       .maybeSingle();
@@ -117,7 +153,7 @@ Deno.serve(async (req) => {
       // Still try to process — but ack regardless to avoid Viva retry storms.
     } else {
       ledgerId = inserted?.id ?? null;
-    }
+  }
   }
 
   if (!transactionId && !orderCode) {
