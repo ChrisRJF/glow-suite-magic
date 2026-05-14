@@ -21,6 +21,7 @@ import { WhiteLabelEmbedCard } from "@/components/WhiteLabelEmbedCard";
 import { OnboardingWizard } from "@/components/OnboardingWizard";
 import { useUserRole } from "@/hooks/useUserRole";
 import { hasPermission } from "@/lib/permissions";
+import { TerminalsCard } from "@/components/TerminalsCard";
 
 type OpeningHours = Record<string, { open: string; close: string; enabled: boolean }>;
 
