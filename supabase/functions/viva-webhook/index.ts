@@ -149,13 +149,11 @@ Deno.serve(async (req) => {
         console.log("[viva-webhook] duplicate event ignored");
         return okText();
       }
-    if (insErr) {
-      // Duplicate (unique violation) -> still ack 200 so Viva stops retrying.
-      const msg = String(insErr.message || "");
-      if (msg.includes("duplicate") || (insErr as any).code === "23505") {
-        console.log("[viva-webhook] duplicate event ignored");
-        return okText();
-      }
+      console.error("[viva-webhook] ledger insert failed", insErr);
+      // Still try to process — but ack regardless to avoid Viva retry storms.
+    } else {
+      ledgerId = inserted?.id ?? null;
+    }
       console.error("[viva-webhook] ledger insert failed", insErr);
       // Still try to process — but ack regardless to avoid Viva retry storms.
     } else {
