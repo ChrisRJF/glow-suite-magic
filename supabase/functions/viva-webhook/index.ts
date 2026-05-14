@@ -223,17 +223,37 @@ Deno.serve(async (req) => {
       if (providerFeeCents != null) metaUpdates.provider_fee_cents = providerFeeCents;
     }
 
+    const nowIso = new Date().toISOString();
     await supabase
       .from("payments")
       .update({
         status: targetStatus,
-        paid_at: isPaid ? new Date().toISOString() : payment.paid_at,
-        webhook_received_at: new Date().toISOString(),
-        last_status_sync_at: new Date().toISOString(),
+        paid_at: isPaid ? nowIso : payment.paid_at,
+        refunded_at: isRefund ? nowIso : (payment as any).refunded_at ?? null,
+        webhook_received_at: nowIso,
+        last_status_sync_at: nowIso,
         failure_reason: isFailed ? targetStatus : payment.failure_reason,
         metadata: metaUpdates,
       })
       .eq("id", payment.id);
+
+    // Structured audit logs (do not confirm bookings on failure; preserve payment row on refund).
+    if (isFailed) {
+      console.log("viva_failed_payment_processed", JSON.stringify({
+        payment_id: payment.id, user_id: payment.user_id, order_code: resolvedOrderCode,
+        transaction_id: transactionId, from: currentStatus, to: targetStatus, source: eventSource,
+      }));
+    }
+    if (isRefund) {
+      console.log("viva_refund_processed", JSON.stringify({
+        payment_id: payment.id, user_id: payment.user_id, order_code: resolvedOrderCode,
+        transaction_id: transactionId, refunded_at: nowIso, source: eventSource,
+      }));
+    }
+    console.log("viva_status_updated", JSON.stringify({
+      payment_id: payment.id, from: currentStatus, to: targetStatus,
+      event_type_id: eventTypeId, event_type: eventTypeName, source: eventSource,
+    }));
 
     const arSources = ["auto_revenue", "auto_revenue_deposit", "auto_revenue_full"];
     const isAutoRevenue = arSources.includes(existingMeta?.source);
