@@ -21,6 +21,7 @@ import { WhiteLabelEmbedCard } from "@/components/WhiteLabelEmbedCard";
 import { OnboardingWizard } from "@/components/OnboardingWizard";
 import { useUserRole } from "@/hooks/useUserRole";
 import { hasPermission } from "@/lib/permissions";
+import { TerminalsCard } from "@/components/TerminalsCard";
 
 type OpeningHours = Record<string, { open: string; close: string; enabled: boolean }>;
 
@@ -84,6 +85,10 @@ export default function InstellingenPage() {
     has_viva_payments: boolean;
     malformed_count: number;
     latest_headers: Record<string, unknown> | null;
+    terminals_active: number;
+    last_terminal_payment: string | null;
+    failed_terminal_count: number;
+    pending_terminal_old: number;
   } | null>(null);
   const vivaWebhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/viva-webhook`;
   const [depositNewClient, setDepositNewClient] = useState(true);
@@ -196,6 +201,7 @@ export default function InstellingenPage() {
           lastReconciliation, reconciliationCount,
           lastLiveWebhook, liveWebhookCount,
           pendingOld, failedSync, hasViva,
+          terminalsActive, lastTerminalPayment, failedTerminal, pendingTerminalOld,
         ] = await Promise.all([
           (supabase as any).from("viva_webhook_events").select("created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
           (supabase as any).from("viva_webhook_events").select("processed_at").eq("user_id", user.id).eq("processed", true).order("processed_at", { ascending: false }).limit(1).maybeSingle(),
@@ -213,6 +219,10 @@ export default function InstellingenPage() {
           (supabase as any).from("payments").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("provider", "viva").eq("is_demo", false).in("status", ["pending", "open", "processing"]).lt("created_at", tenMinAgo),
           (supabase as any).from("viva_webhook_events").select("id", { count: "exact", head: true }).eq("user_id", user.id).not("error", "is", null).gte("created_at", twentyFourHoursAgo),
           (supabase as any).from("payments").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("provider", "viva").eq("is_demo", false),
+          (supabase as any).from("viva_terminals").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("status", "active"),
+          (supabase as any).from("payments").select("created_at").eq("user_id", user.id).eq("provider", "viva").eq("method", "terminal").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+          (supabase as any).from("payments").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("provider", "viva").eq("method", "terminal").in("status", ["failed", "cancelled", "expired"]).gte("created_at", twentyFourHoursAgo),
+          (supabase as any).from("payments").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("provider", "viva").eq("method", "terminal").eq("status", "pending").lt("created_at", new Date(Date.now() - 5 * 60 * 1000).toISOString()),
         ]);
         setVivaDiag({
           last_received: (latestDebug?.data as any)?.created_at || (recv?.data as any)?.created_at || null,
@@ -231,6 +241,10 @@ export default function InstellingenPage() {
           has_viva_payments: ((hasViva as any)?.count || 0) > 0,
           malformed_count: (malformed as any)?.count || 0,
           latest_headers: ((latestDebug?.data as any)?.headers as Record<string, unknown>) || null,
+          terminals_active: (terminalsActive as any)?.count || 0,
+          last_terminal_payment: (lastTerminalPayment?.data as any)?.created_at || null,
+          failed_terminal_count: (failedTerminal as any)?.count || 0,
+          pending_terminal_old: (pendingTerminalOld as any)?.count || 0,
         });
       } catch {}
     })();
@@ -1044,10 +1058,26 @@ export default function InstellingenPage() {
                         <p className="text-muted-foreground">Pending &gt; 10 min</p>
                         <p className={`font-medium ${vivaDiag && vivaDiag.pending_old_count > 0 ? "text-destructive" : ""}`}>{vivaDiag?.pending_old_count ?? 0}</p>
                       </div>
-                      <div>
-                        <p className="text-muted-foreground">Mislukte sync (24u)</p>
-                        <p className={`font-medium ${vivaDiag && vivaDiag.failed_sync_count > 0 ? "text-destructive" : ""}`}>{vivaDiag?.failed_sync_count ?? 0}</p>
-                      </div>
+                       <div>
+                         <p className="text-muted-foreground">Mislukte sync (24u)</p>
+                         <p className={`font-medium ${vivaDiag && vivaDiag.failed_sync_count > 0 ? "text-destructive" : ""}`}>{vivaDiag?.failed_sync_count ?? 0}</p>
+                       </div>
+                       <div>
+                         <p className="text-muted-foreground">Terminals actief</p>
+                         <p className="font-medium">{vivaDiag?.terminals_active ?? 0}</p>
+                       </div>
+                       <div>
+                         <p className="text-muted-foreground">Laatste terminal-betaling</p>
+                         <p className="font-medium">{vivaDiag?.last_terminal_payment ? new Date(vivaDiag.last_terminal_payment).toLocaleString("nl-NL") : "—"}</p>
+                       </div>
+                       <div>
+                         <p className="text-muted-foreground">Mislukte terminal (24u)</p>
+                         <p className={`font-medium ${vivaDiag && vivaDiag.failed_terminal_count > 0 ? "text-destructive" : ""}`}>{vivaDiag?.failed_terminal_count ?? 0}</p>
+                       </div>
+                       <div>
+                         <p className="text-muted-foreground">Pending terminal &gt; 5 min</p>
+                         <p className={`font-medium ${vivaDiag && vivaDiag.pending_terminal_old > 0 ? "text-destructive" : ""}`}>{vivaDiag?.pending_terminal_old ?? 0}</p>
+                       </div>
                     </div>
                     {(() => {
                       if (!vivaDiag?.has_viva_payments) return null;
@@ -1073,7 +1103,10 @@ export default function InstellingenPage() {
                     </div>
                   </div>
 
-                  {/* Test panel */}
+                  {/* Cloud Terminals */}
+                  <TerminalsCard />
+
+
                   {isOwner && (
                     <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-2">
                       <p className="text-[11px] font-semibold">Test Viva Smart Checkout</p>

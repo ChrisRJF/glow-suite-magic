@@ -4,10 +4,11 @@ import { useProducts, useServices, useCustomers } from "@/hooks/useSupabaseData"
 import { useCrud } from "@/hooks/useCrud";
 import { useDemoMode } from "@/hooks/useDemoMode";
 import { formatEuro } from "@/lib/data";
-import { ShoppingBag, Plus, Minus, CreditCard, Check, Wallet } from "lucide-react";
+import { ShoppingBag, Plus, Minus, CreditCard, Check, Wallet, Smartphone } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { TerminalPaymentDialog } from "@/components/TerminalPaymentDialog";
 
 const paymentMethods = [
   { id: "pin", label: "GlowPay Pin", icon: "📱" },
@@ -29,6 +30,7 @@ export default function KassaPage() {
   const [paid, setPaid] = useState(false);
   const [selectedMethod, setSelectedMethod] = useState("pin");
   const [selectedCustomer, setSelectedCustomer] = useState<string>("");
+  const [terminalOpen, setTerminalOpen] = useState(false);
 
   const allItems = [
     ...services.filter(s => s.is_active).map(s => ({ id: s.id, name: s.name, price: s.price, type: 'service' })),
@@ -157,6 +159,18 @@ export default function KassaPage() {
               <Button className="w-full" size="lg" onClick={handlePay} disabled={paid}>
                 {paid ? <><Check className="w-4 h-4 mr-2" /> Betaald!</> : <><CreditCard className="w-4 h-4 mr-2" /> Afrekenen via GlowPay</>}
               </Button>
+              <Button type="button" variant="outline" className="w-full mt-2" size="lg" onClick={() => setTerminalOpen(true)} disabled={paid || total <= 0}>
+                <Smartphone className="w-4 h-4 mr-2" /> Betaal op terminal
+              </Button>
+              <TerminalPaymentDialog
+                open={terminalOpen}
+                onOpenChange={setTerminalOpen}
+                amountCents={Math.round(total * 100)}
+                description={`Kassa — ${Object.values(cart).map(i => i.name).join(", ").slice(0, 80)}`}
+                customerId={selectedCustomer || null}
+                source="checkout"
+                onPaid={() => { setPaid(true); toast.success(`Terminal betaling van ${formatEuro(total)} voltooid!`); setTimeout(() => { setCart({}); setPaid(false); setSelectedCustomer(""); }, 2000); }}
+              />
             </div>
           )}
         </div>
