@@ -136,9 +136,19 @@ Deno.serve(async (req) => {
         status,
         source: eventSource,
         raw_payload: payload as any,
+        signature_valid: signatureValid,
+        suspicious,
+        suspicious_reason: suspicious ? suspiciousReasons.join(",") : null,
       })
       .select("id")
       .maybeSingle();
+    if (insErr) {
+      // Duplicate (unique violation) -> still ack 200 so Viva stops retrying.
+      const msg = String(insErr.message || "");
+      if (msg.includes("duplicate") || (insErr as any).code === "23505") {
+        console.log("[viva-webhook] duplicate event ignored");
+        return okText();
+      }
     if (insErr) {
       // Duplicate (unique violation) -> still ack 200 so Viva stops retrying.
       const msg = String(insErr.message || "");
