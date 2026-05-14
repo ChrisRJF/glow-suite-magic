@@ -31,9 +31,11 @@ Deno.serve(async (req) => {
     const tenMinAgo = new Date(now - 10 * 60 * 1000).toISOString();
     const dayAgo = new Date(now - 24 * 60 * 60 * 1000).toISOString();
 
+    const fiveMinAgo = new Date(now - 5 * 60 * 1000).toISOString();
     const [
       lastWebhook, lastReconcile, pendingOld, failedSyncs, hasViva, dlqCount,
       suspiciousCount, lastSuspicious, lastPayout, payoutMismatchCount,
+      terminalsActive, lastTerminalPayment, failedTerminalPayments, pendingTerminalOld,
     ] = await Promise.all([
       supabase.from("viva_webhook_events").select("created_at").eq("source", "webhook").order("created_at", { ascending: false }).limit(1).maybeSingle(),
       supabase.from("viva_webhook_events").select("created_at").eq("source", "reconciliation").order("created_at", { ascending: false }).limit(1).maybeSingle(),
