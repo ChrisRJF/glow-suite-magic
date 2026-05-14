@@ -47,6 +47,10 @@ Deno.serve(async (req) => {
       supabase.from("viva_webhook_events").select("created_at").eq("suspicious", true).order("created_at", { ascending: false }).limit(1).maybeSingle(),
       supabase.from("viva_payouts").select("synced_at").order("synced_at", { ascending: false }).limit(1).maybeSingle(),
       supabase.from("viva_payouts").select("id", { count: "exact", head: true }).eq("mismatch", true),
+      supabase.from("viva_terminals").select("id", { count: "exact", head: true }).eq("status", "active"),
+      supabase.from("payments").select("created_at").eq("provider", "viva").eq("method", "terminal").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      supabase.from("payments").select("id", { count: "exact", head: true }).eq("provider", "viva").eq("method", "terminal").in("status", ["failed", "cancelled", "expired"]).gte("created_at", dayAgo),
+      supabase.from("payments").select("id", { count: "exact", head: true }).eq("provider", "viva").eq("method", "terminal").eq("status", "pending").lt("created_at", fiveMinAgo),
     ]);
 
     const lastWebhookAt = (lastWebhook.data as any)?.created_at || null;
