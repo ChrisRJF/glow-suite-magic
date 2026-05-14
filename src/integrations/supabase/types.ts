@@ -3085,6 +3085,48 @@ export type Database = {
         }
         Relationships: []
       }
+      viva_terminals: {
+        Row: {
+          created_at: string
+          id: string
+          is_demo: boolean
+          last_seen_at: string | null
+          location_name: string | null
+          metadata: Json
+          status: string
+          terminal_id: string
+          terminal_name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_demo?: boolean
+          last_seen_at?: string | null
+          location_name?: string | null
+          metadata?: Json
+          status?: string
+          terminal_id: string
+          terminal_name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_demo?: boolean
+          last_seen_at?: string | null
+          location_name?: string | null
+          metadata?: Json
+          status?: string
+          terminal_id?: string
+          terminal_name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       viva_webhook_debug_logs: {
         Row: {
           body_preview: string | null
