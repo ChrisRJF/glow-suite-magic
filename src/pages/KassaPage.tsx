@@ -4,10 +4,11 @@ import { useProducts, useServices, useCustomers } from "@/hooks/useSupabaseData"
 import { useCrud } from "@/hooks/useCrud";
 import { useDemoMode } from "@/hooks/useDemoMode";
 import { formatEuro } from "@/lib/data";
-import { ShoppingBag, Plus, Minus, CreditCard, Check, Wallet } from "lucide-react";
+import { ShoppingBag, Plus, Minus, CreditCard, Check, Wallet, Smartphone } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { TerminalPaymentDialog } from "@/components/TerminalPaymentDialog";
 
 const paymentMethods = [
   { id: "pin", label: "GlowPay Pin", icon: "📱" },
