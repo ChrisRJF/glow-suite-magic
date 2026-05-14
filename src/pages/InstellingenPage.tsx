@@ -241,6 +241,10 @@ export default function InstellingenPage() {
           has_viva_payments: ((hasViva as any)?.count || 0) > 0,
           malformed_count: (malformed as any)?.count || 0,
           latest_headers: ((latestDebug?.data as any)?.headers as Record<string, unknown>) || null,
+          terminals_active: (terminalsActive as any)?.count || 0,
+          last_terminal_payment: (lastTerminalPayment?.data as any)?.created_at || null,
+          failed_terminal_count: (failedTerminal as any)?.count || 0,
+          pending_terminal_old: (pendingTerminalOld as any)?.count || 0,
         });
       } catch {}
     })();
