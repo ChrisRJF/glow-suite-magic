@@ -201,6 +201,7 @@ export default function InstellingenPage() {
           lastReconciliation, reconciliationCount,
           lastLiveWebhook, liveWebhookCount,
           pendingOld, failedSync, hasViva,
+          terminalsActive, lastTerminalPayment, failedTerminal, pendingTerminalOld,
         ] = await Promise.all([
           (supabase as any).from("viva_webhook_events").select("created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
           (supabase as any).from("viva_webhook_events").select("processed_at").eq("user_id", user.id).eq("processed", true).order("processed_at", { ascending: false }).limit(1).maybeSingle(),
@@ -218,6 +219,10 @@ export default function InstellingenPage() {
           (supabase as any).from("payments").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("provider", "viva").eq("is_demo", false).in("status", ["pending", "open", "processing"]).lt("created_at", tenMinAgo),
           (supabase as any).from("viva_webhook_events").select("id", { count: "exact", head: true }).eq("user_id", user.id).not("error", "is", null).gte("created_at", twentyFourHoursAgo),
           (supabase as any).from("payments").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("provider", "viva").eq("is_demo", false),
+          (supabase as any).from("viva_terminals").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("status", "active"),
+          (supabase as any).from("payments").select("created_at").eq("user_id", user.id).eq("provider", "viva").eq("method", "terminal").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+          (supabase as any).from("payments").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("provider", "viva").eq("method", "terminal").in("status", ["failed", "cancelled", "expired"]).gte("created_at", twentyFourHoursAgo),
+          (supabase as any).from("payments").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("provider", "viva").eq("method", "terminal").eq("status", "pending").lt("created_at", new Date(Date.now() - 5 * 60 * 1000).toISOString()),
         ]);
         setVivaDiag({
           last_received: (latestDebug?.data as any)?.created_at || (recv?.data as any)?.created_at || null,
