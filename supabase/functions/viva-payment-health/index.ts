@@ -63,6 +63,10 @@ Deno.serve(async (req) => {
     const lastSuspiciousAt = (lastSuspicious.data as any)?.created_at || null;
     const lastPayoutSyncAt = (lastPayout.data as any)?.synced_at || null;
     const payoutMismatches = (payoutMismatchCount as any)?.count || 0;
+    const terminalsActiveCount = (terminalsActive as any)?.count || 0;
+    const lastTerminalPaymentAt = (lastTerminalPayment.data as any)?.created_at || null;
+    const failedTerminalCount = (failedTerminalPayments as any)?.count || 0;
+    const pendingTerminalOldCount = (pendingTerminalOld as any)?.count || 0;
 
     const webhookOk = !hasVivaPayments || (lastWebhookAt && new Date(lastWebhookAt).getTime() > now - 15 * 60 * 1000);
     const reconcileOk = !lastReconcileAt || new Date(lastReconcileAt).getTime() > now - 30 * 60 * 1000;
@@ -81,6 +85,10 @@ Deno.serve(async (req) => {
       last_suspicious_attempt_at: lastSuspiciousAt,
       last_payout_sync_at: lastPayoutSyncAt,
       payout_mismatch_count: payoutMismatches,
+      terminals_active: terminalsActiveCount,
+      last_terminal_payment_at: lastTerminalPaymentAt,
+      failed_terminal_payments: failedTerminalCount,
+      pending_terminal_old: pendingTerminalOldCount,
       checked_at: new Date().toISOString(),
     });
   } catch (e) {
