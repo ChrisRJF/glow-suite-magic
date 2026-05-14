@@ -153,12 +153,7 @@ Deno.serve(async (req) => {
       // Still try to process — but ack regardless to avoid Viva retry storms.
     } else {
       ledgerId = inserted?.id ?? null;
-    }
-      console.error("[viva-webhook] ledger insert failed", insErr);
-      // Still try to process — but ack regardless to avoid Viva retry storms.
-    } else {
-      ledgerId = inserted?.id ?? null;
-    }
+  }
   }
 
   if (!transactionId && !orderCode) {
