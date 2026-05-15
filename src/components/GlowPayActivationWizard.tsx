@@ -251,15 +251,21 @@ export function GlowPayActivationWizard({ open, onOpenChange }: Props) {
         <div className="px-6 sm:px-8 pt-6 pb-4 border-b border-border/40">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center shadow-sm">
-                <Gem className="w-3.5 h-3.5 text-primary-foreground" />
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary/10 to-primary-glow/10 ring-1 ring-primary/15 flex items-center justify-center shadow-sm overflow-hidden">
+                <img src="/favicon.png" alt="GlowSuite" className="w-5 h-5 object-contain" draggable={false} />
               </div>
               <div className="flex flex-col leading-tight">
                 <span className="text-[13px] font-semibold tracking-tight">GlowSuite setup</span>
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Salon platform</span>
               </div>
             </div>
-            <button onClick={() => onOpenChange(false)} className="text-xs text-muted-foreground hover:text-foreground transition-colors">Later afmaken</button>
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="text-xs font-medium text-muted-foreground hover:text-foreground px-2.5 py-1.5 rounded-lg transition-colors outline-none focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+            >
+              Later afmaken
+            </button>
           </div>
           <div className="flex items-center justify-between mb-2">
             <p className="text-[11px] font-medium text-muted-foreground tracking-wide uppercase">Stap {step + 1} / {totalSteps} · {STEP_LABELS[step]}</p>
