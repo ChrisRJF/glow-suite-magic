@@ -556,17 +556,20 @@ function DoneStep({ navigate }: any) {
     { t: "Dashboard", to: "/" },
   ];
   return (
-    <div className="space-y-6 max-w-lg mx-auto text-center">
-      <div className="mx-auto w-20 h-20 rounded-3xl bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center shadow-elegant">
-        <PartyPopper className="w-10 h-10 text-primary-foreground" />
+    <div className="space-y-7 max-w-lg mx-auto text-center py-2">
+      <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center shadow-elegant ring-1 ring-primary/20">
+        <CheckCircle2 className="w-8 h-8 text-primary-foreground" strokeWidth={1.75} />
       </div>
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Je bent klaar! 🎉</h2>
-        <p className="text-sm text-muted-foreground mt-1">Je bent klaar om betalingen te ontvangen.</p>
+        <p className="text-[11px] font-semibold tracking-[0.2em] uppercase text-primary/80 mb-2">Setup voltooid</p>
+        <h2 className="text-2xl sm:text-[26px] font-semibold tracking-tight">Je bent klaar om betalingen te ontvangen</h2>
+        <p className="text-sm text-muted-foreground mt-2 leading-relaxed max-w-sm mx-auto">GlowSuite draait. GlowPay is geactiveerd. Vanaf nu verwerk je alles vanuit één platform.</p>
       </div>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-2 pt-2">
         {links.map((l) => (
-          <Button key={l.to} variant="outline" onClick={() => navigate(l.to)} className="h-auto py-4">{l.t}</Button>
+          <Button key={l.to} variant="outline" onClick={() => navigate(l.to)} className="h-auto py-3.5 rounded-xl text-[13px] font-medium border-border/60 hover:border-primary/40 hover:bg-secondary/30">
+            {l.t}
+          </Button>
         ))}
       </div>
     </div>
