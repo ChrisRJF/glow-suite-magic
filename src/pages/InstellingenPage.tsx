@@ -50,9 +50,8 @@ const dayLabels: Record<string, string> = {
 export default function InstellingenPage() {
   const { user } = useAuth();
   const { roles, isOwner } = useUserRole();
-  const { demoMode } = useDemoMode();
+  const { demoMode: globalDemoMode } = useDemoMode();
   const isBackendAdmin = isOwner || roles.includes("admin" as any);
-  const showAdvanced = isBackendAdmin && !demoMode;
   const { data: settings, refetch } = useSettings();
   const { data: customers } = useCustomers();
   const { data: appointments } = useAppointments();
