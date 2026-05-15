@@ -36,6 +36,7 @@ Deno.serve(async (req) => {
       lastWebhook, lastReconcile, pendingOld, failedSyncs, hasViva, dlqCount,
       suspiciousCount, lastSuspicious, lastPayout, payoutMismatchCount,
       terminalsActive, lastTerminalPayment, failedTerminalPayments, pendingTerminalOld,
+      connectedMerchant,
     ] = await Promise.all([
       supabase.from("viva_webhook_events").select("created_at").eq("source", "webhook").order("created_at", { ascending: false }).limit(1).maybeSingle(),
       supabase.from("viva_webhook_events").select("created_at").eq("source", "reconciliation").order("created_at", { ascending: false }).limit(1).maybeSingle(),
@@ -51,6 +52,7 @@ Deno.serve(async (req) => {
       supabase.from("payments").select("created_at").eq("provider", "viva").eq("method", "terminal").order("created_at", { ascending: false }).limit(1).maybeSingle(),
       supabase.from("payments").select("id", { count: "exact", head: true }).eq("provider", "viva").eq("method", "terminal").in("status", ["failed", "cancelled", "expired"]).gte("created_at", dayAgo),
       supabase.from("payments").select("id", { count: "exact", head: true }).eq("provider", "viva").eq("method", "terminal").eq("status", "pending").lt("created_at", fiveMinAgo),
+      supabase.from("glowpay_connected_merchants").select("onboarding_status, kyc_status, payouts_enabled, terminals_enabled, online_payments_enabled, last_synced_at").eq("is_demo", false).order("updated_at", { ascending: false }).limit(1).maybeSingle(),
     ]);
 
     const lastWebhookAt = (lastWebhook.data as any)?.created_at || null;
