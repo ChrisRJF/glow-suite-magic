@@ -195,56 +195,13 @@ export default function GlowPayPage() {
 
       {activeTab === "overzicht" && (
         <>
-          {/* Stats Grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            {[
-              { label: "Betaald vandaag", value: formatEuro(stats.betaaldVandaag), icon: Euro, color: "text-success" },
-              { label: "Openstaand", value: formatEuro(stats.openstaand), icon: Clock, color: "text-warning" },
-              { label: "Aanbetalingen", value: formatEuro(stats.aanbetalingen), icon: Wallet, color: "text-primary" },
-              { label: "Betaald deze week", value: formatEuro(stats.betaaldWeek), icon: TrendingUp, color: "text-success" },
-            ].map((stat, i) => (
-              <div key={stat.label} className="glass-card p-4 opacity-0 animate-fade-in-up" style={{ animationDelay: `${i * 80}ms` }}>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center">
-                    <stat.icon className={cn("w-4 h-4", stat.color)} />
-                  </div>
-                </div>
-                <p className="text-xl font-bold tabular-nums">{stat.value}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{stat.label}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Secondary Stats */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-            <div className="glass-card p-4 flex items-center gap-4 opacity-0 animate-fade-in-up" style={{ animationDelay: '320ms' }}>
-              <div className="w-10 h-10 rounded-xl bg-destructive/15 flex items-center justify-center">
-                <XCircle className="w-5 h-5 text-destructive" />
-              </div>
-              <div>
-                <p className="text-lg font-bold">{stats.mislukt}</p>
-                <p className="text-xs text-muted-foreground">Mislukte betalingen</p>
-              </div>
-            </div>
-            <div className="glass-card p-4 flex items-center gap-4 opacity-0 animate-fade-in-up" style={{ animationDelay: '400ms' }}>
-              <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center">
-                <Shield className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-lg font-bold">{stats.noshowProtected}</p>
-                <p className="text-xs text-muted-foreground">No-show beschermd</p>
-              </div>
-            </div>
-            <div className="glass-card p-4 flex items-center gap-4 opacity-0 animate-fade-in-up" style={{ animationDelay: '480ms' }}>
-              <div className="w-10 h-10 rounded-xl bg-success/15 flex items-center justify-center">
-                <TrendingUp className="w-5 h-5 text-success" />
-              </div>
-              <div>
-                <p className="text-lg font-bold">{stats.conversie}%</p>
-                <p className="text-xs text-muted-foreground">Betaalconversie</p>
-              </div>
-            </div>
-          </div>
+          <GlowPayCashflowHub
+            payments={payments as any}
+            appointments={appointments as any}
+            onOpenLinks={() => setActiveTab("betaallinks")}
+            onOpenPayments={() => setActiveTab("betalingen")}
+          />
+          <div className="h-6" />
 
           {/* Recent Payments */}
           <div className="glass-card p-6 opacity-0 animate-fade-in-up" style={{ animationDelay: '560ms' }}>
