@@ -52,17 +52,17 @@ export function GlowPayActivationGate() {
   return (
     <>
       {showBanner && (
-        <div className="fixed bottom-3 right-3 left-3 sm:left-auto sm:max-w-sm z-40 rounded-2xl border border-border bg-card shadow-elegant p-3 flex items-center gap-3 animate-fade-in">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center flex-shrink-0">
-            <Sparkles className="w-4 h-4 text-primary-foreground" />
+        <div className="fixed bottom-3 right-3 left-3 sm:left-auto sm:max-w-sm z-40 rounded-2xl border border-border/60 bg-card/95 backdrop-blur shadow-elegant p-3.5 flex items-center gap-3 animate-fade-in">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center flex-shrink-0 ring-1 ring-primary/20">
+            <Sparkles className="w-4 h-4 text-primary-foreground" strokeWidth={1.75} />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[13px] font-semibold leading-tight">GlowPay activatie</p>
-            <Progress value={pct} className="h-1.5 mt-1.5" />
-            <p className="text-[11px] text-muted-foreground mt-1">{pct}% klaar — ontvang sneller betalingen</p>
+            <p className="text-[13px] font-semibold leading-tight tracking-tight">GlowSuite setup</p>
+            <Progress value={pct} className="h-1 mt-1.5" />
+            <p className="text-[11px] text-muted-foreground mt-1">{pct}% voltooid</p>
           </div>
-          <Button size="sm" variant="gradient" onClick={() => setOpen(true)} className="h-8 text-[12px] flex-shrink-0">Verder</Button>
-          <button onClick={() => setDismissed(true)} className="text-muted-foreground hover:text-foreground" aria-label="Sluiten">
+          <Button size="sm" variant="gradient" onClick={() => setOpen(true)} className="h-8 text-[12px] flex-shrink-0 rounded-lg shadow-sm">Verder</Button>
+          <button onClick={() => setDismissed(true)} className="text-muted-foreground hover:text-foreground transition-colors" aria-label="Sluiten">
             <X className="w-4 h-4" />
           </button>
         </div>
