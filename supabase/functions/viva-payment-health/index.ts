@@ -91,6 +91,12 @@ Deno.serve(async (req) => {
       last_terminal_payment_at: lastTerminalPaymentAt,
       failed_terminal_payments: failedTerminalCount,
       pending_terminal_old: pendingTerminalOldCount,
+      connected_merchant_status: (connectedMerchant.data as any)?.onboarding_status || null,
+      kyc_status: (connectedMerchant.data as any)?.kyc_status || null,
+      payouts_enabled: (connectedMerchant.data as any)?.payouts_enabled ?? null,
+      terminals_enabled: (connectedMerchant.data as any)?.terminals_enabled ?? null,
+      online_payments_enabled: (connectedMerchant.data as any)?.online_payments_enabled ?? null,
+      onboarding_last_synced_at: (connectedMerchant.data as any)?.last_synced_at || null,
       checked_at: new Date().toISOString(),
     });
   } catch (e) {
