@@ -334,8 +334,8 @@ export function GlowPayActivationWizard({ open, onOpenChange }: Props) {
 function WelcomeStep({ onStart }: { onStart: () => void }) {
   return (
     <div className="h-full flex flex-col items-center justify-center text-center py-4 max-w-md mx-auto">
-      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/90 to-primary-glow flex items-center justify-center mb-7 shadow-elegant ring-1 ring-primary/20">
-        <Gem className="w-7 h-7 text-primary-foreground" />
+      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/90 to-primary-glow flex items-center justify-center mb-7 shadow-elegant ring-1 ring-primary/20 overflow-hidden">
+        <img src="/favicon.png" alt="GlowSuite" className="w-10 h-10 object-contain" draggable={false} />
       </div>
       <p className="text-[11px] font-semibold tracking-[0.2em] uppercase text-primary/80 mb-3">GlowSuite</p>
       <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight mb-3 leading-[1.1]">Welkom bij je salon platform</h1>
