@@ -24,7 +24,6 @@ import { hasPermission } from "@/lib/permissions";
 import { TerminalsCard } from "@/components/TerminalsCard";
 import { MerchantOnboardingCard } from "@/components/MerchantOnboardingCard";
 import { GlowPaySetupCard } from "@/components/GlowPaySetupCard";
-import { useDemoMode } from "@/hooks/useDemoMode";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
 
