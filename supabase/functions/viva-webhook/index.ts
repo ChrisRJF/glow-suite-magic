@@ -156,6 +156,38 @@ Deno.serve(async (req) => {
   }
   }
 
+  // ---- Onboarding / connected account events (additive, never blocks payment flow) ----
+  try {
+    const accountId = String((eventData as any)?.AccountId ?? (eventData as any)?.accountId ?? (eventData as any)?.MerchantId ?? (eventData as any)?.merchantId ?? "") || null;
+    const onboardingEventNames = ["account connected", "account verification status changed", "transfer created"];
+    const isOnboardingEvent = accountId && (
+      onboardingEventNames.some((n) => eventTypeName.toLowerCase().includes(n.split(" ")[0])) ||
+      (eventData as any)?.OnboardingStatus || (eventData as any)?.KycStatus || (eventData as any)?.PayoutsEnabled
+    );
+    if (isOnboardingEvent) {
+      const { data: m } = await supabase.from("glowpay_connected_merchants")
+        .select("*").eq("viva_account_id", accountId).maybeSingle();
+      if (m) {
+        const upd: Record<string, unknown> = { last_synced_at: new Date().toISOString() };
+        const status = String((eventData as any)?.OnboardingStatus ?? (eventData as any)?.Status ?? "").toLowerCase();
+        const allowed = ["not_started","invited","in_progress","connected","kyc_pending","active","rejected","suspended"];
+        if (allowed.includes(status)) upd.onboarding_status = status;
+        else if (eventTypeName.toLowerCase().includes("connected")) upd.onboarding_status = "connected";
+        if ((eventData as any)?.KycStatus) upd.kyc_status = String((eventData as any).KycStatus);
+        if (typeof (eventData as any)?.PayoutsEnabled === "boolean") upd.payouts_enabled = (eventData as any).PayoutsEnabled;
+        if (typeof (eventData as any)?.TerminalsEnabled === "boolean") upd.terminals_enabled = (eventData as any).TerminalsEnabled;
+        if (typeof (eventData as any)?.OnlinePaymentsEnabled === "boolean") upd.online_payments_enabled = (eventData as any).OnlinePaymentsEnabled;
+        if ((eventData as any)?.MerchantId) upd.viva_merchant_id = String((eventData as any).MerchantId);
+        upd.metadata = { ...(m.metadata as any || {}), last_webhook_event: { eventTypeId, eventTypeName, eventData } };
+        await supabase.from("glowpay_connected_merchants").update(upd).eq("id", m.id);
+        if (ledgerId) await supabase.from("viva_webhook_events").update({ user_id: m.user_id, processed: true, processed_at: new Date().toISOString() }).eq("id", ledgerId);
+        if (!transactionId && !orderCode) return okText();
+      }
+    }
+  } catch (e) {
+    console.error("[viva-webhook] onboarding handler error", e);
+  }
+
   if (!transactionId && !orderCode) {
     if (ledgerId) {
       await supabase.from("viva_webhook_events")
