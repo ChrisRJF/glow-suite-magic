@@ -54,6 +54,7 @@ import PricingPage from "./pages/PricingPage";
 import MijnAbonnementPage from "./pages/MijnAbonnementPage";
 import { useLeadAutomation } from "@/hooks/useLeadAutomation";
 import { OnboardingGate } from "@/components/OnboardingGate";
+import { GlowPayActivationGate } from "@/components/GlowPayActivationGate";
 import { GuidedTour } from "@/components/GuidedTour";
 import { CheckoutIntentHandler } from "@/components/CheckoutIntentHandler";
 import { SubscriptionConfirmHandler } from "@/components/SubscriptionConfirmHandler";
