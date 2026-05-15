@@ -322,21 +322,46 @@ export function GlowPayActivationWizard({ open, onOpenChange }: Props) {
           {step === 6 && <DoneStep navigate={navigate} />}
         </div>
 
-        <div className="px-6 sm:px-8 py-4 border-t border-border/40 bg-background/80 backdrop-blur flex items-center justify-between gap-3">
-          <Button variant="ghost" size="sm" onClick={back} disabled={busy || step === 0} className="text-muted-foreground hover:text-foreground rounded-lg">
+        <div
+          className="px-6 sm:px-8 py-4 border-t border-border/40 bg-background/80 backdrop-blur flex items-center justify-between gap-3"
+          style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+        >
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={back}
+            disabled={busy || step === 0}
+            aria-label="Vorige stap"
+            className="text-muted-foreground hover:text-foreground rounded-lg"
+          >
             <ArrowLeft className="w-4 h-4" /> Terug
           </Button>
           <div className="flex items-center gap-1">
             {step > 0 && step < totalSteps - 1 && (
-              <Button variant="ghost" size="sm" onClick={skip} disabled={busy} className="text-muted-foreground hover:text-foreground rounded-lg">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={skip}
+                disabled={busy}
+                aria-label="Deze stap overslaan"
+                className="text-muted-foreground hover:text-foreground rounded-lg"
+              >
                 Overslaan
               </Button>
             )}
-            <Button variant="gradient" size="sm" onClick={next} disabled={busy} className="rounded-lg min-w-[110px] shadow-sm">
-              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+            <Button
+              variant="gradient"
+              size="sm"
+              onClick={next}
+              disabled={busy}
+              aria-label={step === totalSteps - 1 ? "Onboarding afronden" : "Volgende stap"}
+              aria-busy={busy || undefined}
+              className="rounded-lg min-w-[110px] shadow-sm"
+            >
+              {busy ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : (
                 <>
                   {step === totalSteps - 1 ? "Afronden" : "Volgende"}
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className="w-4 h-4" aria-hidden="true" />
                 </>
               )}
             </Button>
