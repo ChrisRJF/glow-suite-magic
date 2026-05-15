@@ -13,8 +13,10 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import {
   Sparkles, ArrowRight, ArrowLeft, CreditCard, Smartphone,
-  PlayCircle, Bot, PartyPopper, CheckCircle2, Building2,
-  Scissors, MessageCircle, Loader2, SkipForward, Upload, Rocket,
+  PlayCircle, Bot, CheckCircle2, Building2,
+  Scissors, MessageCircle, Loader2, SkipForward, Upload,
+  Gem, Stethoscope, Flower2, MoreHorizontal, Check,
+  type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -22,13 +24,13 @@ interface Props { open: boolean; onOpenChange: (o: boolean) => void; }
 
 type Category = "kapper" | "barbershop" | "nagelsalon" | "beauty" | "kliniek" | "anders";
 
-const CATEGORIES: { key: Category; label: string; icon: string }[] = [
-  { key: "kapper", label: "Kapper", icon: "✂️" },
-  { key: "barbershop", label: "Barbershop", icon: "💈" },
-  { key: "nagelsalon", label: "Nagelsalon", icon: "💅" },
-  { key: "beauty", label: "Beauty salon", icon: "✨" },
-  { key: "kliniek", label: "Kliniek", icon: "🏥" },
-  { key: "anders", label: "Anders", icon: "🎯" },
+const CATEGORIES: { key: Category; label: string; icon: LucideIcon }[] = [
+  { key: "kapper", label: "Kapper", icon: Scissors },
+  { key: "barbershop", label: "Barbershop", icon: Scissors },
+  { key: "nagelsalon", label: "Nagelstudio", icon: Sparkles },
+  { key: "beauty", label: "Beauty salon", icon: Flower2 },
+  { key: "kliniek", label: "Kliniek", icon: Stethoscope },
+  { key: "anders", label: "Overig", icon: MoreHorizontal },
 ];
 
 // Recommended defaults per category
