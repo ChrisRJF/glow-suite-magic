@@ -240,29 +240,32 @@ export function GlowPayActivationWizard({ open, onOpenChange }: Props) {
     await persistActivation({ onboarding_step: newStep });
   };
 
-  const STEP_LABELS = ["Welkom", "Bedrijf", "Activeer", "Pinapparaat", "Test", "Automations", "Klaar"];
+  const STEP_LABELS = ["Welkom", "Bedrijf", "GlowPay", "Pinapparaat", "Test", "Automations", "Klaar"];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-full sm:max-w-xl h-[100dvh] sm:h-auto sm:max-h-[92vh] p-0 gap-0 overflow-hidden border-0 sm:border rounded-none sm:rounded-2xl flex flex-col">
-        <div className="px-5 sm:px-7 pt-5 pb-3 border-b border-border/50 bg-gradient-to-br from-primary/[0.05] to-transparent">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-primary-foreground" />
+      <DialogContent className="max-w-full sm:max-w-xl h-[100dvh] sm:h-auto sm:max-h-[92vh] p-0 gap-0 overflow-hidden border-0 sm:border rounded-none sm:rounded-3xl flex flex-col bg-background">
+        <div className="px-6 sm:px-8 pt-6 pb-4 border-b border-border/40">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center shadow-sm">
+                <Gem className="w-3.5 h-3.5 text-primary-foreground" />
               </div>
-              <span className="text-sm font-semibold">GlowPay activatie</span>
+              <div className="flex flex-col leading-tight">
+                <span className="text-[13px] font-semibold tracking-tight">GlowSuite setup</span>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Salon platform</span>
+              </div>
             </div>
-            <button onClick={() => onOpenChange(false)} className="text-xs text-muted-foreground hover:text-foreground">Later afmaken</button>
+            <button onClick={() => onOpenChange(false)} className="text-xs text-muted-foreground hover:text-foreground transition-colors">Later afmaken</button>
           </div>
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-medium text-muted-foreground">Stap {step + 1} van {totalSteps} — {STEP_LABELS[step]}</p>
-            <p className="text-xs font-semibold text-primary">{Math.round(pct)}%</p>
+            <p className="text-[11px] font-medium text-muted-foreground tracking-wide uppercase">Stap {step + 1} / {totalSteps} · {STEP_LABELS[step]}</p>
+            <p className="text-[11px] font-semibold text-primary tabular-nums">{Math.round(pct)}%</p>
           </div>
-          <Progress value={pct} className="h-1.5" />
+          <Progress value={pct} className="h-1" />
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 sm:px-7 py-6">
+        <div className="flex-1 overflow-y-auto px-6 sm:px-8 py-8">
           {step === 0 && <WelcomeStep onStart={() => setStep(1)} />}
           {step === 1 && (
             <BusinessStep
@@ -292,19 +295,23 @@ export function GlowPayActivationWizard({ open, onOpenChange }: Props) {
           {step === 6 && <DoneStep navigate={navigate} />}
         </div>
 
-        <div className="px-5 sm:px-7 py-4 border-t border-border/50 bg-background flex items-center justify-between gap-3">
-          <Button variant="ghost" size="sm" onClick={back} disabled={busy || step === 0}>
+        <div className="px-6 sm:px-8 py-4 border-t border-border/40 bg-background/80 backdrop-blur flex items-center justify-between gap-3">
+          <Button variant="ghost" size="sm" onClick={back} disabled={busy || step === 0} className="text-muted-foreground hover:text-foreground rounded-lg">
             <ArrowLeft className="w-4 h-4" /> Terug
           </Button>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             {step > 0 && step < totalSteps - 1 && (
-              <Button variant="ghost" size="sm" onClick={skip} disabled={busy} className="text-muted-foreground">
-                <SkipForward className="w-3.5 h-3.5" /> Overslaan
+              <Button variant="ghost" size="sm" onClick={skip} disabled={busy} className="text-muted-foreground hover:text-foreground rounded-lg">
+                Overslaan
               </Button>
             )}
-            <Button variant="gradient" size="sm" onClick={next} disabled={busy}>
-              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : step === totalSteps - 1 ? "Afronden" : "Volgende"}
-              {!busy && <ArrowRight className="w-4 h-4" />}
+            <Button variant="gradient" size="sm" onClick={next} disabled={busy} className="rounded-lg min-w-[110px] shadow-sm">
+              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+                <>
+                  {step === totalSteps - 1 ? "Afronden" : "Volgende"}
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
             </Button>
           </div>
         </div>
