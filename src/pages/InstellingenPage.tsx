@@ -1104,6 +1104,9 @@ export default function InstellingenPage() {
                     </div>
                   </div>
 
+                  {/* Connected merchant onboarding */}
+                  <MerchantOnboardingCard />
+
                   {/* Cloud Terminals */}
                   <TerminalsCard />
 
