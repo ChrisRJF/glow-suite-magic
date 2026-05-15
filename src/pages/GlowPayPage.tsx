@@ -14,6 +14,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useUserRole } from "@/hooks/useUserRole";
+import { GlowPayCashflowHub } from "@/components/GlowPayCashflowHub";
 
 type TabType = "overzicht" | "betalingen" | "regels" | "betaallinks";
 
