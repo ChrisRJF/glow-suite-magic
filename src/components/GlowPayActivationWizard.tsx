@@ -494,26 +494,15 @@ function TestPaymentStep({ demoMode, testing, paid, onTest }: any) {
 
 function CelebrationScreen() {
   return (
-    <div className="space-y-4 max-w-lg mx-auto text-center py-4 relative">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        {Array.from({ length: 18 }).map((_, i) => (
-          <span key={i}
-            className="absolute text-2xl animate-fade-in"
-            style={{
-              left: `${(i * 53) % 100}%`,
-              top: `${(i * 31) % 80}%`,
-              animationDelay: `${(i % 6) * 0.08}s`,
-              transform: `rotate(${(i * 23) % 360}deg)`,
-            }}>
-            {["🎉","✨","💜","💫","🌟"][i % 5]}
-          </span>
-        ))}
+    <div className="space-y-5 max-w-lg mx-auto text-center py-6">
+      <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-success to-primary flex items-center justify-center shadow-elegant ring-1 ring-primary/20 animate-scale-in">
+        <CheckCircle2 className="w-8 h-8 text-primary-foreground" strokeWidth={1.75} />
       </div>
-      <div className="mx-auto w-20 h-20 rounded-3xl bg-gradient-to-br from-success to-primary flex items-center justify-center shadow-elegant animate-scale-in">
-        <PartyPopper className="w-10 h-10 text-primary-foreground" />
+      <div>
+        <p className="text-[11px] font-semibold tracking-[0.2em] uppercase text-primary/80 mb-2">GlowPay actief</p>
+        <h2 className="text-2xl font-semibold tracking-tight">Je eerste betaling is ontvangen</h2>
+        <p className="text-sm text-muted-foreground mt-2 leading-relaxed max-w-sm mx-auto">Uitbetalingen worden automatisch verwerkt — je hoeft niets te doen.</p>
       </div>
-      <h2 className="text-2xl font-bold tracking-tight">Je eerste betaling is ontvangen 🎉</h2>
-      <p className="text-sm text-muted-foreground">Uitbetalingen worden automatisch verwerkt — je hoeft niets te doen.</p>
     </div>
   );
 }
