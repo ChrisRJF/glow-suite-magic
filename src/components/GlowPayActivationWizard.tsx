@@ -13,8 +13,10 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import {
   Sparkles, ArrowRight, ArrowLeft, CreditCard, Smartphone,
-  PlayCircle, Bot, PartyPopper, CheckCircle2, Building2,
-  Scissors, MessageCircle, Loader2, SkipForward, Upload, Rocket,
+  PlayCircle, Bot, CheckCircle2, Building2,
+  Scissors, MessageCircle, Loader2, SkipForward, Upload,
+  Gem, Stethoscope, Flower2, MoreHorizontal, Check,
+  type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -22,13 +24,13 @@ interface Props { open: boolean; onOpenChange: (o: boolean) => void; }
 
 type Category = "kapper" | "barbershop" | "nagelsalon" | "beauty" | "kliniek" | "anders";
 
-const CATEGORIES: { key: Category; label: string; icon: string }[] = [
-  { key: "kapper", label: "Kapper", icon: "✂️" },
-  { key: "barbershop", label: "Barbershop", icon: "💈" },
-  { key: "nagelsalon", label: "Nagelsalon", icon: "💅" },
-  { key: "beauty", label: "Beauty salon", icon: "✨" },
-  { key: "kliniek", label: "Kliniek", icon: "🏥" },
-  { key: "anders", label: "Anders", icon: "🎯" },
+const CATEGORIES: { key: Category; label: string; icon: LucideIcon }[] = [
+  { key: "kapper", label: "Kapper", icon: Scissors },
+  { key: "barbershop", label: "Barbershop", icon: Scissors },
+  { key: "nagelsalon", label: "Nagelstudio", icon: Sparkles },
+  { key: "beauty", label: "Beauty salon", icon: Flower2 },
+  { key: "kliniek", label: "Kliniek", icon: Stethoscope },
+  { key: "anders", label: "Overig", icon: MoreHorizontal },
 ];
 
 // Recommended defaults per category
@@ -212,7 +214,7 @@ export function GlowPayActivationWizard({ open, onOpenChange }: Props) {
       completed: true,
     });
     onOpenChange(false);
-    toast.success("GlowPay is geactiveerd 🎉");
+    toast.success("GlowSuite is volledig geconfigureerd");
   };
 
   const next = async () => {
@@ -238,29 +240,32 @@ export function GlowPayActivationWizard({ open, onOpenChange }: Props) {
     await persistActivation({ onboarding_step: newStep });
   };
 
-  const STEP_LABELS = ["Welkom", "Bedrijf", "Activeer", "Pinapparaat", "Test", "Automations", "Klaar"];
+  const STEP_LABELS = ["Welkom", "Bedrijf", "GlowPay", "Pinapparaat", "Test", "Automations", "Klaar"];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-full sm:max-w-xl h-[100dvh] sm:h-auto sm:max-h-[92vh] p-0 gap-0 overflow-hidden border-0 sm:border rounded-none sm:rounded-2xl flex flex-col">
-        <div className="px-5 sm:px-7 pt-5 pb-3 border-b border-border/50 bg-gradient-to-br from-primary/[0.05] to-transparent">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-primary-foreground" />
+      <DialogContent className="max-w-full sm:max-w-xl h-[100dvh] sm:h-auto sm:max-h-[92vh] p-0 gap-0 overflow-hidden border-0 sm:border rounded-none sm:rounded-3xl flex flex-col bg-background">
+        <div className="px-6 sm:px-8 pt-6 pb-4 border-b border-border/40">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center shadow-sm">
+                <Gem className="w-3.5 h-3.5 text-primary-foreground" />
               </div>
-              <span className="text-sm font-semibold">GlowPay activatie</span>
+              <div className="flex flex-col leading-tight">
+                <span className="text-[13px] font-semibold tracking-tight">GlowSuite setup</span>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Salon platform</span>
+              </div>
             </div>
-            <button onClick={() => onOpenChange(false)} className="text-xs text-muted-foreground hover:text-foreground">Later afmaken</button>
+            <button onClick={() => onOpenChange(false)} className="text-xs text-muted-foreground hover:text-foreground transition-colors">Later afmaken</button>
           </div>
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-medium text-muted-foreground">Stap {step + 1} van {totalSteps} — {STEP_LABELS[step]}</p>
-            <p className="text-xs font-semibold text-primary">{Math.round(pct)}%</p>
+            <p className="text-[11px] font-medium text-muted-foreground tracking-wide uppercase">Stap {step + 1} / {totalSteps} · {STEP_LABELS[step]}</p>
+            <p className="text-[11px] font-semibold text-primary tabular-nums">{Math.round(pct)}%</p>
           </div>
-          <Progress value={pct} className="h-1.5" />
+          <Progress value={pct} className="h-1" />
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 sm:px-7 py-6">
+        <div className="flex-1 overflow-y-auto px-6 sm:px-8 py-8">
           {step === 0 && <WelcomeStep onStart={() => setStep(1)} />}
           {step === 1 && (
             <BusinessStep
@@ -290,19 +295,23 @@ export function GlowPayActivationWizard({ open, onOpenChange }: Props) {
           {step === 6 && <DoneStep navigate={navigate} />}
         </div>
 
-        <div className="px-5 sm:px-7 py-4 border-t border-border/50 bg-background flex items-center justify-between gap-3">
-          <Button variant="ghost" size="sm" onClick={back} disabled={busy || step === 0}>
+        <div className="px-6 sm:px-8 py-4 border-t border-border/40 bg-background/80 backdrop-blur flex items-center justify-between gap-3">
+          <Button variant="ghost" size="sm" onClick={back} disabled={busy || step === 0} className="text-muted-foreground hover:text-foreground rounded-lg">
             <ArrowLeft className="w-4 h-4" /> Terug
           </Button>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             {step > 0 && step < totalSteps - 1 && (
-              <Button variant="ghost" size="sm" onClick={skip} disabled={busy} className="text-muted-foreground">
-                <SkipForward className="w-3.5 h-3.5" /> Overslaan
+              <Button variant="ghost" size="sm" onClick={skip} disabled={busy} className="text-muted-foreground hover:text-foreground rounded-lg">
+                Overslaan
               </Button>
             )}
-            <Button variant="gradient" size="sm" onClick={next} disabled={busy}>
-              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : step === totalSteps - 1 ? "Afronden" : "Volgende"}
-              {!busy && <ArrowRight className="w-4 h-4" />}
+            <Button variant="gradient" size="sm" onClick={next} disabled={busy} className="rounded-lg min-w-[110px] shadow-sm">
+              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+                <>
+                  {step === totalSteps - 1 ? "Afronden" : "Volgende"}
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
             </Button>
           </div>
         </div>
@@ -315,70 +324,90 @@ export function GlowPayActivationWizard({ open, onOpenChange }: Props) {
 
 function WelcomeStep({ onStart }: { onStart: () => void }) {
   return (
-    <div className="h-full flex flex-col items-center justify-center text-center py-6 max-w-md mx-auto">
-      <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center mb-6 shadow-elegant">
-        <Rocket className="w-10 h-10 text-primary-foreground" />
+    <div className="h-full flex flex-col items-center justify-center text-center py-4 max-w-md mx-auto">
+      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/90 to-primary-glow flex items-center justify-center mb-7 shadow-elegant ring-1 ring-primary/20">
+        <Gem className="w-7 h-7 text-primary-foreground" />
       </div>
-      <h1 className="text-3xl font-bold tracking-tight mb-3">Welkom bij GlowPay</h1>
-      <p className="text-base text-muted-foreground mb-8">Binnen enkele minuten kun je betalingen ontvangen — online én aan de balie.</p>
-      <div className="grid grid-cols-2 gap-2 w-full mb-8 text-left">
+      <p className="text-[11px] font-semibold tracking-[0.2em] uppercase text-primary/80 mb-3">GlowSuite</p>
+      <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight mb-3 leading-[1.1]">Welkom bij je salon platform</h1>
+      <p className="text-[15px] text-muted-foreground mb-10 leading-relaxed max-w-sm">GlowSuite configureert automatisch de beste instellingen voor jouw salon — inclusief GlowPay als ingebouwd betaalsysteem.</p>
+      <div className="grid grid-cols-2 gap-2 w-full mb-10 text-left">
         {[
           { i: CreditCard, t: "Online betalingen" },
           { i: Smartphone, t: "Pinapparaat" },
-          { i: Bot, t: "Slimme automations" },
+          { i: Bot, t: "Automations" },
           { i: Sparkles, t: "Auto uitbetaling" },
         ].map(({ i: Icon, t }) => (
-          <div key={t} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-secondary/40 border border-border/50">
-            <Icon className="w-4 h-4 text-primary" /><span className="text-sm font-medium">{t}</span>
+          <div key={t} className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-secondary/30 border border-border/40">
+            <Icon className="w-3.5 h-3.5 text-primary" strokeWidth={1.75} />
+            <span className="text-[13px] font-medium">{t}</span>
           </div>
         ))}
       </div>
-      <Button variant="gradient" size="lg" className="w-full" onClick={onStart}>Beginnen <ArrowRight className="w-4 h-4" /></Button>
+      <Button variant="gradient" size="lg" className="w-full rounded-xl shadow-sm" onClick={onStart}>
+        Beginnen <ArrowRight className="w-4 h-4" />
+      </Button>
     </div>
   );
 }
 
 function BusinessStep({ salonName, setSalonName, category, setCategory, logoUrl, onLogo }: any) {
   return (
-    <div className="space-y-5 max-w-lg mx-auto">
+    <div className="space-y-7 max-w-lg mx-auto">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Vertel over je salon</h2>
-        <p className="text-sm text-muted-foreground mt-1">We stemmen GlowPay automatisch af op jouw type salon.</p>
+        <h2 className="text-2xl sm:text-[26px] font-semibold tracking-tight">Vertel over je salon</h2>
+        <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">GlowSuite configureert automatisch de beste instellingen voor jouw salon.</p>
       </div>
       <div>
-        <Label>Salonnaam</Label>
-        <Input value={salonName} onChange={(e) => setSalonName(e.target.value)} placeholder="Studio Nova" className="mt-1.5" />
+        <Label className="text-[13px]">Salonnaam</Label>
+        <Input value={salonName} onChange={(e) => setSalonName(e.target.value)} placeholder="Studio Nova" className="mt-2 h-11 rounded-xl" />
       </div>
       <div>
-        <Label>Type salon</Label>
-        <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-2">
-          {CATEGORIES.map((c) => (
-            <button
-              key={c.key}
-              type="button"
-              onClick={() => setCategory(c.key)}
-              className={cn(
-                "flex flex-col items-center justify-center gap-1 rounded-xl border p-3 text-sm transition",
-                category === c.key ? "border-primary bg-primary/5 text-foreground" : "border-border bg-background hover:border-primary/40"
-              )}
-            >
-              <span className="text-xl">{c.icon}</span>
-              <span className="font-medium">{c.label}</span>
-            </button>
-          ))}
+        <Label className="text-[13px]">Type salon</Label>
+        <div className="mt-2.5 grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {CATEGORIES.map((c) => {
+            const Icon = c.icon;
+            const selected = category === c.key;
+            return (
+              <button
+                key={c.key}
+                type="button"
+                onClick={() => setCategory(c.key)}
+                className={cn(
+                  "group relative flex flex-col items-start justify-between gap-3 rounded-xl border p-3.5 text-left transition-all min-h-[88px]",
+                  selected
+                    ? "border-primary/60 bg-primary/[0.04] shadow-sm"
+                    : "border-border/60 bg-card hover:border-primary/30 hover:bg-secondary/20"
+                )}
+              >
+                <div className={cn(
+                  "w-8 h-8 rounded-lg flex items-center justify-center transition-colors",
+                  selected ? "bg-primary/10" : "bg-secondary/50"
+                )}>
+                  <Icon className={cn("w-4 h-4 transition-colors", selected ? "text-primary" : "text-muted-foreground")} strokeWidth={1.5} />
+                </div>
+                <span className={cn("text-[13px] font-medium leading-tight", selected ? "text-foreground" : "text-foreground/80")}>{c.label}</span>
+                {selected && (
+                  <div className="absolute top-2.5 right-2.5 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+                    <Check className="w-2.5 h-2.5 text-primary-foreground" strokeWidth={3} />
+                  </div>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
       <div>
-        <Label>Logo (optioneel)</Label>
-        <label className="mt-1.5 flex items-center gap-3 px-4 py-3 rounded-xl border border-dashed border-border hover:border-primary/50 cursor-pointer transition-colors">
+        <Label className="text-[13px]">Logo (optioneel)</Label>
+        <label className="mt-2 flex items-center gap-3 px-4 py-3 rounded-xl border border-dashed border-border/60 hover:border-primary/40 hover:bg-secondary/20 cursor-pointer transition-colors">
           {logoUrl ? (
             <img src={logoUrl} alt="Logo" className="w-10 h-10 rounded-lg object-cover" />
           ) : (
-            <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center">
-              <Upload className="w-4 h-4 text-muted-foreground" />
+            <div className="w-10 h-10 rounded-lg bg-secondary/60 flex items-center justify-center">
+              <Upload className="w-4 h-4 text-muted-foreground" strokeWidth={1.75} />
             </div>
           )}
-          <span className="text-sm text-muted-foreground flex-1">{logoUrl ? "Klik om te vervangen" : "Upload je logo"}</span>
+          <span className="text-[13px] text-muted-foreground flex-1">{logoUrl ? "Klik om te vervangen" : "Upload je logo"}</span>
           <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && onLogo(e.target.files[0])} />
         </label>
       </div>
@@ -389,33 +418,39 @@ function BusinessStep({ salonName, setSalonName, category, setCategory, logoUrl,
 function ActivateStep({ demoMode, salonName, email, setEmail, phone, setPhone, status, busy, onStart }: any) {
   const connected = ["pending", "active", "completed"].includes(status);
   return (
-    <div className="space-y-5 max-w-lg mx-auto">
+    <div className="space-y-6 max-w-lg mx-auto">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Activeer GlowPay betalingen</h2>
-        <p className="text-sm text-muted-foreground mt-1">We koppelen veilig je bedrijfsaccount voor uitbetalingen.</p>
+        <p className="text-[11px] font-semibold tracking-[0.2em] uppercase text-primary/80 mb-2">GlowPay module</p>
+        <h2 className="text-2xl sm:text-[26px] font-semibold tracking-tight">Activeer GlowPay betalingen</h2>
+        <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">Het ingebouwde betaalsysteem van GlowSuite — veilig gekoppeld voor uitbetalingen.</p>
       </div>
       {demoMode ? (
-        <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm">
+        <div className="rounded-xl border border-primary/20 bg-primary/[0.04] p-4 text-sm">
           <p className="font-medium">Demo modus actief</p>
-          <p className="text-muted-foreground text-[13px] mt-1">In demo werkt GlowPay als simulatie — er worden geen echte bedragen verwerkt.</p>
+          <p className="text-muted-foreground text-[13px] mt-1 leading-relaxed">In demo werkt GlowPay als simulatie — er worden geen echte bedragen verwerkt.</p>
         </div>
       ) : (
         <>
-          <div className="rounded-xl border border-border bg-card p-3 flex items-center gap-3 text-sm">
-            <Building2 className="w-4 h-4 text-primary" />
-            <div className="flex-1"><p className="font-medium leading-tight">Bedrijfsaccount koppelen</p><p className="text-[12px] text-muted-foreground">Inclusief KYC en uitbetalingen</p></div>
-            <span className={cn("text-[11px] px-2 py-0.5 rounded-full", connected ? "bg-success/15 text-success" : "bg-secondary text-muted-foreground")}>
-              {connected ? "Bezig/Actief" : "Niet gestart"}
+          <div className="rounded-xl border border-border/60 bg-card p-3.5 flex items-center gap-3 text-sm">
+            <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <Building2 className="w-4 h-4 text-primary" strokeWidth={1.75} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium leading-tight">Bedrijfsaccount koppelen</p>
+              <p className="text-[12px] text-muted-foreground mt-0.5">Inclusief verificatie en automatische uitbetalingen</p>
+            </div>
+            <span className={cn("text-[10px] font-medium px-2 py-1 rounded-full tracking-wide", connected ? "bg-success/15 text-success" : "bg-secondary/60 text-muted-foreground")}>
+              {connected ? "ACTIEF" : "NIET GESTART"}
             </span>
           </div>
           <div className="space-y-3">
-            <div><Label>Contact e-mail</Label><Input value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1.5" /></div>
-            <div><Label>Telefoon</Label><Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+31 6 …" className="mt-1.5" /></div>
+            <div><Label className="text-[13px]">Contact e-mail</Label><Input value={email} onChange={(e) => setEmail(e.target.value)} className="mt-2 h-11 rounded-xl" /></div>
+            <div><Label className="text-[13px]">Telefoon</Label><Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+31 6 …" className="mt-2 h-11 rounded-xl" /></div>
           </div>
-          <Button variant="gradient" className="w-full" onClick={onStart} disabled={busy}>
+          <Button variant="gradient" className="w-full rounded-xl shadow-sm h-11" onClick={onStart} disabled={busy}>
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "GlowPay betalingen activeren"}
           </Button>
-          <p className="text-[11px] text-muted-foreground text-center">Je wordt veilig doorgeleid om je gegevens te verifiëren.</p>
+          <p className="text-[11px] text-muted-foreground text-center leading-relaxed">Je wordt veilig doorgeleid om je gegevens te verifiëren.</p>
         </>
       )}
     </div>
@@ -465,26 +500,15 @@ function TestPaymentStep({ demoMode, testing, paid, onTest }: any) {
 
 function CelebrationScreen() {
   return (
-    <div className="space-y-4 max-w-lg mx-auto text-center py-4 relative">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        {Array.from({ length: 18 }).map((_, i) => (
-          <span key={i}
-            className="absolute text-2xl animate-fade-in"
-            style={{
-              left: `${(i * 53) % 100}%`,
-              top: `${(i * 31) % 80}%`,
-              animationDelay: `${(i % 6) * 0.08}s`,
-              transform: `rotate(${(i * 23) % 360}deg)`,
-            }}>
-            {["🎉","✨","💜","💫","🌟"][i % 5]}
-          </span>
-        ))}
+    <div className="space-y-5 max-w-lg mx-auto text-center py-6">
+      <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-success to-primary flex items-center justify-center shadow-elegant ring-1 ring-primary/20 animate-scale-in">
+        <CheckCircle2 className="w-8 h-8 text-primary-foreground" strokeWidth={1.75} />
       </div>
-      <div className="mx-auto w-20 h-20 rounded-3xl bg-gradient-to-br from-success to-primary flex items-center justify-center shadow-elegant animate-scale-in">
-        <PartyPopper className="w-10 h-10 text-primary-foreground" />
+      <div>
+        <p className="text-[11px] font-semibold tracking-[0.2em] uppercase text-primary/80 mb-2">GlowPay actief</p>
+        <h2 className="text-2xl font-semibold tracking-tight">Je eerste betaling is ontvangen</h2>
+        <p className="text-sm text-muted-foreground mt-2 leading-relaxed max-w-sm mx-auto">Uitbetalingen worden automatisch verwerkt — je hoeft niets te doen.</p>
       </div>
-      <h2 className="text-2xl font-bold tracking-tight">Je eerste betaling is ontvangen 🎉</h2>
-      <p className="text-sm text-muted-foreground">Uitbetalingen worden automatisch verwerkt — je hoeft niets te doen.</p>
     </div>
   );
 }
@@ -538,17 +562,20 @@ function DoneStep({ navigate }: any) {
     { t: "Dashboard", to: "/" },
   ];
   return (
-    <div className="space-y-6 max-w-lg mx-auto text-center">
-      <div className="mx-auto w-20 h-20 rounded-3xl bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center shadow-elegant">
-        <PartyPopper className="w-10 h-10 text-primary-foreground" />
+    <div className="space-y-7 max-w-lg mx-auto text-center py-2">
+      <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center shadow-elegant ring-1 ring-primary/20">
+        <CheckCircle2 className="w-8 h-8 text-primary-foreground" strokeWidth={1.75} />
       </div>
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Je bent klaar! 🎉</h2>
-        <p className="text-sm text-muted-foreground mt-1">Je bent klaar om betalingen te ontvangen.</p>
+        <p className="text-[11px] font-semibold tracking-[0.2em] uppercase text-primary/80 mb-2">Setup voltooid</p>
+        <h2 className="text-2xl sm:text-[26px] font-semibold tracking-tight">Je bent klaar om betalingen te ontvangen</h2>
+        <p className="text-sm text-muted-foreground mt-2 leading-relaxed max-w-sm mx-auto">GlowSuite draait. GlowPay is geactiveerd. Vanaf nu verwerk je alles vanuit één platform.</p>
       </div>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-2 pt-2">
         {links.map((l) => (
-          <Button key={l.to} variant="outline" onClick={() => navigate(l.to)} className="h-auto py-4">{l.t}</Button>
+          <Button key={l.to} variant="outline" onClick={() => navigate(l.to)} className="h-auto py-3.5 rounded-xl text-[13px] font-medium border-border/60 hover:border-primary/40 hover:bg-secondary/30">
+            {l.t}
+          </Button>
         ))}
       </div>
     </div>
