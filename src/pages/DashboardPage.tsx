@@ -13,6 +13,7 @@ import {
 import { AutoRevenueEngine } from "@/components/AutoRevenueEngine";
 import { DailyCoach } from "@/components/DailyCoach";
 import { AnimatedCounter } from "@/components/AnimatedCounter";
+import { PremiumOwnerMetrics } from "@/components/PremiumOwnerMetrics";
 import { useDemoMode } from "@/hooks/useDemoMode";
 import { actionLogKey, clearLegacyDemoLocalState } from "@/lib/demoIsolation";
 import { cn } from "@/lib/utils";
@@ -292,6 +293,8 @@ export default function DashboardPage() {
         </div>
         )}
       </section>
+
+      <PremiumOwnerMetrics />
 
       <DailyCoach />
 
