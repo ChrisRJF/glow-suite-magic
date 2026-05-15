@@ -324,70 +324,90 @@ export function GlowPayActivationWizard({ open, onOpenChange }: Props) {
 
 function WelcomeStep({ onStart }: { onStart: () => void }) {
   return (
-    <div className="h-full flex flex-col items-center justify-center text-center py-6 max-w-md mx-auto">
-      <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center mb-6 shadow-elegant">
-        <Rocket className="w-10 h-10 text-primary-foreground" />
+    <div className="h-full flex flex-col items-center justify-center text-center py-4 max-w-md mx-auto">
+      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/90 to-primary-glow flex items-center justify-center mb-7 shadow-elegant ring-1 ring-primary/20">
+        <Gem className="w-7 h-7 text-primary-foreground" />
       </div>
-      <h1 className="text-3xl font-bold tracking-tight mb-3">Welkom bij GlowPay</h1>
-      <p className="text-base text-muted-foreground mb-8">Binnen enkele minuten kun je betalingen ontvangen — online én aan de balie.</p>
-      <div className="grid grid-cols-2 gap-2 w-full mb-8 text-left">
+      <p className="text-[11px] font-semibold tracking-[0.2em] uppercase text-primary/80 mb-3">GlowSuite</p>
+      <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight mb-3 leading-[1.1]">Welkom bij je salon platform</h1>
+      <p className="text-[15px] text-muted-foreground mb-10 leading-relaxed max-w-sm">GlowSuite configureert automatisch de beste instellingen voor jouw salon — inclusief GlowPay als ingebouwd betaalsysteem.</p>
+      <div className="grid grid-cols-2 gap-2 w-full mb-10 text-left">
         {[
           { i: CreditCard, t: "Online betalingen" },
           { i: Smartphone, t: "Pinapparaat" },
-          { i: Bot, t: "Slimme automations" },
+          { i: Bot, t: "Automations" },
           { i: Sparkles, t: "Auto uitbetaling" },
         ].map(({ i: Icon, t }) => (
-          <div key={t} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-secondary/40 border border-border/50">
-            <Icon className="w-4 h-4 text-primary" /><span className="text-sm font-medium">{t}</span>
+          <div key={t} className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-secondary/30 border border-border/40">
+            <Icon className="w-3.5 h-3.5 text-primary" strokeWidth={1.75} />
+            <span className="text-[13px] font-medium">{t}</span>
           </div>
         ))}
       </div>
-      <Button variant="gradient" size="lg" className="w-full" onClick={onStart}>Beginnen <ArrowRight className="w-4 h-4" /></Button>
+      <Button variant="gradient" size="lg" className="w-full rounded-xl shadow-sm" onClick={onStart}>
+        Beginnen <ArrowRight className="w-4 h-4" />
+      </Button>
     </div>
   );
 }
 
 function BusinessStep({ salonName, setSalonName, category, setCategory, logoUrl, onLogo }: any) {
   return (
-    <div className="space-y-5 max-w-lg mx-auto">
+    <div className="space-y-7 max-w-lg mx-auto">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Vertel over je salon</h2>
-        <p className="text-sm text-muted-foreground mt-1">We stemmen GlowPay automatisch af op jouw type salon.</p>
+        <h2 className="text-2xl sm:text-[26px] font-semibold tracking-tight">Vertel over je salon</h2>
+        <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">GlowSuite configureert automatisch de beste instellingen voor jouw salon.</p>
       </div>
       <div>
-        <Label>Salonnaam</Label>
-        <Input value={salonName} onChange={(e) => setSalonName(e.target.value)} placeholder="Studio Nova" className="mt-1.5" />
+        <Label className="text-[13px]">Salonnaam</Label>
+        <Input value={salonName} onChange={(e) => setSalonName(e.target.value)} placeholder="Studio Nova" className="mt-2 h-11 rounded-xl" />
       </div>
       <div>
-        <Label>Type salon</Label>
-        <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-2">
-          {CATEGORIES.map((c) => (
-            <button
-              key={c.key}
-              type="button"
-              onClick={() => setCategory(c.key)}
-              className={cn(
-                "flex flex-col items-center justify-center gap-1 rounded-xl border p-3 text-sm transition",
-                category === c.key ? "border-primary bg-primary/5 text-foreground" : "border-border bg-background hover:border-primary/40"
-              )}
-            >
-              <span className="text-xl">{c.icon}</span>
-              <span className="font-medium">{c.label}</span>
-            </button>
-          ))}
+        <Label className="text-[13px]">Type salon</Label>
+        <div className="mt-2.5 grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {CATEGORIES.map((c) => {
+            const Icon = c.icon;
+            const selected = category === c.key;
+            return (
+              <button
+                key={c.key}
+                type="button"
+                onClick={() => setCategory(c.key)}
+                className={cn(
+                  "group relative flex flex-col items-start justify-between gap-3 rounded-xl border p-3.5 text-left transition-all min-h-[88px]",
+                  selected
+                    ? "border-primary/60 bg-primary/[0.04] shadow-sm"
+                    : "border-border/60 bg-card hover:border-primary/30 hover:bg-secondary/20"
+                )}
+              >
+                <div className={cn(
+                  "w-8 h-8 rounded-lg flex items-center justify-center transition-colors",
+                  selected ? "bg-primary/10" : "bg-secondary/50"
+                )}>
+                  <Icon className={cn("w-4 h-4 transition-colors", selected ? "text-primary" : "text-muted-foreground")} strokeWidth={1.5} />
+                </div>
+                <span className={cn("text-[13px] font-medium leading-tight", selected ? "text-foreground" : "text-foreground/80")}>{c.label}</span>
+                {selected && (
+                  <div className="absolute top-2.5 right-2.5 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+                    <Check className="w-2.5 h-2.5 text-primary-foreground" strokeWidth={3} />
+                  </div>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
       <div>
-        <Label>Logo (optioneel)</Label>
-        <label className="mt-1.5 flex items-center gap-3 px-4 py-3 rounded-xl border border-dashed border-border hover:border-primary/50 cursor-pointer transition-colors">
+        <Label className="text-[13px]">Logo (optioneel)</Label>
+        <label className="mt-2 flex items-center gap-3 px-4 py-3 rounded-xl border border-dashed border-border/60 hover:border-primary/40 hover:bg-secondary/20 cursor-pointer transition-colors">
           {logoUrl ? (
             <img src={logoUrl} alt="Logo" className="w-10 h-10 rounded-lg object-cover" />
           ) : (
-            <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center">
-              <Upload className="w-4 h-4 text-muted-foreground" />
+            <div className="w-10 h-10 rounded-lg bg-secondary/60 flex items-center justify-center">
+              <Upload className="w-4 h-4 text-muted-foreground" strokeWidth={1.75} />
             </div>
           )}
-          <span className="text-sm text-muted-foreground flex-1">{logoUrl ? "Klik om te vervangen" : "Upload je logo"}</span>
+          <span className="text-[13px] text-muted-foreground flex-1">{logoUrl ? "Klik om te vervangen" : "Upload je logo"}</span>
           <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && onLogo(e.target.files[0])} />
         </label>
       </div>
