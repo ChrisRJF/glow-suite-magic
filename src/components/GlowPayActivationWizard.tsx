@@ -214,7 +214,7 @@ export function GlowPayActivationWizard({ open, onOpenChange }: Props) {
       completed: true,
     });
     onOpenChange(false);
-    toast.success("GlowPay is geactiveerd 🎉");
+    toast.success("GlowSuite is volledig geconfigureerd");
   };
 
   const next = async () => {
