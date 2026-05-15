@@ -205,16 +205,19 @@ export function GlowPayActivationWizard({ open, onOpenChange }: Props) {
   };
 
   const finish = async () => {
+    const now = new Date().toISOString();
     await persistActivation({
       onboarding_completed: true,
       onboarding_step: totalSteps - 1,
       terminal_connected: terminalCount > 0,
+      terminal_connected_at: terminalCount > 0 ? now : null,
       whatsapp_connected: whatsappConnected,
-      completed_at: new Date().toISOString(),
+      onboarding_completed_at: now,
+      completed_at: now,
       completed: true,
     });
     onOpenChange(false);
-    toast.success("GlowSuite is volledig geconfigureerd");
+    toast.success("Je salon is volledig geactiveerd");
   };
 
   const next = async () => {
