@@ -418,33 +418,39 @@ function BusinessStep({ salonName, setSalonName, category, setCategory, logoUrl,
 function ActivateStep({ demoMode, salonName, email, setEmail, phone, setPhone, status, busy, onStart }: any) {
   const connected = ["pending", "active", "completed"].includes(status);
   return (
-    <div className="space-y-5 max-w-lg mx-auto">
+    <div className="space-y-6 max-w-lg mx-auto">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Activeer GlowPay betalingen</h2>
-        <p className="text-sm text-muted-foreground mt-1">We koppelen veilig je bedrijfsaccount voor uitbetalingen.</p>
+        <p className="text-[11px] font-semibold tracking-[0.2em] uppercase text-primary/80 mb-2">GlowPay module</p>
+        <h2 className="text-2xl sm:text-[26px] font-semibold tracking-tight">Activeer GlowPay betalingen</h2>
+        <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">Het ingebouwde betaalsysteem van GlowSuite — veilig gekoppeld voor uitbetalingen.</p>
       </div>
       {demoMode ? (
-        <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm">
+        <div className="rounded-xl border border-primary/20 bg-primary/[0.04] p-4 text-sm">
           <p className="font-medium">Demo modus actief</p>
-          <p className="text-muted-foreground text-[13px] mt-1">In demo werkt GlowPay als simulatie — er worden geen echte bedragen verwerkt.</p>
+          <p className="text-muted-foreground text-[13px] mt-1 leading-relaxed">In demo werkt GlowPay als simulatie — er worden geen echte bedragen verwerkt.</p>
         </div>
       ) : (
         <>
-          <div className="rounded-xl border border-border bg-card p-3 flex items-center gap-3 text-sm">
-            <Building2 className="w-4 h-4 text-primary" />
-            <div className="flex-1"><p className="font-medium leading-tight">Bedrijfsaccount koppelen</p><p className="text-[12px] text-muted-foreground">Inclusief KYC en uitbetalingen</p></div>
-            <span className={cn("text-[11px] px-2 py-0.5 rounded-full", connected ? "bg-success/15 text-success" : "bg-secondary text-muted-foreground")}>
-              {connected ? "Bezig/Actief" : "Niet gestart"}
+          <div className="rounded-xl border border-border/60 bg-card p-3.5 flex items-center gap-3 text-sm">
+            <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <Building2 className="w-4 h-4 text-primary" strokeWidth={1.75} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium leading-tight">Bedrijfsaccount koppelen</p>
+              <p className="text-[12px] text-muted-foreground mt-0.5">Inclusief verificatie en automatische uitbetalingen</p>
+            </div>
+            <span className={cn("text-[10px] font-medium px-2 py-1 rounded-full tracking-wide", connected ? "bg-success/15 text-success" : "bg-secondary/60 text-muted-foreground")}>
+              {connected ? "ACTIEF" : "NIET GESTART"}
             </span>
           </div>
           <div className="space-y-3">
-            <div><Label>Contact e-mail</Label><Input value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1.5" /></div>
-            <div><Label>Telefoon</Label><Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+31 6 …" className="mt-1.5" /></div>
+            <div><Label className="text-[13px]">Contact e-mail</Label><Input value={email} onChange={(e) => setEmail(e.target.value)} className="mt-2 h-11 rounded-xl" /></div>
+            <div><Label className="text-[13px]">Telefoon</Label><Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+31 6 …" className="mt-2 h-11 rounded-xl" /></div>
           </div>
-          <Button variant="gradient" className="w-full" onClick={onStart} disabled={busy}>
+          <Button variant="gradient" className="w-full rounded-xl shadow-sm h-11" onClick={onStart} disabled={busy}>
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "GlowPay betalingen activeren"}
           </Button>
-          <p className="text-[11px] text-muted-foreground text-center">Je wordt veilig doorgeleid om je gegevens te verifiëren.</p>
+          <p className="text-[11px] text-muted-foreground text-center leading-relaxed">Je wordt veilig doorgeleid om je gegevens te verifiëren.</p>
         </>
       )}
     </div>
