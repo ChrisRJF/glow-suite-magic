@@ -22,6 +22,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
+import { PaymentAutomationsCard } from "@/components/PaymentAutomationsCard";
 
 type Status = "live" | "soon" | "off";
 
@@ -377,6 +378,10 @@ export default function AutomatiseringenPage() {
             </Card>
           );
         })}
+      </div>
+
+      <div className="mt-8">
+        <PaymentAutomationsCard />
       </div>
     </AppLayout>
   );
