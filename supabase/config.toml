@@ -44,3 +44,9 @@ verify_jwt = false
 
 [functions.viva-sync-payouts]
 verify_jwt = false
+
+[functions.create-viva-connected-account]
+verify_jwt = true
+
+[functions.sync-viva-connected-account]
+verify_jwt = true

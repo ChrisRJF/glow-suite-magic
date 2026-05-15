@@ -1451,6 +1451,72 @@ export type Database = {
           },
         ]
       }
+      glowpay_connected_merchants: {
+        Row: {
+          business_name: string | null
+          contact_email: string | null
+          country: string | null
+          created_at: string
+          id: string
+          is_demo: boolean
+          kyc_status: string | null
+          last_synced_at: string | null
+          metadata: Json
+          onboarding_status: string
+          onboarding_url: string | null
+          online_payments_enabled: boolean
+          payouts_enabled: boolean
+          phone: string | null
+          terminals_enabled: boolean
+          updated_at: string
+          user_id: string
+          viva_account_id: string | null
+          viva_merchant_id: string | null
+        }
+        Insert: {
+          business_name?: string | null
+          contact_email?: string | null
+          country?: string | null
+          created_at?: string
+          id?: string
+          is_demo?: boolean
+          kyc_status?: string | null
+          last_synced_at?: string | null
+          metadata?: Json
+          onboarding_status?: string
+          onboarding_url?: string | null
+          online_payments_enabled?: boolean
+          payouts_enabled?: boolean
+          phone?: string | null
+          terminals_enabled?: boolean
+          updated_at?: string
+          user_id: string
+          viva_account_id?: string | null
+          viva_merchant_id?: string | null
+        }
+        Update: {
+          business_name?: string | null
+          contact_email?: string | null
+          country?: string | null
+          created_at?: string
+          id?: string
+          is_demo?: boolean
+          kyc_status?: string | null
+          last_synced_at?: string | null
+          metadata?: Json
+          onboarding_status?: string
+          onboarding_url?: string | null
+          online_payments_enabled?: boolean
+          payouts_enabled?: boolean
+          phone?: string | null
+          terminals_enabled?: boolean
+          updated_at?: string
+          user_id?: string
+          viva_account_id?: string | null
+          viva_merchant_id?: string | null
+        }
+        Relationships: []
+      }
       import_batch_items: {
         Row: {
           batch_id: string
@@ -3087,6 +3153,7 @@ export type Database = {
       }
       viva_terminals: {
         Row: {
+          connected_merchant_id: string | null
           created_at: string
           id: string
           is_demo: boolean
@@ -3098,8 +3165,10 @@ export type Database = {
           terminal_name: string
           updated_at: string
           user_id: string
+          viva_account_id: string | null
         }
         Insert: {
+          connected_merchant_id?: string | null
           created_at?: string
           id?: string
           is_demo?: boolean
@@ -3111,8 +3180,10 @@ export type Database = {
           terminal_name: string
           updated_at?: string
           user_id: string
+          viva_account_id?: string | null
         }
         Update: {
+          connected_merchant_id?: string | null
           created_at?: string
           id?: string
           is_demo?: boolean
@@ -3124,6 +3195,7 @@ export type Database = {
           terminal_name?: string
           updated_at?: string
           user_id?: string
+          viva_account_id?: string | null
         }
         Relationships: []
       }

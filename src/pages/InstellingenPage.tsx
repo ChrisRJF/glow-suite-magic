@@ -22,6 +22,7 @@ import { OnboardingWizard } from "@/components/OnboardingWizard";
 import { useUserRole } from "@/hooks/useUserRole";
 import { hasPermission } from "@/lib/permissions";
 import { TerminalsCard } from "@/components/TerminalsCard";
+import { MerchantOnboardingCard } from "@/components/MerchantOnboardingCard";
 
 type OpeningHours = Record<string, { open: string; close: string; enabled: boolean }>;
 
@@ -1102,6 +1103,9 @@ export default function InstellingenPage() {
                       </pre>
                     </div>
                   </div>
+
+                  {/* Connected merchant onboarding */}
+                  <MerchantOnboardingCard />
 
                   {/* Cloud Terminals */}
                   <TerminalsCard />
