@@ -946,196 +946,215 @@ export default function InstellingenPage() {
 
               {paymentProvider === "viva" && (
                 <div className="space-y-3">
-                  {!vivaStatus?.configured && (
+                  <GlowPaySetupCard
+                    vivaConfigured={Boolean(vivaStatus?.configured)}
+                    vivaActivation={vivaActivation}
+                    paymentProvider={paymentProvider}
+                    demoMode={demoMode}
+                  />
+
+                  {!vivaStatus?.configured && !demoMode && (
                     <div className="rounded-lg bg-warning/10 border border-warning/30 p-3 text-[11px] text-warning-foreground">
-                      Viva credentials of source code ontbreken. Vraag GlowSuite support om je account te activeren.
+                      Vraag GlowSuite support om je bedrijfsaccount te activeren.
                     </div>
                   )}
 
-                  {/* Viva readiness checklist */}
-                  <div className="rounded-xl border border-border bg-background/60 p-3">
-                    <p className="text-xs font-semibold mb-2">Viva readiness checklist</p>
-                    <div className="space-y-1.5">
-                      {[
-                        { key: "credentials", label: "Credentials aanwezig", auto: Boolean(vivaStatus?.credentials_present) },
-                        { key: "source_code", label: "Source code aanwezig", auto: Boolean(vivaStatus?.source_code_present) },
-                        { key: "demo_test", label: "Demo betaling getest", auto: false },
-                        { key: "webhook_received", label: "Webhook ontvangen", auto: false },
-                        { key: "appointment_confirmed", label: "Betaalde afspraak bevestigd", auto: false },
-                        { key: "failure_handled", label: "Mislukte betaling verwerkt", auto: false },
-                        { key: "auto_revenue", label: "Auto Revenue payment link getest", auto: false },
-                      ].map((item) => {
-                        const checked = item.auto || Boolean(vivaChecklist[item.key]);
-                        return (
-                          <label key={item.key} className="flex items-center gap-2 text-[11px] cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              disabled={item.auto}
-                              onChange={() => !item.auto && toggleVivaChecklist(item.key)}
-                              className="h-3.5 w-3.5 rounded border-border accent-primary"
-                            />
-                            <span className={checked ? "text-foreground" : "text-muted-foreground"}>{item.label}</span>
-                            {item.auto && <span className="text-[10px] text-success ml-auto">auto</span>}
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Fallback toggle */}
-                  <div className="rounded-xl border border-border bg-background/60 p-3 flex items-center justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[12px] font-medium">Automatisch terugvallen op Mollie</p>
-                      <p className="text-[10px] text-muted-foreground">Bij een Viva-fout wordt de betaling automatisch via Mollie afgehandeld.</p>
-                    </div>
-                    <Switch checked={paymentFallback} onCheckedChange={setPaymentFallback} />
-                  </div>
-
-                  {/* Webhook URL */}
-                  <div className="rounded-xl border border-border bg-background/60 p-3">
-                    <p className="text-[11px] font-semibold mb-1">Webhook URL</p>
-                    <div className="flex items-center gap-2">
-                      <code className="flex-1 text-[10px] bg-muted/50 rounded px-2 py-1 break-all">{vivaWebhookUrl}</code>
-                      <Button type="button" size="sm" variant="ghost" className="h-7 text-[10px]" onClick={() => { navigator.clipboard.writeText(vivaWebhookUrl); toast.success("Gekopieerd"); }}>Kopieer</Button>
-                    </div>
-                    <p className="text-[10px] text-muted-foreground mt-1">Voeg deze URL toe in je Viva Smart Checkout webhook-instellingen.</p>
-                  </div>
-
-                  {/* Diagnostics */}
-                  <div className="rounded-xl border border-border bg-background/60 p-3 space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <p className="text-[11px] font-semibold">Viva diagnostiek</p>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full ${vivaActivation === "active" ? "bg-success/15 text-success" : vivaActivation === "rejected" ? "bg-destructive/15 text-destructive" : "bg-muted text-muted-foreground"}`}>
-                        Activatie: {vivaActivation.replace(/_/g, " ")}
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px]">
-                      <div>
-                        <p className="text-muted-foreground">Laatst ontvangen</p>
-                        <p className="font-medium">{vivaDiag?.last_received ? new Date(vivaDiag.last_received).toLocaleString("nl-NL") : "—"}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Webhook hits</p>
-                        <p className="font-medium">{vivaDiag?.total_hits ?? 0}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Laatste POST</p>
-                        <p className="font-medium">{vivaDiag?.last_post ? new Date(vivaDiag.last_post).toLocaleString("nl-NL") : "—"}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Malformed</p>
-                        <p className={`font-medium ${vivaDiag && vivaDiag.malformed_count > 0 ? "text-destructive" : ""}`}>{vivaDiag?.malformed_count ?? 0}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Laatst verwerkt</p>
-                        <p className="font-medium">{vivaDiag?.last_processed ? new Date(vivaDiag.last_processed).toLocaleString("nl-NL") : "—"}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Mislukt</p>
-                        <p className={`font-medium ${vivaDiag && vivaDiag.failed_count > 0 ? "text-destructive" : ""}`}>{vivaDiag?.failed_count ?? 0}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Laatste redirect fallback</p>
-                        <p className="font-medium">{vivaDiag?.last_redirect_fallback ? new Date(vivaDiag.last_redirect_fallback).toLocaleString("nl-NL") : "—"}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Fallback syncs</p>
-                        <p className="font-medium">{vivaDiag?.redirect_fallback_count ?? 0}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Live webhook POSTs</p>
-                        <p className="font-medium">{vivaDiag?.live_webhook_count ?? 0}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Laatste live webhook</p>
-                        <p className="font-medium">{vivaDiag?.last_live_webhook ? new Date(vivaDiag.last_live_webhook).toLocaleString("nl-NL") : "—"}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Reconciliation syncs</p>
-                        <p className="font-medium">{vivaDiag?.reconciliation_count ?? 0}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Laatste reconciliation</p>
-                        <p className="font-medium">{vivaDiag?.last_reconciliation ? new Date(vivaDiag.last_reconciliation).toLocaleString("nl-NL") : "—"}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Pending &gt; 10 min</p>
-                        <p className={`font-medium ${vivaDiag && vivaDiag.pending_old_count > 0 ? "text-destructive" : ""}`}>{vivaDiag?.pending_old_count ?? 0}</p>
-                      </div>
-                       <div>
-                         <p className="text-muted-foreground">Mislukte sync (24u)</p>
-                         <p className={`font-medium ${vivaDiag && vivaDiag.failed_sync_count > 0 ? "text-destructive" : ""}`}>{vivaDiag?.failed_sync_count ?? 0}</p>
-                       </div>
-                       <div>
-                         <p className="text-muted-foreground">Terminals actief</p>
-                         <p className="font-medium">{vivaDiag?.terminals_active ?? 0}</p>
-                       </div>
-                       <div>
-                         <p className="text-muted-foreground">Laatste terminal-betaling</p>
-                         <p className="font-medium">{vivaDiag?.last_terminal_payment ? new Date(vivaDiag.last_terminal_payment).toLocaleString("nl-NL") : "—"}</p>
-                       </div>
-                       <div>
-                         <p className="text-muted-foreground">Mislukte terminal (24u)</p>
-                         <p className={`font-medium ${vivaDiag && vivaDiag.failed_terminal_count > 0 ? "text-destructive" : ""}`}>{vivaDiag?.failed_terminal_count ?? 0}</p>
-                       </div>
-                       <div>
-                         <p className="text-muted-foreground">Pending terminal &gt; 5 min</p>
-                         <p className={`font-medium ${vivaDiag && vivaDiag.pending_terminal_old > 0 ? "text-destructive" : ""}`}>{vivaDiag?.pending_terminal_old ?? 0}</p>
-                       </div>
-                    </div>
-                    {(() => {
-                      if (!vivaDiag?.has_viva_payments) return null;
-                      const issues: string[] = [];
-                      const noWebhook15 = !vivaDiag.last_live_webhook || new Date(vivaDiag.last_live_webhook).getTime() < Date.now() - 15 * 60 * 1000;
-                      if (noWebhook15) issues.push("Geen webhook POST in de laatste 15 minuten.");
-                      if ((vivaDiag.pending_old_count ?? 0) > 0) issues.push(`${vivaDiag.pending_old_count} betaling(en) langer dan 10 min in pending.`);
-                      if ((vivaDiag.failed_sync_count ?? 0) > 0) issues.push(`${vivaDiag.failed_sync_count} mislukte sync(s) in laatste 24u.`);
-                      if (!issues.length) return null;
-                      return (
-                        <div className="mt-2 rounded-lg border border-destructive/40 bg-destructive/10 p-2 text-[10px] text-destructive space-y-1">
-                          <p className="font-semibold">⚠ Viva betaalpipeline aandacht nodig</p>
-                          {issues.map((i) => <p key={i}>• {i}</p>)}
-                          <p className="opacity-80">Reconciliation vangt dit automatisch op, maar live webhooks zijn sneller.</p>
-                        </div>
-                      );
-                    })()}
-                    <div className="pt-2 border-t border-border">
-                      <p className="text-[10px] text-muted-foreground mb-1">Laatste headers</p>
-                      <pre className="max-h-28 overflow-auto rounded-md bg-muted/50 p-2 text-[9px] leading-relaxed whitespace-pre-wrap break-all">
-                        {vivaDiag?.latest_headers ? JSON.stringify(vivaDiag.latest_headers, null, 2) : "—"}
-                      </pre>
-                    </div>
-                  </div>
-
-                  {/* Connected merchant onboarding */}
+                  {/* Bedrijfsaccount koppelen */}
                   <MerchantOnboardingCard />
 
-                  {/* Cloud Terminals */}
+                  {/* Pinapparaten */}
                   <TerminalsCard />
 
-
-                  {isOwner && (
-                    <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-2">
-                      <p className="text-[11px] font-semibold">Test Viva Smart Checkout</p>
-                      <div className="grid grid-cols-3 gap-2">
-                        <input type="number" step="0.01" min="0.30" value={vivaTestAmount} onChange={(e) => setVivaTestAmount(e.target.value)} className="text-[11px] h-8 rounded-md border border-border bg-background px-2" placeholder="Bedrag €" />
-                        <input type="text" value={vivaTestName} onChange={(e) => setVivaTestName(e.target.value)} className="text-[11px] h-8 rounded-md border border-border bg-background px-2" placeholder="Naam" />
-                        <input type="email" value={vivaTestEmail} onChange={(e) => setVivaTestEmail(e.target.value)} className="text-[11px] h-8 rounded-md border border-border bg-background px-2" placeholder="E-mail" />
-                      </div>
-                      <Button type="button" size="sm" disabled={vivaTestLoading} onClick={runVivaTest} className="w-full h-8 text-[11px]">
-                        {vivaTestLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : "Maak Viva testbetaling"}
-                      </Button>
-                      {vivaTestResult && (
-                        <div className="text-[10px] space-y-1 pt-1 border-t border-border">
-                          <p><span className="text-muted-foreground">Order code:</span> <code>{vivaTestResult.order_code}</code></p>
-                          <p><span className="text-muted-foreground">Payment ID:</span> <code className="break-all">{vivaTestResult.payment_id}</code></p>
-                          <a href={vivaTestResult.checkout_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
-                            Open Viva Checkout <ExternalLink className="w-3 h-3" />
-                          </a>
+                  {isBackendAdmin && !demoMode && (
+                    <Collapsible>
+                      <CollapsibleTrigger className="w-full flex items-center justify-between gap-2 rounded-xl border border-border bg-background/60 px-3 py-2.5 text-[12px] font-medium hover:bg-secondary/40 transition group">
+                        <span className="flex items-center gap-2">
+                          <span>Geavanceerd</span>
+                          <span className="text-[10px] font-normal text-muted-foreground">Alleen voor support/debugging</span>
+                        </span>
+                        <ChevronDown className="w-4 h-4 text-muted-foreground transition group-data-[state=open]:rotate-180" />
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="space-y-3 pt-3">
+                        {/* Viva readiness checklist */}
+                        <div className="rounded-xl border border-border bg-background/60 p-3">
+                          <p className="text-xs font-semibold mb-2">Viva readiness checklist</p>
+                          <div className="space-y-1.5">
+                            {[
+                              { key: "credentials", label: "Credentials aanwezig", auto: Boolean(vivaStatus?.credentials_present) },
+                              { key: "source_code", label: "Source code aanwezig", auto: Boolean(vivaStatus?.source_code_present) },
+                              { key: "demo_test", label: "Demo betaling getest", auto: false },
+                              { key: "webhook_received", label: "Betaalstatus synchronisatie ontvangen", auto: false },
+                              { key: "appointment_confirmed", label: "Betaalde afspraak bevestigd", auto: false },
+                              { key: "failure_handled", label: "Mislukte betaling verwerkt", auto: false },
+                              { key: "auto_revenue", label: "Auto Revenue payment link getest", auto: false },
+                            ].map((item) => {
+                              const checked = item.auto || Boolean(vivaChecklist[item.key]);
+                              return (
+                                <label key={item.key} className="flex items-center gap-2 text-[11px] cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    disabled={item.auto}
+                                    onChange={() => !item.auto && toggleVivaChecklist(item.key)}
+                                    className="h-3.5 w-3.5 rounded border-border accent-primary"
+                                  />
+                                  <span className={checked ? "text-foreground" : "text-muted-foreground"}>{item.label}</span>
+                                  {item.auto && <span className="text-[10px] text-success ml-auto">auto</span>}
+                                </label>
+                              );
+                            })}
+                          </div>
                         </div>
-                      )}
-                    </div>
+
+                        {/* Fallback toggle */}
+                        <div className="rounded-xl border border-border bg-background/60 p-3 flex items-center justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[12px] font-medium">Automatisch terugvallen op Mollie</p>
+                            <p className="text-[10px] text-muted-foreground">Bij een Viva-fout wordt de betaling automatisch via Mollie afgehandeld.</p>
+                          </div>
+                          <Switch checked={paymentFallback} onCheckedChange={setPaymentFallback} />
+                        </div>
+
+                        {/* Webhook URL */}
+                        <div className="rounded-xl border border-border bg-background/60 p-3">
+                          <p className="text-[11px] font-semibold mb-1">Betaalstatus synchronisatie URL</p>
+                          <div className="flex items-center gap-2">
+                            <code className="flex-1 text-[10px] bg-muted/50 rounded px-2 py-1 break-all">{vivaWebhookUrl}</code>
+                            <Button type="button" size="sm" variant="ghost" className="h-7 text-[10px]" onClick={() => { navigator.clipboard.writeText(vivaWebhookUrl); toast.success("Gekopieerd"); }}>Kopieer</Button>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground mt-1">Voeg deze URL toe in je Viva Smart Checkout webhook-instellingen.</p>
+                        </div>
+
+                        {/* Diagnostics */}
+                        <div className="rounded-xl border border-border bg-background/60 p-3 space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <p className="text-[11px] font-semibold">Viva diagnostiek</p>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full ${vivaActivation === "active" ? "bg-success/15 text-success" : vivaActivation === "rejected" ? "bg-destructive/15 text-destructive" : "bg-muted text-muted-foreground"}`}>
+                              Activatie: {vivaActivation.replace(/_/g, " ")}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px]">
+                            <div>
+                              <p className="text-muted-foreground">Laatst ontvangen</p>
+                              <p className="font-medium">{vivaDiag?.last_received ? new Date(vivaDiag.last_received).toLocaleString("nl-NL") : "—"}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Sync hits</p>
+                              <p className="font-medium">{vivaDiag?.total_hits ?? 0}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Laatste POST</p>
+                              <p className="font-medium">{vivaDiag?.last_post ? new Date(vivaDiag.last_post).toLocaleString("nl-NL") : "—"}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Malformed</p>
+                              <p className={`font-medium ${vivaDiag && vivaDiag.malformed_count > 0 ? "text-destructive" : ""}`}>{vivaDiag?.malformed_count ?? 0}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Laatst verwerkt</p>
+                              <p className="font-medium">{vivaDiag?.last_processed ? new Date(vivaDiag.last_processed).toLocaleString("nl-NL") : "—"}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Mislukt</p>
+                              <p className={`font-medium ${vivaDiag && vivaDiag.failed_count > 0 ? "text-destructive" : ""}`}>{vivaDiag?.failed_count ?? 0}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Laatste redirect fallback</p>
+                              <p className="font-medium">{vivaDiag?.last_redirect_fallback ? new Date(vivaDiag.last_redirect_fallback).toLocaleString("nl-NL") : "—"}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Fallback syncs</p>
+                              <p className="font-medium">{vivaDiag?.redirect_fallback_count ?? 0}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Live sync POSTs</p>
+                              <p className="font-medium">{vivaDiag?.live_webhook_count ?? 0}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Laatste live sync</p>
+                              <p className="font-medium">{vivaDiag?.last_live_webhook ? new Date(vivaDiag.last_live_webhook).toLocaleString("nl-NL") : "—"}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Automatische controle</p>
+                              <p className="font-medium">{vivaDiag?.reconciliation_count ?? 0}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Laatste controle</p>
+                              <p className="font-medium">{vivaDiag?.last_reconciliation ? new Date(vivaDiag.last_reconciliation).toLocaleString("nl-NL") : "—"}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Pending &gt; 10 min</p>
+                              <p className={`font-medium ${vivaDiag && vivaDiag.pending_old_count > 0 ? "text-destructive" : ""}`}>{vivaDiag?.pending_old_count ?? 0}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Controle nodig (24u)</p>
+                              <p className={`font-medium ${vivaDiag && vivaDiag.failed_sync_count > 0 ? "text-destructive" : ""}`}>{vivaDiag?.failed_sync_count ?? 0}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Pinapparaten actief</p>
+                              <p className="font-medium">{vivaDiag?.terminals_active ?? 0}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Laatste pinbetaling</p>
+                              <p className="font-medium">{vivaDiag?.last_terminal_payment ? new Date(vivaDiag.last_terminal_payment).toLocaleString("nl-NL") : "—"}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Mislukte pinbetaling (24u)</p>
+                              <p className={`font-medium ${vivaDiag && vivaDiag.failed_terminal_count > 0 ? "text-destructive" : ""}`}>{vivaDiag?.failed_terminal_count ?? 0}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Pending pin &gt; 5 min</p>
+                              <p className={`font-medium ${vivaDiag && vivaDiag.pending_terminal_old > 0 ? "text-destructive" : ""}`}>{vivaDiag?.pending_terminal_old ?? 0}</p>
+                            </div>
+                          </div>
+                          {(() => {
+                            if (!vivaDiag?.has_viva_payments) return null;
+                            const issues: string[] = [];
+                            const noWebhook15 = !vivaDiag.last_live_webhook || new Date(vivaDiag.last_live_webhook).getTime() < Date.now() - 15 * 60 * 1000;
+                            if (noWebhook15) issues.push("Geen synchronisatie in de laatste 15 minuten.");
+                            if ((vivaDiag.pending_old_count ?? 0) > 0) issues.push(`${vivaDiag.pending_old_count} betaling(en) langer dan 10 min in pending.`);
+                            if ((vivaDiag.failed_sync_count ?? 0) > 0) issues.push(`${vivaDiag.failed_sync_count} controle(s) nodig in laatste 24u.`);
+                            if (!issues.length) return null;
+                            return (
+                              <div className="mt-2 rounded-lg border border-destructive/40 bg-destructive/10 p-2 text-[10px] text-destructive space-y-1">
+                                <p className="font-semibold">⚠ Viva betaalpipeline aandacht nodig</p>
+                                {issues.map((i) => <p key={i}>• {i}</p>)}
+                                <p className="opacity-80">Automatische controle vangt dit op, maar live syncs zijn sneller.</p>
+                              </div>
+                            );
+                          })()}
+                          <div className="pt-2 border-t border-border">
+                            <p className="text-[10px] text-muted-foreground mb-1">Laatste headers</p>
+                            <pre className="max-h-28 overflow-auto rounded-md bg-muted/50 p-2 text-[9px] leading-relaxed whitespace-pre-wrap break-all">
+                              {vivaDiag?.latest_headers ? JSON.stringify(vivaDiag.latest_headers, null, 2) : "—"}
+                            </pre>
+                          </div>
+                        </div>
+
+                        {isOwner && (
+                          <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-2">
+                            <p className="text-[11px] font-semibold">Test Viva Smart Checkout</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                              <input type="number" step="0.01" min="0.30" value={vivaTestAmount} onChange={(e) => setVivaTestAmount(e.target.value)} className="text-[11px] h-9 rounded-md border border-border bg-background px-2" placeholder="Bedrag €" />
+                              <input type="text" value={vivaTestName} onChange={(e) => setVivaTestName(e.target.value)} className="text-[11px] h-9 rounded-md border border-border bg-background px-2" placeholder="Naam" />
+                              <input type="email" value={vivaTestEmail} onChange={(e) => setVivaTestEmail(e.target.value)} className="text-[11px] h-9 rounded-md border border-border bg-background px-2" placeholder="E-mail" />
+                            </div>
+                            <Button type="button" size="sm" disabled={vivaTestLoading} onClick={runVivaTest} className="w-full h-9 text-[12px]">
+                              {vivaTestLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : "Maak Viva testbetaling"}
+                            </Button>
+                            {vivaTestResult && (
+                              <div className="text-[10px] space-y-1 pt-1 border-t border-border">
+                                <p><span className="text-muted-foreground">Order code:</span> <code>{vivaTestResult.order_code}</code></p>
+                                <p><span className="text-muted-foreground">Payment ID:</span> <code className="break-all">{vivaTestResult.payment_id}</code></p>
+                                <a href={vivaTestResult.checkout_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                                  Open Viva Checkout <ExternalLink className="w-3 h-3" />
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </CollapsibleContent>
+                    </Collapsible>
                   )}
                 </div>
               )}
