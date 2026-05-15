@@ -251,15 +251,21 @@ export function GlowPayActivationWizard({ open, onOpenChange }: Props) {
         <div className="px-6 sm:px-8 pt-6 pb-4 border-b border-border/40">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center shadow-sm">
-                <Gem className="w-3.5 h-3.5 text-primary-foreground" />
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary/10 to-primary-glow/10 ring-1 ring-primary/15 flex items-center justify-center shadow-sm overflow-hidden">
+                <img src="/favicon.png" alt="GlowSuite" className="w-5 h-5 object-contain" draggable={false} />
               </div>
               <div className="flex flex-col leading-tight">
                 <span className="text-[13px] font-semibold tracking-tight">GlowSuite setup</span>
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Salon platform</span>
               </div>
             </div>
-            <button onClick={() => onOpenChange(false)} className="text-xs text-muted-foreground hover:text-foreground transition-colors">Later afmaken</button>
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="text-xs font-medium text-muted-foreground hover:text-foreground px-2.5 py-1.5 rounded-lg transition-colors outline-none focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+            >
+              Later afmaken
+            </button>
           </div>
           <div className="flex items-center justify-between mb-2">
             <p className="text-[11px] font-medium text-muted-foreground tracking-wide uppercase">Stap {step + 1} / {totalSteps} · {STEP_LABELS[step]}</p>
@@ -328,8 +334,8 @@ export function GlowPayActivationWizard({ open, onOpenChange }: Props) {
 function WelcomeStep({ onStart }: { onStart: () => void }) {
   return (
     <div className="h-full flex flex-col items-center justify-center text-center py-4 max-w-md mx-auto">
-      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/90 to-primary-glow flex items-center justify-center mb-7 shadow-elegant ring-1 ring-primary/20">
-        <Gem className="w-7 h-7 text-primary-foreground" />
+      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/90 to-primary-glow flex items-center justify-center mb-7 shadow-elegant ring-1 ring-primary/20 overflow-hidden">
+        <img src="/favicon.png" alt="GlowSuite" className="w-10 h-10 object-contain" draggable={false} />
       </div>
       <p className="text-[11px] font-semibold tracking-[0.2em] uppercase text-primary/80 mb-3">GlowSuite</p>
       <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight mb-3 leading-[1.1]">Welkom bij je salon platform</h1>
