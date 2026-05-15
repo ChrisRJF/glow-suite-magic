@@ -247,9 +247,12 @@ export function GlowPayActivationWizard({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-full sm:max-w-xl h-[100dvh] sm:h-auto sm:max-h-[92vh] p-0 gap-0 overflow-hidden border-0 sm:border rounded-none sm:rounded-3xl flex flex-col bg-background">
-        <div className="px-6 sm:px-8 pt-6 pb-4 border-b border-border/40">
-          <div className="flex items-center justify-between mb-4">
+      <DialogContent className="max-w-full sm:max-w-xl h-[100dvh] sm:h-auto sm:max-h-[92vh] p-0 gap-0 overflow-hidden border-0 sm:border rounded-none sm:rounded-3xl flex flex-col bg-background [&>button.absolute]:hidden">
+        <div
+          className="px-6 sm:px-8 pb-5 border-b border-border/40"
+          style={{ paddingTop: "max(1.75rem, env(safe-area-inset-top))" }}
+        >
+          <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2.5">
               <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary/10 to-primary-glow/10 ring-1 ring-primary/15 flex items-center justify-center shadow-sm overflow-hidden">
                 <img src="/favicon.png" alt="GlowSuite" className="w-5 h-5 object-contain" draggable={false} />
@@ -262,12 +265,13 @@ export function GlowPayActivationWizard({ open, onOpenChange }: Props) {
             <button
               type="button"
               onClick={() => onOpenChange(false)}
-              className="text-xs font-medium text-muted-foreground hover:text-foreground px-2.5 py-1.5 rounded-lg transition-colors outline-none focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+              aria-label="Onboarding later afronden"
+              className="-mr-2 inline-flex items-center text-[12px] font-normal text-muted-foreground/80 hover:text-foreground/90 px-2 py-2 min-h-[40px] bg-transparent border-0 opacity-80 hover:opacity-100 transition-opacity duration-200 outline-none focus:outline-none focus-visible:text-foreground"
             >
-              Later afmaken
+              Later afronden
             </button>
           </div>
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-2.5">
             <p className="text-[11px] font-medium text-muted-foreground tracking-wide uppercase">Stap {step + 1} / {totalSteps} · {STEP_LABELS[step]}</p>
             <p className="text-[11px] font-semibold text-primary tabular-nums">{Math.round(pct)}%</p>
           </div>
