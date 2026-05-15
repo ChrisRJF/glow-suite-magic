@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -247,7 +247,17 @@ export function GlowPayActivationWizard({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-full sm:max-w-xl h-[100dvh] sm:h-auto sm:max-h-[92vh] p-0 gap-0 overflow-hidden border-0 sm:border rounded-none sm:rounded-3xl flex flex-col bg-background [&>button.absolute]:hidden">
+      <DialogContent
+        aria-labelledby="glowsuite-onboarding-title"
+        aria-describedby="glowsuite-onboarding-desc"
+        className="max-w-full sm:max-w-xl h-[100dvh] sm:h-auto sm:max-h-[92vh] p-0 gap-0 overflow-hidden border-0 sm:border rounded-none sm:rounded-3xl flex flex-col bg-background [&>button.absolute]:hidden"
+      >
+        <DialogTitle id="glowsuite-onboarding-title" className="sr-only">
+          GlowSuite onboarding — stap {step + 1} van {totalSteps}: {STEP_LABELS[step]}
+        </DialogTitle>
+        <DialogDescription id="glowsuite-onboarding-desc" className="sr-only">
+          Doorloop de stappen om je salon te activeren. Druk op Escape om later af te ronden.
+        </DialogDescription>
         <div
           className="px-6 sm:px-8 pb-5 border-b border-border/40"
           style={{ paddingTop: "max(1.75rem, env(safe-area-inset-top))" }}
@@ -255,7 +265,7 @@ export function GlowPayActivationWizard({ open, onOpenChange }: Props) {
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2.5">
               <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary/10 to-primary-glow/10 ring-1 ring-primary/15 flex items-center justify-center shadow-sm overflow-hidden">
-                <img src="/favicon.png" alt="GlowSuite" className="w-5 h-5 object-contain" draggable={false} />
+                <img src="/favicon.png" alt="" aria-hidden="true" className="w-5 h-5 object-contain" draggable={false} />
               </div>
               <div className="flex flex-col leading-tight">
                 <span className="text-[13px] font-semibold tracking-tight">GlowSuite setup</span>
@@ -265,17 +275,21 @@ export function GlowPayActivationWizard({ open, onOpenChange }: Props) {
             <button
               type="button"
               onClick={() => onOpenChange(false)}
-              aria-label="Onboarding later afronden"
-              className="-mr-2 inline-flex items-center text-[12px] font-normal text-muted-foreground/80 hover:text-foreground/90 px-2 py-2 min-h-[40px] bg-transparent border-0 opacity-80 hover:opacity-100 transition-opacity duration-200 outline-none focus:outline-none focus-visible:text-foreground"
+              aria-label="Onboarding later afronden en sluiten"
+              className="-mr-2 inline-flex items-center text-[12px] font-normal text-muted-foreground/80 hover:text-foreground/90 px-2 py-2 min-h-[40px] rounded-md bg-transparent border-0 opacity-80 hover:opacity-100 transition-opacity duration-200 outline-none focus:outline-none focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               Later afronden
             </button>
           </div>
           <div className="flex items-center justify-between mb-2.5">
             <p className="text-[11px] font-medium text-muted-foreground tracking-wide uppercase">Stap {step + 1} / {totalSteps} · {STEP_LABELS[step]}</p>
-            <p className="text-[11px] font-semibold text-primary tabular-nums">{Math.round(pct)}%</p>
+            <p className="text-[11px] font-semibold text-primary tabular-nums" aria-hidden="true">{Math.round(pct)}%</p>
           </div>
-          <Progress value={pct} className="h-1" />
+          <Progress
+            value={pct}
+            className="h-1"
+            aria-label={`Voortgang onboarding: stap ${step + 1} van ${totalSteps}, ${Math.round(pct)} procent voltooid`}
+          />
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 sm:px-8 py-8">
@@ -308,21 +322,46 @@ export function GlowPayActivationWizard({ open, onOpenChange }: Props) {
           {step === 6 && <DoneStep navigate={navigate} />}
         </div>
 
-        <div className="px-6 sm:px-8 py-4 border-t border-border/40 bg-background/80 backdrop-blur flex items-center justify-between gap-3">
-          <Button variant="ghost" size="sm" onClick={back} disabled={busy || step === 0} className="text-muted-foreground hover:text-foreground rounded-lg">
+        <div
+          className="px-6 sm:px-8 py-4 border-t border-border/40 bg-background/80 backdrop-blur flex items-center justify-between gap-3"
+          style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+        >
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={back}
+            disabled={busy || step === 0}
+            aria-label="Vorige stap"
+            className="text-muted-foreground hover:text-foreground rounded-lg"
+          >
             <ArrowLeft className="w-4 h-4" /> Terug
           </Button>
           <div className="flex items-center gap-1">
             {step > 0 && step < totalSteps - 1 && (
-              <Button variant="ghost" size="sm" onClick={skip} disabled={busy} className="text-muted-foreground hover:text-foreground rounded-lg">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={skip}
+                disabled={busy}
+                aria-label="Deze stap overslaan"
+                className="text-muted-foreground hover:text-foreground rounded-lg"
+              >
                 Overslaan
               </Button>
             )}
-            <Button variant="gradient" size="sm" onClick={next} disabled={busy} className="rounded-lg min-w-[110px] shadow-sm">
-              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+            <Button
+              variant="gradient"
+              size="sm"
+              onClick={next}
+              disabled={busy}
+              aria-label={step === totalSteps - 1 ? "Onboarding afronden" : "Volgende stap"}
+              aria-busy={busy || undefined}
+              className="rounded-lg min-w-[110px] shadow-sm"
+            >
+              {busy ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : (
                 <>
                   {step === totalSteps - 1 ? "Afronden" : "Volgende"}
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className="w-4 h-4" aria-hidden="true" />
                 </>
               )}
             </Button>
