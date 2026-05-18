@@ -323,24 +323,28 @@ export default function GlowPayPage() {
         <>
           {/* Create link modal */}
           {showLinkForm && (
-            <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowLinkForm(false)}>
-              <div className="glass-card p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center sm:p-4 overflow-y-auto" onClick={() => setShowLinkForm(false)}>
+              <div
+                className="glass-card p-5 sm:p-6 w-full max-w-md rounded-t-3xl sm:rounded-2xl max-h-[92vh] overflow-y-auto"
+                style={{ paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))" }}
+                onClick={e => e.stopPropagation()}
+              >
                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><Link2 className="w-5 h-5 text-primary" /> Nieuw betaalverzoek</h3>
                 <div className="space-y-3">
                   <div>
                     <label className="text-xs text-muted-foreground">Bedrag (€) *</label>
-                    <input type="number" value={linkForm.amount} onChange={e => setLinkForm({ ...linkForm, amount: e.target.value })}
-                      className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                    <input type="number" inputMode="decimal" value={linkForm.amount} onChange={e => setLinkForm({ ...linkForm, amount: e.target.value })}
+                      className="w-full mt-1 px-4 py-3 rounded-xl bg-secondary/50 border border-border text-base focus:outline-none focus:ring-2 focus:ring-primary/30" />
                   </div>
                   <div>
                     <label className="text-xs text-muted-foreground">Omschrijving</label>
                     <input value={linkForm.description} onChange={e => setLinkForm({ ...linkForm, description: e.target.value })}
-                      className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="bijv. Aanbetaling knippen" />
+                      className="w-full mt-1 px-4 py-3 rounded-xl bg-secondary/50 border border-border text-base focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="bijv. Aanbetaling knippen" />
                   </div>
                   <div>
                     <label className="text-xs text-muted-foreground">Klant (optioneel)</label>
                     <select value={linkForm.customer_id} onChange={e => setLinkForm({ ...linkForm, customer_id: e.target.value })}
-                      className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
+                      className="w-full mt-1 px-4 py-3 rounded-xl bg-secondary/50 border border-border text-base focus:outline-none focus:ring-2 focus:ring-primary/30">
                       <option value="">Geen klant</option>
                       {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
@@ -350,7 +354,7 @@ export default function GlowPayPage() {
                     <div className="flex gap-2 mt-1">
                       {[{ id: "link", label: "Betaallink", icon: Link2 }, { id: "qr", label: "QR-code", icon: QrCode }].map(t => (
                         <button key={t.id} onClick={() => setLinkForm({ ...linkForm, type: t.id })}
-                          className={cn("flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-all",
+                          className={cn("flex-1 flex items-center justify-center gap-2 px-3 min-h-[44px] rounded-xl text-sm font-medium transition-all",
                             linkForm.type === t.id ? "bg-primary/15 border border-primary/30 text-primary" : "bg-secondary/50 border border-transparent text-muted-foreground")}>
                           <t.icon className="w-4 h-4" /> {t.label}
                         </button>
@@ -358,9 +362,9 @@ export default function GlowPayPage() {
                     </div>
                   </div>
                 </div>
-                <div className="flex gap-2 mt-4">
-                  <Button variant="outline" className="flex-1" onClick={() => setShowLinkForm(false)}>Annuleren</Button>
-                  <Button variant="gradient" className="flex-1" onClick={handleCreateLink}>Aanmaken</Button>
+                <div className="flex gap-2 mt-5">
+                  <Button variant="outline" className="flex-1 min-h-[44px]" onClick={() => setShowLinkForm(false)}>Annuleren</Button>
+                  <Button variant="gradient" className="flex-1 min-h-[44px]" onClick={handleCreateLink}>Aanmaken</Button>
                 </div>
               </div>
             </div>
