@@ -407,8 +407,8 @@ Deno.serve(async (req) => {
         }
       }
 
-      // -------- NO-SHOW PASS --------
-      if (s.send_no_show_followup) {
+      // -------- NO-SHOW PASS -------- (no_show)
+      if (s.send_no_show_followup && gate("no_show")) {
         try {
           // Look at appointments scheduled in the last 24h with no-show status
           const since = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
