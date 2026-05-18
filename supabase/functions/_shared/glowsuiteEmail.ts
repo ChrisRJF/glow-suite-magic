@@ -86,7 +86,12 @@ export function renderGlowSuiteEmail(opts: GlowSuiteEmailOptions): string {
     helper,
     outro,
     footerNote,
+    footerReason,
+    footerText,
   } = opts;
+
+  const footerReasonText =
+    footerText ?? FOOTER_REASON[footerReason ?? "account"];
 
   const cta =
     ctaLabel && ctaUrl
