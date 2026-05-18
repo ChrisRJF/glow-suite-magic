@@ -70,12 +70,29 @@ export function PaymentAutomationsCard() {
     toast.success(next ? "Automatisering aangezet" : "Automatisering uitgezet");
   };
 
+  const { modes } = useAIModes();
+  const paymentsMode = effectiveMode(modes, "betalingen");
+  const autopilotOn = paymentsMode === "autopilot";
+
   return (
     <div className="space-y-3">
       <div>
         <h2 className="text-section-title">Betaal-slimmigheden</h2>
         <p className="text-meta mt-1">Voorkom gemiste omzet en houd klanten betrokken — automatisch.</p>
       </div>
+      {!autopilotOn && (
+        <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 flex items-start gap-3">
+          <Sparkles className="w-4 h-4 mt-0.5 text-primary shrink-0" />
+          <div className="flex-1 text-xs">
+            {paymentsMode === "off" ? (
+              <p>Betaal-AI staat <strong>uit</strong>. Deze automatiseringen worden niet uitgevoerd.</p>
+            ) : (
+              <p>Betaal-AI staat op <strong>Suggesties</strong>. Toggles tonen je voorkeur, maar acties wachten op jouw bevestiging.</p>
+            )}
+            <Link to="/ai" className="text-primary font-medium hover:underline">Instellingen wijzigen →</Link>
+          </div>
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {DEFS.map((d) => {
           const on = toggles[d.key];
