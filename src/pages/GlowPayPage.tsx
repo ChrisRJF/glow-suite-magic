@@ -458,7 +458,7 @@ export default function GlowPayPage() {
 
       {activeTab === "regels" && (
         <div className="space-y-4 max-w-2xl opacity-0 animate-fade-in-up">
-          <div className="glass-card p-6">
+          <div className="glass-card p-4 sm:p-6">
             <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
               <Shield className="w-4 h-4 text-primary" /> Actieve betaalregels
             </h3>
