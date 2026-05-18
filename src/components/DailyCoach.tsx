@@ -30,6 +30,7 @@ export function DailyCoach() {
   const { data: memberships } = useCustomerMemberships();
   const { data: payments } = usePayments();
   const navigate = useNavigate();
+  const { modes } = useAIModes();
 
   const actions = useMemo<CoachAction[]>(() => {
     const list: CoachAction[] = [];
