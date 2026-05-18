@@ -53,6 +53,10 @@ export interface GlowSuiteEmailOptions {
   outro?: string;
   /** Optional footer note (above the standard footer) */
   footerNote?: string;
+  /** Footer reason preset — explains why the user got this email. Default: "account". */
+  footerReason?: FooterReasonKey;
+  /** Override footer reason text entirely (takes precedence over footerReason). */
+  footerText?: string;
 }
 
 function paragraphs(text: string): string {
