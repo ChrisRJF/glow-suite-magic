@@ -69,6 +69,7 @@ const templates = {
       intro: `Je 14-daagse gratis proefperiode loopt tot ${fmtDate(trialEnd)}. Geen betaalkaart nodig — neem rustig de tijd om GlowSuite te ontdekken.\n\nEerste stap: zet je online boekingen live. Salons met online boeken krijgen tot 40% meer afspraken.`,
       ctaLabel: "Open mijn dashboard",
       ctaUrl: `${APP_URL}/dashboard`,
+      footerReason: "trial",
     }),
   }),
   day3: (salon: string) => ({
@@ -82,6 +83,7 @@ const templates = {
         "Heb je je boekingslink al gedeeld met klanten?\n\nSalons die online boekingen aanzetten in de eerste week zien gemiddeld 3× meer afspraken. Het kost je twee minuten om de link op Instagram, je website of WhatsApp-status te zetten.",
       ctaLabel: "Bekijk mijn boekingslink",
       ctaUrl: `${APP_URL}/dashboard`,
+      footerReason: "trial",
     }),
   }),
   day7: () => ({
@@ -100,6 +102,7 @@ const templates = {
       outro: "Heb je deze functies al ontdekt?",
       ctaLabel: "Ja, laat me zien",
       ctaUrl: `${APP_URL}/automatiseringen`,
+      footerReason: "trial",
     }),
   }),
   day10: (trialEnd: string) => ({
@@ -112,6 +115,7 @@ const templates = {
       intro: `Je proefperiode eindigt op ${fmtDate(trialEnd)}.\n\nActiveer nu je abonnement om zonder onderbreking door te werken. Je houdt al je gegevens, klanten en agenda — alles blijft staan.\n\nPlannen vanaf €39 per maand. Maandelijks opzegbaar.`,
       ctaLabel: "Activeer mijn abonnement",
       ctaUrl: `${APP_URL}/pricing`,
+      footerReason: "trial",
     }),
   }),
   day14: () => ({
@@ -130,6 +134,7 @@ const templates = {
       ]),
       ctaLabel: "Kies mijn plan",
       ctaUrl: `${APP_URL}/pricing`,
+      footerReason: "trial",
     }),
   }),
 };
