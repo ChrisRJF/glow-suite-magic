@@ -93,9 +93,35 @@ export function AIModesCard() {
   const { modes, loading, saving, setGlobal, setCategory } = useAIModes();
   const { demoMode } = useDemoMode();
   const { isAdmin } = useUserRole();
+  const isMobile = useIsMobile();
   const cats = Object.keys(AI_CATEGORY_LABELS) as AICategory[];
 
   const [recent, setRecent] = useState<RecentItem[]>([]);
+  const [pendingAuto, setPendingAuto] = useState<null | { scope: "global" } | { scope: "category"; category: AICategory }>(null);
+
+  const requestGlobal = (m: AIMode) => {
+    if (m === "autopilot" && modes.global !== "autopilot") {
+      setPendingAuto({ scope: "global" });
+      return;
+    }
+    setGlobal(m);
+  };
+  const requestCategory = (c: AICategory, m: AIMode) => {
+    if (m === "autopilot" && modes.categories[c] !== "autopilot") {
+      setPendingAuto({ scope: "category", category: c });
+      return;
+    }
+    setCategory(c, m);
+  };
+  const confirmAuto = async () => {
+    if (!pendingAuto) return;
+    if (pendingAuto.scope === "global") await setGlobal("autopilot");
+    else await setCategory(pendingAuto.category, "autopilot");
+    setPendingAuto(null);
+    toast.success("GlowSuite AI staat nu op Auto");
+  };
+  const open = pendingAuto !== null;
+  const onOpenChange = (o: boolean) => { if (!o) setPendingAuto(null); };
 
   useEffect(() => {
     if (!user) return;
