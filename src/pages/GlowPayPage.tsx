@@ -206,13 +206,13 @@ export default function GlowPayPage() {
           <div className="h-6" />
 
           {/* Recent Payments */}
-          <div className="glass-card p-6 opacity-0 animate-fade-in-up" style={{ animationDelay: '560ms' }}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold flex items-center gap-2">
-                <CreditCard className="w-4 h-4 text-primary" /> Recente betalingen
+          <div className="glass-card p-4 sm:p-6 opacity-0 animate-fade-in-up" style={{ animationDelay: '560ms' }}>
+            <div className="flex items-center justify-between mb-4 gap-2">
+              <h3 className="text-sm font-semibold flex items-center gap-2 min-w-0">
+                <CreditCard className="w-4 h-4 text-primary shrink-0" /> <span className="truncate">Recente betalingen</span>
               </h3>
-              <Button variant="ghost" size="sm" onClick={() => setActiveTab("betalingen")}>
-                Alles bekijken <ArrowRight className="w-3.5 h-3.5 ml-1" />
+              <Button variant="ghost" size="sm" onClick={() => setActiveTab("betalingen")} className="shrink-0 min-h-[40px]">
+                Alles <ArrowRight className="w-3.5 h-3.5 ml-1" />
               </Button>
             </div>
             <div className="space-y-2">
