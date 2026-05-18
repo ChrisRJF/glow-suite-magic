@@ -1,6 +1,13 @@
 // Send lead confirmation + internal notification emails via Resend gateway.
-// Uses verified domain email.glowsuite.nl
+// Uses the shared GlowSuite platform email layout.
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import {
+  renderGlowSuiteEmail,
+  softCardHtml,
+  esc,
+  GLOWSUITE_FROM,
+  GLOWSUITE_REPLY_TO,
+} from "../_shared/glowsuiteEmail.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,9 +17,7 @@ const corsHeaders = {
 
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/resend";
 const ADMIN_EMAIL = "ccfrancoisinc@gmail.com";
-const FROM_LEAD = "GlowSuite <hello@email.glowsuite.nl>";
 const FROM_INTERNAL = "GlowSuite Leads <leads@email.glowsuite.nl>";
-const REPLY_TO = "hello@email.glowsuite.nl";
 
 interface LeadPayload {
   name: string;
@@ -22,15 +27,6 @@ interface LeadPayload {
   salon_type?: string | null;
   message?: string | null;
   source?: string | null;
-}
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
 }
 
 async function sendEmail(
@@ -73,66 +69,67 @@ serve(async (req) => {
       );
     }
 
-    const name = escapeHtml(lead.name);
-    const email = escapeHtml(lead.email);
-    const phone = escapeHtml(lead.phone ?? "");
-    const salonName = escapeHtml(lead.salon_name ?? "");
-    const salonType = escapeHtml(lead.salon_type ?? "");
-    const message = escapeHtml(lead.message ?? "");
-    const source = escapeHtml(lead.source ?? "");
     const now = new Date().toLocaleString("nl-NL", {
       timeZone: "Europe/Amsterdam",
     });
 
-    // 1. Confirmation to lead
-    const confirmationHtml = `
-<!doctype html><html><body style="font-family:Arial,sans-serif;background:#ffffff;color:#111;padding:24px;max-width:560px;margin:0 auto;">
-  <h2 style="margin:0 0 16px;font-size:20px;">Bedankt voor uw aanvraag</h2>
-  <p style="font-size:14px;line-height:1.6;color:#333;">Bedankt voor uw interesse in GlowSuite.</p>
-  <p style="font-size:14px;line-height:1.6;color:#333;">Wij hebben uw aanvraag goed ontvangen.</p>
-  <p style="font-size:14px;line-height:1.6;color:#333;">Wij nemen binnen 24 uur contact met u op voor een demo.</p>
-  <p style="font-size:13px;color:#666;margin-top:24px;">Met vriendelijke groet,<br/>Team GlowSuite</p>
-</body></html>`.trim();
+    // 1. Confirmation to lead — premium GlowSuite layout
+    const confirmationHtml = renderGlowSuiteEmail({
+      title: "We hebben je demo-aanvraag ontvangen",
+      preheader: "We nemen binnen 24 uur contact met je op om de demo in te plannen.",
+      eyebrow: "Demo-aanvraag",
+      heading: "Je demo-aanvraag is ontvangen",
+      intro:
+        "Bedankt voor je interesse in GlowSuite. We nemen binnen 24 uur contact met je op om de demo in te plannen.",
+      helper: "Geen actie nodig — je hoort snel van ons.",
+    });
 
     const confirmationText =
-      "Bedankt voor uw interesse in GlowSuite.\n\n" +
-      "Wij hebben uw aanvraag goed ontvangen.\n" +
-      "Wij nemen binnen 24 uur contact met u op voor een demo.\n\n" +
-      "Met vriendelijke groet,\nTeam GlowSuite";
+      "Je demo-aanvraag is ontvangen\n\n" +
+      "Bedankt voor je interesse in GlowSuite. We nemen binnen 24 uur contact met je op om de demo in te plannen.\n\n" +
+      "Team GlowSuite";
 
-    // 2. Internal notification
-    const internalHtml = `
-<!doctype html><html><body style="font-family:Arial,sans-serif;background:#ffffff;color:#111;padding:24px;max-width:600px;margin:0 auto;">
-  <h2 style="margin:0 0 16px;font-size:20px;">Nieuwe demo lead ontvangen</h2>
-  <table style="width:100%;border-collapse:collapse;font-size:14px;">
-    <tr><td style="padding:8px 0;color:#666;width:140px;">Naam</td><td style="padding:8px 0;font-weight:600;">${name}</td></tr>
-    <tr><td style="padding:8px 0;color:#666;">Salonnaam</td><td style="padding:8px 0;">${salonName || "—"}</td></tr>
-    <tr><td style="padding:8px 0;color:#666;">Type salon</td><td style="padding:8px 0;">${salonType || "—"}</td></tr>
-    <tr><td style="padding:8px 0;color:#666;">E-mail</td><td style="padding:8px 0;"><a href="mailto:${email}">${email}</a></td></tr>
-    <tr><td style="padding:8px 0;color:#666;">Telefoon</td><td style="padding:8px 0;">${phone || "—"}</td></tr>
-    <tr><td style="padding:8px 0;color:#666;vertical-align:top;">Bericht</td><td style="padding:8px 0;white-space:pre-wrap;">${message || "—"}</td></tr>
-    <tr><td style="padding:8px 0;color:#666;">Bron</td><td style="padding:8px 0;">${source || "—"}</td></tr>
-    <tr><td style="padding:8px 0;color:#666;">Datum/tijd</td><td style="padding:8px 0;">${now}</td></tr>
-  </table>
-</body></html>`.trim();
+    // 2. Internal notification — also GlowSuite-branded
+    const rows = [
+      ["Naam", lead.name],
+      ["Salonnaam", lead.salon_name ?? "—"],
+      ["Type salon", lead.salon_type ?? "—"],
+      ["E-mail", lead.email],
+      ["Telefoon", lead.phone ?? "—"],
+      ["Bericht", lead.message ?? "—"],
+      ["Bron", lead.source ?? "—"],
+      ["Datum/tijd", now],
+    ];
+    const tableRows = rows
+      .map(
+        ([k, v]) =>
+          `<tr><td style="padding:6px 12px 6px 0;font-size:13px;color:#64748b;vertical-align:top;width:120px;">${esc(k)}</td><td style="padding:6px 0;font-size:14px;color:#0f172a;white-space:pre-wrap;">${esc(String(v))}</td></tr>`,
+      )
+      .join("");
+    const internalHtml = renderGlowSuiteEmail({
+      title: "Nieuwe demo lead ontvangen",
+      preheader: `Nieuwe lead: ${lead.name}${lead.salon_name ? " · " + lead.salon_name : ""}`,
+      eyebrow: "Nieuwe lead",
+      heading: "Nieuwe demo-aanvraag",
+      intro: "Er is zojuist een nieuwe demo-aanvraag binnengekomen via GlowSuite.",
+      bodyHtml: softCardHtml(
+        `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;">${tableRows}</table>`,
+      ),
+      ctaLabel: "Antwoord deze lead",
+      ctaUrl: `mailto:${lead.email}`,
+      footerNote: "Interne notificatie — verstuurd door GlowSuite Leads.",
+    });
 
     const internalText =
       `Nieuwe demo lead ontvangen\n\n` +
-      `Naam: ${lead.name}\n` +
-      `Salonnaam: ${lead.salon_name ?? "—"}\n` +
-      `Type salon: ${lead.salon_type ?? "—"}\n` +
-      `E-mail: ${lead.email}\n` +
-      `Telefoon: ${lead.phone ?? "—"}\n` +
-      `Bericht: ${lead.message ?? "—"}\n` +
-      `Bron: ${lead.source ?? "—"}\n` +
-      `Datum/tijd: ${now}\n`;
+      rows.map(([k, v]) => `${k}: ${v}`).join("\n");
 
     const [confirmation, internal] = await Promise.all([
       sendEmail(RESEND_API_KEY, LOVABLE_API_KEY, {
-        from: FROM_LEAD,
+        from: GLOWSUITE_FROM,
         to: [lead.email],
-        reply_to: REPLY_TO,
-        subject: "Bedankt voor uw aanvraag",
+        reply_to: GLOWSUITE_REPLY_TO,
+        subject: "We hebben je demo-aanvraag ontvangen",
         html: confirmationHtml,
         text: confirmationText,
       }),
@@ -140,14 +137,16 @@ serve(async (req) => {
         from: FROM_INTERNAL,
         to: [ADMIN_EMAIL],
         reply_to: lead.email,
-        subject: "Nieuwe demo lead ontvangen",
+        subject: `Nieuwe demo-aanvraag · ${lead.name}`,
         html: internalHtml,
         text: internalText,
       }),
     ]);
 
-    if (!confirmation.ok) console.error("Confirmation send failed:", confirmation.status, confirmation.body);
-    if (!internal.ok) console.error("Internal send failed:", internal.status, internal.body);
+    if (!confirmation.ok)
+      console.error("Confirmation send failed:", confirmation.status, confirmation.body);
+    if (!internal.ok)
+      console.error("Internal send failed:", internal.status, internal.body);
 
     return new Response(
       JSON.stringify({
