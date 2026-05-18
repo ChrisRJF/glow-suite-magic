@@ -238,15 +238,17 @@ export default function GlowPayPage() {
       )}
 
       {activeTab === "betalingen" && (
-        <div className="glass-card p-6 opacity-0 animate-fade-in-up">
+        <div className="glass-card p-4 sm:p-6 opacity-0 animate-fade-in-up">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
             <h3 className="text-sm font-semibold flex items-center gap-2">
               <CreditCard className="w-4 h-4 text-primary" /> Alle betalingen
             </h3>
-            <div className="flex gap-1 bg-secondary/50 p-1 rounded-xl w-fit overflow-x-auto">
-              {[{ key: "today", label: "Vandaag" }, { key: "week", label: "Week" }, { key: "month", label: "Maand" }].map((item) => (
-                <button key={item.key} onClick={() => setPaymentFilter(item.key as any)} className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap", paymentFilter === item.key ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground")}>{item.label}</button>
-              ))}
+            <div className="-mx-1 overflow-x-auto scrollbar-none">
+              <div className="inline-flex gap-1 bg-secondary/50 p-1 rounded-xl mx-1 w-max">
+                {[{ key: "today", label: "Vandaag" }, { key: "week", label: "Week" }, { key: "month", label: "Maand" }].map((item) => (
+                  <button key={item.key} onClick={() => setPaymentFilter(item.key as any)} className={cn("px-3 min-h-[36px] rounded-lg text-xs font-medium transition-all whitespace-nowrap", paymentFilter === item.key ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground")}>{item.label}</button>
+                ))}
+              </div>
             </div>
           </div>
           <div className="space-y-2">
