@@ -4,9 +4,11 @@ import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
-import { AlertCircle, CreditCard, Calendar, Receipt, RotateCcw, Heart, BellRing } from "lucide-react";
+import { AlertCircle, CreditCard, Calendar, Receipt, RotateCcw, Heart, BellRing, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useAIModes, effectiveMode } from "@/lib/aiModes";
+import { Link } from "react-router-dom";
 
 type AutomationKey =
   | "failed_payment_followup"
