@@ -163,9 +163,9 @@ export function renderGlowSuiteEmail(opts: GlowSuiteEmailOptions): string {
         ${footerNote ? `<p class="gs-muted" style="margin:0 0 14px;font-size:12px;line-height:1.6;color:#94a3b8;">${esc(footerNote)}</p>` : ""}
         <table role="presentation" cellpadding="0" cellspacing="0"><tr>
           <td style="vertical-align:middle;">
-            <img src="${GLOWSUITE_LOGO_URL}" width="20" height="20" alt="" style="display:block;border:0;outline:none;width:20px;height:20px;opacity:0.85;"/>
+            <img src="${GLOWSUITE_LOGO_URL}" width="22" height="22" alt="GlowSuite" style="display:block;border:0;outline:none;width:22px;height:22px;background:transparent;object-fit:contain;opacity:0.9;"/>
           </td>
-          <td style="vertical-align:middle;padding-left:8px;">
+          <td style="vertical-align:middle;padding-left:9px;">
             <span class="gs-muted" style="font-size:12px;font-weight:600;color:#64748b;">GlowSuite</span>
             <span class="gs-muted" style="font-size:12px;color:#94a3b8;"> · Salon platform met AI</span>
           </td>
@@ -176,7 +176,7 @@ export function renderGlowSuiteEmail(opts: GlowSuiteEmailOptions): string {
       </td></tr>
     </table>
     <p class="gs-muted" style="max-width:560px;margin:18px auto 0;font-size:11px;line-height:1.6;color:#a3a3ad;text-align:center;">
-      Je ontvangt deze e-mail omdat je een GlowSuite account hebt.
+      ${esc(footerReasonText)}
     </p>
   </td></tr>
 </table>
