@@ -56,6 +56,8 @@ export function DailyCoach() {
         cta: "Activeer autopilot",
         route: "/#auto-revenue-engine",
         tone: "warning",
+        category: "lege_plekken",
+        autopilotBacked: true,
       });
     }
 
