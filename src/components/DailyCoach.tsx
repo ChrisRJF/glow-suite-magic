@@ -139,6 +139,7 @@ export function DailyCoach() {
         cta: "Maak campagne",
         route: "/marketing",
         tone: "warning",
+        category: "campagnes",
       });
     }
 
