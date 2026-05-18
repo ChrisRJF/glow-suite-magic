@@ -104,6 +104,7 @@ function buildEmail(payload: AuthEmailPayload): { subject: string; html: string 
           ctaUrl: verifyUrl,
           helper:
             "Heb je dit niet aangevraagd? Negeer deze e-mail — je wachtwoord blijft ongewijzigd.",
+          footerReason: "security",
         }),
       };
     case "invite":
