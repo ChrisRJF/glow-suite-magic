@@ -19,6 +19,7 @@ import {
 } from "@/hooks/useSupabaseData";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEuro } from "@/lib/data";
+import { AIModesCard } from "@/components/AIModesCard";
 
 type FeedCategory = "revenue" | "clients" | "campaigns" | "automations" | "risk";
 interface FeedItem {
