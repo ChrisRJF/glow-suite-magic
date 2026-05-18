@@ -150,6 +150,7 @@ function buildEmail(payload: AuthEmailPayload): { subject: string; html: string 
             <div style="font-family:'SF Mono','Menlo','Roboto Mono',monospace;font-size:30px;letter-spacing:8px;font-weight:600;color:#0f172a;">${String(email_data.token).replace(/[^0-9A-Za-z]/g, "")}</div>
           </div>`,
           helper: "Deel deze code nooit met anderen.",
+          footerReason: "security",
         }),
       };
     default:
