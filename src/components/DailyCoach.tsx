@@ -117,6 +117,7 @@ export function DailyCoach() {
         cta: "Volg op",
         route: "/leads",
         tone: "primary",
+        category: "klant_retention",
       });
     }
 
