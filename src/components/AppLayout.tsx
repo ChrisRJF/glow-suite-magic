@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import { AppSidebar } from "./AppSidebar";
 import { MobileTopbar } from "./MobileTopbar";
 import { TrialBanner, ReadOnlyBanner, PastDueBanner } from "./TrialBanner";
-import logoIcon from "@/assets/logo-icon.png";
+import { GlowSuiteLogo } from "@/components/GlowSuiteLogo";
 import { useDemoMode } from "@/hooks/useDemoMode";
 import { useSubscriptionState } from "@/contexts/SubscriptionStateContext";
 
@@ -44,10 +44,9 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
             </div>
             <div className="flex items-center gap-3 page-enter stagger-1 flex-shrink-0">
               {actions}
-              <img
-                src={logoIcon}
-                alt="GlowSuite"
-                className="hidden sm:block w-9 h-9 rounded-xl object-contain opacity-80 hover:opacity-100 transition-opacity"
+              <GlowSuiteLogo
+                size="md"
+                className="hidden sm:inline-flex opacity-85 hover:opacity-100 transition-opacity"
               />
             </div>
           </header>
