@@ -22,6 +22,8 @@ export function DailyCoach() {
   const { data: appointments } = useAppointments();
   const { data: services } = useServices();
   const { data: leads } = useLeads();
+  const { data: memberships } = useCustomerMemberships();
+  const { data: payments } = usePayments();
   const navigate = useNavigate();
 
   const actions = useMemo<CoachAction[]>(() => {
