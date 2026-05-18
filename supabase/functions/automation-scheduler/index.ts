@@ -290,7 +290,7 @@ Deno.serve(async (req) => {
       await admin.from("automation_logs").insert({ user_id: run.user_id, automation_rule_id: run.automation_rule_id, automation_run_id: run.id, event_type: "message_sent", status: "sent", message: "Bericht verwerkt door automation engine", is_demo: false });
     }
 
-    return json({ success: true, scheduled, skipped, duplicates, processed: dueRuns?.length || 0 });
+    return json({ success: true, scheduled, skipped, duplicates, ai_skipped: aiSkipped, processed: dueRuns?.length || 0 });
   } catch (error) {
     return json({ error: (error as Error).message || "Automation scheduler failed" }, 500);
   }
