@@ -1,6 +1,13 @@
 // Trial lifecycle scheduler — runs hourly via pg_cron.
 // Detects trial day milestones (0/3/7/10/14) and sends emails via Resend.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import {
+  renderGlowSuiteEmail,
+  bulletListHtml,
+  GLOWSUITE_FROM,
+  GLOWSUITE_REPLY_TO,
+  GLOWSUITE_APP_URL,
+} from "../_shared/glowsuiteEmail.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,9 +18,9 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
-const FROM_EMAIL = "GlowSuite <onboarding@email.glowsuite.nl>";
-const REPLY_TO = "support@email.glowsuite.nl";
-const APP_URL = "https://glowsuite.nl";
+const FROM_EMAIL = GLOWSUITE_FROM;
+const REPLY_TO = GLOWSUITE_REPLY_TO;
+const APP_URL = GLOWSUITE_APP_URL;
 
 interface Sub {
   id: string;
@@ -27,20 +34,6 @@ interface Sub {
   day7_sent_at: string | null;
   day10_sent_at: string | null;
   day14_sent_at: string | null;
-}
-
-const styleBase = `font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;line-height:1.55;color:#1a1a1a;max-width:560px;margin:0 auto;padding:24px;`;
-const btn = `display:inline-block;background:linear-gradient(135deg,#d4a574 0%,#b8895c 100%);color:#fff !important;padding:14px 28px;border-radius:10px;text-decoration:none;font-weight:600;margin:16px 0;`;
-
-function tpl(title: string, body: string, ctaLabel?: string, ctaUrl?: string) {
-  return `<div style="${styleBase}">
-    <div style="font-size:22px;font-weight:700;margin-bottom:8px;background:linear-gradient(135deg,#d4a574,#b8895c);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">GlowSuite</div>
-    <h1 style="font-size:24px;margin:24px 0 12px;color:#1a1a1a;">${title}</h1>
-    <div style="font-size:16px;color:#444;">${body}</div>
-    ${ctaLabel && ctaUrl ? `<a href="${ctaUrl}" style="${btn}">${ctaLabel}</a>` : ""}
-    <hr style="border:none;border-top:1px solid #eee;margin:32px 0 16px;">
-    <p style="font-size:12px;color:#999;">GlowSuite — Salonsoftware die met je meegroeit.<br/>${APP_URL}</p>
-  </div>`;
 }
 
 function fmtDate(iso: string) {
@@ -67,67 +60,77 @@ async function sendEmail(to: string, subject: string, html: string) {
 
 const templates = {
   welcome: (salon: string, trialEnd: string) => ({
-    subject: "Welkom bij GlowSuite — je proefperiode is gestart 🎉",
-    html: tpl(
-      `Welkom${salon ? `, ${salon}` : ""}!`,
-      `<p>Je 14-daagse gratis proefperiode loopt tot <strong>${fmtDate(trialEnd)}</strong>.</p>
-       <p>In de komende dagen helpen we je je salon volledig live te zetten. Geen betaalkaart nodig — gewoon ontdekken.</p>
-       <p><strong>Eerste stap:</strong> zet je online boekingen live, want salons met online boeken krijgen tot 40% meer afspraken.</p>`,
-      "Open mijn dashboard",
-      `${APP_URL}/dashboard`,
-    ),
+    subject: "Je GlowSuite proefperiode is gestart",
+    html: renderGlowSuiteEmail({
+      title: "Je proefperiode is gestart",
+      preheader: "14 dagen GlowSuite, zonder creditcard.",
+      eyebrow: "Proefperiode gestart",
+      heading: salon ? `Welkom, ${salon}` : "Welkom bij GlowSuite",
+      intro: `Je 14-daagse gratis proefperiode loopt tot ${fmtDate(trialEnd)}. Geen betaalkaart nodig — neem rustig de tijd om GlowSuite te ontdekken.\n\nEerste stap: zet je online boekingen live. Salons met online boeken krijgen tot 40% meer afspraken.`,
+      ctaLabel: "Open mijn dashboard",
+      ctaUrl: `${APP_URL}/dashboard`,
+    }),
   }),
   day3: (salon: string) => ({
     subject: "Heb je online boekingen al live gezet?",
-    html: tpl(
-      "Online boekingen — al actief?",
-      `<p>Hi${salon ? ` ${salon}` : ""}, snelle vraag: heb je je boekingslink al gedeeld met klanten?</p>
-       <p>Salons die online boekingen aanzetten in de eerste week zien gemiddeld <strong>3x meer afspraken</strong> dan salons die wachten.</p>
-       <p>Het kost je 2 minuten om de link te kopiëren en op je Instagram, website of WhatsApp-status te zetten.</p>`,
-      "Bekijk mijn boekingslink",
-      `${APP_URL}/dashboard`,
-    ),
+    html: renderGlowSuiteEmail({
+      title: "Online boekingen al actief?",
+      preheader: "2 minuten werk — drie keer meer afspraken.",
+      eyebrow: "Tip",
+      heading: salon ? `Hi ${salon}, één snelle vraag` : "Eén snelle vraag",
+      intro:
+        "Heb je je boekingslink al gedeeld met klanten?\n\nSalons die online boekingen aanzetten in de eerste week zien gemiddeld 3× meer afspraken. Het kost je twee minuten om de link op Instagram, je website of WhatsApp-status te zetten.",
+      ctaLabel: "Bekijk mijn boekingslink",
+      ctaUrl: `${APP_URL}/dashboard`,
+    }),
   }),
   day7: () => ({
     subject: "Hoe salons hun afspraken verdubbelen met GlowSuite",
-    html: tpl(
-      "Meer afspraken zonder extra werk",
-      `<p>Een gemiddelde GlowSuite-salon ziet:</p>
-       <ul>
-         <li>📈 <strong>+38%</strong> nieuwe boekingen via online widget</li>
-         <li>💬 <strong>-65%</strong> no-shows door automatische WhatsApp herinneringen</li>
-         <li>💳 <strong>+22%</strong> omzet via aanbetalingen vooraf</li>
-       </ul>
-       <p>Heb je deze functies al ontdekt?</p>`,
-      "Ja, laat me zien",
-      `${APP_URL}/automatiseringen`,
-    ),
+    html: renderGlowSuiteEmail({
+      title: "Meer afspraken zonder extra werk",
+      preheader: "De drie functies die het verschil maken.",
+      eyebrow: "Inzicht",
+      heading: "Meer afspraken, zonder extra werk",
+      intro: "Een gemiddelde GlowSuite-salon ziet:",
+      bodyHtml: bulletListHtml([
+        "+38% nieuwe boekingen via de online widget",
+        "−65% no-shows door automatische WhatsApp herinneringen",
+        "+22% omzet via aanbetalingen vooraf",
+      ]),
+      outro: "Heb je deze functies al ontdekt?",
+      ctaLabel: "Ja, laat me zien",
+      ctaUrl: `${APP_URL}/automatiseringen`,
+    }),
   }),
   day10: (trialEnd: string) => ({
     subject: "Nog 4 dagen gratis — activeer je abonnement",
-    html: tpl(
-      "Nog 4 dagen over",
-      `<p>Je proefperiode eindigt op <strong>${fmtDate(trialEnd)}</strong>.</p>
-       <p>Activeer nu je abonnement om zonder onderbreking door te werken. Je houdt al je gegevens, klanten en agenda — alles blijft staan.</p>
-       <p>Plannen vanaf <strong>€39 per maand</strong>. Maandelijks opzegbaar.</p>`,
-      "Activeer mijn abonnement",
-      `${APP_URL}/pricing`,
-    ),
+    html: renderGlowSuiteEmail({
+      title: "Nog 4 dagen over",
+      preheader: "Activeer nu zodat je zonder onderbreking doorgaat.",
+      eyebrow: "Bijna klaar",
+      heading: "Nog 4 dagen in je proefperiode",
+      intro: `Je proefperiode eindigt op ${fmtDate(trialEnd)}.\n\nActiveer nu je abonnement om zonder onderbreking door te werken. Je houdt al je gegevens, klanten en agenda — alles blijft staan.\n\nPlannen vanaf €39 per maand. Maandelijks opzegbaar.`,
+      ctaLabel: "Activeer mijn abonnement",
+      ctaUrl: `${APP_URL}/pricing`,
+    }),
   }),
   day14: () => ({
     subject: "Je proefperiode is verlopen",
-    html: tpl(
-      "Tijd om door te gaan",
-      `<p>Je 14-daagse proefperiode is verlopen. Je account staat in alleen-lezen modus — je gegevens zijn veilig en wachten op je.</p>
-       <p>Activeer een abonnement om weer volledig aan de slag te gaan:</p>
-       <ul>
-         <li><strong>Starter</strong> — €39 / maand</li>
-         <li><strong>Growth</strong> — €79 / maand (meest gekozen)</li>
-         <li><strong>Premium</strong> — op aanvraag</li>
-       </ul>`,
-      "Kies mijn plan",
-      `${APP_URL}/pricing`,
-    ),
+    html: renderGlowSuiteEmail({
+      title: "Je proefperiode is verlopen",
+      preheader: "Je account staat in alleen-lezen modus.",
+      eyebrow: "Tijd om door te gaan",
+      heading: "Je proefperiode is verlopen",
+      intro:
+        "Je 14-daagse proefperiode is verlopen. Je account staat in alleen-lezen modus — je gegevens zijn veilig en wachten op je.\n\nActiveer een abonnement om weer volledig aan de slag te gaan:",
+      bodyHtml: bulletListHtml([
+        "Starter — €39 per maand",
+        "Growth — €79 per maand (meest gekozen)",
+        "Premium — op aanvraag",
+      ]),
+      ctaLabel: "Kies mijn plan",
+      ctaUrl: `${APP_URL}/pricing`,
+    }),
   }),
 };
 
