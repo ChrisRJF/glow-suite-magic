@@ -119,6 +119,7 @@ serve(async (req) => {
       ctaLabel: "Antwoord deze lead",
       ctaUrl: `mailto:${lead.email}`,
       footerNote: "Interne notificatie — verstuurd door GlowSuite Leads.",
+      footerText: "Interne notificatie · niet voor externe verzending.",
     });
 
     const internalText =
