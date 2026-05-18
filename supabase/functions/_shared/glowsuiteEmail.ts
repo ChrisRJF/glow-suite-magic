@@ -141,10 +141,10 @@ export function renderGlowSuiteEmail(opts: GlowSuiteEmailOptions): string {
       <tr><td class="gs-pad-top" style="padding:36px 36px 0;">
         <table role="presentation" cellpadding="0" cellspacing="0"><tr>
           <td style="vertical-align:middle;">
-            <img src="${GLOWSUITE_LOGO_URL}" width="28" height="28" alt="" style="display:block;border:0;outline:none;width:28px;height:28px;"/>
+            <img src="${GLOWSUITE_LOGO_URL}" width="36" height="36" alt="GlowSuite" style="display:block;border:0;outline:none;width:36px;height:36px;background:transparent;object-fit:contain;"/>
           </td>
-          <td style="vertical-align:middle;padding-left:10px;">
-            <span class="gs-heading" style="font-size:16px;font-weight:600;letter-spacing:-0.01em;color:#0f172a;">GlowSuite</span>
+          <td style="vertical-align:middle;padding-left:12px;">
+            <span class="gs-heading" style="font-size:17px;font-weight:600;letter-spacing:-0.01em;color:#0f172a;">GlowSuite</span>
           </td>
         </tr></table>
       </td></tr>
