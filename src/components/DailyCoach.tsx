@@ -100,6 +100,8 @@ export function DailyCoach() {
         cta: "WhatsApp",
         route: "/whatsapp",
         tone: "destructive",
+        category: "no_show",
+        autopilotBacked: true,
       });
     }
 
