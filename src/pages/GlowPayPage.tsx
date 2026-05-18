@@ -487,7 +487,7 @@ export default function GlowPayPage() {
             </Button>
           </div>
 
-          <div className="glass-card p-6">
+          <div className="glass-card p-4 sm:p-6">
             <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
               <Smartphone className="w-4 h-4 text-primary" /> Betaalmethoden
             </h3>
