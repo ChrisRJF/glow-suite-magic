@@ -14,6 +14,11 @@ import { useDemoMode } from "@/hooks/useDemoMode";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { toast } from "sonner";
 
 const MODES: AIMode[] = ["suggestions", "autopilot", "off"];
 const SHORT_LABEL: Record<AIMode, string> = {
@@ -88,9 +93,35 @@ export function AIModesCard() {
   const { modes, loading, saving, setGlobal, setCategory } = useAIModes();
   const { demoMode } = useDemoMode();
   const { isAdmin } = useUserRole();
+  const isMobile = useIsMobile();
   const cats = Object.keys(AI_CATEGORY_LABELS) as AICategory[];
 
   const [recent, setRecent] = useState<RecentItem[]>([]);
+  const [pendingAuto, setPendingAuto] = useState<null | { scope: "global" } | { scope: "category"; category: AICategory }>(null);
+
+  const requestGlobal = (m: AIMode) => {
+    if (m === "autopilot" && modes.global !== "autopilot") {
+      setPendingAuto({ scope: "global" });
+      return;
+    }
+    setGlobal(m);
+  };
+  const requestCategory = (c: AICategory, m: AIMode) => {
+    if (m === "autopilot" && modes.categories[c] !== "autopilot") {
+      setPendingAuto({ scope: "category", category: c });
+      return;
+    }
+    setCategory(c, m);
+  };
+  const confirmAuto = async () => {
+    if (!pendingAuto) return;
+    if (pendingAuto.scope === "global") await setGlobal("autopilot");
+    else await setCategory(pendingAuto.category, "autopilot");
+    setPendingAuto(null);
+    toast.success("GlowSuite AI staat nu op Auto");
+  };
+  const open = pendingAuto !== null;
+  const onOpenChange = (o: boolean) => { if (!o) setPendingAuto(null); };
 
   useEffect(() => {
     if (!user) return;
@@ -146,7 +177,7 @@ export function AIModesCard() {
       <CardContent className="space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <span className="text-xs text-muted-foreground">Algemene modus</span>
-          <Segmented value={modes.global} onChange={setGlobal} disabled={loading} />
+          <Segmented value={modes.global} onChange={requestGlobal} disabled={loading} />
         </div>
 
         {demoMode && (
@@ -172,7 +203,7 @@ export function AIModesCard() {
                 <Segmented
                   size="sm"
                   value={modes.categories[c]}
-                  onChange={(m) => setCategory(c, m)}
+                  onChange={(m) => requestCategory(c, m)}
                   disabled={loading || modes.global === "off"}
                 />
               </div>
@@ -216,6 +247,13 @@ export function AIModesCard() {
           </Collapsible>
         )}
       </CardContent>
+      <AutoConfirm
+        open={open}
+        onOpenChange={onOpenChange}
+        onConfirm={confirmAuto}
+        saving={saving}
+        isMobile={isMobile}
+      />
     </Card>
   );
 }
@@ -231,4 +269,66 @@ function friendlyEvent(t: string): string {
   if (s.includes("revenue") || s.includes("empty_slot") || s.includes("lege_plek")) return "Lege plek gevuld";
   if (s.includes("campaign") || s.includes("campagne")) return "Campagne";
   return t || "AI actie";
+}
+
+function AutoConfirmBody({ onCancel, onConfirm, saving }: { onCancel: () => void; onConfirm: () => void; saving: boolean }) {
+  return (
+    <>
+      <p className="text-sm text-muted-foreground leading-relaxed">
+        GlowSuite kan nu automatisch veilige acties uitvoeren, zoals betalingsherinneringen sturen en lege plekken helpen opvullen.
+      </p>
+      <p className="text-xs text-muted-foreground/80 mt-3">Je kunt dit altijd aanpassen.</p>
+      <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-5 pb-[env(safe-area-inset-bottom)]">
+        <Button variant="ghost" onClick={onCancel} disabled={saving}>Annuleren</Button>
+        <Button
+          onClick={onConfirm}
+          disabled={saving}
+          className="bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-95 focus-visible:ring-2 focus-visible:ring-primary/60"
+        >
+          {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+          Automatisch inschakelen
+        </Button>
+      </div>
+    </>
+  );
+}
+
+function AutoConfirm({
+  open, onOpenChange, onConfirm, saving, isMobile,
+}: { open: boolean; onOpenChange: (o: boolean) => void; onConfirm: () => void; saving: boolean; isMobile: boolean }) {
+  const cancel = () => onOpenChange(false);
+  if (isMobile) {
+    return (
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent side="bottom" className="rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)]">
+          <SheetHeader className="text-left">
+            <SheetTitle className="flex items-center gap-2">
+              <span className="inline-flex w-6 h-6 rounded-md bg-gradient-to-br from-primary to-accent items-center justify-center">
+                <Sparkles className="w-3.5 h-3.5 text-primary-foreground" />
+              </span>
+              Automatische modus inschakelen?
+            </SheetTitle>
+          </SheetHeader>
+          <div className="mt-2">
+            <AutoConfirmBody onCancel={cancel} onConfirm={onConfirm} saving={saving} />
+          </div>
+        </SheetContent>
+      </Sheet>
+    );
+  }
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <span className="inline-flex w-6 h-6 rounded-md bg-gradient-to-br from-primary to-accent items-center justify-center">
+              <Sparkles className="w-3.5 h-3.5 text-primary-foreground" />
+            </span>
+            Automatische modus inschakelen?
+          </DialogTitle>
+        </DialogHeader>
+        <AutoConfirmBody onCancel={cancel} onConfirm={onConfirm} saving={saving} />
+      </DialogContent>
+    </Dialog>
+  );
 }
