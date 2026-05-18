@@ -180,6 +180,8 @@ export function DailyCoach() {
         cta: "Open GlowPay",
         route: "/glowpay",
         tone: "primary",
+        category: "betalingen",
+        autopilotBacked: true,
       });
     }
 
