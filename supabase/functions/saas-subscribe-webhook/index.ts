@@ -39,6 +39,7 @@ function loginEmailHtml(opts: {
     ctaLabel: "Log in op GlowSuite",
     ctaUrl: opts.loginUrl,
     outro: "Open je dashboard en zet je salon binnen 5 minuten live met de installatiewizard.",
+    footerReason: "billing",
   });
 }
 
