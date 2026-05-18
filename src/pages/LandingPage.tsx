@@ -12,8 +12,7 @@ import {
   Smartphone, Lock, Brain, Bot, Wand2, LineChart, Bell, Target,
   AlertTriangle, MessageCircle, UserCheck, MoveRight, Heart, Coins, ShieldCheck,
 } from "lucide-react";
-import logoFull from "@/assets/logo-full.png";
-import logoIcon from "@/assets/logo-icon.png";
+import { GlowSuiteLogo } from "@/components/GlowSuiteLogo";
 import { DemoRequestDialog } from "@/components/DemoRequestDialog";
 import { TestimonialsSection } from "@/components/TestimonialsSection";
 import { RoiCalculator } from "@/components/RoiCalculator";
@@ -318,9 +317,8 @@ export default function LandingPage() {
         }`}
       >
         <div className="max-w-6xl mx-auto px-5 sm:px-8 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 min-w-0">
-            <img src={logoIcon} alt="GlowSuite" className="w-8 h-8 rounded-lg shrink-0" />
-            <img src={logoFull} alt="GlowSuite" className="h-5 w-auto hidden sm:block" />
+          <Link to="/" className="flex items-center min-w-0" aria-label="GlowSuite">
+            <GlowSuiteLogo size="md" withWordmark priority />
           </Link>
 
           <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-muted-foreground">
@@ -1018,8 +1016,8 @@ export default function LandingPage() {
       {/* FOOTER */}
       <footer className="border-t border-border/60 px-5 sm:px-8 py-10 pb-28 md:pb-10">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <img src={logoIcon} alt="GlowSuite" className="w-7 h-7 rounded-lg" />
+          <div className="flex items-center gap-2.5">
+            <GlowSuiteLogo size="sm" />
             <span className="text-sm text-muted-foreground">© {new Date().getFullYear()} GlowSuite</span>
           </div>
           <div className="flex items-center gap-6 text-sm text-muted-foreground">

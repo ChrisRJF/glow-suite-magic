@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import logoFull from "@/assets/logo-full.png";
+import { GlowSuiteLogo } from "@/components/GlowSuiteLogo";
 import { toast } from "sonner";
 import { Play, Loader2, Check, Sparkles, ShieldCheck, Clock, Gift } from "lucide-react";
 import { trackEvent } from "@/hooks/useAnalytics";
@@ -154,9 +154,9 @@ export default function LoginPage() {
       }}
     >
       <div className="w-full max-w-md">
-        <div className="flex flex-col items-center mb-5 sm:mb-8">
-          <img src={logoFull} alt="GlowSuite" className="h-10 sm:h-12 w-auto mb-2 sm:mb-3" />
-          <p className="text-sm text-muted-foreground">Salon business system</p>
+        <div className="flex flex-col items-center mb-7 sm:mb-9 gap-3">
+          <GlowSuiteLogo size="xl" priority />
+          <p className="text-sm text-muted-foreground tracking-wide">Salon business system</p>
         </div>
 
         {forgotOpen ? (

@@ -10,8 +10,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useUserRole, canAccessRoute } from "@/hooks/useUserRole";
-import logoFull from "@/assets/logo-full.png";
-import logoIcon from "@/assets/logo-icon.png";
+import { GlowSuiteLogo } from "@/components/GlowSuiteLogo";
 
 interface NavItem {
   label: string;
@@ -258,9 +257,8 @@ export function AppSidebar() {
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 lg:px-5 pt-4 lg:pt-6 pb-2 shrink-0">
-          <Link to="/ai" onClick={() => setMobileOpen(false)} className="flex items-center gap-2">
-            <img src={logoFull} alt="GlowSuite" className="hidden lg:block h-9 w-auto object-contain" />
-            <img src={logoIcon} alt="GlowSuite" className="lg:hidden h-9 w-9 rounded-xl object-contain" />
+          <Link to="/ai" onClick={() => setMobileOpen(false)} className="flex items-center" aria-label="GlowSuite">
+            <GlowSuiteLogo size="md" withWordmark priority />
           </Link>
           <button
             onClick={() => setMobileOpen(false)}

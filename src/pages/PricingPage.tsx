@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CheckCircle2, Sparkles, ArrowLeft, Loader2 } from "lucide-react";
-import logoFull from "@/assets/logo-full.png";
+import { GlowSuiteLogo } from "@/components/GlowSuiteLogo";
 import { DemoRequestDialog } from "@/components/DemoRequestDialog";
 import { DirectCheckoutDialog } from "@/components/DirectCheckoutDialog";
 import { useSubscriptionPlans, startMollieCheckout } from "@/hooks/useSubscription";
@@ -60,8 +60,8 @@ export default function PricingPage() {
       {/* Header */}
       <header className="border-b border-border/60 bg-background/80 backdrop-blur-xl sticky top-0 z-30">
         <div className="max-w-6xl mx-auto px-5 sm:px-8 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <img src={logoFull} alt="GlowSuite" className="h-7" />
+          <Link to="/" className="flex items-center" aria-label="GlowSuite">
+            <GlowSuiteLogo size="md" withWordmark priority />
           </Link>
           <Link
             to="/"

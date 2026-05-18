@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import logoFull from "@/assets/logo-full.png";
+import { GlowSuiteLogo } from "@/components/GlowSuiteLogo";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
@@ -50,9 +50,9 @@ export default function ResetPasswordPage() {
       }}
     >
       <div className="w-full max-w-sm">
-        <div className="flex flex-col items-center mb-6 sm:mb-8">
-          <img src={logoFull} alt="GlowSuite" className="h-11 sm:h-12 w-auto mb-3" />
-          <p className="text-sm text-muted-foreground">Nieuw wachtwoord instellen</p>
+        <div className="flex flex-col items-center mb-7 sm:mb-9 gap-3">
+          <GlowSuiteLogo size="xl" priority />
+          <p className="text-sm text-muted-foreground tracking-wide">Nieuw wachtwoord instellen</p>
         </div>
         <form onSubmit={handleSubmit} className="glass-card p-6 space-y-4">
           {!ready && (
