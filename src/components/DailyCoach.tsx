@@ -81,6 +81,7 @@ export function DailyCoach() {
         cta: "Open herboekingen",
         route: "/herboekingen",
         tone: "primary",
+        category: "klant_retention",
       });
     }
 
