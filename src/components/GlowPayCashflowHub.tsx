@@ -249,9 +249,9 @@ function MetricCard({
           <ArrowRight className="w-3.5 h-3.5 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors" />
         )}
       </div>
-      <p className="text-[11px] font-medium text-muted-foreground tracking-wide uppercase">{label}</p>
-      <p className="text-2xl font-semibold tabular-nums tracking-tight mt-1">{value}</p>
-      {sub && <p className="text-[11px] text-muted-foreground/80 mt-1.5">{sub}</p>}
+      <p className="text-[10.5px] sm:text-[11px] font-medium text-muted-foreground tracking-wide uppercase truncate">{label}</p>
+      <p className="text-[20px] sm:text-2xl font-semibold tabular-nums tracking-tight mt-1 truncate">{value}</p>
+      {sub && <p className="text-[11px] text-muted-foreground/80 mt-1.5 truncate">{sub}</p>}
     </Comp>
   );
 }
