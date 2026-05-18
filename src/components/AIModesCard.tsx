@@ -1,22 +1,37 @@
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Sparkles, Loader2 } from "lucide-react";
+import { Sparkles, Loader2, ChevronDown, CheckCircle2, Lightbulb, MinusCircle, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  Collapsible, CollapsibleContent, CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   AI_CATEGORY_LABELS, AI_MODE_LABELS,
   type AICategory, type AIMode,
   useAIModes,
 } from "@/lib/aiModes";
 import { useDemoMode } from "@/hooks/useDemoMode";
+import { useUserRole } from "@/hooks/useUserRole";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
-const MODES: AIMode[] = ["off", "suggestions", "autopilot"];
+const MODES: AIMode[] = ["suggestions", "autopilot", "off"];
+const SHORT_LABEL: Record<AIMode, string> = {
+  suggestions: "Suggesties",
+  autopilot: "Automatisch",
+  off: "Uit",
+};
 
 function Segmented({
-  value, onChange, disabled,
-}: { value: AIMode; onChange: (m: AIMode) => void; disabled?: boolean }) {
+  value, onChange, disabled, size = "md",
+}: { value: AIMode; onChange: (m: AIMode) => void; disabled?: boolean; size?: "sm" | "md" }) {
   return (
     <div
       role="radiogroup"
-      className="inline-flex w-full sm:w-auto rounded-xl bg-muted/60 p-1 border border-border/60"
+      className={cn(
+        "inline-flex rounded-lg bg-muted/60 p-0.5 border border-border/60",
+        size === "md" && "w-full sm:w-auto",
+      )}
     >
       {MODES.map((m) => {
         const active = value === m;
@@ -29,14 +44,17 @@ function Segmented({
             disabled={disabled}
             onClick={() => onChange(m)}
             className={cn(
-              "flex-1 sm:flex-none px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all whitespace-nowrap min-h-[40px]",
+              "rounded-md transition-all whitespace-nowrap font-medium",
+              size === "md"
+                ? "flex-1 sm:flex-none px-3 py-1.5 text-xs sm:text-sm min-h-[36px]"
+                : "px-2.5 py-1 text-[11px] min-h-[28px]",
               active
                 ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground",
-              disabled && "opacity-50 cursor-not-allowed"
+              disabled && "opacity-50 cursor-not-allowed",
             )}
           >
-            {AI_MODE_LABELS[m]}
+            {SHORT_LABEL[m]}
           </button>
         );
       })}
@@ -44,73 +62,170 @@ function Segmented({
   );
 }
 
+interface RecentItem {
+  id: string;
+  ts: string;
+  text: string;
+  kind: "auto" | "suggestion" | "skipped";
+}
+
+function relTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.round(diff / 60000);
+  if (m < 1) return "zojuist";
+  if (m < 60) return `${m} min geleden`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h} u geleden`;
+  const d = Math.round(h / 24);
+  return `${d} d geleden`;
+}
+
 export function AIModesCard() {
+  const { user } = useAuth();
   const { modes, loading, saving, setGlobal, setCategory } = useAIModes();
   const { demoMode } = useDemoMode();
+  const { isAdmin } = useUserRole();
   const cats = Object.keys(AI_CATEGORY_LABELS) as AICategory[];
+
+  const [recent, setRecent] = useState<RecentItem[]>([]);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("automation_logs")
+        .select("id, status, event_type, message, metadata, created_at")
+        .eq("user_id", user.id)
+        .eq("is_demo", demoMode)
+        .order("created_at", { ascending: false })
+        .limit(3);
+      if (cancelled) return;
+      const items: RecentItem[] = ((data as any[]) || []).map((r) => {
+        const status = (r.status || "").toLowerCase();
+        const skipped = status === "skipped" || (r.metadata?.skipped_reason);
+        const suggestion = status === "suggestion" || status === "suggested" || status === "advice";
+        const kind: RecentItem["kind"] = skipped ? "skipped" : suggestion ? "suggestion" : "auto";
+        const label =
+          kind === "auto" ? "Automatisch uitgevoerd"
+          : kind === "suggestion" ? "Suggestie klaar"
+          : "Overgeslagen door AI-modus";
+        return {
+          id: r.id,
+          ts: r.created_at,
+          text: `${label} · ${friendlyEvent(r.event_type)}`,
+          kind,
+        };
+      });
+      setRecent(items);
+    })();
+    return () => { cancelled = true; };
+  }, [user, demoMode]);
 
   return (
     <Card className="animate-fade-in border-primary/20">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <span className="inline-flex w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-accent items-center justify-center">
-                <Sparkles className="w-4 h-4 text-primary-foreground" />
+            <CardTitle className="text-base flex items-center gap-2">
+              <span className="inline-flex w-6 h-6 rounded-md bg-gradient-to-br from-primary to-accent items-center justify-center">
+                <Sparkles className="w-3.5 h-3.5 text-primary-foreground" />
               </span>
-              GlowSuite AI instellingen
+              AI gedrag
             </CardTitle>
-            <CardDescription className="mt-1">
-              Kies of GlowSuite alleen adviseert of acties automatisch uitvoert.
+            <CardDescription className="mt-1 text-xs">
+              Kies hoeveel GlowSuite automatisch mag doen.
             </CardDescription>
           </div>
           {saving && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
         </div>
       </CardHeader>
-      <CardContent className="space-y-5">
+      <CardContent className="space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <span className="text-xs text-muted-foreground">Algemene modus</span>
+          <Segmented value={modes.global} onChange={setGlobal} disabled={loading} />
+        </div>
+
         {demoMode && (
-          <p className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-3">
-            Demo: instellingen staan op <strong>Suggesties</strong> zodat je rustig kunt verkennen.
-            In je live salon kun je per categorie kiezen.
+          <p className="text-[11px] text-muted-foreground">
+            Demo staat op <strong>Suggesties</strong> zodat je rustig kunt verkennen.
           </p>
         )}
 
-        <div className="rounded-2xl bg-gradient-to-br from-primary/5 to-accent/5 border border-primary/15 p-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold">Algemene modus</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Geldt voor alles. Per categorie kun je verfijnen.
-              </p>
-            </div>
-            <Segmented value={modes.global} onChange={setGlobal} disabled={loading} />
-          </div>
-        </div>
-
-        <div className="space-y-2.5">
-          {cats.map((c) => (
-            <div
-              key={c}
-              className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-border/60 bg-card p-3.5"
-            >
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium">{AI_CATEGORY_LABELS[c]}</p>
+        <Collapsible>
+          <CollapsibleTrigger
+            className="group flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ChevronDown className="w-3.5 h-3.5 transition-transform group-data-[state=open]:rotate-180" />
+            Per onderdeel instellen
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-3 space-y-1.5">
+            {cats.map((c) => (
+              <div
+                key={c}
+                className="flex items-center justify-between gap-2 rounded-lg border border-border/50 bg-card px-3 py-2"
+              >
+                <span className="text-xs font-medium truncate">{AI_CATEGORY_LABELS[c]}</span>
+                <Segmented
+                  size="sm"
+                  value={modes.categories[c]}
+                  onChange={(m) => setCategory(c, m)}
+                  disabled={loading || modes.global === "off"}
+                />
               </div>
-              <Segmented
-                value={modes.categories[c]}
-                onChange={(m) => setCategory(c, m)}
-                disabled={loading || modes.global === "off"}
-              />
-            </div>
-          ))}
-        </div>
+            ))}
+          </CollapsibleContent>
+        </Collapsible>
 
-        <ul className="text-xs text-muted-foreground space-y-1.5 pt-1">
-          <li><strong className="text-foreground">Uit</strong> — geen suggesties of acties voor deze categorie.</li>
-          <li><strong className="text-foreground">Suggesties</strong> — GlowSuite stelt voor, jij beslist.</li>
-          <li><strong className="text-foreground">Automatisch uitvoeren</strong> — toegestane automatiseringen lopen zelf, met logging.</li>
-        </ul>
+        {recent.length > 0 && (
+          <div className="pt-2 border-t border-border/50">
+            <div className="flex items-center gap-1.5 mb-2">
+              <Activity className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="text-[11px] text-muted-foreground uppercase tracking-wide">
+                Recente AI-acties
+              </span>
+            </div>
+            <ul className="space-y-1.5">
+              {recent.map((r) => (
+                <li key={r.id} className="flex items-start gap-2 text-xs">
+                  {r.kind === "auto" && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />}
+                  {r.kind === "suggestion" && <Lightbulb className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />}
+                  {r.kind === "skipped" && <MinusCircle className="w-3.5 h-3.5 text-muted-foreground mt-0.5 shrink-0" />}
+                  <span className="flex-1 truncate text-foreground/80">{r.text}</span>
+                  <span className="text-[10px] text-muted-foreground shrink-0">{relTime(r.ts)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {isAdmin && (
+          <Collapsible>
+            <CollapsibleTrigger className="group flex items-center gap-1.5 text-[11px] text-muted-foreground/70 hover:text-foreground transition-colors pt-1">
+              <ChevronDown className="w-3 h-3 transition-transform group-data-[state=open]:rotate-180" />
+              Geavanceerd
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-2">
+              <pre className="text-[10px] bg-muted/50 rounded-md p-2 overflow-auto max-h-40 text-muted-foreground">
+{JSON.stringify(modes, null, 2)}
+              </pre>
+            </CollapsibleContent>
+          </Collapsible>
+        )}
       </CardContent>
     </Card>
   );
+}
+
+function friendlyEvent(t: string): string {
+  const s = (t || "").toLowerCase();
+  if (s.includes("reminder")) return "Herinnering verstuurd";
+  if (s.includes("review")) return "Reviewverzoek";
+  if (s.includes("no_show") || s.includes("noshow")) return "No-show actie";
+  if (s.includes("payment")) return "Betaalactie";
+  if (s.includes("membership")) return "Membership actie";
+  if (s.includes("rebook") || s.includes("herboek") || s.includes("winback")) return "Heractivatie";
+  if (s.includes("revenue") || s.includes("empty_slot") || s.includes("lege_plek")) return "Lege plek gevuld";
+  if (s.includes("campaign") || s.includes("campagne")) return "Campagne";
+  return t || "AI actie";
 }
