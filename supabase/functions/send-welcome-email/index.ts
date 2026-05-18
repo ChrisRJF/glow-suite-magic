@@ -2,14 +2,20 @@
 // Trigger from client after first successful login, or from any backend event
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import {
+  renderGlowSuiteEmail,
+  bulletListHtml,
+  GLOWSUITE_FROM,
+  GLOWSUITE_REPLY_TO,
+} from "../_shared/glowsuiteEmail.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const FROM = "GlowSuite <onboarding@email.glowsuite.nl>";
-const REPLY_TO = "support@email.glowsuite.nl";
+const FROM = GLOWSUITE_FROM;
+const REPLY_TO = GLOWSUITE_REPLY_TO;
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -20,41 +26,22 @@ const admin = createClient(SUPABASE_URL, SERVICE_ROLE, {
 });
 
 function welcomeHtml(name: string, trialEnd: string, dashboardUrl: string): string {
-  const greet = name ? `Hoi ${name},` : "Welkom!";
-  return `<!doctype html><html lang="nl"><head><meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/><title>Welkom bij GlowSuite</title></head>
-<body style="margin:0;padding:0;background:#f6f5f2;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0f172a;">
-<div style="display:none;max-height:0;overflow:hidden;opacity:0;">Je proefperiode is gestart — laten we je salon live zetten.</div>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f5f2;padding:32px 16px;">
-<tr><td align="center">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:20px;box-shadow:0 4px 24px rgba(15,23,42,0.06);overflow:hidden;">
-  <tr><td style="padding:32px 32px 0;font-size:20px;font-weight:700;letter-spacing:-0.02em;">GlowSuite</td></tr>
-  <tr><td style="padding:24px 32px 8px;">
-    <h1 style="margin:0 0 12px;font-size:26px;line-height:1.25;font-weight:700;letter-spacing:-0.02em;">Welkom bij GlowSuite ✨</h1>
-    <p style="margin:0 0 8px;font-size:15px;line-height:1.6;color:#475569;">${greet}</p>
-    <p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#475569;">
-      Je proefperiode is gestart en loopt tot <strong>${trialEnd}</strong>. Geen creditcard nodig.
-    </p>
-    <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#475569;">
-      Zet je salon binnen 5 minuten live — de korte installatie wacht op je in het dashboard.
-    </p>
-    <table role="presentation" cellpadding="0" cellspacing="0"><tr><td align="center" style="border-radius:12px;background:#0f172a;">
-      <a href="${dashboardUrl}" style="display:inline-block;padding:14px 28px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:12px;">Open mijn dashboard</a>
-    </td></tr></table>
-    <div style="margin:32px 0 0;padding:20px;background:#f8fafc;border-radius:14px;">
-      <p style="margin:0 0 12px;font-size:14px;font-weight:600;color:#0f172a;">Wat je in 5 minuten doet:</p>
-      <p style="margin:0 0 6px;font-size:14px;line-height:1.6;color:#475569;">1. Salongegevens & logo</p>
-      <p style="margin:0 0 6px;font-size:14px;line-height:1.6;color:#475569;">2. Diensten en prijzen</p>
-      <p style="margin:0 0 6px;font-size:14px;line-height:1.6;color:#475569;">3. Team en werktijden</p>
-      <p style="margin:0 0 6px;font-size:14px;line-height:1.6;color:#475569;">4. Online boekingen aanzetten</p>
-      <p style="margin:0;font-size:14px;line-height:1.6;color:#475569;">5. Betalingen activeren (optioneel)</p>
-    </div>
-  </td></tr>
-  <tr><td style="padding:32px;border-top:1px solid #f1f5f9;">
-    <p style="margin:0;font-size:12px;line-height:1.6;color:#94a3b8;">Vragen? Mail <a href="mailto:support@email.glowsuite.nl" style="color:#475569;">support@email.glowsuite.nl</a><br/>GlowSuite — software voor moderne salons.</p>
-  </td></tr>
-</table>
-</td></tr></table></body></html>`;
+  return renderGlowSuiteEmail({
+    title: "Welkom bij GlowSuite",
+    preheader: "Je proefperiode is gestart — zet je salon binnen 5 minuten live.",
+    eyebrow: "Proefperiode gestart",
+    heading: name ? `Welkom bij GlowSuite, ${name}` : "Welkom bij GlowSuite",
+    intro: `Je proefperiode is gestart en loopt tot ${trialEnd}. Geen creditcard nodig.\n\nZet je salon binnen 5 minuten live — de korte installatie wacht op je in het dashboard.`,
+    ctaLabel: "Open mijn dashboard",
+    ctaUrl: dashboardUrl,
+    bodyHtml: `<p style="margin:24px 0 8px;font-size:13px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:#0f172a;" class="gs-heading">Wat je in 5 minuten doet</p>${bulletListHtml([
+      "Salongegevens & logo",
+      "Diensten en prijzen",
+      "Team en werktijden",
+      "Online boekingen aanzetten",
+      "Betalingen activeren (optioneel)",
+    ])}`,
+  });
 }
 
 Deno.serve(async (req) => {
