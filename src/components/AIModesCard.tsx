@@ -247,6 +247,13 @@ export function AIModesCard() {
           </Collapsible>
         )}
       </CardContent>
+      <AutoConfirm
+        open={open}
+        onOpenChange={onOpenChange}
+        onConfirm={confirmAuto}
+        saving={saving}
+        isMobile={isMobile}
+      />
     </Card>
   );
 }
