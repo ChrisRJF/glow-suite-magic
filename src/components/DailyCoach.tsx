@@ -1,9 +1,10 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useCustomers, useAppointments, useServices, useLeads } from "@/hooks/useSupabaseData";
+import { useCustomers, useAppointments, useServices, useLeads, useCustomerMemberships } from "@/hooks/useSupabaseData";
+import { usePayments } from "@/hooks/usePayments";
 import { formatEuro } from "@/lib/data";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Phone, Send, Calendar, AlertTriangle, TrendingDown, Zap, ArrowRight, Target } from "lucide-react";
+import { Sparkles, Phone, Send, Calendar, AlertTriangle, TrendingDown, Zap, ArrowRight, Target, CreditCard, BadgeCheck } from "lucide-react";
 
 interface CoachAction {
   id: string;
