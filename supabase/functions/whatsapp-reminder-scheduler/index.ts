@@ -286,8 +286,8 @@ Deno.serve(async (req) => {
       }
       } // end reminder else-block
 
-      // -------- REVIEW PASS --------
-      if (s.send_review_request) {
+      // -------- REVIEW PASS -------- (klant_retention)
+      if (s.send_review_request && gate("klant_retention")) {
         try {
           const { data: salonSettings2 } = await admin
             .from("settings")
