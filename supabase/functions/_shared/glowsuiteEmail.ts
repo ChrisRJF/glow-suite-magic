@@ -5,8 +5,20 @@
 export const GLOWSUITE_FROM = "GlowSuite <noreply@email.glowsuite.nl>";
 export const GLOWSUITE_FROM_SUPPORT = "GlowSuite Support <support@email.glowsuite.nl>";
 export const GLOWSUITE_REPLY_TO = "support@email.glowsuite.nl";
-export const GLOWSUITE_LOGO_URL = "https://glowsuite.nl/favicon.png";
+// Transparent primary GlowSuite logo — must never render inside a square/box.
+export const GLOWSUITE_LOGO_URL = "https://glowsuite.nl/glowsuite-logo.png";
 export const GLOWSUITE_APP_URL = "https://glowsuite.nl";
+
+/** Footer context presets — explains *why* the recipient got the mail. */
+export const FOOTER_REASON = {
+  account: "Je ontvangt deze e-mail omdat je een GlowSuite account hebt.",
+  trial: "Je ontvangt deze e-mail omdat je een GlowSuite proefperiode hebt gestart.",
+  demo: "Je ontvangt deze e-mail omdat je een demo bij GlowSuite hebt aangevraagd.",
+  lead: "Je ontvangt deze e-mail omdat je interesse hebt getoond in GlowSuite.",
+  billing: "Je ontvangt deze e-mail omdat je een actief GlowSuite abonnement hebt.",
+  security: "Je ontvangt deze e-mail vanwege beveiligingsactiviteit op je GlowSuite account.",
+} as const;
+export type FooterReasonKey = keyof typeof FOOTER_REASON;
 
 const ESC: Record<string, string> = {
   "&": "&amp;",
