@@ -6,7 +6,9 @@ export const GLOWSUITE_FROM = "GlowSuite <noreply@email.glowsuite.nl>";
 export const GLOWSUITE_FROM_SUPPORT = "GlowSuite Support <support@email.glowsuite.nl>";
 export const GLOWSUITE_REPLY_TO = "support@email.glowsuite.nl";
 // Transparent primary GlowSuite logo — must never render inside a square/box.
-export const GLOWSUITE_LOGO_URL = "https://glowsuite.nl/glowsuite-logo.png";
+// Hosted on Supabase Storage (public bucket) for guaranteed email-client reachability.
+// Absolute HTTPS, PNG with alpha, ~480px square (renders crisp on retina at 36/22px).
+export const GLOWSUITE_LOGO_URL = "https://ueqhckkuuwdsrjrdczbb.supabase.co/storage/v1/object/public/email-assets/glowsuite-logo.png";
 export const GLOWSUITE_APP_URL = "https://glowsuite.nl";
 
 /** Footer context presets — explains *why* the recipient got the mail. */
