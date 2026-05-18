@@ -1,6 +1,11 @@
 // Mollie webhook for SaaS subscription first payment.
 // On paid: creates Mollie subscription (recurring monthly) and activates row.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import {
+  renderGlowSuiteEmail,
+  GLOWSUITE_FROM,
+  GLOWSUITE_REPLY_TO,
+} from "../_shared/glowsuiteEmail.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,8 +14,8 @@ const corsHeaders = {
 };
 
 const MOLLIE_API = "https://api.mollie.com/v2";
-const FROM_EMAIL = "GlowSuite <onboarding@email.glowsuite.nl>";
-const REPLY_TO = "support@email.glowsuite.nl";
+const FROM_EMAIL = GLOWSUITE_FROM;
+const REPLY_TO = GLOWSUITE_REPLY_TO;
 
 function getMollieKey(): string {
   return (
@@ -25,24 +30,16 @@ function loginEmailHtml(opts: {
   loginUrl: string;
   fullName?: string;
 }) {
-  const greeting = opts.fullName ? `Hi ${opts.fullName},` : "Welkom!";
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Je GlowSuite account is klaar</title></head>
-<body style="margin:0;padding:0;background:#f6f5f2;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1a1a1a;">
-  <div style="max-width:560px;margin:0 auto;padding:32px 20px;">
-    <div style="font-size:24px;font-weight:700;margin-bottom:24px;background:linear-gradient(135deg,#d4a574,#b8895c);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">GlowSuite</div>
-    <div style="background:#ffffff;border-radius:16px;padding:32px 28px;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
-      <h1 style="font-size:22px;margin:0 0 16px;font-weight:700;line-height:1.3;">Je GlowSuite account is klaar 🎉</h1>
-      <p style="font-size:16px;line-height:1.55;margin:0 0 12px;color:#444;">${greeting}</p>
-      <p style="font-size:16px;line-height:1.55;margin:0 0 20px;color:#444;">Je betaling is gelukt en je <strong>${opts.planName}</strong>-abonnement is direct actief. Klik op de knop hieronder om in te loggen — geen wachtwoord nodig.</p>
-      <div style="text-align:center;margin:28px 0;">
-        <a href="${opts.loginUrl}" style="display:inline-block;background:linear-gradient(135deg,#d4a574 0%,#b8895c 100%);color:#ffffff !important;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:600;font-size:16px;">Log in op GlowSuite</a>
-      </div>
-      <p style="font-size:14px;line-height:1.55;margin:0 0 8px;color:#666;"><strong>Volgende stap:</strong> open je dashboard en zet je salon binnen 5 minuten live met de installatiewizard.</p>
-      <p style="font-size:13px;line-height:1.5;margin:24px 0 0;color:#999;">Werkt de knop niet? Kopieer deze link in je browser:<br/><span style="word-break:break-all;color:#666;">${opts.loginUrl}</span></p>
-    </div>
-    <p style="font-size:12px;color:#999;text-align:center;margin:24px 0 0;">GlowSuite — Salonsoftware die met je meegroeit.<br/>Vragen? Antwoord op deze mail of stuur naar support@email.glowsuite.nl</p>
-  </div>
-</body></html>`;
+  return renderGlowSuiteEmail({
+    title: "Je GlowSuite account is klaar",
+    preheader: "Log in en zet je salon binnen 5 minuten live.",
+    eyebrow: "Abonnement actief",
+    heading: opts.fullName ? `Welkom, ${opts.fullName}` : "Je GlowSuite account is klaar",
+    intro: `Je betaling is gelukt en je ${opts.planName}-abonnement is direct actief. Klik op de knop hieronder om in te loggen — geen wachtwoord nodig.`,
+    ctaLabel: "Log in op GlowSuite",
+    ctaUrl: opts.loginUrl,
+    outro: "Open je dashboard en zet je salon binnen 5 minuten live met de installatiewizard.",
+  });
 }
 
 async function sendLoginEmail(
