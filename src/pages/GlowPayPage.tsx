@@ -182,15 +182,17 @@ export default function GlowPayPage() {
 
   return (
     <AppLayout title="GlowPay" subtitle="Betalingen & no-show bescherming">
-      {/* Tabs */}
-      <div className="flex gap-1 mb-6 bg-secondary/50 p-1 rounded-xl w-fit">
-        {tabs.map(tab => (
-          <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-            className={cn("px-4 py-2 rounded-lg text-sm font-medium transition-all",
-              activeTab === tab.key ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground")}>
-            {tab.label}
-          </button>
-        ))}
+      {/* Tabs — horizontally scrollable on mobile, no page overflow */}
+      <div className="-mx-4 sm:mx-0 mb-5 sm:mb-6 overflow-x-auto scrollbar-none">
+        <div className="inline-flex gap-1 bg-secondary/50 p-1 rounded-xl mx-4 sm:mx-0 w-max">
+          {tabs.map(tab => (
+            <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+              className={cn("px-4 min-h-[40px] rounded-lg text-[13px] sm:text-sm font-medium transition-all whitespace-nowrap",
+                activeTab === tab.key ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground")}>
+              {tab.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {activeTab === "overzicht" && (
@@ -204,13 +206,13 @@ export default function GlowPayPage() {
           <div className="h-6" />
 
           {/* Recent Payments */}
-          <div className="glass-card p-6 opacity-0 animate-fade-in-up" style={{ animationDelay: '560ms' }}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold flex items-center gap-2">
-                <CreditCard className="w-4 h-4 text-primary" /> Recente betalingen
+          <div className="glass-card p-4 sm:p-6 opacity-0 animate-fade-in-up" style={{ animationDelay: '560ms' }}>
+            <div className="flex items-center justify-between mb-4 gap-2">
+              <h3 className="text-sm font-semibold flex items-center gap-2 min-w-0">
+                <CreditCard className="w-4 h-4 text-primary shrink-0" /> <span className="truncate">Recente betalingen</span>
               </h3>
-              <Button variant="ghost" size="sm" onClick={() => setActiveTab("betalingen")}>
-                Alles bekijken <ArrowRight className="w-3.5 h-3.5 ml-1" />
+              <Button variant="ghost" size="sm" onClick={() => setActiveTab("betalingen")} className="shrink-0 min-h-[40px]">
+                Alles <ArrowRight className="w-3.5 h-3.5 ml-1" />
               </Button>
             </div>
             <div className="space-y-2">
@@ -236,15 +238,17 @@ export default function GlowPayPage() {
       )}
 
       {activeTab === "betalingen" && (
-        <div className="glass-card p-6 opacity-0 animate-fade-in-up">
+        <div className="glass-card p-4 sm:p-6 opacity-0 animate-fade-in-up">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
             <h3 className="text-sm font-semibold flex items-center gap-2">
               <CreditCard className="w-4 h-4 text-primary" /> Alle betalingen
             </h3>
-            <div className="flex gap-1 bg-secondary/50 p-1 rounded-xl w-fit overflow-x-auto">
-              {[{ key: "today", label: "Vandaag" }, { key: "week", label: "Week" }, { key: "month", label: "Maand" }].map((item) => (
-                <button key={item.key} onClick={() => setPaymentFilter(item.key as any)} className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap", paymentFilter === item.key ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground")}>{item.label}</button>
-              ))}
+            <div className="-mx-1 overflow-x-auto scrollbar-none">
+              <div className="inline-flex gap-1 bg-secondary/50 p-1 rounded-xl mx-1 w-max">
+                {[{ key: "today", label: "Vandaag" }, { key: "week", label: "Week" }, { key: "month", label: "Maand" }].map((item) => (
+                  <button key={item.key} onClick={() => setPaymentFilter(item.key as any)} className={cn("px-3 min-h-[36px] rounded-lg text-xs font-medium transition-all whitespace-nowrap", paymentFilter === item.key ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground")}>{item.label}</button>
+                ))}
+              </div>
             </div>
           </div>
           <div className="space-y-2">
@@ -321,24 +325,28 @@ export default function GlowPayPage() {
         <>
           {/* Create link modal */}
           {showLinkForm && (
-            <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowLinkForm(false)}>
-              <div className="glass-card p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center sm:p-4 overflow-y-auto" onClick={() => setShowLinkForm(false)}>
+              <div
+                className="glass-card p-5 sm:p-6 w-full max-w-md rounded-t-3xl sm:rounded-2xl max-h-[92vh] overflow-y-auto"
+                style={{ paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))" }}
+                onClick={e => e.stopPropagation()}
+              >
                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><Link2 className="w-5 h-5 text-primary" /> Nieuw betaalverzoek</h3>
                 <div className="space-y-3">
                   <div>
                     <label className="text-xs text-muted-foreground">Bedrag (€) *</label>
-                    <input type="number" value={linkForm.amount} onChange={e => setLinkForm({ ...linkForm, amount: e.target.value })}
-                      className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                    <input type="number" inputMode="decimal" value={linkForm.amount} onChange={e => setLinkForm({ ...linkForm, amount: e.target.value })}
+                      className="w-full mt-1 px-4 py-3 rounded-xl bg-secondary/50 border border-border text-base focus:outline-none focus:ring-2 focus:ring-primary/30" />
                   </div>
                   <div>
                     <label className="text-xs text-muted-foreground">Omschrijving</label>
                     <input value={linkForm.description} onChange={e => setLinkForm({ ...linkForm, description: e.target.value })}
-                      className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="bijv. Aanbetaling knippen" />
+                      className="w-full mt-1 px-4 py-3 rounded-xl bg-secondary/50 border border-border text-base focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="bijv. Aanbetaling knippen" />
                   </div>
                   <div>
                     <label className="text-xs text-muted-foreground">Klant (optioneel)</label>
                     <select value={linkForm.customer_id} onChange={e => setLinkForm({ ...linkForm, customer_id: e.target.value })}
-                      className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
+                      className="w-full mt-1 px-4 py-3 rounded-xl bg-secondary/50 border border-border text-base focus:outline-none focus:ring-2 focus:ring-primary/30">
                       <option value="">Geen klant</option>
                       {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
@@ -348,7 +356,7 @@ export default function GlowPayPage() {
                     <div className="flex gap-2 mt-1">
                       {[{ id: "link", label: "Betaallink", icon: Link2 }, { id: "qr", label: "QR-code", icon: QrCode }].map(t => (
                         <button key={t.id} onClick={() => setLinkForm({ ...linkForm, type: t.id })}
-                          className={cn("flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-all",
+                          className={cn("flex-1 flex items-center justify-center gap-2 px-3 min-h-[44px] rounded-xl text-sm font-medium transition-all",
                             linkForm.type === t.id ? "bg-primary/15 border border-primary/30 text-primary" : "bg-secondary/50 border border-transparent text-muted-foreground")}>
                           <t.icon className="w-4 h-4" /> {t.label}
                         </button>
@@ -356,9 +364,9 @@ export default function GlowPayPage() {
                     </div>
                   </div>
                 </div>
-                <div className="flex gap-2 mt-4">
-                  <Button variant="outline" className="flex-1" onClick={() => setShowLinkForm(false)}>Annuleren</Button>
-                  <Button variant="gradient" className="flex-1" onClick={handleCreateLink}>Aanmaken</Button>
+                <div className="flex gap-2 mt-5">
+                  <Button variant="outline" className="flex-1 min-h-[44px]" onClick={() => setShowLinkForm(false)}>Annuleren</Button>
+                  <Button variant="gradient" className="flex-1 min-h-[44px]" onClick={handleCreateLink}>Aanmaken</Button>
                 </div>
               </div>
             </div>
@@ -375,17 +383,17 @@ export default function GlowPayPage() {
             )}
 
             {/* Stats */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
               <div className="glass-card p-4">
-                <p className="text-2xl font-bold">{(paymentLinks as any[]).filter(l => l.status === "open").length}</p>
+                <p className="text-xl sm:text-2xl font-bold tabular-nums">{(paymentLinks as any[]).filter(l => l.status === "open").length}</p>
                 <p className="text-xs text-muted-foreground">Open verzoeken</p>
               </div>
               <div className="glass-card p-4">
-                <p className="text-2xl font-bold text-success">{(paymentLinks as any[]).filter(l => l.status === "betaald").length}</p>
+                <p className="text-xl sm:text-2xl font-bold text-success tabular-nums">{(paymentLinks as any[]).filter(l => l.status === "betaald").length}</p>
                 <p className="text-xs text-muted-foreground">Betaald</p>
               </div>
-              <div className="glass-card p-4">
-                <p className="text-2xl font-bold text-primary">
+              <div className="col-span-2 sm:col-span-1 glass-card p-4">
+                <p className="text-xl sm:text-2xl font-bold text-primary tabular-nums truncate">
                   {formatEuro((paymentLinks as any[]).filter(l => l.status === "betaald").reduce((s: number, l: any) => s + Number(l.amount), 0))}
                 </p>
                 <p className="text-xs text-muted-foreground">Ontvangen via links</p>
@@ -393,7 +401,7 @@ export default function GlowPayPage() {
             </div>
 
             {/* Payment links list */}
-            <div className="glass-card p-6">
+            <div className="glass-card p-4 sm:p-6">
               <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
                 <Link2 className="w-4 h-4 text-primary" /> Betaalverzoeken
               </h3>
@@ -450,7 +458,7 @@ export default function GlowPayPage() {
 
       {activeTab === "regels" && (
         <div className="space-y-4 max-w-2xl opacity-0 animate-fade-in-up">
-          <div className="glass-card p-6">
+          <div className="glass-card p-4 sm:p-6">
             <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
               <Shield className="w-4 h-4 text-primary" /> Actieve betaalregels
             </h3>
@@ -479,7 +487,7 @@ export default function GlowPayPage() {
             </Button>
           </div>
 
-          <div className="glass-card p-6">
+          <div className="glass-card p-4 sm:p-6">
             <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
               <Smartphone className="w-4 h-4 text-primary" /> Betaalmethoden
             </h3>
