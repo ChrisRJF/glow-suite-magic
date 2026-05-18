@@ -14,6 +14,11 @@ import { useDemoMode } from "@/hooks/useDemoMode";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { toast } from "sonner";
 
 const MODES: AIMode[] = ["suggestions", "autopilot", "off"];
 const SHORT_LABEL: Record<AIMode, string> = {
