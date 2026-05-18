@@ -1,9 +1,14 @@
 // Daily cron — handles past_due SaaS subscriptions.
-// Logic (simple recovery flow):
 // 1. past_due >= 0d, no failure email yet → send "payment failed" email
 // 2. past_due >= 3d, no retry yet → trigger one Mollie payment with existing mandate
-// 3. past_due >= 7d → frontend treats as read-only (no DB change here, just keep status)
+// 3. past_due >= 7d → frontend treats as read-only
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import {
+  renderGlowSuiteEmail,
+  GLOWSUITE_FROM,
+  GLOWSUITE_REPLY_TO,
+  GLOWSUITE_APP_URL,
+} from "../_shared/glowsuiteEmail.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,9 +20,9 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY") || "";
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") || "";
-const FROM_EMAIL = "GlowSuite <onboarding@email.glowsuite.nl>";
-const REPLY_TO = "support@email.glowsuite.nl";
-const APP_URL = "https://glowsuite.nl";
+const FROM_EMAIL = GLOWSUITE_FROM;
+const REPLY_TO = GLOWSUITE_REPLY_TO;
+const APP_URL = GLOWSUITE_APP_URL;
 const MOLLIE_API = "https://api.mollie.com/v2";
 
 function getMollieKey(): string {
@@ -46,23 +51,17 @@ async function mollie(path: string, method: string, body?: unknown) {
 }
 
 function failedEmailHtml(salon: string, manageUrl: string) {
-  const greeting = salon ? `Hi ${salon},` : "Hallo,";
-  return `<!doctype html><html><body style="margin:0;padding:0;background:#f6f5f2;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1a1a1a;">
-  <div style="max-width:560px;margin:0 auto;padding:32px 20px;">
-    <div style="font-size:22px;font-weight:700;margin-bottom:24px;background:linear-gradient(135deg,#d4a574,#b8895c);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">GlowSuite</div>
-    <div style="background:#fff;border-radius:16px;padding:32px 28px;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
-      <h1 style="font-size:22px;margin:0 0 16px;font-weight:700;line-height:1.3;">Je betaling is niet gelukt</h1>
-      <p style="font-size:16px;line-height:1.55;margin:0 0 12px;color:#444;">${greeting}</p>
-      <p style="font-size:16px;line-height:1.55;margin:0 0 16px;color:#444;">Helaas kon de automatische incasso voor je GlowSuite abonnement niet worden afgeschreven. Mogelijk is er onvoldoende saldo, is je kaart verlopen, of heeft je bank de betaling geweigerd.</p>
-      <p style="font-size:16px;line-height:1.55;margin:0 0 20px;color:#444;"><strong>Wat nu?</strong> We proberen het over 3 dagen automatisch nog één keer. Je kunt ook nu zelf je betaalmethode bijwerken.</p>
-      <div style="text-align:center;margin:28px 0;">
-        <a href="${manageUrl}" style="display:inline-block;background:linear-gradient(135deg,#d4a574 0%,#b8895c 100%);color:#fff !important;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:600;font-size:16px;">Beheer mijn abonnement</a>
-      </div>
-      <p style="font-size:14px;line-height:1.55;margin:0;color:#666;">Lukt het binnen 7 dagen niet om de betaling te herstellen? Dan zetten we je account tijdelijk in alleen-lezen modus tot de betaling weer rond is. Je gegevens blijven natuurlijk veilig staan.</p>
-    </div>
-    <p style="font-size:12px;color:#999;text-align:center;margin:24px 0 0;">GlowSuite — Vragen? Antwoord op deze mail of stuur naar support@email.glowsuite.nl</p>
-  </div>
-</body></html>`;
+  return renderGlowSuiteEmail({
+    title: "Je betaling is niet gelukt",
+    preheader: "We proberen het over 3 dagen automatisch opnieuw.",
+    eyebrow: "Betaling",
+    heading: "Je betaling is niet gelukt",
+    intro: `${salon ? `Hi ${salon}, h` : "H"}elaas kon de automatische incasso voor je GlowSuite abonnement niet worden afgeschreven. Mogelijk is er onvoldoende saldo, is je kaart verlopen, of heeft je bank de betaling geweigerd.\n\nWat nu? We proberen het over 3 dagen automatisch nog één keer. Je kunt ook nu zelf je betaalmethode bijwerken.`,
+    ctaLabel: "Beheer mijn abonnement",
+    ctaUrl: manageUrl,
+    helper:
+      "Lukt het binnen 7 dagen niet om de betaling te herstellen? Dan zetten we je account tijdelijk in alleen-lezen modus tot de betaling weer rond is. Je gegevens blijven natuurlijk veilig staan.",
+  });
 }
 
 async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
