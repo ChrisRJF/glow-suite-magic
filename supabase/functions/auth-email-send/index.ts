@@ -5,6 +5,11 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { Webhook } from "https://esm.sh/standardwebhooks@1.0.0";
+import {
+  renderGlowSuiteEmail,
+  GLOWSUITE_FROM,
+  GLOWSUITE_REPLY_TO,
+} from "../_shared/glowsuiteEmail.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,8 +17,8 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, webhook-id, webhook-timestamp, webhook-signature",
 };
 
-const FROM = "GlowSuite <onboarding@email.glowsuite.nl>";
-const REPLY_TO = "support@email.glowsuite.nl";
+const FROM = GLOWSUITE_FROM;
+const REPLY_TO = GLOWSUITE_REPLY_TO;
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
 const HOOK_SECRET = Deno.env.get("AUTH_HOOK_WEBHOOK_SECRET") ?? "";
