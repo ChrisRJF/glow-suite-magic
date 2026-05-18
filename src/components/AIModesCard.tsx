@@ -203,7 +203,7 @@ export function AIModesCard() {
                 <Segmented
                   size="sm"
                   value={modes.categories[c]}
-                  onChange={(m) => setCategory(c, m)}
+                  onChange={(m) => requestCategory(c, m)}
                   disabled={loading || modes.global === "off"}
                 />
               </div>
