@@ -199,8 +199,14 @@ export function DailyCoach() {
       });
     }
 
-    return list.slice(0, 2);
-  }, [customers, appointments, services, leads, memberships, payments]);
+    // Filter by AI mode: hide actions whose category is "off"
+    const filtered = list.filter((a) => {
+      if (!a.category) return true;
+      return effectiveMode(modes, a.category) !== "off";
+    });
+
+    return filtered.slice(0, 2);
+  }, [customers, appointments, services, leads, memberships, payments, modes]);
 
   const handleClick = (route: string) => {
     if (route.startsWith("/#")) {
