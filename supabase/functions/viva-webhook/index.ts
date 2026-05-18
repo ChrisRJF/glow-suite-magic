@@ -6,6 +6,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getVivaTransaction } from "../_shared/viva.ts";
 import { diagnosticCorsHeaders, okText, parseVivaPayload, writeWebhookDebugLog } from "../_shared/vivaDiagnostics.ts";
+import { GLOWPAY_MARGIN_CENTS } from "../_shared/glowpayMargin.ts";
 
 const corsHeaders = diagnosticCorsHeaders;
 
