@@ -270,3 +270,65 @@ function friendlyEvent(t: string): string {
   if (s.includes("campaign") || s.includes("campagne")) return "Campagne";
   return t || "AI actie";
 }
+
+function AutoConfirmBody({ onCancel, onConfirm, saving }: { onCancel: () => void; onConfirm: () => void; saving: boolean }) {
+  return (
+    <>
+      <p className="text-sm text-muted-foreground leading-relaxed">
+        GlowSuite kan nu automatisch veilige acties uitvoeren, zoals betalingsherinneringen sturen en lege plekken helpen opvullen.
+      </p>
+      <p className="text-xs text-muted-foreground/80 mt-3">Je kunt dit altijd aanpassen.</p>
+      <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-5 pb-[env(safe-area-inset-bottom)]">
+        <Button variant="ghost" onClick={onCancel} disabled={saving}>Annuleren</Button>
+        <Button
+          onClick={onConfirm}
+          disabled={saving}
+          className="bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-95 focus-visible:ring-2 focus-visible:ring-primary/60"
+        >
+          {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+          Automatisch inschakelen
+        </Button>
+      </div>
+    </>
+  );
+}
+
+function AutoConfirm({
+  open, onOpenChange, onConfirm, saving, isMobile,
+}: { open: boolean; onOpenChange: (o: boolean) => void; onConfirm: () => void; saving: boolean; isMobile: boolean }) {
+  const cancel = () => onOpenChange(false);
+  if (isMobile) {
+    return (
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent side="bottom" className="rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)]">
+          <SheetHeader className="text-left">
+            <SheetTitle className="flex items-center gap-2">
+              <span className="inline-flex w-6 h-6 rounded-md bg-gradient-to-br from-primary to-accent items-center justify-center">
+                <Sparkles className="w-3.5 h-3.5 text-primary-foreground" />
+              </span>
+              Automatische modus inschakelen?
+            </SheetTitle>
+          </SheetHeader>
+          <div className="mt-2">
+            <AutoConfirmBody onCancel={cancel} onConfirm={onConfirm} saving={saving} />
+          </div>
+        </SheetContent>
+      </Sheet>
+    );
+  }
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <span className="inline-flex w-6 h-6 rounded-md bg-gradient-to-br from-primary to-accent items-center justify-center">
+              <Sparkles className="w-3.5 h-3.5 text-primary-foreground" />
+            </span>
+            Automatische modus inschakelen?
+          </DialogTitle>
+        </DialogHeader>
+        <AutoConfirmBody onCancel={cancel} onConfirm={onConfirm} saving={saving} />
+      </DialogContent>
+    </Dialog>
+  );
+}
