@@ -383,17 +383,17 @@ export default function GlowPayPage() {
             )}
 
             {/* Stats */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
               <div className="glass-card p-4">
-                <p className="text-2xl font-bold">{(paymentLinks as any[]).filter(l => l.status === "open").length}</p>
+                <p className="text-xl sm:text-2xl font-bold tabular-nums">{(paymentLinks as any[]).filter(l => l.status === "open").length}</p>
                 <p className="text-xs text-muted-foreground">Open verzoeken</p>
               </div>
               <div className="glass-card p-4">
-                <p className="text-2xl font-bold text-success">{(paymentLinks as any[]).filter(l => l.status === "betaald").length}</p>
+                <p className="text-xl sm:text-2xl font-bold text-success tabular-nums">{(paymentLinks as any[]).filter(l => l.status === "betaald").length}</p>
                 <p className="text-xs text-muted-foreground">Betaald</p>
               </div>
-              <div className="glass-card p-4">
-                <p className="text-2xl font-bold text-primary">
+              <div className="col-span-2 sm:col-span-1 glass-card p-4">
+                <p className="text-xl sm:text-2xl font-bold text-primary tabular-nums truncate">
                   {formatEuro((paymentLinks as any[]).filter(l => l.status === "betaald").reduce((s: number, l: any) => s + Number(l.amount), 0))}
                 </p>
                 <p className="text-xs text-muted-foreground">Ontvangen via links</p>
@@ -401,7 +401,7 @@ export default function GlowPayPage() {
             </div>
 
             {/* Payment links list */}
-            <div className="glass-card p-6">
+            <div className="glass-card p-4 sm:p-6">
               <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
                 <Link2 className="w-4 h-4 text-primary" /> Betaalverzoeken
               </h3>
