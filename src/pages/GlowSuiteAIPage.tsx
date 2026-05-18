@@ -579,7 +579,10 @@ export default function GlowSuiteAIPage() {
           </CardContent>
         </Card>
 
+        <AIModesCard />
+
         {/* Smart insight chips */}
+
         <div id="insights" className="scroll-mt-20">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-lg font-semibold">Vandaag in één oogopslag</h3>
