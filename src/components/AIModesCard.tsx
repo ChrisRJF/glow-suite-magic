@@ -177,7 +177,7 @@ export function AIModesCard() {
       <CardContent className="space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <span className="text-xs text-muted-foreground">Algemene modus</span>
-          <Segmented value={modes.global} onChange={setGlobal} disabled={loading} />
+          <Segmented value={modes.global} onChange={requestGlobal} disabled={loading} />
         </div>
 
         {demoMode && (
