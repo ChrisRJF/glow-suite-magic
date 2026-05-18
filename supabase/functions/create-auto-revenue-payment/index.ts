@@ -4,13 +4,14 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { createVivaOrder, vivaCheckoutUrl, isVivaConfigured } from "../_shared/viva.ts";
+import { GLOWPAY_MARGIN_CENTS } from "../_shared/glowpayMargin.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const PLATFORM_FEE_CENTS = 35; // €0.35
+const PLATFORM_FEE_CENTS = GLOWPAY_MARGIN_CENTS;
 const REDIRECT_BASE = "https://glowsuite.nl";
 
 function json(body: unknown, status = 200) {

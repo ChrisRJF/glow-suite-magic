@@ -286,8 +286,12 @@ Deno.serve(async (req) => {
       viva_source_code: existingMeta.viva_source_code || Deno.env.get("VIVA_SOURCE_CODE") || null,
     };
     if (isPaid && !feeAlreadyStored) {
-      metaUpdates.platform_fee_cents = 0;
-      metaUpdates.glowpay_margin_cents = 0;
+      // Persist the GlowPay platform margin once per paid payment.
+      // Source of truth: supabase/functions/_shared/glowpayMargin.ts
+      const existingPlatformFee = existingMeta.platform_fee_cents;
+      const marginCents = typeof existingPlatformFee === "number" ? existingPlatformFee : GLOWPAY_MARGIN_CENTS;
+      metaUpdates.platform_fee_cents = marginCents;
+      metaUpdates.glowpay_margin_cents = marginCents;
       if (providerFeeCents != null) metaUpdates.provider_fee_cents = providerFeeCents;
     }
 
