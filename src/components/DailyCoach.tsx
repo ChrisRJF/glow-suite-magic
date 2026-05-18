@@ -1,9 +1,10 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useCustomers, useAppointments, useServices, useLeads } from "@/hooks/useSupabaseData";
+import { useCustomers, useAppointments, useServices, useLeads, useCustomerMemberships } from "@/hooks/useSupabaseData";
+import { usePayments } from "@/hooks/usePayments";
 import { formatEuro } from "@/lib/data";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Phone, Send, Calendar, AlertTriangle, TrendingDown, Zap, ArrowRight, Target } from "lucide-react";
+import { Sparkles, Phone, Send, Calendar, AlertTriangle, TrendingDown, Zap, ArrowRight, Target, CreditCard, BadgeCheck } from "lucide-react";
 
 interface CoachAction {
   id: string;
@@ -21,6 +22,8 @@ export function DailyCoach() {
   const { data: appointments } = useAppointments();
   const { data: services } = useServices();
   const { data: leads } = useLeads();
+  const { data: memberships } = useCustomerMemberships();
+  const { data: payments } = usePayments();
   const navigate = useNavigate();
 
   const actions = useMemo<CoachAction[]>(() => {
@@ -127,6 +130,44 @@ export function DailyCoach() {
       });
     }
 
+    // 6. Memberships verlopen binnenkort
+    const in14 = new Date(now); in14.setDate(in14.getDate() + 14);
+    const expiringSoon = (memberships || []).filter((m: any) => {
+      if (m.status !== 'active') return false;
+      const end = m.current_period_end ? new Date(m.current_period_end) : null;
+      return end && end > now && end <= in14 && !m.cancel_at_period_end;
+    });
+    if (expiringSoon.length >= 1) {
+      list.push({
+        id: "memberships-expiring",
+        icon: BadgeCheck,
+        title: `${expiringSoon.length} memberships verlopen binnenkort`,
+        reason: "Verlengen binnen 14 dagen — herinner klanten op tijd",
+        impact: "Behoud terugkerende omzet",
+        cta: "Bekijk memberships",
+        route: "/memberships",
+        tone: "warning",
+      });
+    }
+
+    // 7. Open betalingen voor herinnering
+    const openPayments = (payments || []).filter((p: any) => {
+      const s = (p.status || p.payment_status || '').toLowerCase();
+      return s === 'open' || s === 'pending' || s === 'unpaid';
+    });
+    if (openPayments.length >= 2) {
+      list.push({
+        id: "open-payments",
+        icon: CreditCard,
+        title: `${openPayments.length} open betalingen wachten`,
+        reason: "Stuur automatisch een vriendelijke herinnering",
+        impact: "Sneller op de rekening",
+        cta: "Open GlowPay",
+        route: "/glowpay",
+        tone: "primary",
+      });
+    }
+
     // Fallback: alles is goed
     if (list.length === 0) {
       list.push({
@@ -142,7 +183,7 @@ export function DailyCoach() {
     }
 
     return list.slice(0, 2);
-  }, [customers, appointments, services, leads]);
+  }, [customers, appointments, services, leads, memberships, payments]);
 
   const handleClick = (route: string) => {
     if (route.startsWith("/#")) {
