@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { loadAIModes, canAutoRun, effectiveMode, type AICategory } from "../_shared/aiModes.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -105,9 +106,21 @@ Deno.serve(async (req) => {
     const WINDOW_MIN = 15; // ±15 minutes
 
     for (const s of settingsList || []) {
-      // -------- REMINDER PASS --------
-      if (!s.send_reminders) {
-        // skip reminder pass for this salon
+      // Load AI modes once per salon (live mode; demo uses its own scheduler path).
+      const aiModes = await loadAIModes(admin, s.user_id, false);
+      const gate = (cat: AICategory) => canAutoRun(aiModes, cat);
+      const skipLog = (cat: AICategory, pass: string) => ({
+        ai_mode: effectiveMode(aiModes, cat),
+        ai_category: cat,
+        skipped_reason: "ai_mode_not_autopilot",
+        pass,
+      });
+
+      // -------- REMINDER PASS -------- (no_show prevention)
+      if (!s.send_reminders || !gate("no_show")) {
+        if (s.send_reminders && !gate("no_show")) {
+          stats.windows.push({ user_id: s.user_id, ...skipLog("no_show", "reminder") });
+        }
       } else {
       const hoursBefore = s.reminder_hours_before || 24;
 
@@ -273,8 +286,8 @@ Deno.serve(async (req) => {
       }
       } // end reminder else-block
 
-      // -------- REVIEW PASS --------
-      if (s.send_review_request) {
+      // -------- REVIEW PASS -------- (klant_retention)
+      if (s.send_review_request && gate("klant_retention")) {
         try {
           const { data: salonSettings2 } = await admin
             .from("settings")
@@ -394,8 +407,8 @@ Deno.serve(async (req) => {
         }
       }
 
-      // -------- NO-SHOW PASS --------
-      if (s.send_no_show_followup) {
+      // -------- NO-SHOW PASS -------- (no_show)
+      if (s.send_no_show_followup && gate("no_show")) {
         try {
           // Look at appointments scheduled in the last 24h with no-show status
           const since = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
@@ -504,10 +517,10 @@ Deno.serve(async (req) => {
         }
       }
 
-      // -------- REVENUE BOOST PASS --------
+      // -------- REVENUE BOOST PASS -------- (klant_retention reactivation)
       // Reactivation: customers who haven't visited in N days, no upcoming booking,
       // and haven't received a revenue_boost message this calendar month.
-      if (s.send_revenue_boost) {
+      if (s.send_revenue_boost && gate("klant_retention")) {
         try {
           const afterDays = Math.max(7, s.revenue_boost_after_days || 42);
           const maxPerMonth = Math.max(1, s.revenue_boost_max_per_month || 1);
