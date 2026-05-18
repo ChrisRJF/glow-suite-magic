@@ -106,9 +106,21 @@ Deno.serve(async (req) => {
     const WINDOW_MIN = 15; // ±15 minutes
 
     for (const s of settingsList || []) {
-      // -------- REMINDER PASS --------
-      if (!s.send_reminders) {
-        // skip reminder pass for this salon
+      // Load AI modes once per salon (live mode; demo uses its own scheduler path).
+      const aiModes = await loadAIModes(admin, s.user_id, false);
+      const gate = (cat: AICategory) => canAutoRun(aiModes, cat);
+      const skipLog = (cat: AICategory, pass: string) => ({
+        ai_mode: effectiveMode(aiModes, cat),
+        ai_category: cat,
+        skipped_reason: "ai_mode_not_autopilot",
+        pass,
+      });
+
+      // -------- REMINDER PASS -------- (no_show prevention)
+      if (!s.send_reminders || !gate("no_show")) {
+        if (s.send_reminders && !gate("no_show")) {
+          stats.windows.push({ user_id: s.user_id, ...skipLog("no_show", "reminder") });
+        }
       } else {
       const hoursBefore = s.reminder_hours_before || 24;
 
