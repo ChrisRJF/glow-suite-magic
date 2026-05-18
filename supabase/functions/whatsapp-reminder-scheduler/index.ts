@@ -517,10 +517,10 @@ Deno.serve(async (req) => {
         }
       }
 
-      // -------- REVENUE BOOST PASS --------
+      // -------- REVENUE BOOST PASS -------- (klant_retention reactivation)
       // Reactivation: customers who haven't visited in N days, no upcoming booking,
       // and haven't received a revenue_boost message this calendar month.
-      if (s.send_revenue_boost) {
+      if (s.send_revenue_boost && gate("klant_retention")) {
         try {
           const afterDays = Math.max(7, s.revenue_boost_after_days || 42);
           const maxPerMonth = Math.max(1, s.revenue_boost_max_per_month || 1);
