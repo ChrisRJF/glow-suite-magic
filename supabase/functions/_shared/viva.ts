@@ -81,6 +81,12 @@ export interface CreateVivaOrderResult {
   orderCode: string; // ALWAYS string
 }
 
+// TODO(GlowPay ISV fee): Wire GLOWPAY_MARGIN_CENTS into the Viva ISV order
+// payload after Viva confirms the exact payload field name (e.g. isvFee /
+// commission / platformFee). Until confirmed, the GlowPay margin is tracked
+// internally via payments.metadata.platform_fee_cents + glowpay_margin_cents
+// (see supabase/functions/_shared/glowpayMargin.ts). Do NOT guess the field
+// name — Viva will silently ignore unknown keys or reject the order.
 export async function createVivaOrder(args: CreateVivaOrderArgs): Promise<CreateVivaOrderResult> {
   const env = vivaEnv();
   const token = await getAccessToken();
