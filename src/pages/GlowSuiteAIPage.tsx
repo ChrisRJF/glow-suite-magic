@@ -19,6 +19,7 @@ import {
 } from "@/hooks/useSupabaseData";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEuro } from "@/lib/data";
+import { AIModesCard } from "@/components/AIModesCard";
 
 type FeedCategory = "revenue" | "clients" | "campaigns" | "automations" | "risk";
 interface FeedItem {
@@ -579,7 +580,10 @@ export default function GlowSuiteAIPage() {
           </CardContent>
         </Card>
 
+        <AIModesCard />
+
         {/* Smart insight chips */}
+
         <div id="insights" className="scroll-mt-20">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-lg font-semibold">Vandaag in één oogopslag</h3>

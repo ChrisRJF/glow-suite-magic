@@ -6,6 +6,8 @@ import { formatEuro } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Phone, Send, Calendar, AlertTriangle, TrendingDown, Zap, ArrowRight, Target, CreditCard, BadgeCheck } from "lucide-react";
 
+import { useAIModes, effectiveMode, type AICategory } from "@/lib/aiModes";
+
 interface CoachAction {
   id: string;
   icon: typeof Sparkles;
@@ -15,6 +17,9 @@ interface CoachAction {
   cta: string;
   route: string;
   tone: "primary" | "warning" | "success" | "destructive";
+  category?: AICategory;
+  /** true when an existing automation runs without owner click (autopilot-backed). */
+  autopilotBacked?: boolean;
 }
 
 export function DailyCoach() {
@@ -25,6 +30,7 @@ export function DailyCoach() {
   const { data: memberships } = useCustomerMemberships();
   const { data: payments } = usePayments();
   const navigate = useNavigate();
+  const { modes } = useAIModes();
 
   const actions = useMemo<CoachAction[]>(() => {
     const list: CoachAction[] = [];
@@ -50,6 +56,8 @@ export function DailyCoach() {
         cta: "Activeer autopilot",
         route: "/#auto-revenue-engine",
         tone: "warning",
+        category: "lege_plekken",
+        autopilotBacked: true,
       });
     }
 
@@ -73,6 +81,7 @@ export function DailyCoach() {
         cta: "Open herboekingen",
         route: "/herboekingen",
         tone: "primary",
+        category: "klant_retention",
       });
     }
 
@@ -91,6 +100,8 @@ export function DailyCoach() {
         cta: "WhatsApp",
         route: "/whatsapp",
         tone: "destructive",
+        category: "no_show",
+        autopilotBacked: true,
       });
     }
 
@@ -106,6 +117,7 @@ export function DailyCoach() {
         cta: "Volg op",
         route: "/leads",
         tone: "primary",
+        category: "klant_retention",
       });
     }
 
@@ -127,6 +139,7 @@ export function DailyCoach() {
         cta: "Maak campagne",
         route: "/marketing",
         tone: "warning",
+        category: "campagnes",
       });
     }
 
@@ -147,6 +160,8 @@ export function DailyCoach() {
         cta: "Bekijk memberships",
         route: "/memberships",
         tone: "warning",
+        category: "memberships",
+        autopilotBacked: true,
       });
     }
 
@@ -165,6 +180,8 @@ export function DailyCoach() {
         cta: "Open GlowPay",
         route: "/glowpay",
         tone: "primary",
+        category: "betalingen",
+        autopilotBacked: true,
       });
     }
 
@@ -182,8 +199,14 @@ export function DailyCoach() {
       });
     }
 
-    return list.slice(0, 2);
-  }, [customers, appointments, services, leads, memberships, payments]);
+    // Filter by AI mode: hide actions whose category is "off"
+    const filtered = list.filter((a) => {
+      if (!a.category) return true;
+      return effectiveMode(modes, a.category) !== "off";
+    });
+
+    return filtered.slice(0, 2);
+  }, [customers, appointments, services, leads, memberships, payments, modes]);
 
   const handleClick = (route: string) => {
     if (route.startsWith("/#")) {
@@ -234,7 +257,19 @@ export function DailyCoach() {
                 <a.icon className="w-5 h-5" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-card-title leading-tight mb-1">{a.title}</p>
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <p className="text-card-title leading-tight">{a.title}</p>
+                  {a.category && (() => {
+                    const m = effectiveMode(modes, a.category);
+                    if (m === "autopilot" && a.autopilotBacked) {
+                      return <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-success/15 text-success uppercase tracking-wide">Automatisch actief</span>;
+                    }
+                    if (m === "suggestions" || (m === "autopilot" && !a.autopilotBacked)) {
+                      return <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-muted text-muted-foreground uppercase tracking-wide">Suggestie</span>;
+                    }
+                    return null;
+                  })()}
+                </div>
                 <p className="text-meta line-clamp-2">{a.reason}</p>
               </div>
             </div>
