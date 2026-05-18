@@ -226,7 +226,38 @@ Deno.serve(async (req) => {
     let skipped = 0;
     let duplicates = 0;
 
+    const modesCache = new Map<string, any>();
+    async function modesFor(user_id: string, is_demo: boolean) {
+      const key = `${user_id}:${is_demo ? 1 : 0}`;
+      if (!modesCache.has(key)) modesCache.set(key, await loadAIModes(admin, user_id, is_demo));
+      return modesCache.get(key);
+    }
+
+    let aiSkipped = 0;
     for (const rule of (rules || []) as Rule[]) {
+      // AI mode gate
+      const category = triggerToCategory(rule.trigger_type);
+      if (category) {
+        const modes = await modesFor(rule.user_id, rule.is_demo);
+        if (!canAutoRun(modes, category)) {
+          aiSkipped += 1;
+          await admin.from("automation_logs").insert({
+            user_id: rule.user_id,
+            automation_rule_id: rule.id,
+            event_type: rule.trigger_type,
+            status: "skipped",
+            message: "AI-modus blokkeert automatische uitvoering",
+            metadata: {
+              ai_mode: effectiveMode(modes, category),
+              ai_category: category,
+              skipped_reason: "ai_mode_not_autopilot",
+            },
+            is_demo: rule.is_demo,
+          });
+          continue;
+        }
+      }
+
       const { data: settings } = await admin.from("settings").select("salon_name, public_slug, timezone, email_enabled, whatsapp_enabled, appointment_reminder_schedule").eq("user_id", rule.user_id).eq("is_demo", rule.is_demo).order("created_at", { ascending: false }).limit(1).maybeSingle();
       const candidates = await candidatesForRule(admin, rule, settings);
       for (const candidate of candidates) {
