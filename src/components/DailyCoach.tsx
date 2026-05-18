@@ -257,7 +257,19 @@ export function DailyCoach() {
                 <a.icon className="w-5 h-5" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-card-title leading-tight mb-1">{a.title}</p>
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <p className="text-card-title leading-tight">{a.title}</p>
+                  {a.category && (() => {
+                    const m = effectiveMode(modes, a.category);
+                    if (m === "autopilot" && a.autopilotBacked) {
+                      return <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-success/15 text-success uppercase tracking-wide">Automatisch actief</span>;
+                    }
+                    if (m === "suggestions" || (m === "autopilot" && !a.autopilotBacked)) {
+                      return <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-muted text-muted-foreground uppercase tracking-wide">Suggestie</span>;
+                    }
+                    return null;
+                  })()}
+                </div>
                 <p className="text-meta line-clamp-2">{a.reason}</p>
               </div>
             </div>
