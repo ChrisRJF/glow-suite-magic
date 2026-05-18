@@ -61,6 +61,7 @@ function failedEmailHtml(salon: string, manageUrl: string) {
     ctaUrl: manageUrl,
     helper:
       "Lukt het binnen 7 dagen niet om de betaling te herstellen? Dan zetten we je account tijdelijk in alleen-lezen modus tot de betaling weer rond is. Je gegevens blijven natuurlijk veilig staan.",
+    footerReason: "billing",
   });
 }
 

@@ -82,6 +82,7 @@ serve(async (req) => {
       intro:
         "Bedankt voor je interesse in GlowSuite. We nemen binnen 24 uur contact met je op om de demo in te plannen.",
       helper: "Geen actie nodig — je hoort snel van ons.",
+      footerReason: "demo",
     });
 
     const confirmationText =
@@ -118,6 +119,7 @@ serve(async (req) => {
       ctaLabel: "Antwoord deze lead",
       ctaUrl: `mailto:${lead.email}`,
       footerNote: "Interne notificatie — verstuurd door GlowSuite Leads.",
+      footerText: "Interne notificatie · niet voor externe verzending.",
     });
 
     const internalText =

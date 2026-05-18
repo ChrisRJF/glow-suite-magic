@@ -5,8 +5,20 @@
 export const GLOWSUITE_FROM = "GlowSuite <noreply@email.glowsuite.nl>";
 export const GLOWSUITE_FROM_SUPPORT = "GlowSuite Support <support@email.glowsuite.nl>";
 export const GLOWSUITE_REPLY_TO = "support@email.glowsuite.nl";
-export const GLOWSUITE_LOGO_URL = "https://glowsuite.nl/favicon.png";
+// Transparent primary GlowSuite logo — must never render inside a square/box.
+export const GLOWSUITE_LOGO_URL = "https://glowsuite.nl/glowsuite-logo.png";
 export const GLOWSUITE_APP_URL = "https://glowsuite.nl";
+
+/** Footer context presets — explains *why* the recipient got the mail. */
+export const FOOTER_REASON = {
+  account: "Je ontvangt deze e-mail omdat je een GlowSuite account hebt.",
+  trial: "Je ontvangt deze e-mail omdat je een GlowSuite proefperiode hebt gestart.",
+  demo: "Je ontvangt deze e-mail omdat je een demo bij GlowSuite hebt aangevraagd.",
+  lead: "Je ontvangt deze e-mail omdat je interesse hebt getoond in GlowSuite.",
+  billing: "Je ontvangt deze e-mail omdat je een actief GlowSuite abonnement hebt.",
+  security: "Je ontvangt deze e-mail vanwege beveiligingsactiviteit op je GlowSuite account.",
+} as const;
+export type FooterReasonKey = keyof typeof FOOTER_REASON;
 
 const ESC: Record<string, string> = {
   "&": "&amp;",
@@ -41,6 +53,10 @@ export interface GlowSuiteEmailOptions {
   outro?: string;
   /** Optional footer note (above the standard footer) */
   footerNote?: string;
+  /** Footer reason preset — explains why the user got this email. Default: "account". */
+  footerReason?: FooterReasonKey;
+  /** Override footer reason text entirely (takes precedence over footerReason). */
+  footerText?: string;
 }
 
 function paragraphs(text: string): string {
@@ -70,7 +86,12 @@ export function renderGlowSuiteEmail(opts: GlowSuiteEmailOptions): string {
     helper,
     outro,
     footerNote,
+    footerReason,
+    footerText,
   } = opts;
+
+  const footerReasonText =
+    footerText ?? FOOTER_REASON[footerReason ?? "account"];
 
   const cta =
     ctaLabel && ctaUrl
@@ -120,10 +141,10 @@ export function renderGlowSuiteEmail(opts: GlowSuiteEmailOptions): string {
       <tr><td class="gs-pad-top" style="padding:36px 36px 0;">
         <table role="presentation" cellpadding="0" cellspacing="0"><tr>
           <td style="vertical-align:middle;">
-            <img src="${GLOWSUITE_LOGO_URL}" width="28" height="28" alt="" style="display:block;border:0;outline:none;width:28px;height:28px;"/>
+            <img src="${GLOWSUITE_LOGO_URL}" width="36" height="36" alt="GlowSuite" style="display:block;border:0;outline:none;width:36px;height:36px;background:transparent;object-fit:contain;"/>
           </td>
-          <td style="vertical-align:middle;padding-left:10px;">
-            <span class="gs-heading" style="font-size:16px;font-weight:600;letter-spacing:-0.01em;color:#0f172a;">GlowSuite</span>
+          <td style="vertical-align:middle;padding-left:12px;">
+            <span class="gs-heading" style="font-size:17px;font-weight:600;letter-spacing:-0.01em;color:#0f172a;">GlowSuite</span>
           </td>
         </tr></table>
       </td></tr>
@@ -142,9 +163,9 @@ export function renderGlowSuiteEmail(opts: GlowSuiteEmailOptions): string {
         ${footerNote ? `<p class="gs-muted" style="margin:0 0 14px;font-size:12px;line-height:1.6;color:#94a3b8;">${esc(footerNote)}</p>` : ""}
         <table role="presentation" cellpadding="0" cellspacing="0"><tr>
           <td style="vertical-align:middle;">
-            <img src="${GLOWSUITE_LOGO_URL}" width="20" height="20" alt="" style="display:block;border:0;outline:none;width:20px;height:20px;opacity:0.85;"/>
+            <img src="${GLOWSUITE_LOGO_URL}" width="22" height="22" alt="GlowSuite" style="display:block;border:0;outline:none;width:22px;height:22px;background:transparent;object-fit:contain;opacity:0.9;"/>
           </td>
-          <td style="vertical-align:middle;padding-left:8px;">
+          <td style="vertical-align:middle;padding-left:9px;">
             <span class="gs-muted" style="font-size:12px;font-weight:600;color:#64748b;">GlowSuite</span>
             <span class="gs-muted" style="font-size:12px;color:#94a3b8;"> · Salon platform met AI</span>
           </td>
@@ -155,7 +176,7 @@ export function renderGlowSuiteEmail(opts: GlowSuiteEmailOptions): string {
       </td></tr>
     </table>
     <p class="gs-muted" style="max-width:560px;margin:18px auto 0;font-size:11px;line-height:1.6;color:#a3a3ad;text-align:center;">
-      Je ontvangt deze e-mail omdat je een GlowSuite account hebt.
+      ${esc(footerReasonText)}
     </p>
   </td></tr>
 </table>
