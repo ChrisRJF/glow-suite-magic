@@ -18,7 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 const MODES: AIMode[] = ["suggestions", "autopilot", "off"];
 const SHORT_LABEL: Record<AIMode, string> = {
   suggestions: "Suggesties",
-  autopilot: "Automatisch",
+  autopilot: "Auto",
   off: "Uit",
 };
 
@@ -29,8 +29,8 @@ function Segmented({
     <div
       role="radiogroup"
       className={cn(
-        "inline-flex rounded-lg bg-muted/60 p-0.5 border border-border/60",
-        size === "md" && "w-full sm:w-auto",
+        "inline-flex items-center rounded-full bg-muted/70 p-1 ring-1 ring-border/40",
+        size === "md" ? "w-full sm:w-auto gap-1" : "gap-0.5",
       )}
     >
       {MODES.map((m) => {
@@ -44,13 +44,16 @@ function Segmented({
             disabled={disabled}
             onClick={() => onChange(m)}
             className={cn(
-              "rounded-md transition-all whitespace-nowrap font-medium",
+              "relative rounded-full whitespace-nowrap font-medium leading-none",
+              "transition-all duration-200 ease-out",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-1 focus-visible:ring-offset-background",
+              "active:scale-[0.97]",
               size === "md"
-                ? "flex-1 sm:flex-none px-3 py-1.5 text-xs sm:text-sm min-h-[36px]"
-                : "px-2.5 py-1 text-[11px] min-h-[28px]",
+                ? "flex-1 sm:flex-none px-4 py-2 text-[13px] min-h-[36px]"
+                : "px-3 py-1.5 text-[11px] min-h-[30px]",
               active
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
+                ? "bg-primary text-primary-foreground shadow-[0_1px_2px_rgba(16,24,40,0.08),0_1px_3px_rgba(123,97,255,0.18)]"
+                : "bg-transparent text-muted-foreground hover:text-foreground",
               disabled && "opacity-50 cursor-not-allowed",
             )}
           >
