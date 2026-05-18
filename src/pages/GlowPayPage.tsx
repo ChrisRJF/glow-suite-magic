@@ -182,15 +182,17 @@ export default function GlowPayPage() {
 
   return (
     <AppLayout title="GlowPay" subtitle="Betalingen & no-show bescherming">
-      {/* Tabs */}
-      <div className="flex gap-1 mb-6 bg-secondary/50 p-1 rounded-xl w-fit">
-        {tabs.map(tab => (
-          <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-            className={cn("px-4 py-2 rounded-lg text-sm font-medium transition-all",
-              activeTab === tab.key ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground")}>
-            {tab.label}
-          </button>
-        ))}
+      {/* Tabs — horizontally scrollable on mobile, no page overflow */}
+      <div className="-mx-4 sm:mx-0 mb-5 sm:mb-6 overflow-x-auto scrollbar-none">
+        <div className="inline-flex gap-1 bg-secondary/50 p-1 rounded-xl mx-4 sm:mx-0 w-max">
+          {tabs.map(tab => (
+            <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+              className={cn("px-4 min-h-[40px] rounded-lg text-[13px] sm:text-sm font-medium transition-all whitespace-nowrap",
+                activeTab === tab.key ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground")}>
+              {tab.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {activeTab === "overzicht" && (
