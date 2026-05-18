@@ -160,6 +160,8 @@ export function DailyCoach() {
         cta: "Bekijk memberships",
         route: "/memberships",
         tone: "warning",
+        category: "memberships",
+        autopilotBacked: true,
       });
     }
 
