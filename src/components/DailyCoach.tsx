@@ -6,6 +6,8 @@ import { formatEuro } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Phone, Send, Calendar, AlertTriangle, TrendingDown, Zap, ArrowRight, Target, CreditCard, BadgeCheck } from "lucide-react";
 
+import { useAIModes, effectiveMode, type AICategory } from "@/lib/aiModes";
+
 interface CoachAction {
   id: string;
   icon: typeof Sparkles;
@@ -15,6 +17,9 @@ interface CoachAction {
   cta: string;
   route: string;
   tone: "primary" | "warning" | "success" | "destructive";
+  category?: AICategory;
+  /** true when an existing automation runs without owner click (autopilot-backed). */
+  autopilotBacked?: boolean;
 }
 
 export function DailyCoach() {
