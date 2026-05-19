@@ -174,7 +174,7 @@ export function renderGlowSuiteEmail(opts: GlowSuiteEmailOptions): string {
           </td>
         </tr></table>
         <p class="gs-muted" style="margin:10px 0 0;font-size:12px;line-height:1.6;color:#94a3b8;">
-          Vragen? Mail <a href="mailto:support@email.glowsuite.nl" class="gs-link" style="color:#7B61FF;text-decoration:none;">support@email.glowsuite.nl</a>
+          Vragen? Mail <a href="mailto:support@glowsuite.nl" class="gs-link" style="color:#7B61FF;text-decoration:none;">support@glowsuite.nl</a>
         </p>
       </td></tr>
     </table>
