@@ -958,7 +958,7 @@ export default function LandingPage() {
               Eerlijke cijfers. Slimme beslissingen.
             </h2>
             <p className="mt-4 text-muted-foreground text-lg">
-              AI vertaalt je data naar concrete omzetkansen, zonder dat jij dashboards hoeft te lezen.
+              GlowSuite vertaalt je dagelijkse data naar concrete acties: wie opvolgen, welke plek vullen, welke betaling oppikken. Geen dashboards lezen.
             </p>
             <ul className="mt-6 space-y-2.5 text-sm">
               {["Omzettrend per periode", "Top behandelingen & medewerkers", "Klantenwaarde (LTV)", "Slimme inzichten & exports"].map((i) => (
