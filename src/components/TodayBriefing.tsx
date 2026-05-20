@@ -151,46 +151,63 @@ export function TodayBriefing({ variant = "default", title, hideHeader = false, 
           </div>
         </div>
       )}
-      <div
-        className="rounded-2xl border border-border/70 bg-card divide-y divide-border/50 overflow-hidden"
-        style={{ boxShadow: "var(--shadow-sm)" }}
-      >
-        {items.map((it) => {
-          const Icon = it.icon;
-          return (
-            <button
-              key={it.key}
-              onClick={it.onClick}
-              className={cn(
-                "w-full flex items-center gap-3 text-left hover:bg-secondary/40 active:scale-[0.997] transition-all group",
-                compact ? "px-3 py-2.5" : "px-4 py-3",
-              )}
-            >
-              <div
+      {items.length === 0 ? (
+        <div
+          className="rounded-2xl border border-border/70 bg-card px-4 py-4 flex items-start gap-3"
+          style={{ boxShadow: "var(--shadow-sm)" }}
+        >
+          <div className="rounded-xl flex items-center justify-center flex-shrink-0 w-9 h-9 text-success bg-success/10">
+            <CheckCircle2 className="w-4 h-4" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold leading-tight text-foreground text-[14px]">Alles loopt rustig vandaag.</p>
+            <p className="text-[11px] text-muted-foreground/80 mt-0.5">
+              GlowSuite houdt betalingen, afspraken en automations voor je in de gaten.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div
+          className="rounded-2xl border border-border/70 bg-card divide-y divide-border/50 overflow-hidden"
+          style={{ boxShadow: "var(--shadow-sm)" }}
+        >
+          {items.map((it) => {
+            const Icon = it.icon;
+            return (
+              <button
+                key={it.key}
+                onClick={it.onClick}
                 className={cn(
-                  "rounded-xl flex items-center justify-center flex-shrink-0",
-                  compact ? "w-7 h-7" : "w-9 h-9",
-                  toneClass(it.tone),
+                  "w-full flex items-center gap-3 text-left hover:bg-secondary/40 active:scale-[0.997] transition-all group",
+                  compact ? "px-3 py-2.5" : "px-4 py-3",
                 )}
               >
-                <Icon className={cn(compact ? "w-3.5 h-3.5" : "w-4 h-4")} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p
+                <div
                   className={cn(
-                    "font-semibold leading-tight text-foreground truncate",
-                    compact ? "text-[13px]" : "text-[14px]",
+                    "rounded-xl flex items-center justify-center flex-shrink-0",
+                    compact ? "w-7 h-7" : "w-9 h-9",
+                    toneClass(it.tone),
                   )}
                 >
-                  {it.label}
-                </p>
-                <p className="text-[11px] text-muted-foreground/80 mt-0.5 truncate">{it.why}</p>
-              </div>
-              <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all flex-shrink-0" />
-            </button>
-          );
-        })}
-      </div>
+                  <Icon className={cn(compact ? "w-3.5 h-3.5" : "w-4 h-4")} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p
+                    className={cn(
+                      "font-semibold leading-tight text-foreground truncate",
+                      compact ? "text-[13px]" : "text-[14px]",
+                    )}
+                  >
+                    {it.label}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground/80 mt-0.5 truncate">{it.why}</p>
+                </div>
+                <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all flex-shrink-0" />
+              </button>
+            );
+          })}
+        </div>
+      )}
     </section>
   );
 }
