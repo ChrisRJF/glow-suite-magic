@@ -224,20 +224,20 @@ export default function LandingPage() {
   ];
 
   const valueCards = [
-    { icon: Calendar, title: "24/7 online boekingen", desc: "Klanten boeken terwijl jij aan het werk, of slaapt." },
-    { icon: Bot, title: "Slimme AI herinneringen", desc: "Minder no-shows, zonder dat jij iets hoeft te doen." },
-    { icon: CreditCard, title: "Betalingen & aanbetalingen", desc: "Meer zekerheid vooraf via Mollie." },
-    { icon: Repeat, title: "Abonnementen", desc: "Terugkerende omzet, iedere maand opnieuw." },
-    { icon: TrendingUp, title: "AI klantgroei tools", desc: "Meer herhaalboekingen en slimme upsells." },
-    { icon: LineChart, title: "Realtime inzicht", desc: "Zie direct waar geld blijft liggen in je salon." },
+    { icon: Calendar, title: "24/7 online boekingen", desc: "Klanten boeken zelf, ook 's avonds en in het weekend." },
+    { icon: Bot, title: "Automatische herinneringen", desc: "Minder no-shows, zonder dat jij appjes hoeft te sturen." },
+    { icon: CreditCard, title: "Aanbetalingen via Mollie", desc: "Meer zekerheid vooraf bij nieuwe en risicoklanten." },
+    { icon: Repeat, title: "Abonnementen", desc: "Terugkerende maandinkomsten met automatische incasso." },
+    { icon: TrendingUp, title: "Slimme klantopvolging", desc: "Vaste klanten krijgen op tijd een nieuw voorstel." },
+    { icon: LineChart, title: "Realtime inzicht", desc: "Zie direct waar omzet blijft liggen in je salon." },
   ];
 
   const aiBlocks = [
-    { icon: Wand2, t: "Vult lege momenten slimmer op", d: "AI herkent dalmomenten en stelt acties voor om ze te vullen." },
-    { icon: Users, t: "Herkent klanten die bijna terug moeten komen", d: "Automatische winback-suggesties op het juiste moment." },
-    { icon: Target, t: "Geeft omzetkansen aan", d: "Slimme upsells, herboekingen en doelgerichte campagnes." },
-    { icon: Zap, t: "Bespaart tijd met automatisering", d: "Reminders, bevestigingen en opvolging, allemaal automatisch." },
-    { icon: Brain, t: "Laat je slimmer werken", d: "AI inzichten die jou helpen betere keuzes te maken." },
+    { icon: Wand2, t: "Vult lege plekken op het juiste moment", d: "GlowSuite herkent dalmomenten en stelt passende vaste klanten voor." },
+    { icon: Users, t: "Herkent klanten die toe zijn aan een nieuwe afspraak", d: "Persoonlijke voorstellen op het juiste moment, zonder handmatig zoekwerk." },
+    { icon: Target, t: "Geeft concrete omzetkansen aan", d: "Herboekingen, upsells en winback klaar om met één tik te versturen." },
+    { icon: Zap, t: "Minder handmatig opvolgen", d: "Bevestigingen, reminders en betalingen gaan automatisch." },
+    { icon: Brain, t: "Eén plek voor je dag", d: "Geen losse appjes en notities meer. Alleen wat vandaag aandacht vraagt." },
   ];
 
   const trustItems = [
@@ -392,13 +392,13 @@ export default function LandingPage() {
           <div className="text-center lg:text-left max-w-xl mx-auto lg:mx-0">
             <Eyebrow icon={Sparkles}>Het salon operating system</Eyebrow>
             <h1 className="text-[34px] sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.05] text-balance">
-              Meer omzet. Minder no-shows.{" "}
+              Minder gaten in je agenda.{" "}
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--accent))]">
-                Minder chaos.
+                Minder no-shows. Meer rust.
               </span>
             </h1>
             <p className="mt-5 sm:mt-6 text-base sm:text-xl text-muted-foreground leading-relaxed">
-              GlowSuite helpt salons en klinieken afspraken, betalingen en klantopvolging automatisch regelen. Een stille operationele assistent die elke dag met je meewerkt.
+              GlowSuite vult lege plekken, voorkomt no-shows en volgt klanten en betalingen automatisch op. Een stille operationele assistent die elke dag met je meewerkt.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center lg:justify-start gap-3 max-w-md sm:max-w-none mx-auto lg:mx-0">
               <CTADemoRequest onClick={() => openDemo("hero-start")} variant="gradient">
@@ -407,7 +407,7 @@ export default function LandingPage() {
               <CTADemoRequest onClick={() => openDemo("hero-demo")}>Bekijk demo</CTADemoRequest>
             </div>
             <p className="mt-5 text-sm text-muted-foreground">
-              Binnen enkele minuten actief. Geen technische installatie. Werkt op mobiel, tablet en desktop.
+              Binnen enkele minuten actief. Wij helpen met de overstap. Geen technische installatie nodig.
             </p>
           </div>
 
@@ -520,12 +520,12 @@ export default function LandingPage() {
             <ol className="relative">
               <span aria-hidden className="absolute left-[18px] top-2 bottom-2 w-px bg-border/70" />
               {[
-                { time: "14:02", icon: Calendar, tag: "Agenda", t: "Lege plek gevonden om 14:30" },
-                { time: "14:03", icon: Users, tag: "Klantopvolging", t: "3 vaste klanten geselecteerd" },
-                { time: "14:05", icon: Heart, tag: "Resultaat", t: "Klant heeft opnieuw geboekt" },
-                { time: "11:24", icon: CreditCard, tag: "Betalingen", t: "Open betaling opgevolgd" },
-                { time: "11:32", icon: CheckCircle2, tag: "Betalingen", t: "Betaling ontvangen" },
-                { time: "09:11", icon: Bell, tag: "No-show preventie", t: "Herinnering automatisch verstuurd" },
+                { time: "09:10", icon: AlertTriangle, tag: "No-show risico", t: "Risico gedetecteerd bij afspraak 10:00" },
+                { time: "09:11", icon: Bell, tag: "Actie", t: "Extra herinnering verstuurd via WhatsApp" },
+                { time: "09:22", icon: CheckCircle2, tag: "Resultaat", t: "Klant heeft de afspraak bevestigd" },
+                { time: "14:02", icon: Calendar, tag: "Lege plek", t: "Gat van 45 minuten gevonden om 14:30" },
+                { time: "14:03", icon: Users, tag: "Selectie", t: "3 vaste klanten klaar voor opvolging" },
+                { time: "14:07", icon: Heart, tag: "Resultaat", t: "Nieuwe afspraak ingepland" },
               ].map((e, idx) => {
                 const Icon = e.icon;
                 return (
@@ -551,7 +551,7 @@ export default function LandingPage() {
             </ol>
 
             <div className="mt-4 pt-4 border-t border-border/60 text-xs text-muted-foreground text-center">
-              Voorbeeld van een normale werkdag. Echte salons zien dit elke dag in hun GlowSuite.
+              Voorbeeld van een normale werkdag. Signaal, actie, resultaat.
             </div>
           </div>
         </div>
@@ -570,9 +570,9 @@ export default function LandingPage() {
         </div>
         <div className="mt-10 grid sm:grid-cols-3 gap-4">
           {[
-            { icon: Clock, t: "Werkt voor je", d: "Acties gebeuren op het juiste moment, ook als jij druk bent." },
-            { icon: ShieldCheck, t: "Houdt overzicht", d: "Geen losse appjes, mailtjes en notities meer." },
-            { icon: TrendingUp, t: "Vindt omzetkansen", d: "Lege plekken, herboekingen en upsells komen vanzelf naar boven." },
+            { icon: Clock, t: "Minder handmatig plannen", d: "Opvolging en herinneringen gaan automatisch, ook als jij druk bent." },
+            { icon: ShieldCheck, t: "Minder vergeten opvolging", d: "Geen losse WhatsApp berichten en notities meer. Alles op één plek." },
+            { icon: TrendingUp, t: "Minder lege plekken", d: "Vrije momenten worden opgemerkt en aan de juiste klanten voorgesteld." },
           ].map((c) => {
             const Icon = c.icon;
             return (
@@ -632,10 +632,10 @@ export default function LandingPage() {
         <div className="max-w-2xl">
           <Eyebrow>Wat je krijgt</Eyebrow>
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-            Eén platform. Zes manieren om meer omzet te draaien.
+            Eén systeem voor je hele dagelijkse operatie.
           </h2>
           <p className="mt-4 text-muted-foreground text-lg">
-            Geen losse tools meer. GlowSuite combineert agenda, betalingen en AI in één premium systeem.
+            Geen losse tools meer. Agenda, betalingen, klantopvolging en inzicht werken samen in één rustige interface.
           </p>
         </div>
         <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -817,11 +817,11 @@ export default function LandingPage() {
         <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[
             { icon: Calendar, t: "Meer boekingen", d: "Klanten boeken zelf, ook 's avonds en in het weekend." },
-            { icon: Bell, t: "Minder no-shows", d: "Slimme herinneringen via WhatsApp en e-mail." },
-            { icon: Heart, t: "Meer herhaalklanten", d: "Automatische opvolging op het juiste moment." },
-            { icon: Clock, t: "Meer rust in je planning", d: "Geen losse appjes en mailtjes meer." },
-            { icon: TrendingUp, t: "Meer omzetkansen", d: "AI laat zien waar geld blijft liggen." },
-            { icon: Coins, t: "Terugkerende inkomsten", d: "Bouw vaste maandinkomsten op met abonnementen." },
+            { icon: Bell, t: "Minder no-shows", d: "Automatische herinneringen via WhatsApp en e-mail." },
+            { icon: Heart, t: "Meer herhaalklanten", d: "Vaste klanten krijgen op tijd een persoonlijk voorstel." },
+            { icon: Clock, t: "Minder handmatig werk", d: "Geen losse appjes, mailtjes of notities meer." },
+            { icon: TrendingUp, t: "Minder lege plekken", d: "Dalmomenten worden actief opgevuld." },
+            { icon: Coins, t: "Terugkerende inkomsten", d: "Bouw vaste maandomzet op met abonnementen." },
           ].map((r) => {
             const Icon = r.icon;
             return (
@@ -1142,13 +1142,13 @@ export default function LandingPage() {
         />
         <div className="max-w-2xl mx-auto">
           <h2 className="text-3xl sm:text-5xl font-bold tracking-tight">
-            Klaar voor meer groei en{" "}
+            Klaar voor minder chaos en{" "}
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--accent))]">
-              minder gedoe?
+              meer rust in je salon?
             </span>
           </h2>
           <p className="mt-5 text-lg text-muted-foreground">
-            Werk slimmer met GlowSuite. Meer rust, meer boekingen en meer omzet in je salon.
+            Ontdek hoe GlowSuite je dag rustiger en winstgevender maakt. Wij helpen je met de overstap.
           </p>
           <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 max-w-md sm:max-w-none mx-auto">
             <CTADemoRequest onClick={() => openDemo("final-cta-start")} variant="gradient">
