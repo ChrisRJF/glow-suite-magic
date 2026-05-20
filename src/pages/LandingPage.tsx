@@ -398,7 +398,7 @@ export default function LandingPage() {
               </span>
             </h1>
             <p className="mt-5 sm:mt-6 text-base sm:text-xl text-muted-foreground leading-relaxed">
-              GlowSuite vult lege plekken, voorkomt no-shows en volgt klanten en betalingen automatisch op. Een stille operationele assistent die elke dag met je meewerkt.
+              Geen losse WhatsAppjes meer. Geen vergeten opvolging. Geen lege plekken die je niet ziet. GlowSuite werkt elke dag rustig op de achtergrond met je mee.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center lg:justify-start gap-3 max-w-md sm:max-w-none mx-auto lg:mx-0">
               <CTADemoRequest onClick={() => openDemo("hero-start")} variant="gradient">
