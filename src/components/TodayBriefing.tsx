@@ -18,9 +18,10 @@ interface TodayBriefingProps {
   variant?: "default" | "compact";
   title?: string;
   hideHeader?: boolean;
+  showEmptyState?: boolean;
 }
 
-export function TodayBriefing({ variant = "default", title, hideHeader = false }: TodayBriefingProps = {}) {
+export function TodayBriefing({ variant = "default", title, hideHeader = false, showEmptyState = false }: TodayBriefingProps = {}) {
   const navigate = useNavigate();
   const { data: payments, loading: paymentsLoading } = usePayments();
   const { data: appointments, loading: apptsLoading } = useAppointments();
