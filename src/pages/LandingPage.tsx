@@ -392,13 +392,13 @@ export default function LandingPage() {
           <div className="text-center lg:text-left max-w-xl mx-auto lg:mx-0">
             <Eyebrow icon={Sparkles}>Het salon operating system</Eyebrow>
             <h1 className="text-[34px] sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.05] text-balance">
-              Meer omzet. Minder no-shows.{" "}
+              Minder gaten in je agenda.{" "}
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--accent))]">
-                Minder chaos.
+                Minder no-shows. Meer rust.
               </span>
             </h1>
             <p className="mt-5 sm:mt-6 text-base sm:text-xl text-muted-foreground leading-relaxed">
-              GlowSuite helpt salons en klinieken afspraken, betalingen en klantopvolging automatisch regelen. Een stille operationele assistent die elke dag met je meewerkt.
+              GlowSuite vult lege plekken, voorkomt no-shows en volgt klanten en betalingen automatisch op. Een stille operationele assistent die elke dag met je meewerkt.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center lg:justify-start gap-3 max-w-md sm:max-w-none mx-auto lg:mx-0">
               <CTADemoRequest onClick={() => openDemo("hero-start")} variant="gradient">
@@ -407,7 +407,7 @@ export default function LandingPage() {
               <CTADemoRequest onClick={() => openDemo("hero-demo")}>Bekijk demo</CTADemoRequest>
             </div>
             <p className="mt-5 text-sm text-muted-foreground">
-              Binnen enkele minuten actief. Geen technische installatie. Werkt op mobiel, tablet en desktop.
+              Binnen enkele minuten actief. Wij helpen met de overstap. Geen technische installatie nodig.
             </p>
           </div>
 
