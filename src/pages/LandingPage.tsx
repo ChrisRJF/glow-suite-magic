@@ -817,11 +817,11 @@ export default function LandingPage() {
         <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[
             { icon: Calendar, t: "Meer boekingen", d: "Klanten boeken zelf, ook 's avonds en in het weekend." },
-            { icon: Bell, t: "Minder no-shows", d: "Slimme herinneringen via WhatsApp en e-mail." },
-            { icon: Heart, t: "Meer herhaalklanten", d: "Automatische opvolging op het juiste moment." },
-            { icon: Clock, t: "Meer rust in je planning", d: "Geen losse appjes en mailtjes meer." },
-            { icon: TrendingUp, t: "Meer omzetkansen", d: "AI laat zien waar geld blijft liggen." },
-            { icon: Coins, t: "Terugkerende inkomsten", d: "Bouw vaste maandinkomsten op met abonnementen." },
+            { icon: Bell, t: "Minder no-shows", d: "Automatische herinneringen via WhatsApp en e-mail." },
+            { icon: Heart, t: "Meer herhaalklanten", d: "Vaste klanten krijgen op tijd een persoonlijk voorstel." },
+            { icon: Clock, t: "Minder handmatig werk", d: "Geen losse appjes, mailtjes of notities meer." },
+            { icon: TrendingUp, t: "Minder lege plekken", d: "Dalmomenten worden actief opgevuld." },
+            { icon: Coins, t: "Terugkerende inkomsten", d: "Bouw vaste maandomzet op met abonnementen." },
           ].map((r) => {
             const Icon = r.icon;
             return (
