@@ -478,6 +478,118 @@ export default function LandingPage() {
         </div>
       </Section>
 
+      {/* === LIVE ACTIVITY FEED — "GlowSuite werkt op de achtergrond" === */}
+      <Section className="bg-muted/30 border-y border-border/60">
+        <div className="grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
+          <div className="max-w-xl">
+            <Eyebrow icon={Zap}>Vandaag in jouw salon</Eyebrow>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+              Een stille assistent die op de achtergrond meedraait.
+            </h2>
+            <p className="mt-4 text-muted-foreground text-lg">
+              Geen knoppen indrukken. GlowSuite ziet wat er nodig is en handelt het rustig af. Jij ziet alleen het resultaat.
+            </p>
+            <ul className="mt-6 space-y-2.5 text-sm">
+              {[
+                "Vult lege plekken met de juiste vaste klanten",
+                "Voorkomt no-shows voordat ze gebeuren",
+                "Volgt openstaande betalingen automatisch op",
+                "Herinnert klanten op het juiste moment",
+              ].map((i) => (
+                <li key={i} className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-primary shrink-0" />{i}</li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Activity feed mock */}
+          <div
+            className="relative rounded-3xl border border-border/60 bg-card p-5 sm:p-6"
+            style={{ boxShadow: "0 24px 60px -28px hsl(var(--primary) / 0.28)" }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                </span>
+                <span className="text-sm font-semibold">Live activiteit</span>
+              </div>
+              <span className="text-xs text-muted-foreground">vandaag</span>
+            </div>
+
+            <ol className="relative">
+              <span aria-hidden className="absolute left-[18px] top-2 bottom-2 w-px bg-border/70" />
+              {[
+                { time: "14:02", icon: Calendar, tag: "Agenda", t: "Lege plek gevonden om 14:30" },
+                { time: "14:03", icon: Users, tag: "Klantopvolging", t: "3 vaste klanten geselecteerd" },
+                { time: "14:05", icon: Heart, tag: "Resultaat", t: "Klant heeft opnieuw geboekt" },
+                { time: "11:24", icon: CreditCard, tag: "Betalingen", t: "Open betaling opgevolgd" },
+                { time: "11:32", icon: CheckCircle2, tag: "Betalingen", t: "Betaling ontvangen" },
+                { time: "09:11", icon: Bell, tag: "No-show preventie", t: "Herinnering automatisch verstuurd" },
+              ].map((e, idx) => {
+                const Icon = e.icon;
+                return (
+                  <li
+                    key={`${e.time}-${e.t}`}
+                    className="relative flex items-start gap-3 py-2.5 animate-fade-in"
+                    style={{ animationDelay: `${idx * 120}ms`, animationFillMode: "backwards" }}
+                  >
+                    <div className="relative z-10 w-9 h-9 rounded-full bg-background border border-border/70 text-primary flex items-center justify-center shrink-0">
+                      <Icon className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0 flex-1 pt-1">
+                      <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                        <span className="tabular-nums font-medium">{e.time}</span>
+                        <span className="text-muted-foreground/60">·</span>
+                        <span className="uppercase tracking-wide text-primary/80 font-semibold">{e.tag}</span>
+                      </div>
+                      <div className="mt-0.5 text-sm font-medium leading-snug">{e.t}</div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+
+            <div className="mt-4 pt-4 border-t border-border/60 text-xs text-muted-foreground text-center">
+              Voorbeeld van een normale werkdag. Echte salons zien dit elke dag in hun GlowSuite.
+            </div>
+          </div>
+        </div>
+      </Section>
+
+      {/* === WAAROM HET ANDERS VOELT === */}
+      <Section>
+        <div className="max-w-3xl mx-auto text-center">
+          <Eyebrow icon={Heart}>Waarom het anders voelt</Eyebrow>
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+            GlowSuite wacht niet tot jij actie neemt.
+          </h2>
+          <p className="mt-4 text-muted-foreground text-lg">
+            Het systeem helpt actief mee met opvolging, lege plekken, no-shows en betalingen. Daardoor voelt je salon rustiger en overzichtelijker, zonder dat je iets extra hoeft te doen.
+          </p>
+        </div>
+        <div className="mt-10 grid sm:grid-cols-3 gap-4">
+          {[
+            { icon: Clock, t: "Werkt voor je", d: "Acties gebeuren op het juiste moment, ook als jij druk bent." },
+            { icon: ShieldCheck, t: "Houdt overzicht", d: "Geen losse appjes, mailtjes en notities meer." },
+            { icon: TrendingUp, t: "Vindt omzetkansen", d: "Lege plekken, herboekingen en upsells komen vanzelf naar boven." },
+          ].map((c) => {
+            const Icon = c.icon;
+            return (
+              <Card key={c.t} className="p-6">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-3">
+                  <Icon className="w-5 h-5" />
+                </div>
+                <h3 className="font-semibold text-base">{c.t}</h3>
+                <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">{c.d}</p>
+              </Card>
+            );
+          })}
+        </div>
+      </Section>
+
+
+
       <Section id="voor-wie" className="border-t border-border/60">
 
         <div className="max-w-2xl">
