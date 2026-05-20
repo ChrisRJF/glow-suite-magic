@@ -398,16 +398,16 @@ export default function LandingPage() {
               </span>
             </h1>
             <p className="mt-5 sm:mt-6 text-base sm:text-xl text-muted-foreground leading-relaxed">
-              GlowSuite helpt salons actief met afspraken, betalingen, opvolging en no-show preventie. Geen losse WhatsAppjes meer. Geen vergeten opvolging. Alleen rust in je dag.
+              GlowSuite werkt actief mee aan je dag. Vult lege plekken, voorkomt no-shows en volgt klanten en betalingen rustig op de achtergrond op. Geen losse WhatsAppjes meer. Geen vergeten opvolging.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center lg:justify-start gap-3 max-w-md sm:max-w-none mx-auto lg:mx-0">
               <CTADemoRequest onClick={() => openDemo("hero-start")} variant="gradient">
                 Start gratis proefperiode <ArrowRight className="w-4 h-4 ml-1 inline shrink-0" />
               </CTADemoRequest>
-              <CTADemoRequest onClick={() => openDemo("hero-demo")}>Bekijk demo</CTADemoRequest>
+              <CTADemoRequest onClick={() => openDemo("hero-demo")}>Bekijk hoe GlowSuite meewerkt</CTADemoRequest>
             </div>
             <p className="mt-5 text-sm text-muted-foreground">
-              Binnen enkele minuten actief. Wij helpen met de overstap. Geen technische installatie nodig.
+              Ontwikkeld voor salons en klinieken. Binnen enkele minuten actief. Wij helpen met de overstap.
             </p>
           </div>
 
