@@ -390,24 +390,24 @@ export default function LandingPage() {
         <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
           {/* LEFT: copy + CTA */}
           <div className="text-center lg:text-left max-w-xl mx-auto lg:mx-0">
-            <Eyebrow icon={Brain}>Slim salonplatform met AI</Eyebrow>
+            <Eyebrow icon={Sparkles}>Het salon operating system</Eyebrow>
             <h1 className="text-[34px] sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.05] text-balance">
-              Laat je salon groeien op{" "}
+              Meer omzet. Minder no-shows.{" "}
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--accent))]">
-                automatische piloot.
+                Minder chaos.
               </span>
             </h1>
             <p className="mt-5 sm:mt-6 text-base sm:text-xl text-muted-foreground leading-relaxed">
-              GlowSuite automatiseert boekingen, betalingen, klantopvolging en slimme AI taken. Zo verdien je meer en houd je meer tijd over.
+              GlowSuite helpt salons en klinieken afspraken, betalingen en klantopvolging automatisch regelen. Een stille operationele assistent die elke dag met je meewerkt.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center lg:justify-start gap-3 max-w-md sm:max-w-none mx-auto lg:mx-0">
               <CTADemoRequest onClick={() => openDemo("hero-start")} variant="gradient">
                 Start gratis proefperiode <ArrowRight className="w-4 h-4 ml-1 inline shrink-0" />
               </CTADemoRequest>
-              <CTADemoRequest onClick={() => openDemo("hero-demo")}>Vraag demo aan</CTADemoRequest>
+              <CTADemoRequest onClick={() => openDemo("hero-demo")}>Bekijk demo</CTADemoRequest>
             </div>
             <p className="mt-5 text-sm text-muted-foreground">
-              Binnen enkele minuten live • Geen technische kennis nodig • Gemaakt voor salons
+              Binnen enkele minuten actief. Geen technische installatie. Werkt op mobiel, tablet en desktop.
             </p>
           </div>
 
