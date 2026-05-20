@@ -1153,8 +1153,11 @@ export default function LandingPage() {
         <div className="max-w-2xl">
           <Eyebrow icon={Shield}>Waarom GlowSuite</Eyebrow>
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-            Gebouwd op vertrouwen, ontworpen voor groei.
+            Ontwikkeld voor salons en klinieken die rust en grip willen.
           </h2>
+          <p className="mt-4 text-muted-foreground text-lg">
+            Veilige betalingen, eigen klantdata en dagelijks inzicht in afspraken, betalingen en opvolging. Zonder gedoe.
+          </p>
         </div>
         <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {trustItems.map((t) => {
