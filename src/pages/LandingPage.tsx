@@ -531,7 +531,7 @@ export default function LandingPage() {
                 return (
                   <li
                     key={`${e.time}-${e.t}`}
-                    className="relative flex items-start gap-3 py-2.5 animate-fade-in"
+                    className="relative flex items-start gap-3 py-2.5 animate-fade-in-up"
                     style={{ animationDelay: `${idx * 120}ms`, animationFillMode: "backwards" }}
                   >
                     <div className="relative z-10 w-9 h-9 rounded-full bg-background border border-border/70 text-primary flex items-center justify-center shrink-0">
