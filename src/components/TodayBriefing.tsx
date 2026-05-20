@@ -124,7 +124,7 @@ export function TodayBriefing({ variant = "default", title, hideHeader = false, 
     return <Skeleton className={cn(compact ? "h-20" : "h-28", "rounded-2xl")} />;
   }
 
-  if (items.length === 0) return null;
+  if (items.length === 0 && !showEmptyState) return null;
 
   const toneClass = (tone: string) => {
     switch (tone) {
