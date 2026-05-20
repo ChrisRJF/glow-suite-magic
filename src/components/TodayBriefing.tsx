@@ -78,7 +78,7 @@ export function TodayBriefing({ variant = "default", title, hideHeader = false, 
         key: "pay",
         icon: CreditCard,
         label: `${openPaymentsToday.length} ${openPaymentsToday.length === 1 ? "klant moet" : "klanten moeten"} vandaag nog betalen`,
-        why: "Openstaande betalingen aangemaakt voor vandaag.",
+        why: "Betalingen voor vandaag die nog openstaan.",
         onClick: () => navigate("/glowpay?filter=pending"),
         tone: "warning",
       });
@@ -100,7 +100,7 @@ export function TodayBriefing({ variant = "default", title, hideHeader = false, 
         key: "mem",
         icon: Crown,
         label: `${expiringMemberships.length} ${expiringMemberships.length === 1 ? "abonnement verloopt" : "abonnementen verlopen"} binnenkort`,
-        why: "Looptijd eindigt binnen 14 dagen — goed moment om te verlengen.",
+        why: "Looptijd eindigt binnen 14 dagen. Goed moment om te verlengen.",
         onClick: () => navigate("/abonnementen"),
         tone: "muted",
       });
@@ -110,8 +110,8 @@ export function TodayBriefing({ variant = "default", title, hideHeader = false, 
       list.push({
         key: "quiet",
         icon: Sparkles,
-        label: `Rustige ${dayName} — goed moment voor een campagne`,
-        why: `Slechts ${todaysAppts.length} ${todaysAppts.length === 1 ? "afspraak" : "afspraken"} ingepland vandaag.`,
+        label: `Rustige ${dayName}. Goed moment voor een campagne`,
+        why: `Slechts ${todaysAppts.length} ${todaysAppts.length === 1 ? "afspraak" : "afspraken"} voor vandaag ingepland.`,
         onClick: () => navigate("/marketing"),
         tone: "success",
       });
@@ -147,7 +147,7 @@ export function TodayBriefing({ variant = "default", title, hideHeader = false, 
             <h2 className={cn(compact ? "text-sm font-semibold" : "text-section-title")}>
               {title || "Vandaag"}
             </h2>
-            {!compact && <p className="text-meta mt-0.5">Wat aandacht verdient, nu</p>}
+            {!compact && <p className="text-meta mt-0.5">Wat vandaag aandacht vraagt</p>}
           </div>
         </div>
       )}
@@ -162,7 +162,7 @@ export function TodayBriefing({ variant = "default", title, hideHeader = false, 
           <div className="flex-1 min-w-0">
             <p className="font-semibold leading-tight text-foreground text-[14px]">Alles loopt rustig vandaag.</p>
             <p className="text-[11px] text-muted-foreground/80 mt-0.5">
-              GlowSuite houdt betalingen, afspraken en automations voor je in de gaten.
+              GlowSuite houdt betalingen, afspraken en automatische acties voor je in de gaten.
             </p>
           </div>
         </div>
