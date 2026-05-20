@@ -21,7 +21,7 @@ import { DirectCheckoutDialog } from "@/components/DirectCheckoutDialog";
 import shotDashboard from "@/assets/landing/dashboard.png";
 import shotAgenda from "@/assets/landing/agenda.png";
 import shotBetalingen from "@/assets/landing/betalingen.png";
-import shotAbonnementen from "@/assets/landing/abonnementen.png";
+
 import shotRapportage from "@/assets/landing/rapportage.png";
 import heroPhones from "@/assets/glowsuite-hero-phones.png";
 
