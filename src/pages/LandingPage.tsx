@@ -601,10 +601,10 @@ export default function LandingPage() {
         <div className="max-w-2xl">
           <Eyebrow icon={Brain}>AI binnen GlowSuite</Eyebrow>
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-            AI die geld voor je terugverdient.
+            Slimme acties die concrete omzet opleveren.
           </h2>
           <p className="mt-4 text-muted-foreground text-lg">
-            Geen gimmicks. Slimme AI-tools die met je salon meewerken en concrete omzet opleveren.
+            Geen gimmicks. GlowSuite werkt op de achtergrond mee en geeft je rust, overzicht en groei.
           </p>
         </div>
         <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
