@@ -14,13 +14,20 @@ import { cn } from "@/lib/utils";
  *  - memberships expiring within 14 days
  *  - quiet-day nudge (only when today is genuinely quiet)
  */
-export function TodayBriefing() {
+interface TodayBriefingProps {
+  variant?: "default" | "compact";
+  title?: string;
+  hideHeader?: boolean;
+}
+
+export function TodayBriefing({ variant = "default", title, hideHeader = false }: TodayBriefingProps = {}) {
   const navigate = useNavigate();
   const { data: payments, loading: paymentsLoading } = usePayments();
   const { data: appointments, loading: apptsLoading } = useAppointments();
   const { data: memberships, loading: memLoading } = useCustomerMemberships();
 
   const loading = paymentsLoading || apptsLoading || memLoading;
+  const compact = variant === "compact";
 
   const items = useMemo(() => {
     const today = new Date();
