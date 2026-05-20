@@ -20,6 +20,7 @@ import { ACTION_LABELS } from "@/lib/autopilotScoring";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { AutoRevenueMetrics } from "@/components/AutoRevenueMetrics";
+import { WhyHint } from "@/components/WhyHint";
 
 interface ActionLogEntry {
   id: string;
@@ -376,6 +377,11 @@ export function AutoRevenueEngine({ source = "overview" }: AutoRevenueEngineProp
             <p className="text-base font-semibold text-primary">{formatEuro(emptySlots * avgServicePrice)}</p>
           </div>
         </div>
+        {emptySlots > 0 && (
+          <WhyHint className="mb-3 -mt-1 px-1">
+            Lege plekken automatisch gevonden tussen je afspraken van vandaag.
+          </WhyHint>
+        )}
 
         {/* Autopilot decisions (scoring) */}
         {scoredDecisions.length > 0 && (
