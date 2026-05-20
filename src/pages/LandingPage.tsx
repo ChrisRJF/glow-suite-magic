@@ -21,7 +21,7 @@ import { DirectCheckoutDialog } from "@/components/DirectCheckoutDialog";
 import shotDashboard from "@/assets/landing/dashboard.png";
 import shotAgenda from "@/assets/landing/agenda.png";
 import shotBetalingen from "@/assets/landing/betalingen.png";
-import shotAbonnementen from "@/assets/landing/abonnementen.png";
+
 import shotRapportage from "@/assets/landing/rapportage.png";
 import heroPhones from "@/assets/glowsuite-hero-phones.png";
 
@@ -398,7 +398,7 @@ export default function LandingPage() {
               </span>
             </h1>
             <p className="mt-5 sm:mt-6 text-base sm:text-xl text-muted-foreground leading-relaxed">
-              Geen losse WhatsAppjes meer. Geen vergeten opvolging. Geen lege plekken die je niet ziet. GlowSuite werkt elke dag rustig op de achtergrond met je mee.
+              GlowSuite helpt salons actief met afspraken, betalingen, opvolging en no-show preventie. Geen losse WhatsAppjes meer. Geen vergeten opvolging. Alleen rust in je dag.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center lg:justify-start gap-3 max-w-md sm:max-w-none mx-auto lg:mx-0">
               <CTADemoRequest onClick={() => openDemo("hero-start")} variant="gradient">
@@ -891,7 +891,57 @@ export default function LandingPage() {
             </ul>
           </div>
           <MockWindow url="salon.glowsuite.nl/abonnementen">
-            <Shot src={shotAbonnementen} alt="Abonnementen dashboard met MRR, leden en churn" />
+            <div className="p-5 sm:p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Memberships</div>
+                  <div className="mt-1 text-lg font-semibold">Deze maand</div>
+                </div>
+                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Live
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { label: "MRR", value: "€ 2.450", sub: "+12% vs vorige maand" },
+                  { label: "Actieve leden", value: "47", sub: "+5 deze maand" },
+                  { label: "Churn", value: "1,8%", sub: "Stabiel" },
+                ].map((s) => (
+                  <div key={s.label} className="rounded-xl border border-border/60 bg-background/70 p-3">
+                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">{s.label}</div>
+                    <div className="mt-1 text-xl font-bold tabular-nums">{s.value}</div>
+                    <div className="mt-0.5 text-[11px] text-muted-foreground">{s.sub}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="rounded-xl border border-border/60 bg-background/70 divide-y divide-border/50">
+                {[
+                  { name: "Glow Essentials", price: "€ 39", members: 22, color: "from-primary to-accent" },
+                  { name: "Glow Plus", price: "€ 69", members: 18, color: "from-accent to-primary" },
+                  { name: "Glow VIP", price: "€ 129", members: 7, color: "from-primary to-accent" },
+                ].map((p) => (
+                  <div key={p.name} className="flex items-center justify-between px-4 py-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${p.color} text-white flex items-center justify-center text-[11px] font-bold`}>
+                        {p.name.split(" ")[1]?.[0] ?? "G"}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold truncate">{p.name}</div>
+                        <div className="text-[11px] text-muted-foreground">{p.members} actieve leden</div>
+                      </div>
+                    </div>
+                    <div className="text-sm font-semibold tabular-nums">{p.price}<span className="text-[11px] text-muted-foreground font-normal">/mnd</span></div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                <span>Automatische incasso via Mollie</span>
+                <span>Bijgewerkt zojuist</span>
+              </div>
+            </div>
           </MockWindow>
         </div>
       </Section>
