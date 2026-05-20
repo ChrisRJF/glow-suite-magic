@@ -623,9 +623,9 @@ export default function LandingPage() {
             <Sparkles className="w-5 h-5" />
           </div>
           <div>
-            <div className="font-semibold text-lg">GlowSuite lost dit automatisch op.</div>
+            <div className="font-semibold text-lg">GlowSuite lost dit rustig op de achtergrond op.</div>
             <div className="text-muted-foreground text-sm mt-1">
-              Slimme AI-tools die met je salon meewerken, dag en nacht.
+              Een stille assistent die met je salon meewerkt, dag en nacht.
             </div>
           </div>
         </div>
