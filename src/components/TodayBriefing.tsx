@@ -142,21 +142,21 @@ export function TodayBriefing({ variant = "default", title, hideHeader = false, 
   return (
     <section aria-label="Vandaag">
       {!hideHeader && (
-        <div className="flex items-end justify-between mb-3">
+        <div className="flex items-end justify-between mb-2.5">
           <div>
             <h2 className={cn(compact ? "text-sm font-semibold" : "text-section-title")}>
               {title || "Vandaag"}
             </h2>
-            {!compact && <p className="text-meta mt-1">Wat aandacht verdient — nu</p>}
+            {!compact && <p className="text-meta mt-0.5">Wat aandacht verdient, nu</p>}
           </div>
         </div>
       )}
       {items.length === 0 ? (
         <div
-          className="rounded-2xl border border-border/70 bg-card px-4 py-4 flex items-start gap-3"
+          className="rounded-2xl border border-border/60 bg-card/70 px-4 py-3.5 flex items-start gap-3"
           style={{ boxShadow: "var(--shadow-sm)" }}
         >
-          <div className="rounded-xl flex items-center justify-center flex-shrink-0 w-9 h-9 text-success bg-success/10">
+          <div className="rounded-xl flex items-center justify-center flex-shrink-0 w-8 h-8 text-success bg-success/10">
             <CheckCircle2 className="w-4 h-4" />
           </div>
           <div className="flex-1 min-w-0">
@@ -168,7 +168,7 @@ export function TodayBriefing({ variant = "default", title, hideHeader = false, 
         </div>
       ) : (
         <div
-          className="rounded-2xl border border-border/70 bg-card divide-y divide-border/50 overflow-hidden"
+          className="rounded-2xl border border-border/60 bg-card divide-y divide-border/50 overflow-hidden"
           style={{ boxShadow: "var(--shadow-sm)" }}
         >
           {items.map((it) => {
@@ -178,14 +178,14 @@ export function TodayBriefing({ variant = "default", title, hideHeader = false, 
                 key={it.key}
                 onClick={it.onClick}
                 className={cn(
-                  "w-full flex items-center gap-3 text-left hover:bg-secondary/40 active:scale-[0.997] transition-all group",
-                  compact ? "px-3 py-2.5" : "px-4 py-3",
+                  "w-full flex items-center gap-3 text-left hover:bg-secondary/40 active:scale-[0.997] transition-all duration-200 ease-out group",
+                  compact ? "px-3 py-2" : "px-4 py-2.5",
                 )}
               >
                 <div
                   className={cn(
                     "rounded-xl flex items-center justify-center flex-shrink-0",
-                    compact ? "w-7 h-7" : "w-9 h-9",
+                    compact ? "w-7 h-7" : "w-8 h-8",
                     toneClass(it.tone),
                   )}
                 >

@@ -101,7 +101,7 @@ export function TodayAtAGlance() {
     {
       label: emptySlots > 0
         ? `${emptySlots} lege ${emptySlots === 1 ? "plek kan" : "plekken kunnen"} vandaag gevuld worden`
-        : "Agenda is volgeboekt vandaag",
+        : "Agenda lijkt goed gevuld vandaag.",
       value: emptySlots,
       icon: CalendarX,
       tone: emptySlots > 0 ? "muted" : "success",
@@ -112,7 +112,7 @@ export function TodayAtAGlance() {
     {
       label: projectedExtraRevenue > 0
         ? "Potentiële extra omzet vandaag"
-        : "Geen extra omzet vandaag verwacht",
+        : "Vandaag draait stabiel.",
       value: projectedExtraRevenue,
       isCurrency: true,
       icon: TrendingUp,
@@ -124,7 +124,7 @@ export function TodayAtAGlance() {
     {
       label: intelligence.churnRisk > 0
         ? `${intelligence.churnRisk} vaste ${intelligence.churnRisk === 1 ? "klant dreigt" : "klanten dreigen"} af te haken`
-        : "Geen klanten in churn risico",
+        : "Geen klanten in risico.",
       value: intelligence.churnRisk,
       icon: AlertTriangle,
       tone: intelligence.churnRisk > 0 ? "amber" : "success",
@@ -135,7 +135,7 @@ export function TodayAtAGlance() {
     {
       label: intelligence.followUp > 0
         ? `${intelligence.followUp} klanten klaar voor herhaalafspraak`
-        : "Geen openstaande follow ups",
+        : "Geen directe opvolging nodig.",
       value: intelligence.followUp,
       icon: Clock,
       tone: intelligence.followUp > 0 ? "muted" : "success",
@@ -146,7 +146,7 @@ export function TodayAtAGlance() {
     {
       label: pendingPayments > 0
         ? `${pendingPayments} ${pendingPayments === 1 ? "afspraak wacht" : "afspraken wachten"} op betaling`
-        : "Geen openstaande betalingen",
+        : "Alle betalingen lopen door.",
       value: pendingPayments,
       icon: Hourglass,
       tone: pendingPayments > 0 ? "amber" : "success",
@@ -157,7 +157,7 @@ export function TodayAtAGlance() {
     {
       label: intelligence.noShowRisk > 0
         ? `${intelligence.noShowRisk} ${intelligence.noShowRisk === 1 ? "afspraak heeft" : "afspraken hebben"} no show risico`
-        : "Geen no show risico",
+        : "Alles loopt volgens planning.",
       value: intelligence.noShowRisk,
       icon: ShieldAlert,
       tone: intelligence.noShowRisk > 0 ? "rose" : "success",
@@ -169,10 +169,16 @@ export function TodayAtAGlance() {
 
   return (
     <section>
-      <div className="flex items-end justify-between mb-3 gap-3">
+      <div className="flex items-end justify-between mb-2.5 gap-3">
         <div>
           <h2 className="text-section-title">Vandaag in één oogopslag</h2>
-          <p className="text-meta mt-1">Operationele signalen uit je salon</p>
+          <p className="text-meta mt-0.5 flex items-center gap-1.5">
+            <span className="relative inline-flex h-1.5 w-1.5">
+              <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500/60 opacity-75 animate-ping" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            </span>
+            Live bijgewerkt
+          </p>
         </div>
         <span
           className={`text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap ${
@@ -184,17 +190,17 @@ export function TodayAtAGlance() {
           {demoMode ? "Demo omgeving" : "Live data"}
         </span>
       </div>
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-1.5 sm:gap-2">
         {cards.map((c, i) => (
           <button
             key={c.label}
             onClick={() => navigate(c.to)}
             style={{ animationDelay: `${i * 30}ms` }}
-            className={`text-left relative rounded-2xl border border-border/60 p-3 bg-gradient-to-br ${toneClass[c.tone]} transition-all hover:border-primary/30 hover:-translate-y-0.5 active:scale-[0.997] animate-fade-in group`}
+            className={`text-left relative rounded-xl border border-border/60 p-2.5 bg-gradient-to-br ${toneClass[c.tone]} transition-all duration-200 ease-out hover:border-primary/30 hover:-translate-y-0.5 active:scale-[0.997] animate-fade-in group`}
           >
             <div className="flex items-start justify-between gap-2">
-              <c.icon className="w-4 h-4 opacity-70" />
-              <p className="text-xl font-semibold tabular-nums text-foreground leading-none">
+              <c.icon className="w-3.5 h-3.5 opacity-70" />
+              <p className="text-lg font-semibold tabular-nums text-foreground leading-none">
                 {c.isCurrency ? (
                   <AnimatedCounter value={Number(c.value) || 0} format={(n) => formatEuro(n)} />
                 ) : (
@@ -204,7 +210,7 @@ export function TodayAtAGlance() {
             </div>
             <p className="text-[11px] mt-1.5 leading-snug text-foreground/90">{c.label}</p>
             {c.active && (
-              <p className="mt-2 inline-flex items-center gap-1 text-[10.5px] font-medium text-foreground/70 group-hover:text-primary transition-colors">
+              <p className="mt-1.5 inline-flex items-center gap-1 text-[10.5px] font-medium text-foreground/70 group-hover:text-primary transition-colors">
                 {c.cta}
                 <ArrowRight className="w-2.5 h-2.5 group-hover:translate-x-0.5 transition-transform" />
               </p>

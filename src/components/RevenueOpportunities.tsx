@@ -136,9 +136,9 @@ export function RevenueOpportunities() {
 
   return (
     <section aria-label="Omzetkansen vandaag">
-      <div className="mb-3">
+      <div className="mb-2.5">
         <h2 className="text-section-title">Omzetkansen vandaag</h2>
-        <p className="text-meta mt-1">Waar GlowSuite extra ruimte ziet</p>
+        <p className="text-meta mt-0.5">Waar GlowSuite extra ruimte ziet</p>
       </div>
       <div
         className="rounded-2xl border border-border/60 bg-card/70 divide-y divide-border/40 overflow-hidden"
@@ -150,9 +150,9 @@ export function RevenueOpportunities() {
             <button
               key={it.key}
               onClick={it.onClick}
-              className="w-full flex items-center gap-3 text-left px-4 py-3 hover:bg-secondary/40 active:scale-[0.997] transition-all group"
+              className="w-full flex items-center gap-3 text-left px-4 py-2.5 hover:bg-secondary/40 active:scale-[0.997] transition-all duration-200 ease-out group"
             >
-              <div className={cn("rounded-xl flex items-center justify-center flex-shrink-0 w-9 h-9", accentClass(it.accent))}>
+              <div className={cn("rounded-xl flex items-center justify-center flex-shrink-0 w-8 h-8", accentClass(it.accent))}>
                 <Icon className="w-4 h-4" />
               </div>
               <div className="flex-1 min-w-0">
