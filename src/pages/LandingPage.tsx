@@ -441,8 +441,45 @@ export default function LandingPage() {
         </div>
       </Section>
 
+      {/* === GLOWSUITE WERKT ACTIEF MEE === */}
+      <Section className="border-t border-border/60">
+        <div className="max-w-2xl">
+          <Eyebrow icon={Bot}>GlowSuite werkt actief mee</Eyebrow>
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+            Stille acties die je dag rustiger en winstgevender maken.
+          </h2>
+          <p className="mt-4 text-muted-foreground text-lg">
+            Geen dashboards lezen. GlowSuite let mee op je agenda, betalingen en klanten en onderneemt de juiste actie op het juiste moment.
+          </p>
+        </div>
+        <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[
+            { icon: Calendar, tag: "Agenda", t: "Lege plek om 14:00 gezien", d: "GlowSuite stelde automatisch passende klanten voor." },
+            { icon: AlertTriangle, tag: "No-show preventie", t: "Risico gedetecteerd", d: "Extra herinnering verstuurd voordat de afspraak begint." },
+            { icon: Heart, tag: "Klantopvolging", t: "2 klanten klaar voor een nieuwe afspraak", d: "Persoonlijk voorstel verstuurd via WhatsApp." },
+            { icon: CreditCard, tag: "Betalingen", t: "Openstaande betaling opgevolgd", d: "Vriendelijke herinnering verstuurd. Betaling binnen." },
+            { icon: UserCheck, tag: "Vandaag", t: "Agenda stabiel gevuld", d: "Geen directe actie nodig. GlowSuite blijft meekijken." },
+            { icon: Sparkles, tag: "Omzetkans", t: "3 klanten klaar voor upsell", d: "Voorstel staat klaar om met één tik te versturen." },
+          ].map((c) => {
+            const Icon = c.icon;
+            return (
+              <Card key={c.t} className="p-5 flex items-start gap-3 hover:border-primary/40 transition-colors">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                  <Icon className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-primary/80">{c.tag}</div>
+                  <div className="mt-0.5 font-semibold text-sm leading-snug">{c.t}</div>
+                  <p className="mt-1 text-sm text-muted-foreground leading-relaxed">{c.d}</p>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      </Section>
 
       <Section id="voor-wie" className="border-t border-border/60">
+
         <div className="max-w-2xl">
           <Eyebrow icon={AlertTriangle}>Herken je dit?</Eyebrow>
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
