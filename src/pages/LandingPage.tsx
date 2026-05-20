@@ -1132,6 +1132,15 @@ export default function LandingPage() {
             Een indicatief beeld van wat er verandert zodra GlowSuite op de achtergrond meedraait. Geen marketingclaims, gewoon wat de software wegneemt.
           </p>
         </div>
+        {/* Logo strip placeholder (verschijnt zodra eerste salons live zijn) */}
+        <div className="mt-8 rounded-2xl border border-dashed border-border/60 bg-muted/20 px-6 py-5 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-xs uppercase tracking-wide text-muted-foreground/70">
+          <span className="font-semibold text-muted-foreground/80">Binnenkort live met</span>
+          <span>Salon A</span>
+          <span>Clinic B</span>
+          <span>Studio C</span>
+          <span>Spa D</span>
+          <span>Barber E</span>
+        </div>
         <div className="mt-10 grid md:grid-cols-3 gap-4">
           {[
             { label: "No-show preventie", before: "Losse appjes en gemiste herinneringen", after: "Automatische bevestiging en reminder per klant" },
