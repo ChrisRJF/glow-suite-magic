@@ -301,7 +301,7 @@ export default function LandingPage() {
 
   const faqs = [
     { q: "Is GlowSuite geschikt voor kleine salons?", a: "Ja. GlowSuite werkt voor solo-professionals én teams. Je betaalt alleen voor wat je nodig hebt en je kunt op elk moment opschalen." },
-    { q: "Hoe werkt de AI van GlowSuite precies?", a: "Onze AI kijkt mee in je agenda, klantgedrag en omzetdata. Zo krijg je suggesties voor lege plekken, herhaalboekingen, upsells en marketing, zonder dat jij dashboards hoeft te lezen." },
+    { q: "Hoe werkt de AI van GlowSuite precies?", a: "GlowSuite kijkt rustig mee in je agenda, klanten en betalingen. Op het juiste moment komt er een concrete actie naar boven, zoals een lege plek vullen, een klant opvolgen of een betaling oppakken. Jij beslist, GlowSuite doet het werk." },
     { q: "Kan ik Mollie koppelen?", a: "Ja. Je koppelt je Mollie-account in een paar klikken en ontvangt direct online betalingen, aanbetalingen en abonnementen." },
     { q: "Kan ik GlowSuite op mijn eigen website plaatsen?", a: "Ja. Onze white-label boekingswidget plaats je met één regel code op elke website, van WordPress tot Squarespace." },
     { q: "Werkt dit ook mobiel?", a: "GlowSuite is volledig mobiel geoptimaliseerd. Jij én je klanten werken vanaf elk apparaat." },
@@ -398,16 +398,16 @@ export default function LandingPage() {
               </span>
             </h1>
             <p className="mt-5 sm:mt-6 text-base sm:text-xl text-muted-foreground leading-relaxed">
-              GlowSuite helpt salons actief met afspraken, betalingen, opvolging en no-show preventie. Geen losse WhatsAppjes meer. Geen vergeten opvolging. Alleen rust in je dag.
+              GlowSuite werkt actief mee aan je dag. Vult lege plekken, voorkomt no-shows en volgt klanten en betalingen rustig op de achtergrond op. Geen losse WhatsAppjes meer. Geen vergeten opvolging.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center lg:justify-start gap-3 max-w-md sm:max-w-none mx-auto lg:mx-0">
               <CTADemoRequest onClick={() => openDemo("hero-start")} variant="gradient">
                 Start gratis proefperiode <ArrowRight className="w-4 h-4 ml-1 inline shrink-0" />
               </CTADemoRequest>
-              <CTADemoRequest onClick={() => openDemo("hero-demo")}>Bekijk demo</CTADemoRequest>
+              <CTADemoRequest onClick={() => openDemo("hero-demo")}>Bekijk hoe GlowSuite meewerkt</CTADemoRequest>
             </div>
             <p className="mt-5 text-sm text-muted-foreground">
-              Binnen enkele minuten actief. Wij helpen met de overstap. Geen technische installatie nodig.
+              Ontwikkeld voor salons en klinieken. Binnen enkele minuten actief. Wij helpen met de overstap.
             </p>
           </div>
 
@@ -958,7 +958,7 @@ export default function LandingPage() {
               Eerlijke cijfers. Slimme beslissingen.
             </h2>
             <p className="mt-4 text-muted-foreground text-lg">
-              AI vertaalt je data naar concrete omzetkansen, zonder dat jij dashboards hoeft te lezen.
+              GlowSuite vertaalt je dagelijkse data naar concrete acties: wie opvolgen, welke plek vullen, welke betaling oppikken. Geen dashboards lezen.
             </p>
             <ul className="mt-6 space-y-2.5 text-sm">
               {["Omzettrend per periode", "Top behandelingen & medewerkers", "Klantenwaarde (LTV)", "Slimme inzichten & exports"].map((i) => (
@@ -1153,8 +1153,11 @@ export default function LandingPage() {
         <div className="max-w-2xl">
           <Eyebrow icon={Shield}>Waarom GlowSuite</Eyebrow>
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-            Gebouwd op vertrouwen, ontworpen voor groei.
+            Ontwikkeld voor salons en klinieken die rust en grip willen.
           </h2>
+          <p className="mt-4 text-muted-foreground text-lg">
+            Veilige betalingen, eigen klantdata en dagelijks inzicht in afspraken, betalingen en opvolging. Zonder gedoe.
+          </p>
         </div>
         <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {trustItems.map((t) => {
@@ -1258,7 +1261,7 @@ export default function LandingPage() {
             <CTADemoRequest onClick={() => openDemo("final-cta-start")} variant="gradient">
               Start gratis proefperiode <ArrowRight className="w-4 h-4 ml-1 inline shrink-0" />
             </CTADemoRequest>
-            <CTADemoRequest onClick={() => openDemo("final-cta-demo")}>Bekijk demo</CTADemoRequest>
+            <CTADemoRequest onClick={() => openDemo("final-cta-demo")}>Bekijk het dashboard</CTADemoRequest>
           </div>
           <p className="mt-5 text-xs text-muted-foreground">
             Binnen enkele minuten actief. Geen creditcard nodig. Maandelijks opzegbaar.
