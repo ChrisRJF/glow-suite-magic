@@ -224,7 +224,7 @@ export default function LandingPage() {
   ];
 
   const valueCards = [
-    { icon: Calendar, title: "24/7 online boekingen", desc: "Klanten boeken terwijl jij aan het werk — of slaapt." },
+    { icon: Calendar, title: "24/7 online boekingen", desc: "Klanten boeken terwijl jij aan het werk, of slaapt." },
     { icon: Bot, title: "Slimme AI herinneringen", desc: "Minder no-shows, zonder dat jij iets hoeft te doen." },
     { icon: CreditCard, title: "Betalingen & aanbetalingen", desc: "Meer zekerheid vooraf via Mollie." },
     { icon: Repeat, title: "Abonnementen", desc: "Terugkerende omzet, iedere maand opnieuw." },
@@ -236,7 +236,7 @@ export default function LandingPage() {
     { icon: Wand2, t: "Vult lege momenten slimmer op", d: "AI herkent dalmomenten en stelt acties voor om ze te vullen." },
     { icon: Users, t: "Herkent klanten die bijna terug moeten komen", d: "Automatische winback-suggesties op het juiste moment." },
     { icon: Target, t: "Geeft omzetkansen aan", d: "Slimme upsells, herboekingen en doelgerichte campagnes." },
-    { icon: Zap, t: "Bespaart tijd met automatisering", d: "Reminders, bevestigingen, opvolging — allemaal automatisch." },
+    { icon: Zap, t: "Bespaart tijd met automatisering", d: "Reminders, bevestigingen en opvolging, allemaal automatisch." },
     { icon: Brain, t: "Laat je slimmer werken", d: "AI inzichten die jou helpen betere keuzes te maken." },
   ];
 
@@ -301,9 +301,9 @@ export default function LandingPage() {
 
   const faqs = [
     { q: "Is GlowSuite geschikt voor kleine salons?", a: "Ja. GlowSuite werkt voor solo-professionals én teams. Je betaalt alleen voor wat je nodig hebt en je kunt op elk moment opschalen." },
-    { q: "Hoe werkt de AI van GlowSuite precies?", a: "Onze AI kijkt mee in je agenda, klantgedrag en omzetdata. Zo krijg je suggesties voor lege plekken, herhaalboekingen, upsells en marketing — zonder dat jij dashboards hoeft te lezen." },
+    { q: "Hoe werkt de AI van GlowSuite precies?", a: "Onze AI kijkt mee in je agenda, klantgedrag en omzetdata. Zo krijg je suggesties voor lege plekken, herhaalboekingen, upsells en marketing, zonder dat jij dashboards hoeft te lezen." },
     { q: "Kan ik Mollie koppelen?", a: "Ja. Je koppelt je Mollie-account in een paar klikken en ontvangt direct online betalingen, aanbetalingen en abonnementen." },
-    { q: "Kan ik GlowSuite op mijn eigen website plaatsen?", a: "Ja. Onze white-label boekingswidget plaats je met één regel code op elke website — van WordPress tot Squarespace." },
+    { q: "Kan ik GlowSuite op mijn eigen website plaatsen?", a: "Ja. Onze white-label boekingswidget plaats je met één regel code op elke website, van WordPress tot Squarespace." },
     { q: "Werkt dit ook mobiel?", a: "GlowSuite is volledig mobiel geoptimaliseerd. Jij én je klanten werken vanaf elk apparaat." },
     { q: "Kan ik later upgraden?", a: "Altijd. Je begint klein en breidt features of teamleden uit wanneer je salon groeit." },
   ];
@@ -390,24 +390,24 @@ export default function LandingPage() {
         <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
           {/* LEFT: copy + CTA */}
           <div className="text-center lg:text-left max-w-xl mx-auto lg:mx-0">
-            <Eyebrow icon={Brain}>Slim salonplatform met AI</Eyebrow>
+            <Eyebrow icon={Sparkles}>Het salon operating system</Eyebrow>
             <h1 className="text-[34px] sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.05] text-balance">
-              Laat je salon groeien op{" "}
+              Meer omzet. Minder no-shows.{" "}
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--accent))]">
-                automatische piloot.
+                Minder chaos.
               </span>
             </h1>
             <p className="mt-5 sm:mt-6 text-base sm:text-xl text-muted-foreground leading-relaxed">
-              GlowSuite automatiseert boekingen, betalingen, klantopvolging en slimme AI taken. Zo verdien je meer en houd je meer tijd over.
+              GlowSuite helpt salons en klinieken afspraken, betalingen en klantopvolging automatisch regelen. Een stille operationele assistent die elke dag met je meewerkt.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center lg:justify-start gap-3 max-w-md sm:max-w-none mx-auto lg:mx-0">
               <CTADemoRequest onClick={() => openDemo("hero-start")} variant="gradient">
                 Start gratis proefperiode <ArrowRight className="w-4 h-4 ml-1 inline shrink-0" />
               </CTADemoRequest>
-              <CTADemoRequest onClick={() => openDemo("hero-demo")}>Vraag demo aan</CTADemoRequest>
+              <CTADemoRequest onClick={() => openDemo("hero-demo")}>Bekijk demo</CTADemoRequest>
             </div>
             <p className="mt-5 text-sm text-muted-foreground">
-              Binnen enkele minuten live • Geen technische kennis nodig • Gemaakt voor salons
+              Binnen enkele minuten actief. Geen technische installatie. Werkt op mobiel, tablet en desktop.
             </p>
           </div>
 
@@ -441,8 +441,45 @@ export default function LandingPage() {
         </div>
       </Section>
 
+      {/* === GLOWSUITE WERKT ACTIEF MEE === */}
+      <Section className="border-t border-border/60">
+        <div className="max-w-2xl">
+          <Eyebrow icon={Bot}>GlowSuite werkt actief mee</Eyebrow>
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+            Stille acties die je dag rustiger en winstgevender maken.
+          </h2>
+          <p className="mt-4 text-muted-foreground text-lg">
+            Geen dashboards lezen. GlowSuite let mee op je agenda, betalingen en klanten en onderneemt de juiste actie op het juiste moment.
+          </p>
+        </div>
+        <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[
+            { icon: Calendar, tag: "Agenda", t: "Lege plek om 14:00 gezien", d: "GlowSuite stelde automatisch passende klanten voor." },
+            { icon: AlertTriangle, tag: "No-show preventie", t: "Risico gedetecteerd", d: "Extra herinnering verstuurd voordat de afspraak begint." },
+            { icon: Heart, tag: "Klantopvolging", t: "2 klanten klaar voor een nieuwe afspraak", d: "Persoonlijk voorstel verstuurd via WhatsApp." },
+            { icon: CreditCard, tag: "Betalingen", t: "Openstaande betaling opgevolgd", d: "Vriendelijke herinnering verstuurd. Betaling binnen." },
+            { icon: UserCheck, tag: "Vandaag", t: "Agenda stabiel gevuld", d: "Geen directe actie nodig. GlowSuite blijft meekijken." },
+            { icon: Sparkles, tag: "Omzetkans", t: "3 klanten klaar voor upsell", d: "Voorstel staat klaar om met één tik te versturen." },
+          ].map((c) => {
+            const Icon = c.icon;
+            return (
+              <Card key={c.t} className="p-5 flex items-start gap-3 hover:border-primary/40 transition-colors">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                  <Icon className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-primary/80">{c.tag}</div>
+                  <div className="mt-0.5 font-semibold text-sm leading-snug">{c.t}</div>
+                  <p className="mt-1 text-sm text-muted-foreground leading-relaxed">{c.d}</p>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      </Section>
 
       <Section id="voor-wie" className="border-t border-border/60">
+
         <div className="max-w-2xl">
           <Eyebrow icon={AlertTriangle}>Herken je dit?</Eyebrow>
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
@@ -472,7 +509,7 @@ export default function LandingPage() {
           <div>
             <div className="font-semibold text-lg">GlowSuite lost dit automatisch op.</div>
             <div className="text-muted-foreground text-sm mt-1">
-              Slimme AI-tools die met je salon meewerken — dag en nacht.
+              Slimme AI-tools die met je salon meewerken, dag en nacht.
             </div>
           </div>
         </div>
@@ -564,10 +601,10 @@ export default function LandingPage() {
         <div className="max-w-2xl">
           <Eyebrow icon={Brain}>AI binnen GlowSuite</Eyebrow>
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-            AI die geld voor je terugverdient.
+            Slimme acties die concrete omzet opleveren.
           </h2>
           <p className="mt-4 text-muted-foreground text-lg">
-            Geen gimmicks. Slimme AI-tools die met je salon meewerken en concrete omzet opleveren.
+            Geen gimmicks. GlowSuite werkt op de achtergrond mee en geeft je rust, overzicht en groei.
           </p>
         </div>
         <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -723,7 +760,7 @@ export default function LandingPage() {
               Eerlijke cijfers. Slimme beslissingen.
             </h2>
             <p className="mt-4 text-muted-foreground text-lg">
-              AI vertaalt je data naar concrete omzetkansen — zonder dat jij dashboards hoeft te lezen.
+              AI vertaalt je data naar concrete omzetkansen, zonder dat jij dashboards hoeft te lezen.
             </p>
             <ul className="mt-6 space-y-2.5 text-sm">
               {["Omzettrend per periode", "Top behandelingen & medewerkers", "Klantenwaarde (LTV)", "AI inzichten & exports"].map((i) => (
@@ -738,13 +775,13 @@ export default function LandingPage() {
       <Section className="bg-muted/30 border-y border-border/60">
         <div className="max-w-2xl">
           <Eyebrow>Zo werkt het</Eyebrow>
-          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">In 3 stappen live.</h2>
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">In 3 stappen rustiger werken.</h2>
         </div>
         <div className="mt-10 grid md:grid-cols-3 gap-5">
           {[
-            { n: "01", t: "Stel je salon in", d: "Voeg behandelingen, tijden en medewerkers toe — binnen minuten." },
-            { n: "02", t: "Zet online boeken live", d: "Plaats de white-label widget op je website of deel je boekingslink." },
-            { n: "03", t: "Laat de AI meewerken", d: "Bevestigingen, betalingen en groei-suggesties draaien automatisch." },
+            { n: "01", t: "Verbind je salon", d: "Voeg je behandelingen, tijden en team toe. Klaar in een paar minuten." },
+            { n: "02", t: "GlowSuite automatiseert", d: "Afspraken, betalingen en opvolging draaien op de achtergrond mee." },
+            { n: "03", t: "Meer rust en meer omzet", d: "Jij houdt tijd over en ziet je salon stabiel groeien." },
           ].map((s) => (
             <div key={s.n} className="relative p-6 rounded-2xl border border-border/60 bg-card">
               <div className="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-br from-primary/30 to-accent/20">
@@ -781,7 +818,7 @@ export default function LandingPage() {
               icon: Bell,
               tag: "24 uur vooraf",
               title: "Reminder",
-              desc: "Automatische herinnering een dag voor de afspraak — drastisch minder no-shows.",
+              desc: "Automatische herinnering een dag voor de afspraak. Drastisch minder no-shows.",
             },
             {
               icon: Repeat,
@@ -1005,10 +1042,10 @@ export default function LandingPage() {
             <CTADemoRequest onClick={() => openDemo("final-cta-start")} variant="gradient">
               Start gratis proefperiode <ArrowRight className="w-4 h-4 ml-1 inline shrink-0" />
             </CTADemoRequest>
-            <CTADemoRequest onClick={() => openDemo("final-cta-demo")}>Vraag demo aan</CTADemoRequest>
+            <CTADemoRequest onClick={() => openDemo("final-cta-demo")}>Bekijk demo</CTADemoRequest>
           </div>
           <p className="mt-5 text-xs text-muted-foreground">
-            Binnen enkele minuten live • Geen creditcard nodig • Maandelijks opzegbaar
+            Binnen enkele minuten actief. Geen creditcard nodig. Maandelijks opzegbaar.
           </p>
         </div>
       </Section>
