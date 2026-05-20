@@ -156,7 +156,7 @@ export function TodayAtAGlance() {
     },
     {
       label: intelligence.noShowRisk > 0
-        ? `${intelligence.noShowRisk} ${intelligence.noShowRisk === 1 ? "afspraak heeft" : "afspraken hebben"} no show risico`
+        ? `${intelligence.noShowRisk} ${intelligence.noShowRisk === 1 ? "afspraak heeft" : "afspraken hebben"} no-show risico`
         : "Alles loopt volgens planning.",
       value: intelligence.noShowRisk,
       icon: ShieldAlert,

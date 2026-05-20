@@ -174,7 +174,7 @@ export default function DashboardPage() {
               <Calendar className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
               <p className="text-sm font-medium mb-1">Geen afspraken vandaag</p>
               <p className="text-xs text-muted-foreground mb-4">
-                Activeer de autopilot om automatisch lege plekken te vullen
+                Activeer autopilot om lege plekken te vullen
               </p>
               <Button variant="gradient" size="sm" onClick={() => document.getElementById("auto-revenue-engine")?.scrollIntoView({ behavior: "smooth" })}>
                 <Zap className="w-4 h-4" /> Vul agenda automatisch
@@ -298,7 +298,7 @@ export default function DashboardPage() {
                   <span className="inline-block text-[11px] font-bold text-destructive bg-destructive/10 px-2 py-0.5 rounded-md">
                     Stuur herinnering voor morgen
                   </span>
-                  <WhyHint>Klanten met eerdere no-shows of annuleringen morgen ingepland.</WhyHint>
+                  <WhyHint>Klanten met eerdere no-shows of annuleringen zijn morgen ingepland.</WhyHint>
                 </>
               ) : (
                 <span className="inline-block text-[11px] font-bold text-success bg-success/10 px-2 py-0.5 rounded-md">
