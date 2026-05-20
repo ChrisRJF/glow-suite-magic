@@ -61,6 +61,7 @@ export function RevenueOpportunities() {
       icon: any;
       label: string;
       hint: string;
+      cta: string;
       onClick: () => void;
       accent: "primary" | "success" | "muted";
     }> = [];
@@ -70,7 +71,8 @@ export function RevenueOpportunities() {
         key: "rev",
         icon: TrendingUp,
         label: `Er valt vandaag nog ${formatEuro(potentialRevenue)} omzet te halen`,
-        hint: "GlowSuite ziet nog ruimte vandaag.",
+        hint: "GlowSuite ziet nog ruimte in de agenda vandaag.",
+        cta: "Vul lege plekken",
         onClick: () => navigate("/wachtlijst"),
         accent: "success",
       });
@@ -81,7 +83,8 @@ export function RevenueOpportunities() {
         key: "rebook",
         icon: RotateCcw,
         label: `${rebookReady} ${rebookReady === 1 ? "klant is" : "klanten zijn"} klaar voor een herhaalafspraak`,
-        hint: "Deze klanten boeken vaak opnieuw binnen 6 weken.",
+        hint: "GlowSuite vond klanten die waarschijnlijk opnieuw willen boeken.",
+        cta: "Stuur voorstel",
         onClick: () => navigate("/herboekingen"),
         accent: "primary",
       });
@@ -93,6 +96,7 @@ export function RevenueOpportunities() {
         icon: Sparkles,
         label: `${inactive} ${inactive === 1 ? "vaste klant" : "vaste klanten"} al lang niet gezien`,
         hint: "Een persoonlijk berichtje brengt ze vaak terug.",
+        cta: "Activeer terugkeer",
         onClick: () => navigate("/klanten?filter=risico"),
         accent: "muted",
       });
@@ -103,7 +107,8 @@ export function RevenueOpportunities() {
         key: "review",
         icon: Star,
         label: `Vraag ${recentNoReview} recente klanten om een review`,
-        hint: "Sterke reviews trekken nieuwe boekingen aan.",
+        hint: "Deze klanten reageren normaal snel op een vraag.",
+        cta: "Stuur reviewvraag",
         onClick: () => navigate("/automatiseringen"),
         accent: "muted",
       });
@@ -154,7 +159,11 @@ export function RevenueOpportunities() {
                 <p className="font-semibold leading-tight text-foreground truncate text-[14px]">{it.label}</p>
                 <p className="text-[11px] text-muted-foreground/80 mt-0.5 truncate">{it.hint}</p>
               </div>
-              <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all flex-shrink-0" />
+              <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0">
+                {it.cta}
+                <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+              </span>
+              <ArrowRight className="sm:hidden w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all flex-shrink-0" />
             </button>
           );
         })}

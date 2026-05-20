@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarX, TrendingUp, AlertTriangle, Clock, Hourglass, ShieldAlert } from "lucide-react";
+import { CalendarX, TrendingUp, AlertTriangle, Clock, Hourglass, ShieldAlert, ArrowRight } from "lucide-react";
 import { AnimatedCounter } from "@/components/AnimatedCounter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoMode } from "@/hooks/useDemoMode";
@@ -77,23 +77,49 @@ export function TodayAtAGlance() {
     return { churnRisk, noShowRisk, followUp };
   }, [customers, appointments]);
 
-  const cards = [
+  type Tone = "success" | "warning" | "amber" | "violet" | "rose" | "muted";
+
+  const toneClass: Record<Tone, string> = {
+    success: "from-emerald-500/10 to-emerald-500/0 text-emerald-600 dark:text-emerald-400",
+    warning: "from-amber-500/12 to-amber-500/0 text-amber-600 dark:text-amber-400",
+    amber: "from-amber-500/10 to-amber-500/0 text-amber-600 dark:text-amber-400",
+    violet: "from-violet-500/10 to-violet-500/0 text-violet-600 dark:text-violet-400",
+    rose: "from-rose-500/12 to-rose-500/0 text-rose-600 dark:text-rose-400",
+    muted: "from-primary/8 to-primary/0 text-primary",
+  };
+
+  const cards: Array<{
+    label: string;
+    value: number;
+    isCurrency?: boolean;
+    icon: any;
+    tone: Tone;
+    cta: string;
+    to: string;
+    active: boolean;
+  }> = [
     {
       label: emptySlots > 0
         ? `${emptySlots} lege ${emptySlots === 1 ? "plek kan" : "plekken kunnen"} vandaag gevuld worden`
         : "Agenda is volgeboekt vandaag",
       value: emptySlots,
       icon: CalendarX,
-      accent: "from-primary/15 to-primary/0 text-primary",
-      to: "/wachtlijst",
+      tone: emptySlots > 0 ? "muted" : "success",
+      cta: emptySlots > 0 ? "Bekijk klanten" : "Bekijk agenda",
+      to: emptySlots > 0 ? "/wachtlijst" : "/agenda",
+      active: emptySlots > 0,
     },
     {
-      label: "Potentiële extra omzet vandaag",
+      label: projectedExtraRevenue > 0
+        ? "Potentiële extra omzet vandaag"
+        : "Geen extra omzet vandaag verwacht",
       value: projectedExtraRevenue,
       isCurrency: true,
       icon: TrendingUp,
-      accent: "from-emerald-500/15 to-emerald-500/0 text-emerald-600 dark:text-emerald-400",
+      tone: "success",
+      cta: "Start autopilot",
       to: "/auto-revenue",
+      active: projectedExtraRevenue > 0,
     },
     {
       label: intelligence.churnRisk > 0
@@ -101,17 +127,21 @@ export function TodayAtAGlance() {
         : "Geen klanten in churn risico",
       value: intelligence.churnRisk,
       icon: AlertTriangle,
-      accent: "from-amber-500/15 to-amber-500/0 text-amber-600 dark:text-amber-400",
+      tone: intelligence.churnRisk > 0 ? "amber" : "success",
+      cta: "Stuur bericht",
       to: "/klanten?filter=risico",
+      active: intelligence.churnRisk > 0,
     },
     {
       label: intelligence.followUp > 0
-        ? `${intelligence.followUp} klanten wachten op opvolging`
+        ? `${intelligence.followUp} klanten klaar voor herhaalafspraak`
         : "Geen openstaande follow ups",
       value: intelligence.followUp,
       icon: Clock,
-      accent: "from-primary/15 to-primary/0 text-primary",
+      tone: intelligence.followUp > 0 ? "muted" : "success",
+      cta: "Stuur voorstel",
       to: "/herboekingen",
+      active: intelligence.followUp > 0,
     },
     {
       label: pendingPayments > 0
@@ -119,8 +149,10 @@ export function TodayAtAGlance() {
         : "Geen openstaande betalingen",
       value: pendingPayments,
       icon: Hourglass,
-      accent: "from-violet-500/15 to-violet-500/0 text-violet-600 dark:text-violet-400",
-      to: "/betalingen",
+      tone: pendingPayments > 0 ? "amber" : "success",
+      cta: "Bekijk betalingen",
+      to: "/glowpay?filter=pending",
+      active: pendingPayments > 0,
     },
     {
       label: intelligence.noShowRisk > 0
@@ -128,19 +160,29 @@ export function TodayAtAGlance() {
         : "Geen no show risico",
       value: intelligence.noShowRisk,
       icon: ShieldAlert,
-      accent: "from-rose-500/15 to-rose-500/0 text-rose-600 dark:text-rose-400",
-      to: "/whatsapp",
+      tone: intelligence.noShowRisk > 0 ? "rose" : "success",
+      cta: "Controleer afspraak",
+      to: "/agenda",
+      active: intelligence.noShowRisk > 0,
     },
   ];
 
   return (
     <section>
-      <div className="flex items-end justify-between mb-3">
+      <div className="flex items-end justify-between mb-3 gap-3">
         <div>
           <h2 className="text-section-title">Vandaag in één oogopslag</h2>
           <p className="text-meta mt-1">Operationele signalen uit je salon</p>
         </div>
-        <span className="text-[11px] text-muted-foreground">{demoMode ? "Demo data" : "Live data"}</span>
+        <span
+          className={`text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap ${
+            demoMode
+              ? "bg-violet-500/10 text-violet-600 dark:text-violet-400"
+              : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+          }`}
+        >
+          {demoMode ? "Demo omgeving" : "Live data"}
+        </span>
       </div>
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
         {cards.map((c, i) => (
@@ -148,7 +190,7 @@ export function TodayAtAGlance() {
             key={c.label}
             onClick={() => navigate(c.to)}
             style={{ animationDelay: `${i * 30}ms` }}
-            className={`text-left relative rounded-2xl border border-border/70 p-3 bg-gradient-to-br ${c.accent} transition-all hover:border-primary/30 hover:-translate-y-0.5 active:scale-[0.997] animate-fade-in`}
+            className={`text-left relative rounded-2xl border border-border/60 p-3 bg-gradient-to-br ${toneClass[c.tone]} transition-all hover:border-primary/30 hover:-translate-y-0.5 active:scale-[0.997] animate-fade-in group`}
           >
             <div className="flex items-start justify-between gap-2">
               <c.icon className="w-4 h-4 opacity-70" />
@@ -161,6 +203,12 @@ export function TodayAtAGlance() {
               </p>
             </div>
             <p className="text-[11px] mt-1.5 leading-snug text-foreground/90">{c.label}</p>
+            {c.active && (
+              <p className="mt-2 inline-flex items-center gap-1 text-[10.5px] font-medium text-foreground/70 group-hover:text-primary transition-colors">
+                {c.cta}
+                <ArrowRight className="w-2.5 h-2.5 group-hover:translate-x-0.5 transition-transform" />
+              </p>
+            )}
           </button>
         ))}
       </div>
