@@ -775,13 +775,13 @@ export default function LandingPage() {
       <Section className="bg-muted/30 border-y border-border/60">
         <div className="max-w-2xl">
           <Eyebrow>Zo werkt het</Eyebrow>
-          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">In 3 stappen live.</h2>
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">In 3 stappen rustiger werken.</h2>
         </div>
         <div className="mt-10 grid md:grid-cols-3 gap-5">
           {[
-            { n: "01", t: "Stel je salon in", d: "Voeg behandelingen, tijden en medewerkers toe — binnen minuten." },
-            { n: "02", t: "Zet online boeken live", d: "Plaats de white-label widget op je website of deel je boekingslink." },
-            { n: "03", t: "Laat de AI meewerken", d: "Bevestigingen, betalingen en groei-suggesties draaien automatisch." },
+            { n: "01", t: "Verbind je salon", d: "Voeg je behandelingen, tijden en team toe. Klaar in een paar minuten." },
+            { n: "02", t: "GlowSuite automatiseert", d: "Afspraken, betalingen en opvolging draaien op de achtergrond mee." },
+            { n: "03", t: "Meer rust en meer omzet", d: "Jij houdt tijd over en ziet je salon stabiel groeien." },
           ].map((s) => (
             <div key={s.n} className="relative p-6 rounded-2xl border border-border/60 bg-card">
               <div className="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-br from-primary/30 to-accent/20">
