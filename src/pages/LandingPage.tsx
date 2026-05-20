@@ -551,7 +551,7 @@ export default function LandingPage() {
             </ol>
 
             <div className="mt-4 pt-4 border-t border-border/60 text-xs text-muted-foreground text-center">
-              Voorbeeld van een normale werkdag. Cause, action, outcome. Elke dag opnieuw.
+              Voorbeeld van een normale werkdag. Signaal, actie, resultaat.
             </div>
           </div>
         </div>
