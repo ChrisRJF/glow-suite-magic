@@ -13,6 +13,7 @@ import {
 import { AutoRevenueEngine } from "@/components/AutoRevenueEngine";
 import { DailyCoach } from "@/components/DailyCoach";
 import { TodayBriefing } from "@/components/TodayBriefing";
+import { RevenueOpportunities } from "@/components/RevenueOpportunities";
 import { WhyHint } from "@/components/WhyHint";
 import { AnimatedCounter } from "@/components/AnimatedCounter";
 import { PremiumOwnerMetrics } from "@/components/PremiumOwnerMetrics";
@@ -125,6 +126,8 @@ export default function DashboardPage() {
       subtitle={new Date().toLocaleDateString("nl-NL", { weekday: "long", day: "numeric", month: "long" })}
     >
       <TodayBriefing title="Vandaag aandacht nodig" showEmptyState />
+
+      <RevenueOpportunities />
 
       <section className="premium-panel overflow-hidden relative">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
