@@ -561,6 +561,38 @@ export default function LandingPage() {
         </div>
       </Section>
 
+      {/* === DEZE WEEK AUTOMATISCH VOORKOMEN === */}
+      <Section className="border-b border-border/60">
+        <div className="max-w-2xl">
+          <Eyebrow icon={ShieldCheck}>Deze week automatisch opgepakt</Eyebrow>
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+            Wat GlowSuite stil voor je regelde.
+          </h2>
+          <p className="mt-4 text-muted-foreground text-lg">
+            Een rustig weekoverzicht van wat op de achtergrond is gebeurd. Geen werk voor jou. Geen dashboards om te lezen.
+          </p>
+        </div>
+        <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { v: "4", label: "No-shows voorkomen", d: "Risicoklanten op tijd extra herinnerd." },
+            { v: "11", label: "Klanten opgevolgd", d: "Persoonlijke voorstellen op het juiste moment." },
+            { v: "6", label: "Lege plekken gevuld", d: "Vrije momenten aangeboden aan vaste klanten." },
+            { v: "9", label: "Betalingen afgerond", d: "Vriendelijke herinneringen automatisch verstuurd." },
+          ].map((s) => (
+            <Card key={s.label} className="p-6">
+              <div className="text-4xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--accent))]">
+                {s.v}
+              </div>
+              <div className="mt-2 text-sm font-semibold">{s.label}</div>
+              <div className="mt-1 text-xs text-muted-foreground leading-relaxed">{s.d}</div>
+            </Card>
+          ))}
+        </div>
+        <p className="mt-6 text-xs text-muted-foreground">
+          Illustratief weekbeeld op basis van een gemiddelde salon. Eigen cijfers verschijnen zodra je salon live staat.
+        </p>
+      </Section>
+
       {/* === WAAROM HET ANDERS VOELT === */}
       <Section>
         <div className="max-w-3xl mx-auto text-center">
