@@ -224,7 +224,7 @@ export default function LandingPage() {
   ];
 
   const valueCards = [
-    { icon: Calendar, title: "24/7 online boekingen", desc: "Klanten boeken terwijl jij aan het werk — of slaapt." },
+    { icon: Calendar, title: "24/7 online boekingen", desc: "Klanten boeken terwijl jij aan het werk, of slaapt." },
     { icon: Bot, title: "Slimme AI herinneringen", desc: "Minder no-shows, zonder dat jij iets hoeft te doen." },
     { icon: CreditCard, title: "Betalingen & aanbetalingen", desc: "Meer zekerheid vooraf via Mollie." },
     { icon: Repeat, title: "Abonnementen", desc: "Terugkerende omzet, iedere maand opnieuw." },
@@ -236,7 +236,7 @@ export default function LandingPage() {
     { icon: Wand2, t: "Vult lege momenten slimmer op", d: "AI herkent dalmomenten en stelt acties voor om ze te vullen." },
     { icon: Users, t: "Herkent klanten die bijna terug moeten komen", d: "Automatische winback-suggesties op het juiste moment." },
     { icon: Target, t: "Geeft omzetkansen aan", d: "Slimme upsells, herboekingen en doelgerichte campagnes." },
-    { icon: Zap, t: "Bespaart tijd met automatisering", d: "Reminders, bevestigingen, opvolging — allemaal automatisch." },
+    { icon: Zap, t: "Bespaart tijd met automatisering", d: "Reminders, bevestigingen en opvolging, allemaal automatisch." },
     { icon: Brain, t: "Laat je slimmer werken", d: "AI inzichten die jou helpen betere keuzes te maken." },
   ];
 
@@ -301,9 +301,9 @@ export default function LandingPage() {
 
   const faqs = [
     { q: "Is GlowSuite geschikt voor kleine salons?", a: "Ja. GlowSuite werkt voor solo-professionals én teams. Je betaalt alleen voor wat je nodig hebt en je kunt op elk moment opschalen." },
-    { q: "Hoe werkt de AI van GlowSuite precies?", a: "Onze AI kijkt mee in je agenda, klantgedrag en omzetdata. Zo krijg je suggesties voor lege plekken, herhaalboekingen, upsells en marketing — zonder dat jij dashboards hoeft te lezen." },
+    { q: "Hoe werkt de AI van GlowSuite precies?", a: "Onze AI kijkt mee in je agenda, klantgedrag en omzetdata. Zo krijg je suggesties voor lege plekken, herhaalboekingen, upsells en marketing, zonder dat jij dashboards hoeft te lezen." },
     { q: "Kan ik Mollie koppelen?", a: "Ja. Je koppelt je Mollie-account in een paar klikken en ontvangt direct online betalingen, aanbetalingen en abonnementen." },
-    { q: "Kan ik GlowSuite op mijn eigen website plaatsen?", a: "Ja. Onze white-label boekingswidget plaats je met één regel code op elke website — van WordPress tot Squarespace." },
+    { q: "Kan ik GlowSuite op mijn eigen website plaatsen?", a: "Ja. Onze white-label boekingswidget plaats je met één regel code op elke website, van WordPress tot Squarespace." },
     { q: "Werkt dit ook mobiel?", a: "GlowSuite is volledig mobiel geoptimaliseerd. Jij én je klanten werken vanaf elk apparaat." },
     { q: "Kan ik later upgraden?", a: "Altijd. Je begint klein en breidt features of teamleden uit wanneer je salon groeit." },
   ];
@@ -509,7 +509,7 @@ export default function LandingPage() {
           <div>
             <div className="font-semibold text-lg">GlowSuite lost dit automatisch op.</div>
             <div className="text-muted-foreground text-sm mt-1">
-              Slimme AI-tools die met je salon meewerken — dag en nacht.
+              Slimme AI-tools die met je salon meewerken, dag en nacht.
             </div>
           </div>
         </div>
@@ -760,7 +760,7 @@ export default function LandingPage() {
               Eerlijke cijfers. Slimme beslissingen.
             </h2>
             <p className="mt-4 text-muted-foreground text-lg">
-              AI vertaalt je data naar concrete omzetkansen — zonder dat jij dashboards hoeft te lezen.
+              AI vertaalt je data naar concrete omzetkansen, zonder dat jij dashboards hoeft te lezen.
             </p>
             <ul className="mt-6 space-y-2.5 text-sm">
               {["Omzettrend per periode", "Top behandelingen & medewerkers", "Klantenwaarde (LTV)", "AI inzichten & exports"].map((i) => (
@@ -818,7 +818,7 @@ export default function LandingPage() {
               icon: Bell,
               tag: "24 uur vooraf",
               title: "Reminder",
-              desc: "Automatische herinnering een dag voor de afspraak — drastisch minder no-shows.",
+              desc: "Automatische herinnering een dag voor de afspraak. Drastisch minder no-shows.",
             },
             {
               icon: Repeat,
