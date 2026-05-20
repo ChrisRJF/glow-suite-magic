@@ -317,8 +317,15 @@ export default function LandingPage() {
         }`}
       >
         <div className="max-w-6xl mx-auto px-5 sm:px-8 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center min-w-0" aria-label="GlowSuite">
+          <Link to="/" className="flex items-center gap-2.5 min-w-0" aria-label="GlowSuite">
             <GlowSuiteLogo size="md" withWordmark priority />
+            <span className="hidden sm:inline-flex items-center gap-1.5 pl-2.5 ml-0.5 border-l border-border/60 text-[11px] font-medium text-muted-foreground tracking-wide">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              </span>
+              Live salon OS
+            </span>
           </Link>
 
           <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-muted-foreground">
@@ -331,9 +338,10 @@ export default function LandingPage() {
 
           <div className="hidden md:flex items-center gap-3">
             <Button type="button" variant="gradient" size="sm" onClick={() => openDemo("nav-cta")}>
-              Start gratis proefperiode
+              Bekijk hoe GlowSuite meewerkt
             </Button>
           </div>
+
 
           <button
             className="md:hidden p-2 -mr-2 text-foreground"
