@@ -293,7 +293,7 @@ export default function LandingPage() {
         "Onbeperkt medewerkers",
         "Multi-vestiging",
         "White-label boekingspagina",
-        "AI Auto Revenue Engine",
+        "Auto Revenue Engine",
         "Persoonlijke onboarding",
       ],
     },
