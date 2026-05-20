@@ -445,21 +445,21 @@ export default function LandingPage() {
       <Section className="border-t border-border/60">
         <div className="max-w-2xl">
           <Eyebrow icon={Bot}>GlowSuite werkt actief mee</Eyebrow>
-          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-            Stille acties die je dag rustiger en winstgevender maken.
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight leading-[1.1]">
+            Geen software die wacht. Een systeem dat meedoet.
           </h2>
           <p className="mt-4 text-muted-foreground text-lg">
-            Geen dashboards lezen. GlowSuite let mee op je agenda, betalingen en klanten en onderneemt de juiste actie op het juiste moment.
+            GlowSuite kijkt de hele dag mee in je agenda, klanten en betalingen. Op het juiste moment komt er een rustige actie naar boven. Jij beslist, GlowSuite doet het werk.
           </p>
         </div>
         <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[
-            { icon: Calendar, tag: "Agenda", t: "Lege plek om 14:00 gezien", d: "GlowSuite stelde automatisch passende klanten voor." },
-            { icon: AlertTriangle, tag: "No-show preventie", t: "Risico gedetecteerd", d: "Extra herinnering verstuurd voordat de afspraak begint." },
-            { icon: Heart, tag: "Klantopvolging", t: "2 klanten klaar voor een nieuwe afspraak", d: "Persoonlijk voorstel verstuurd via WhatsApp." },
-            { icon: CreditCard, tag: "Betalingen", t: "Openstaande betaling opgevolgd", d: "Vriendelijke herinnering verstuurd. Betaling binnen." },
-            { icon: UserCheck, tag: "Vandaag", t: "Agenda stabiel gevuld", d: "Geen directe actie nodig. GlowSuite blijft meekijken." },
-            { icon: Sparkles, tag: "Omzetkans", t: "3 klanten klaar voor upsell", d: "Voorstel staat klaar om met één tik te versturen." },
+            { icon: Calendar, time: "14:02", tag: "Agenda", t: "Lege plek van 45 minuten gezien", d: "3 vaste klanten geselecteerd. Voorstel om 14:07 verstuurd. Nieuwe afspraak ingepland." },
+            { icon: AlertTriangle, time: "09:10", tag: "No-show preventie", t: "Risico gedetecteerd bij afspraak 10:00", d: "Extra herinnering verstuurd om 09:11. Klant bevestigd om 09:22." },
+            { icon: Heart, time: "11:24", tag: "Klantopvolging", t: "2 klanten klaar voor een nieuwe afspraak", d: "Persoonlijk voorstel via WhatsApp verstuurd. 1 boeking dezelfde dag." },
+            { icon: CreditCard, time: "16:40", tag: "Betalingen", t: "Openstaande betaling gezien", d: "Vriendelijke herinnering verstuurd. Betaling binnen voor sluitingstijd." },
+            { icon: UserCheck, time: "08:00", tag: "Vandaag", t: "Dag rustig gestart", d: "Agenda stabiel gevuld. Geen losse acties nodig. GlowSuite blijft meekijken." },
+            { icon: Sparkles, time: "12:15", tag: "Omzetkans", t: "3 klanten klaar voor upsell", d: "Voorstel staat klaar om met één tik te versturen, op het juiste moment." },
           ].map((c) => {
             const Icon = c.icon;
             return (
@@ -468,8 +468,12 @@ export default function LandingPage() {
                   <Icon className="w-5 h-5" />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-[11px] font-semibold uppercase tracking-wide text-primary/80">{c.tag}</div>
-                  <div className="mt-0.5 font-semibold text-sm leading-snug">{c.t}</div>
+                  <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-primary/80">
+                    <span className="tabular-nums text-muted-foreground/80">{c.time}</span>
+                    <span className="text-muted-foreground/40">·</span>
+                    <span>{c.tag}</span>
+                  </div>
+                  <div className="mt-1 font-semibold text-sm leading-snug">{c.t}</div>
                   <p className="mt-1 text-sm text-muted-foreground leading-relaxed">{c.d}</p>
                 </div>
               </Card>
