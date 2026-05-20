@@ -124,6 +124,8 @@ export default function DashboardPage() {
       title="Overzicht"
       subtitle={new Date().toLocaleDateString("nl-NL", { weekday: "long", day: "numeric", month: "long" })}
     >
+      <TodayBriefing title="Vandaag aandacht nodig" showEmptyState />
+
       <section className="premium-panel overflow-hidden relative">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
           <div className="space-y-2">
@@ -139,8 +141,6 @@ export default function DashboardPage() {
           </Button>
         </div>
       </section>
-
-      <TodayBriefing />
 
       {/* ═══════════ SECTION 2: PLANNING VANDAAG ═══════════ */}
       <section>
