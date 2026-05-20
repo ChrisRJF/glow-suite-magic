@@ -30,7 +30,7 @@ const LOGIN = "/login";
 
 function Section({ id, className = "", children }: { id?: string; className?: string; children: React.ReactNode }) {
   return (
-    <section id={id} className={`w-full px-5 sm:px-8 py-12 sm:py-20 lg:py-24 ${className}`}>
+    <section id={id} className={`w-full px-5 sm:px-8 py-10 sm:py-16 lg:py-20 ${className}`}>
       <div className="max-w-6xl mx-auto">{children}</div>
     </section>
   );
@@ -398,7 +398,7 @@ export default function LandingPage() {
               </span>
             </h1>
             <p className="mt-5 sm:mt-6 text-base sm:text-xl text-muted-foreground leading-relaxed">
-              GlowSuite vult lege plekken, voorkomt no-shows en volgt klanten en betalingen automatisch op. Een stille operationele assistent die elke dag met je meewerkt.
+              Geen losse WhatsAppjes meer. Geen vergeten opvolging. Geen lege plekken die je niet ziet. GlowSuite werkt elke dag rustig op de achtergrond met je mee.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center lg:justify-start gap-3 max-w-md sm:max-w-none mx-auto lg:mx-0">
               <CTADemoRequest onClick={() => openDemo("hero-start")} variant="gradient">
@@ -559,6 +559,38 @@ export default function LandingPage() {
             </div>
           </div>
         </div>
+      </Section>
+
+      {/* === DEZE WEEK AUTOMATISCH VOORKOMEN === */}
+      <Section className="border-b border-border/60">
+        <div className="max-w-2xl">
+          <Eyebrow icon={ShieldCheck}>Deze week automatisch opgepakt</Eyebrow>
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+            Wat GlowSuite stil voor je regelde.
+          </h2>
+          <p className="mt-4 text-muted-foreground text-lg">
+            Een rustig weekoverzicht van wat op de achtergrond is gebeurd. Geen werk voor jou. Geen dashboards om te lezen.
+          </p>
+        </div>
+        <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { v: "4", label: "No-shows voorkomen", d: "Risicoklanten op tijd extra herinnerd." },
+            { v: "11", label: "Klanten opgevolgd", d: "Persoonlijke voorstellen op het juiste moment." },
+            { v: "6", label: "Lege plekken gevuld", d: "Vrije momenten aangeboden aan vaste klanten." },
+            { v: "9", label: "Betalingen afgerond", d: "Vriendelijke herinneringen automatisch verstuurd." },
+          ].map((s) => (
+            <Card key={s.label} className="p-6">
+              <div className="text-4xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--accent))]">
+                {s.v}
+              </div>
+              <div className="mt-2 text-sm font-semibold">{s.label}</div>
+              <div className="mt-1 text-xs text-muted-foreground leading-relaxed">{s.d}</div>
+            </Card>
+          ))}
+        </div>
+        <p className="mt-6 text-xs text-muted-foreground">
+          Illustratief weekbeeld op basis van een gemiddelde salon. Eigen cijfers verschijnen zodra je salon live staat.
+        </p>
       </Section>
 
       {/* === WAAROM HET ANDERS VOELT === */}
@@ -987,10 +1019,10 @@ export default function LandingPage() {
         <div className="max-w-3xl mx-auto text-center">
           <Eyebrow>Prijzen</Eyebrow>
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-            Betaalbaar voor kleine salons. Krachtig genoeg voor groei.
+            Een operationeel systeem dat zichzelf terugverdient.
           </h2>
           <p className="mt-4 text-muted-foreground text-lg">
-            Vanaf <span className="font-semibold text-foreground">€39 / maand</span>. Groei wanneer jij groeit. Geen verborgen kosten.
+            Vanaf <span className="font-semibold text-foreground">€39 / maand</span>. Eén voorkomen no-show per week dekt het abonnement al. Maandelijks opzegbaar, zonder verborgen kosten.
           </p>
         </div>
         <div className="mt-12 grid md:grid-cols-3 gap-5 items-stretch">
@@ -1099,6 +1131,15 @@ export default function LandingPage() {
           <p className="mt-4 text-muted-foreground text-lg">
             Een indicatief beeld van wat er verandert zodra GlowSuite op de achtergrond meedraait. Geen marketingclaims, gewoon wat de software wegneemt.
           </p>
+        </div>
+        {/* Logo strip placeholder (verschijnt zodra eerste salons live zijn) */}
+        <div className="mt-8 rounded-2xl border border-dashed border-border/60 bg-muted/20 px-6 py-5 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-xs uppercase tracking-wide text-muted-foreground/70">
+          <span className="font-semibold text-muted-foreground/80">Binnenkort live met</span>
+          <span>Salon A</span>
+          <span>Clinic B</span>
+          <span>Studio C</span>
+          <span>Spa D</span>
+          <span>Barber E</span>
         </div>
         <div className="mt-10 grid md:grid-cols-3 gap-4">
           {[
