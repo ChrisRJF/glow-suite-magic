@@ -1142,13 +1142,13 @@ export default function LandingPage() {
         />
         <div className="max-w-2xl mx-auto">
           <h2 className="text-3xl sm:text-5xl font-bold tracking-tight">
-            Klaar voor meer groei en{" "}
+            Klaar voor minder chaos en{" "}
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--accent))]">
-              minder gedoe?
+              meer rust in je salon?
             </span>
           </h2>
           <p className="mt-5 text-lg text-muted-foreground">
-            Werk slimmer met GlowSuite. Meer rust, meer boekingen en meer omzet in je salon.
+            Ontdek hoe GlowSuite je dag rustiger en winstgevender maakt. Wij helpen je met de overstap.
           </p>
           <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 max-w-md sm:max-w-none mx-auto">
             <CTADemoRequest onClick={() => openDemo("final-cta-start")} variant="gradient">
