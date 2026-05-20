@@ -128,6 +128,8 @@ export default function DashboardPage() {
     >
       <TodayBriefing title="Vandaag aandacht nodig" showEmptyState />
 
+      <TodayAtAGlance />
+
       <RevenueOpportunities />
 
       <section className="premium-panel overflow-hidden relative">
