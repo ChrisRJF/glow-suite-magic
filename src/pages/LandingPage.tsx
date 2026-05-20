@@ -224,12 +224,12 @@ export default function LandingPage() {
   ];
 
   const valueCards = [
-    { icon: Calendar, title: "24/7 online boekingen", desc: "Klanten boeken terwijl jij aan het werk, of slaapt." },
-    { icon: Bot, title: "Slimme AI herinneringen", desc: "Minder no-shows, zonder dat jij iets hoeft te doen." },
-    { icon: CreditCard, title: "Betalingen & aanbetalingen", desc: "Meer zekerheid vooraf via Mollie." },
-    { icon: Repeat, title: "Abonnementen", desc: "Terugkerende omzet, iedere maand opnieuw." },
-    { icon: TrendingUp, title: "AI klantgroei tools", desc: "Meer herhaalboekingen en slimme upsells." },
-    { icon: LineChart, title: "Realtime inzicht", desc: "Zie direct waar geld blijft liggen in je salon." },
+    { icon: Calendar, title: "24/7 online boekingen", desc: "Klanten boeken zelf, ook 's avonds en in het weekend." },
+    { icon: Bot, title: "Automatische herinneringen", desc: "Minder no-shows, zonder dat jij appjes hoeft te sturen." },
+    { icon: CreditCard, title: "Aanbetalingen via Mollie", desc: "Meer zekerheid vooraf bij nieuwe en risicoklanten." },
+    { icon: Repeat, title: "Abonnementen", desc: "Terugkerende maandinkomsten met automatische incasso." },
+    { icon: TrendingUp, title: "Slimme klantopvolging", desc: "Vaste klanten krijgen op tijd een nieuw voorstel." },
+    { icon: LineChart, title: "Realtime inzicht", desc: "Zie direct waar omzet blijft liggen in je salon." },
   ];
 
   const aiBlocks = [
