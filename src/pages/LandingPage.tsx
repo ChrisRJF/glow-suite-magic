@@ -277,7 +277,7 @@ export default function LandingPage() {
         "Tot 5 medewerkers",
         "GlowPay online betalingen",
         "Cadeaubonnen & memberships",
-        "AI omzet-inzichten",
+        "Slimme omzet-inzichten",
         "Marketing automations",
       ],
     },
