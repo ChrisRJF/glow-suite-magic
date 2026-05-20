@@ -934,7 +934,7 @@ export default function LandingPage() {
               icon: Bell,
               tag: "24 uur vooraf",
               title: "Reminder",
-              desc: "Automatische herinnering een dag voor de afspraak. Drastisch minder no-shows.",
+              desc: "Automatische herinnering een dag voor de afspraak. Merkbaar minder no-shows.",
             },
             {
               icon: Repeat,
