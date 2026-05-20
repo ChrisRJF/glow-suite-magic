@@ -400,13 +400,13 @@ export default function LandingPage() {
           <div className="text-center lg:text-left max-w-xl mx-auto lg:mx-0">
             <Eyebrow icon={Sparkles}>Het salon operating system</Eyebrow>
             <h1 className="text-[34px] sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.05] text-balance">
-              Minder gaten in je agenda.{" "}
+              Je salonsoftware{" "}
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--accent))]">
-                Minder no-shows. Meer rust.
+                zou mee moeten werken.
               </span>
             </h1>
             <p className="mt-5 sm:mt-6 text-base sm:text-xl text-muted-foreground leading-relaxed">
-              GlowSuite werkt actief mee aan je dag. Vult lege plekken, voorkomt no-shows en volgt klanten en betalingen rustig op de achtergrond op. Geen losse WhatsAppjes meer. Geen vergeten opvolging.
+              GlowSuite helpt actief met no-shows voorkomen, lege plekken vullen en klanten opvolgen. Rustig op de achtergrond, zonder losse WhatsAppjes of vergeten opvolging.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center lg:justify-start gap-3 max-w-md sm:max-w-none mx-auto lg:mx-0">
               <CTADemoRequest onClick={() => openDemo("hero-start")} variant="gradient">
@@ -415,8 +415,9 @@ export default function LandingPage() {
               <CTADemoRequest onClick={() => openDemo("hero-demo")}>Bekijk hoe GlowSuite meewerkt</CTADemoRequest>
             </div>
             <p className="mt-5 text-sm text-muted-foreground">
-              Ontwikkeld voor salons en klinieken. Binnen enkele minuten actief. Wij helpen met de overstap.
+              Ontwikkeld voor salons en klinieken. Binnen enkele minuten actief. Wij helpen met de overstap. Werkt op mobiel, tablet en desktop.
             </p>
+
           </div>
 
           {/* RIGHT: hero visual (single premium image) */}
