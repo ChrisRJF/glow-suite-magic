@@ -879,7 +879,7 @@ export default function LandingPage() {
               AI vertaalt je data naar concrete omzetkansen, zonder dat jij dashboards hoeft te lezen.
             </p>
             <ul className="mt-6 space-y-2.5 text-sm">
-              {["Omzettrend per periode", "Top behandelingen & medewerkers", "Klantenwaarde (LTV)", "AI inzichten & exports"].map((i) => (
+              {["Omzettrend per periode", "Top behandelingen & medewerkers", "Klantenwaarde (LTV)", "Slimme inzichten & exports"].map((i) => (
                 <li key={i} className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-primary shrink-0" />{i}</li>
               ))}
             </ul>
