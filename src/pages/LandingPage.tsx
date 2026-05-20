@@ -570,9 +570,9 @@ export default function LandingPage() {
         </div>
         <div className="mt-10 grid sm:grid-cols-3 gap-4">
           {[
-            { icon: Clock, t: "Werkt voor je", d: "Acties gebeuren op het juiste moment, ook als jij druk bent." },
-            { icon: ShieldCheck, t: "Houdt overzicht", d: "Geen losse appjes, mailtjes en notities meer." },
-            { icon: TrendingUp, t: "Vindt omzetkansen", d: "Lege plekken, herboekingen en upsells komen vanzelf naar boven." },
+            { icon: Clock, t: "Minder handmatig plannen", d: "Opvolging en herinneringen gaan automatisch, ook als jij druk bent." },
+            { icon: ShieldCheck, t: "Minder vergeten opvolging", d: "Geen losse WhatsApp berichten en notities meer. Alles op één plek." },
+            { icon: TrendingUp, t: "Minder lege plekken", d: "Vrije momenten worden opgemerkt en aan de juiste klanten voorgesteld." },
           ].map((c) => {
             const Icon = c.icon;
             return (
