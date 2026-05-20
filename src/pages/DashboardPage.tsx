@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import { AutoRevenueEngine } from "@/components/AutoRevenueEngine";
 import { DailyCoach } from "@/components/DailyCoach";
+import { TodayBriefing } from "@/components/TodayBriefing";
+import { WhyHint } from "@/components/WhyHint";
 import { AnimatedCounter } from "@/components/AnimatedCounter";
 import { PremiumOwnerMetrics } from "@/components/PremiumOwnerMetrics";
 import { useDemoMode } from "@/hooks/useDemoMode";
@@ -137,6 +139,8 @@ export default function DashboardPage() {
           </Button>
         </div>
       </section>
+
+      <TodayBriefing />
 
       {/* ═══════════ SECTION 2: PLANNING VANDAAG ═══════════ */}
       <section>
@@ -278,11 +282,14 @@ export default function DashboardPage() {
                 <span className="text-success">0</span>
               )}
             </p>
-            <div className="mt-2">
+            <div className="mt-2 space-y-1.5">
               {noShowRiskTomorrow > 0 ? (
-                <span className="inline-block text-[11px] font-bold text-destructive bg-destructive/10 px-2 py-0.5 rounded-md">
-                  Stuur herinnering voor morgen
-                </span>
+                <>
+                  <span className="inline-block text-[11px] font-bold text-destructive bg-destructive/10 px-2 py-0.5 rounded-md">
+                    Stuur herinnering voor morgen
+                  </span>
+                  <WhyHint>Klanten met eerdere no-shows of annuleringen morgen ingepland.</WhyHint>
+                </>
               ) : (
                 <span className="inline-block text-[11px] font-bold text-success bg-success/10 px-2 py-0.5 rounded-md">
                   Perfecte planning morgen ✓
