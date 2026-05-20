@@ -70,7 +70,8 @@ export function RevenueOpportunities() {
         key: "rev",
         icon: TrendingUp,
         label: `Er valt vandaag nog ${formatEuro(potentialRevenue)} omzet te halen`,
-        hint: "GlowSuite ziet nog ruimte vandaag.",
+        hint: "GlowSuite ziet nog ruimte in de agenda vandaag.",
+        cta: "Vul lege plekken",
         onClick: () => navigate("/wachtlijst"),
         accent: "success",
       });
@@ -81,7 +82,8 @@ export function RevenueOpportunities() {
         key: "rebook",
         icon: RotateCcw,
         label: `${rebookReady} ${rebookReady === 1 ? "klant is" : "klanten zijn"} klaar voor een herhaalafspraak`,
-        hint: "Deze klanten boeken vaak opnieuw binnen 6 weken.",
+        hint: "GlowSuite vond klanten die waarschijnlijk opnieuw willen boeken.",
+        cta: "Stuur voorstel",
         onClick: () => navigate("/herboekingen"),
         accent: "primary",
       });
@@ -93,6 +95,7 @@ export function RevenueOpportunities() {
         icon: Sparkles,
         label: `${inactive} ${inactive === 1 ? "vaste klant" : "vaste klanten"} al lang niet gezien`,
         hint: "Een persoonlijk berichtje brengt ze vaak terug.",
+        cta: "Activeer terugkeer",
         onClick: () => navigate("/klanten?filter=risico"),
         accent: "muted",
       });
@@ -103,7 +106,8 @@ export function RevenueOpportunities() {
         key: "review",
         icon: Star,
         label: `Vraag ${recentNoReview} recente klanten om een review`,
-        hint: "Sterke reviews trekken nieuwe boekingen aan.",
+        hint: "Deze klanten reageren normaal snel op een vraag.",
+        cta: "Stuur reviewvraag",
         onClick: () => navigate("/automatiseringen"),
         accent: "muted",
       });
