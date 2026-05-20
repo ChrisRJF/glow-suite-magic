@@ -1091,29 +1091,38 @@ export default function LandingPage() {
         </div>
       </Section>
 
-      {/* TESTIMONIALS */}
+      {/* OPERATIONAL IMPACT (structured, no fake quotes) */}
       <Section>
         <div className="max-w-2xl">
-          <Eyebrow icon={Star}>Wat salons zeggen</Eyebrow>
-          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Salons die kiezen voor rust en groei.</h2>
+          <Eyebrow icon={TrendingUp}>Wat salons merken</Eyebrow>
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Van losse handelingen naar een rustige werkdag.</h2>
+          <p className="mt-4 text-muted-foreground text-lg">
+            Een indicatief beeld van wat er verandert zodra GlowSuite op de achtergrond meedraait. Geen marketingclaims, gewoon wat de software wegneemt.
+          </p>
         </div>
         <div className="mt-10 grid md:grid-cols-3 gap-4">
           {[
-            { q: "Eindelijk één systeem voor boekingen, betalingen en klanten.", a: "Salon eigenaar" },
-            { q: "De AI-suggesties leveren mij elke week extra boekingen op.", a: "Beauty studio" },
-            { q: "GlowSuite voelt veel moderner dan wat we hiervoor gebruikten.", a: "Barbershop" },
-          ].map((t) => (
-            <Card key={t.a} className="p-6">
-              <div className="flex gap-0.5 text-primary">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Star key={i} className="w-4 h-4 fill-current" />
-                ))}
+            { label: "No-show preventie", before: "Losse appjes en gemiste herinneringen", after: "Automatische bevestiging en reminder per klant" },
+            { label: "Lege plekken", before: "Gaten blijven open tot het einde van de dag", after: "Vrije momenten worden actief aangeboden aan vaste klanten" },
+            { label: "Klantopvolging", before: "Onthouden wie weer toe is aan een afspraak", after: "Persoonlijk voorstel op het juiste moment, klaar om te versturen" },
+            { label: "Betalingen", before: "Handmatig nabellen voor openstaande bedragen", after: "Vriendelijke herinneringen gaan automatisch uit" },
+            { label: "Overzicht", before: "Notities, screenshots en losse tools", after: "Eén dagoverzicht met alleen wat aandacht vraagt" },
+            { label: "Werkdruk", before: "Continu schakelen tussen taken", after: "Rustigere dagen met minder ad-hoc beslissingen" },
+          ].map((r) => (
+            <Card key={r.label} className="p-6">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-primary/80">{r.label}</div>
+              <div className="mt-3 text-sm text-muted-foreground leading-relaxed">
+                <span className="font-medium text-foreground/70">Vandaag:</span> {r.before}
               </div>
-              <p className="mt-3 text-base leading-relaxed">"{t.q}"</p>
-              <p className="mt-4 text-sm text-muted-foreground">— {t.a}</p>
+              <div className="mt-2 text-sm leading-relaxed">
+                <span className="font-medium text-primary">Met GlowSuite:</span> {r.after}
+              </div>
             </Card>
           ))}
         </div>
+        <p className="mt-6 text-xs text-muted-foreground text-center">
+          Illustratief overzicht. Logo strip met salons volgt zodra eerste partners live zijn.
+        </p>
       </Section>
 
       {/* FAQ */}
