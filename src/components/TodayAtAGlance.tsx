@@ -101,7 +101,7 @@ export function TodayAtAGlance() {
     {
       label: emptySlots > 0
         ? `${emptySlots} lege ${emptySlots === 1 ? "plek kan" : "plekken kunnen"} vandaag gevuld worden`
-        : "Agenda is volgeboekt vandaag",
+        : "Agenda lijkt goed gevuld vandaag.",
       value: emptySlots,
       icon: CalendarX,
       tone: emptySlots > 0 ? "muted" : "success",
@@ -112,7 +112,7 @@ export function TodayAtAGlance() {
     {
       label: projectedExtraRevenue > 0
         ? "Potentiële extra omzet vandaag"
-        : "Geen extra omzet vandaag verwacht",
+        : "Vandaag draait stabiel.",
       value: projectedExtraRevenue,
       isCurrency: true,
       icon: TrendingUp,
@@ -124,7 +124,7 @@ export function TodayAtAGlance() {
     {
       label: intelligence.churnRisk > 0
         ? `${intelligence.churnRisk} vaste ${intelligence.churnRisk === 1 ? "klant dreigt" : "klanten dreigen"} af te haken`
-        : "Geen klanten in churn risico",
+        : "Geen klanten in risico.",
       value: intelligence.churnRisk,
       icon: AlertTriangle,
       tone: intelligence.churnRisk > 0 ? "amber" : "success",
@@ -135,7 +135,7 @@ export function TodayAtAGlance() {
     {
       label: intelligence.followUp > 0
         ? `${intelligence.followUp} klanten klaar voor herhaalafspraak`
-        : "Geen openstaande follow ups",
+        : "Geen directe opvolging nodig.",
       value: intelligence.followUp,
       icon: Clock,
       tone: intelligence.followUp > 0 ? "muted" : "success",
@@ -146,7 +146,7 @@ export function TodayAtAGlance() {
     {
       label: pendingPayments > 0
         ? `${pendingPayments} ${pendingPayments === 1 ? "afspraak wacht" : "afspraken wachten"} op betaling`
-        : "Geen openstaande betalingen",
+        : "Alle betalingen lopen door.",
       value: pendingPayments,
       icon: Hourglass,
       tone: pendingPayments > 0 ? "amber" : "success",
@@ -157,7 +157,7 @@ export function TodayAtAGlance() {
     {
       label: intelligence.noShowRisk > 0
         ? `${intelligence.noShowRisk} ${intelligence.noShowRisk === 1 ? "afspraak heeft" : "afspraken hebben"} no show risico`
-        : "Geen no show risico",
+        : "Alles loopt volgens planning.",
       value: intelligence.noShowRisk,
       icon: ShieldAlert,
       tone: intelligence.noShowRisk > 0 ? "rose" : "success",
