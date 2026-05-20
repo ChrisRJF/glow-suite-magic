@@ -670,7 +670,7 @@ export default function LandingPage() {
               Plan per medewerker, zie bezetting in één oogopslag en laat AI vrije plekken slim opvullen.
             </p>
             <ul className="mt-6 space-y-2.5 text-sm">
-              {["Dagplanning per medewerker", "Realtime bezetting & vrije plekken", "AI suggereert dalmoment-acties", "Drag & drop afspraken"].map((i) => (
+              {["Dagplanning per medewerker", "Realtime bezetting & vrije plekken", "Suggesties voor dalmomenten", "Drag & drop afspraken"].map((i) => (
                 <li key={i} className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-primary shrink-0" />{i}</li>
               ))}
             </ul>
