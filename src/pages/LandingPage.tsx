@@ -520,12 +520,12 @@ export default function LandingPage() {
             <ol className="relative">
               <span aria-hidden className="absolute left-[18px] top-2 bottom-2 w-px bg-border/70" />
               {[
-                { time: "14:02", icon: Calendar, tag: "Agenda", t: "Lege plek gevonden om 14:30" },
-                { time: "14:03", icon: Users, tag: "Klantopvolging", t: "3 vaste klanten geselecteerd" },
-                { time: "14:05", icon: Heart, tag: "Resultaat", t: "Klant heeft opnieuw geboekt" },
-                { time: "11:24", icon: CreditCard, tag: "Betalingen", t: "Open betaling opgevolgd" },
-                { time: "11:32", icon: CheckCircle2, tag: "Betalingen", t: "Betaling ontvangen" },
-                { time: "09:11", icon: Bell, tag: "No-show preventie", t: "Herinnering automatisch verstuurd" },
+                { time: "09:10", icon: AlertTriangle, tag: "No-show risico", t: "Risico gedetecteerd bij afspraak 10:00" },
+                { time: "09:11", icon: Bell, tag: "Actie", t: "Extra herinnering verstuurd via WhatsApp" },
+                { time: "09:22", icon: CheckCircle2, tag: "Resultaat", t: "Klant heeft de afspraak bevestigd" },
+                { time: "14:02", icon: Calendar, tag: "Lege plek", t: "Gat van 45 minuten gevonden om 14:30" },
+                { time: "14:03", icon: Users, tag: "Selectie", t: "3 vaste klanten klaar voor opvolging" },
+                { time: "14:07", icon: Heart, tag: "Resultaat", t: "Nieuwe afspraak ingepland" },
               ].map((e, idx) => {
                 const Icon = e.icon;
                 return (
