@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useDemoMode } from "@/hooks/useDemoMode";
 import { toast } from "sonner";
 import { Power, Plus, Smartphone } from "lucide-react";
+import { WhyHint } from "@/components/WhyHint";
 
 type Terminal = {
   id: string; terminal_id: string; terminal_name: string;
@@ -59,20 +60,31 @@ export function TerminalsCard() {
 
       <div className="space-y-1.5">
         {terminals.length === 0 && <p className="text-[10px] text-muted-foreground">Nog geen terminals gekoppeld.</p>}
-        {terminals.map((t) => (
-          <div key={t.id} className="flex items-center gap-2 text-[11px] rounded-lg border border-border px-2 py-1.5">
-            <div className="flex-1 min-w-0">
-              <p className="font-medium truncate">{t.terminal_name} <span className="text-muted-foreground font-normal">· {t.terminal_id}</span></p>
-              <p className="text-[10px] text-muted-foreground truncate">
-                {t.location_name || "—"} · laatst gezien: {t.last_seen_at ? new Date(t.last_seen_at).toLocaleString("nl-NL") : "nooit"}
-              </p>
+        {terminals.map((t) => {
+          const lastSeenMs = t.last_seen_at ? Date.now() - new Date(t.last_seen_at).getTime() : null;
+          const looksOffline =
+            t.status !== "active" ||
+            (lastSeenMs !== null && lastSeenMs > 1000 * 60 * 60); // >1h
+          return (
+          <div key={t.id} className="rounded-lg border border-border px-2 py-1.5 space-y-1">
+            <div className="flex items-center gap-2 text-[11px]">
+              <div className="flex-1 min-w-0">
+                <p className="font-medium truncate">{t.terminal_name} <span className="text-muted-foreground font-normal">· {t.terminal_id}</span></p>
+                <p className="text-[10px] text-muted-foreground truncate">
+                  {t.location_name || "—"} · laatst gezien: {t.last_seen_at ? new Date(t.last_seen_at).toLocaleString("nl-NL") : "nooit"}
+                </p>
+              </div>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full ${t.status === "active" ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}`}>{t.status}</span>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full ${t.is_demo ? "bg-amber-500/15 text-amber-600" : "bg-primary/15 text-primary"}`}>{t.is_demo ? "Demo" : "Live"}</span>
+              <Button type="button" size="sm" variant="ghost" className="h-7 px-2" onClick={() => toggle(t)} title="In/uitschakelen"><Power className="w-3 h-3" /></Button>
+              <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-destructive" onClick={() => remove(t)}>×</Button>
             </div>
-            <span className={`text-[10px] px-2 py-0.5 rounded-full ${t.status === "active" ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}`}>{t.status}</span>
-            <span className={`text-[10px] px-2 py-0.5 rounded-full ${t.is_demo ? "bg-amber-500/15 text-amber-600" : "bg-primary/15 text-primary"}`}>{t.is_demo ? "Demo" : "Live"}</span>
-            <Button type="button" size="sm" variant="ghost" className="h-7 px-2" onClick={() => toggle(t)} title="In/uitschakelen"><Power className="w-3 h-3" /></Button>
-            <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-destructive" onClick={() => remove(t)}>×</Button>
+            {looksOffline && !t.is_demo && (
+              <WhyHint>Pinapparaat lijkt tijdelijk offline — controleer netwerk of herstart de terminal.</WhyHint>
+            )}
           </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="grid grid-cols-3 gap-2">

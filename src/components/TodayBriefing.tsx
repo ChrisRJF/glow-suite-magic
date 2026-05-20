@@ -14,13 +14,20 @@ import { cn } from "@/lib/utils";
  *  - memberships expiring within 14 days
  *  - quiet-day nudge (only when today is genuinely quiet)
  */
-export function TodayBriefing() {
+interface TodayBriefingProps {
+  variant?: "default" | "compact";
+  title?: string;
+  hideHeader?: boolean;
+}
+
+export function TodayBriefing({ variant = "default", title, hideHeader = false }: TodayBriefingProps = {}) {
   const navigate = useNavigate();
   const { data: payments, loading: paymentsLoading } = usePayments();
   const { data: appointments, loading: apptsLoading } = useAppointments();
   const { data: memberships, loading: memLoading } = useCustomerMemberships();
 
   const loading = paymentsLoading || apptsLoading || memLoading;
+  const compact = variant === "compact";
 
   const items = useMemo(() => {
     const today = new Date();
@@ -113,7 +120,7 @@ export function TodayBriefing() {
   }, [payments, appointments, memberships, navigate]);
 
   if (loading) {
-    return <Skeleton className="h-28 rounded-2xl" />;
+    return <Skeleton className={cn(compact ? "h-20" : "h-28", "rounded-2xl")} />;
   }
 
   if (items.length === 0) return null;
@@ -133,12 +140,16 @@ export function TodayBriefing() {
 
   return (
     <section aria-label="Vandaag">
-      <div className="flex items-end justify-between mb-3">
-        <div>
-          <h2 className="text-section-title">Vandaag</h2>
-          <p className="text-meta mt-1">Wat aandacht verdient — nu</p>
+      {!hideHeader && (
+        <div className="flex items-end justify-between mb-3">
+          <div>
+            <h2 className={cn(compact ? "text-sm font-semibold" : "text-section-title")}>
+              {title || "Vandaag"}
+            </h2>
+            {!compact && <p className="text-meta mt-1">Wat aandacht verdient — nu</p>}
+          </div>
         </div>
-      </div>
+      )}
       <div
         className="rounded-2xl border border-border/70 bg-card divide-y divide-border/50 overflow-hidden"
         style={{ boxShadow: "var(--shadow-sm)" }}
@@ -149,13 +160,29 @@ export function TodayBriefing() {
             <button
               key={it.key}
               onClick={it.onClick}
-              className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-secondary/40 active:scale-[0.997] transition-all group"
+              className={cn(
+                "w-full flex items-center gap-3 text-left hover:bg-secondary/40 active:scale-[0.997] transition-all group",
+                compact ? "px-3 py-2.5" : "px-4 py-3",
+              )}
             >
-              <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0", toneClass(it.tone))}>
-                <Icon className="w-4 h-4" />
+              <div
+                className={cn(
+                  "rounded-xl flex items-center justify-center flex-shrink-0",
+                  compact ? "w-7 h-7" : "w-9 h-9",
+                  toneClass(it.tone),
+                )}
+              >
+                <Icon className={cn(compact ? "w-3.5 h-3.5" : "w-4 h-4")} />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[14px] font-semibold leading-tight text-foreground truncate">{it.label}</p>
+                <p
+                  className={cn(
+                    "font-semibold leading-tight text-foreground truncate",
+                    compact ? "text-[13px]" : "text-[14px]",
+                  )}
+                >
+                  {it.label}
+                </p>
                 <p className="text-[11px] text-muted-foreground/80 mt-0.5 truncate">{it.why}</p>
               </div>
               <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all flex-shrink-0" />

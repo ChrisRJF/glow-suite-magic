@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useUserRole } from "@/hooks/useUserRole";
 import { GlowPayCashflowHub } from "@/components/GlowPayCashflowHub";
+import { TodayBriefing } from "@/components/TodayBriefing";
 
 type TabType = "overzicht" | "betalingen" | "regels" | "betaallinks";
 
@@ -203,7 +204,10 @@ export default function GlowPayPage() {
             onOpenLinks={() => setActiveTab("betaallinks")}
             onOpenPayments={() => setActiveTab("betalingen")}
           />
+          <div className="h-5" />
+          <TodayBriefing variant="compact" title="Vandaag · betalingen" />
           <div className="h-6" />
+
 
           {/* Recent Payments */}
           <div className="glass-card p-4 sm:p-6 opacity-0 animate-fade-in-up" style={{ animationDelay: '560ms' }}>

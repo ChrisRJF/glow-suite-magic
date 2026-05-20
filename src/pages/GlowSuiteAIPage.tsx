@@ -20,6 +20,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { formatEuro } from "@/lib/data";
 import { AIModesCard } from "@/components/AIModesCard";
+import { TodayBriefing } from "@/components/TodayBriefing";
 
 type FeedCategory = "revenue" | "clients" | "campaigns" | "automations" | "risk";
 interface FeedItem {
@@ -581,6 +582,10 @@ export default function GlowSuiteAIPage() {
         </Card>
 
         <AIModesCard />
+
+        <TodayBriefing variant="compact" title="Vandaag · operationele signalen" />
+
+
 
         {/* Smart insight chips */}
 

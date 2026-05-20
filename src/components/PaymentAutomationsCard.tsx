@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAIModes, effectiveMode } from "@/lib/aiModes";
 import { Link } from "react-router-dom";
+import { WhyHint } from "@/components/WhyHint";
 
 type AutomationKey =
   | "failed_payment_followup"
@@ -109,6 +110,11 @@ export function PaymentAutomationsCard() {
                     <Switch checked={on} disabled={!canManage || busy === d.key} onCheckedChange={(v) => save(d.key, v)} />
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">{d.description}</p>
+                  {on && !autopilotOn && (
+                    <WhyHint className="mt-2">
+                      Staat aan, maar Betaal-AI vraagt eerst jouw bevestiging voor uitvoering.
+                    </WhyHint>
+                  )}
                 </div>
               </CardContent>
             </Card>
