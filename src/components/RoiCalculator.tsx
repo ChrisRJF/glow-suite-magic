@@ -46,13 +46,13 @@ export function RoiCalculator() {
         <div className="max-w-3xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold tracking-wide uppercase mb-4">
             <Calculator className="w-3.5 h-3.5" />
-            ROI Calculator
+            No-show impact
           </div>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">
-            Bereken hoeveel jij bespaart met GlowSuite.
+            No-shows kosten salons ongemerkt duizenden euro's per jaar.
           </h2>
           <p className="mt-4 text-muted-foreground text-base sm:text-lg leading-relaxed">
-            Vul in hoeveel afspraken je per maand hebt en zie direct wat je bespaart aan voorkomen no-shows.
+            Zelfs een paar gemiste afspraken per week hebben grote impact op je omzet. GlowSuite volgt no-shows automatisch op en helpt ze voorkomen. Reken zelf even na.
           </p>
         </div>
 
