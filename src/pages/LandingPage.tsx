@@ -632,10 +632,10 @@ export default function LandingPage() {
         <div className="max-w-2xl">
           <Eyebrow>Wat je krijgt</Eyebrow>
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-            Eén platform. Zes manieren om meer omzet te draaien.
+            Eén systeem voor je hele dagelijkse operatie.
           </h2>
           <p className="mt-4 text-muted-foreground text-lg">
-            Geen losse tools meer. GlowSuite combineert agenda, betalingen en AI in één premium systeem.
+            Geen losse tools meer. Agenda, betalingen, klantopvolging en inzicht werken samen in één rustige interface.
           </p>
         </div>
         <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
