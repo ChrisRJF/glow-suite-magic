@@ -233,11 +233,11 @@ export default function LandingPage() {
   ];
 
   const aiBlocks = [
-    { icon: Wand2, t: "Vult lege momenten slimmer op", d: "AI herkent dalmomenten en stelt acties voor om ze te vullen." },
-    { icon: Users, t: "Herkent klanten die bijna terug moeten komen", d: "Automatische winback-suggesties op het juiste moment." },
-    { icon: Target, t: "Geeft omzetkansen aan", d: "Slimme upsells, herboekingen en doelgerichte campagnes." },
-    { icon: Zap, t: "Bespaart tijd met automatisering", d: "Reminders, bevestigingen en opvolging, allemaal automatisch." },
-    { icon: Brain, t: "Laat je slimmer werken", d: "AI inzichten die jou helpen betere keuzes te maken." },
+    { icon: Wand2, t: "Vult lege plekken op het juiste moment", d: "GlowSuite herkent dalmomenten en stelt passende vaste klanten voor." },
+    { icon: Users, t: "Herkent klanten die toe zijn aan een nieuwe afspraak", d: "Persoonlijke voorstellen op het juiste moment, zonder handmatig zoekwerk." },
+    { icon: Target, t: "Geeft concrete omzetkansen aan", d: "Herboekingen, upsells en winback klaar om met één tik te versturen." },
+    { icon: Zap, t: "Minder handmatig opvolgen", d: "Bevestigingen, reminders en betalingen gaan automatisch." },
+    { icon: Brain, t: "Eén plek voor je dag", d: "Geen losse appjes en notities meer. Alleen wat vandaag aandacht vraagt." },
   ];
 
   const trustItems = [
