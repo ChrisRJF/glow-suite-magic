@@ -132,17 +132,17 @@ export default function DashboardPage() {
 
       <RevenueOpportunities />
 
-      <section className="rounded-2xl border border-border/60 bg-card/70 px-4 py-3 sm:px-5 sm:py-4" style={{ boxShadow: "var(--shadow-sm)" }}>
+      <section className="rounded-2xl border border-border/50 bg-card/60 px-4 py-3 sm:px-5 sm:py-3.5" style={{ boxShadow: "var(--shadow-sm)" }}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="space-y-1.5 min-w-0">
+          <div className="space-y-1 min-w-0">
             <div className="flex flex-wrap gap-1.5">
               <span className="trust-chip text-[10.5px]"><CheckCircle2 className="w-3 h-3 text-success" />Live gekoppeld</span>
-              <span className="trust-chip text-[10.5px]">Laatste update zojuist</span>
+              <span className="trust-chip text-[10.5px]">Zojuist bijgewerkt</span>
             </div>
-            <h2 className="text-base sm:text-lg font-semibold tracking-tight">
+            <h2 className="text-[15px] sm:text-base font-medium tracking-tight text-foreground/90">
               +{formatEuro(glowSuiteWeekRevenue)} verdiend via GlowSuite deze week
             </h2>
-            <p className="text-[12px] text-muted-foreground">Groei uit boekingen, betalingen en automatische opvolging.</p>
+            <p className="text-[12px] text-muted-foreground/80">Groei uit boekingen, betalingen en automatische opvolging.</p>
           </div>
           <Button variant="ghost" size="sm" onClick={() => navigate("/rapporten?type=omzet")} className="self-start sm:self-auto">
             Bekijk groei <ArrowRight className="w-3.5 h-3.5 ml-1" />
