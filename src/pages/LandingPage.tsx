@@ -277,7 +277,7 @@ export default function LandingPage() {
         "Tot 5 medewerkers",
         "GlowPay online betalingen",
         "Cadeaubonnen & memberships",
-        "AI omzet-inzichten",
+        "Slimme omzet-inzichten",
         "Marketing automations",
       ],
     },
@@ -293,7 +293,7 @@ export default function LandingPage() {
         "Onbeperkt medewerkers",
         "Multi-vestiging",
         "White-label boekingspagina",
-        "AI Auto Revenue Engine",
+        "Auto Revenue Engine",
         "Persoonlijke onboarding",
       ],
     },
@@ -445,21 +445,21 @@ export default function LandingPage() {
       <Section className="border-t border-border/60">
         <div className="max-w-2xl">
           <Eyebrow icon={Bot}>GlowSuite werkt actief mee</Eyebrow>
-          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-            Stille acties die je dag rustiger en winstgevender maken.
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight leading-[1.1]">
+            Geen software die wacht. Een systeem dat meedoet.
           </h2>
           <p className="mt-4 text-muted-foreground text-lg">
-            Geen dashboards lezen. GlowSuite let mee op je agenda, betalingen en klanten en onderneemt de juiste actie op het juiste moment.
+            GlowSuite kijkt de hele dag mee in je agenda, klanten en betalingen. Op het juiste moment komt er een rustige actie naar boven. Jij beslist, GlowSuite doet het werk.
           </p>
         </div>
         <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[
-            { icon: Calendar, tag: "Agenda", t: "Lege plek om 14:00 gezien", d: "GlowSuite stelde automatisch passende klanten voor." },
-            { icon: AlertTriangle, tag: "No-show preventie", t: "Risico gedetecteerd", d: "Extra herinnering verstuurd voordat de afspraak begint." },
-            { icon: Heart, tag: "Klantopvolging", t: "2 klanten klaar voor een nieuwe afspraak", d: "Persoonlijk voorstel verstuurd via WhatsApp." },
-            { icon: CreditCard, tag: "Betalingen", t: "Openstaande betaling opgevolgd", d: "Vriendelijke herinnering verstuurd. Betaling binnen." },
-            { icon: UserCheck, tag: "Vandaag", t: "Agenda stabiel gevuld", d: "Geen directe actie nodig. GlowSuite blijft meekijken." },
-            { icon: Sparkles, tag: "Omzetkans", t: "3 klanten klaar voor upsell", d: "Voorstel staat klaar om met één tik te versturen." },
+            { icon: Calendar, time: "14:02", tag: "Agenda", t: "Lege plek van 45 minuten gezien", d: "3 vaste klanten geselecteerd. Voorstel om 14:07 verstuurd. Nieuwe afspraak ingepland." },
+            { icon: AlertTriangle, time: "09:10", tag: "No-show preventie", t: "Risico gedetecteerd bij afspraak 10:00", d: "Extra herinnering verstuurd om 09:11. Klant bevestigd om 09:22." },
+            { icon: Heart, time: "11:24", tag: "Klantopvolging", t: "2 klanten klaar voor een nieuwe afspraak", d: "Persoonlijk voorstel via WhatsApp verstuurd. 1 boeking dezelfde dag." },
+            { icon: CreditCard, time: "16:40", tag: "Betalingen", t: "Openstaande betaling gezien", d: "Vriendelijke herinnering verstuurd. Betaling binnen voor sluitingstijd." },
+            { icon: UserCheck, time: "08:00", tag: "Vandaag", t: "Dag rustig gestart", d: "Agenda stabiel gevuld. Geen losse acties nodig. GlowSuite blijft meekijken." },
+            { icon: Sparkles, time: "12:15", tag: "Omzetkans", t: "3 klanten klaar voor upsell", d: "Voorstel staat klaar om met één tik te versturen, op het juiste moment." },
           ].map((c) => {
             const Icon = c.icon;
             return (
@@ -468,8 +468,12 @@ export default function LandingPage() {
                   <Icon className="w-5 h-5" />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-[11px] font-semibold uppercase tracking-wide text-primary/80">{c.tag}</div>
-                  <div className="mt-0.5 font-semibold text-sm leading-snug">{c.t}</div>
+                  <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-primary/80">
+                    <span className="tabular-nums text-muted-foreground/80">{c.time}</span>
+                    <span className="text-muted-foreground/40">·</span>
+                    <span>{c.tag}</span>
+                  </div>
+                  <div className="mt-1 font-semibold text-sm leading-snug">{c.t}</div>
                   <p className="mt-1 text-sm text-muted-foreground leading-relaxed">{c.d}</p>
                 </div>
               </Card>
@@ -619,9 +623,9 @@ export default function LandingPage() {
             <Sparkles className="w-5 h-5" />
           </div>
           <div>
-            <div className="font-semibold text-lg">GlowSuite lost dit automatisch op.</div>
+            <div className="font-semibold text-lg">GlowSuite lost dit rustig op de achtergrond op.</div>
             <div className="text-muted-foreground text-sm mt-1">
-              Slimme AI-tools die met je salon meewerken, dag en nacht.
+              Een stille assistent die met je salon meewerkt, dag en nacht.
             </div>
           </div>
         </div>
@@ -666,7 +670,7 @@ export default function LandingPage() {
               Plan per medewerker, zie bezetting in één oogopslag en laat AI vrije plekken slim opvullen.
             </p>
             <ul className="mt-6 space-y-2.5 text-sm">
-              {["Dagplanning per medewerker", "Realtime bezetting & vrije plekken", "AI suggereert dalmoment-acties", "Drag & drop afspraken"].map((i) => (
+              {["Dagplanning per medewerker", "Realtime bezetting & vrije plekken", "Suggesties voor dalmomenten", "Drag & drop afspraken"].map((i) => (
                 <li key={i} className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-primary shrink-0" />{i}</li>
               ))}
             </ul>
@@ -875,7 +879,7 @@ export default function LandingPage() {
               AI vertaalt je data naar concrete omzetkansen, zonder dat jij dashboards hoeft te lezen.
             </p>
             <ul className="mt-6 space-y-2.5 text-sm">
-              {["Omzettrend per periode", "Top behandelingen & medewerkers", "Klantenwaarde (LTV)", "AI inzichten & exports"].map((i) => (
+              {["Omzettrend per periode", "Top behandelingen & medewerkers", "Klantenwaarde (LTV)", "Slimme inzichten & exports"].map((i) => (
                 <li key={i} className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-primary shrink-0" />{i}</li>
               ))}
             </ul>
@@ -930,7 +934,7 @@ export default function LandingPage() {
               icon: Bell,
               tag: "24 uur vooraf",
               title: "Reminder",
-              desc: "Automatische herinnering een dag voor de afspraak. Drastisch minder no-shows.",
+              desc: "Automatische herinnering een dag voor de afspraak. Merkbaar minder no-shows.",
             },
             {
               icon: Repeat,
@@ -1087,29 +1091,38 @@ export default function LandingPage() {
         </div>
       </Section>
 
-      {/* TESTIMONIALS */}
+      {/* OPERATIONAL IMPACT (structured, no fake quotes) */}
       <Section>
         <div className="max-w-2xl">
-          <Eyebrow icon={Star}>Wat salons zeggen</Eyebrow>
-          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Salons die kiezen voor rust en groei.</h2>
+          <Eyebrow icon={TrendingUp}>Wat salons merken</Eyebrow>
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Van losse handelingen naar een rustige werkdag.</h2>
+          <p className="mt-4 text-muted-foreground text-lg">
+            Een indicatief beeld van wat er verandert zodra GlowSuite op de achtergrond meedraait. Geen marketingclaims, gewoon wat de software wegneemt.
+          </p>
         </div>
         <div className="mt-10 grid md:grid-cols-3 gap-4">
           {[
-            { q: "Eindelijk één systeem voor boekingen, betalingen en klanten.", a: "Salon eigenaar" },
-            { q: "De AI-suggesties leveren mij elke week extra boekingen op.", a: "Beauty studio" },
-            { q: "GlowSuite voelt veel moderner dan wat we hiervoor gebruikten.", a: "Barbershop" },
-          ].map((t) => (
-            <Card key={t.a} className="p-6">
-              <div className="flex gap-0.5 text-primary">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Star key={i} className="w-4 h-4 fill-current" />
-                ))}
+            { label: "No-show preventie", before: "Losse appjes en gemiste herinneringen", after: "Automatische bevestiging en reminder per klant" },
+            { label: "Lege plekken", before: "Gaten blijven open tot het einde van de dag", after: "Vrije momenten worden actief aangeboden aan vaste klanten" },
+            { label: "Klantopvolging", before: "Onthouden wie weer toe is aan een afspraak", after: "Persoonlijk voorstel op het juiste moment, klaar om te versturen" },
+            { label: "Betalingen", before: "Handmatig nabellen voor openstaande bedragen", after: "Vriendelijke herinneringen gaan automatisch uit" },
+            { label: "Overzicht", before: "Notities, screenshots en losse tools", after: "Eén dagoverzicht met alleen wat aandacht vraagt" },
+            { label: "Werkdruk", before: "Continu schakelen tussen taken", after: "Rustigere dagen met minder ad-hoc beslissingen" },
+          ].map((r) => (
+            <Card key={r.label} className="p-6">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-primary/80">{r.label}</div>
+              <div className="mt-3 text-sm text-muted-foreground leading-relaxed">
+                <span className="font-medium text-foreground/70">Vandaag:</span> {r.before}
               </div>
-              <p className="mt-3 text-base leading-relaxed">"{t.q}"</p>
-              <p className="mt-4 text-sm text-muted-foreground">— {t.a}</p>
+              <div className="mt-2 text-sm leading-relaxed">
+                <span className="font-medium text-primary">Met GlowSuite:</span> {r.after}
+              </div>
             </Card>
           ))}
         </div>
+        <p className="mt-6 text-xs text-muted-foreground text-center">
+          Illustratief overzicht. Logo strip met salons volgt zodra eerste partners live zijn.
+        </p>
       </Section>
 
       {/* FAQ */}
