@@ -1019,10 +1019,10 @@ export default function LandingPage() {
         <div className="max-w-3xl mx-auto text-center">
           <Eyebrow>Prijzen</Eyebrow>
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-            Betaalbaar voor kleine salons. Krachtig genoeg voor groei.
+            Een operationeel systeem dat zichzelf terugverdient.
           </h2>
           <p className="mt-4 text-muted-foreground text-lg">
-            Vanaf <span className="font-semibold text-foreground">€39 / maand</span>. Groei wanneer jij groeit. Geen verborgen kosten.
+            Vanaf <span className="font-semibold text-foreground">€39 / maand</span>. Eén voorkomen no-show per week dekt het abonnement al. Maandelijks opzegbaar, zonder verborgen kosten.
           </p>
         </div>
         <div className="mt-12 grid md:grid-cols-3 gap-5 items-stretch">
