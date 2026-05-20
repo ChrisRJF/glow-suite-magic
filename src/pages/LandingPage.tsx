@@ -1042,10 +1042,10 @@ export default function LandingPage() {
             <CTADemoRequest onClick={() => openDemo("final-cta-start")} variant="gradient">
               Start gratis proefperiode <ArrowRight className="w-4 h-4 ml-1 inline shrink-0" />
             </CTADemoRequest>
-            <CTADemoRequest onClick={() => openDemo("final-cta-demo")}>Vraag demo aan</CTADemoRequest>
+            <CTADemoRequest onClick={() => openDemo("final-cta-demo")}>Bekijk demo</CTADemoRequest>
           </div>
           <p className="mt-5 text-xs text-muted-foreground">
-            Binnen enkele minuten live • Geen creditcard nodig • Maandelijks opzegbaar
+            Binnen enkele minuten actief. Geen creditcard nodig. Maandelijks opzegbaar.
           </p>
         </div>
       </Section>
