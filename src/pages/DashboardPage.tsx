@@ -14,6 +14,7 @@ import { AutoRevenueEngine } from "@/components/AutoRevenueEngine";
 import { DailyCoach } from "@/components/DailyCoach";
 import { TodayBriefing } from "@/components/TodayBriefing";
 import { RevenueOpportunities } from "@/components/RevenueOpportunities";
+import { TodayAtAGlance } from "@/components/TodayAtAGlance";
 import { WhyHint } from "@/components/WhyHint";
 import { AnimatedCounter } from "@/components/AnimatedCounter";
 import { PremiumOwnerMetrics } from "@/components/PremiumOwnerMetrics";
