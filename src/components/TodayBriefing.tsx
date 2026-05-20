@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, CreditCard, CalendarClock, Crown, Sparkles } from "lucide-react";
+import { ArrowRight, CreditCard, CalendarClock, Crown, Sparkles, CheckCircle2 } from "lucide-react";
 import { useAppointments, useCustomerMemberships } from "@/hooks/useSupabaseData";
 import { usePayments } from "@/hooks/usePayments";
 import { Skeleton } from "@/components/ui/skeleton";
