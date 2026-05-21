@@ -1206,18 +1206,6 @@ export default function LandingPage() {
             Een indicatief beeld van wat er verandert zodra GlowSuite op de achtergrond meedraait. Geen marketingclaims, gewoon wat de software wegneemt.
           </p>
         </div>
-        {/* Early-stage trust block (no fake names or quotes) */}
-        <div className="mt-8 rounded-2xl border border-border/60 bg-muted/20 px-6 py-5 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs sm:text-sm text-muted-foreground">
-          <span className="inline-flex items-center gap-2 font-medium text-foreground/80">
-            <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
-            Binnenkort live met de eerste salons en klinieken
-          </span>
-          <span className="hidden sm:inline text-muted-foreground/40">·</span>
-          <span>Pilotplekken beschikbaar</span>
-          <span className="hidden sm:inline text-muted-foreground/40">·</span>
-          <span>Gebouwd samen met salonhouders</span>
-        </div>
-
         {/* 3 trust cards */}
         <div className="mt-6 grid sm:grid-cols-3 gap-4">
           {[
