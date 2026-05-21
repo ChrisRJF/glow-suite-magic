@@ -410,9 +410,16 @@ export default function LandingPage() {
               GlowSuite helpt actief met no-shows voorkomen, lege plekken vullen en klanten opvolgen. Rustig op de achtergrond, zonder losse WhatsAppjes of vergeten opvolging.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center lg:justify-start gap-3 max-w-md sm:max-w-none mx-auto lg:mx-0">
-              <CTADemoRequest onClick={() => openDemo("hero-start")} variant="gradient">
-                Start gratis proefperiode <ArrowRight className="w-4 h-4 ml-1 inline shrink-0" />
-              </CTADemoRequest>
+              <Link to={SIGNUP} className="w-full sm:w-auto max-w-full">
+                <Button
+                  type="button"
+                  variant="gradient"
+                  size="lg"
+                  className="w-full sm:w-auto max-w-full whitespace-normal break-words text-center leading-tight px-5"
+                >
+                  Start gratis proefperiode <ArrowRight className="w-4 h-4 ml-1 inline shrink-0" />
+                </Button>
+              </Link>
               <CTADemoRequest onClick={() => openDemo("hero-demo")}>Bekijk hoe GlowSuite meewerkt</CTADemoRequest>
             </div>
             <p className="mt-5 text-sm text-muted-foreground">
