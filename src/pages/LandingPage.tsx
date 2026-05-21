@@ -370,6 +370,7 @@ export default function LandingPage() {
                 Prijzen
               </a>
               <Link to="/betalingen" onClick={() => setMenuOpen(false)} className="py-3 text-foreground/80">GlowPay</Link>
+              <button
                 type="button"
                 onClick={() => { setMenuOpen(false); openDemo("mobile-nav"); }}
                 className="py-3 text-foreground/80 text-left"
