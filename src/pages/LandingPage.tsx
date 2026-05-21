@@ -245,7 +245,7 @@ export default function LandingPage() {
   ];
 
   const trustItems = [
-    { icon: CreditCard, label: "Veilige betalingen via Mollie" },
+    { icon: CreditCard, label: "Veilig betalen met GlowPay" },
     { icon: Lock, label: "AVG-bewust gebouwd" },
     { icon: Globe, label: "White-label boekingspagina" },
     { icon: Smartphone, label: "Werkt mobiel perfect" },
