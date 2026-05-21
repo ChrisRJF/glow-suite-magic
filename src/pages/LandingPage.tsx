@@ -372,14 +372,15 @@ export default function LandingPage() {
                 Demo
               </button>
               <Link to={LOGIN} onClick={() => setMenuOpen(false)} className="py-3 text-foreground/80">Login</Link>
-              <Button
-                type="button"
-                variant="gradient"
-                className="w-full mt-2"
-                onClick={() => { setMenuOpen(false); openDemo("mobile-cta"); }}
-              >
-                Start gratis proefperiode
-              </Button>
+              <Link to={SIGNUP} onClick={() => setMenuOpen(false)} className="w-full mt-2">
+                <Button
+                  type="button"
+                  variant="gradient"
+                  className="w-full"
+                >
+                  Start gratis proefperiode
+                </Button>
+              </Link>
             </nav>
           </div>
         )}
@@ -409,9 +410,16 @@ export default function LandingPage() {
               GlowSuite helpt actief met no-shows voorkomen, lege plekken vullen en klanten opvolgen. Rustig op de achtergrond, zonder losse WhatsAppjes of vergeten opvolging.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center lg:justify-start gap-3 max-w-md sm:max-w-none mx-auto lg:mx-0">
-              <CTADemoRequest onClick={() => openDemo("hero-start")} variant="gradient">
-                Start gratis proefperiode <ArrowRight className="w-4 h-4 ml-1 inline shrink-0" />
-              </CTADemoRequest>
+              <Link to={SIGNUP} className="w-full sm:w-auto max-w-full">
+                <Button
+                  type="button"
+                  variant="gradient"
+                  size="lg"
+                  className="w-full sm:w-auto max-w-full whitespace-normal break-words text-center leading-tight px-5"
+                >
+                  Start gratis proefperiode <ArrowRight className="w-4 h-4 ml-1 inline shrink-0" />
+                </Button>
+              </Link>
               <CTADemoRequest onClick={() => openDemo("hero-demo")}>Bekijk hoe GlowSuite meewerkt</CTADemoRequest>
             </div>
             <p className="mt-5 text-sm text-muted-foreground">
@@ -1267,9 +1275,16 @@ export default function LandingPage() {
             Ontdek hoe GlowSuite je dag rustiger en winstgevender maakt. Wij helpen je met de overstap.
           </p>
           <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 max-w-md sm:max-w-none mx-auto">
-            <CTADemoRequest onClick={() => openDemo("final-cta-start")} variant="gradient">
-              Start gratis proefperiode <ArrowRight className="w-4 h-4 ml-1 inline shrink-0" />
-            </CTADemoRequest>
+            <Link to={SIGNUP} className="w-full sm:w-auto max-w-full">
+              <Button
+                type="button"
+                variant="gradient"
+                size="lg"
+                className="w-full sm:w-auto max-w-full whitespace-normal break-words text-center leading-tight px-5"
+              >
+                Start gratis proefperiode <ArrowRight className="w-4 h-4 ml-1 inline shrink-0" />
+              </Button>
+            </Link>
             <CTADemoRequest onClick={() => openDemo("final-cta-demo")}>Bekijk het dashboard</CTADemoRequest>
           </div>
           <p className="mt-5 text-xs text-muted-foreground">
@@ -1302,14 +1317,15 @@ export default function LandingPage() {
         style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.75rem)" }}
       >
         <div className="mx-3 mb-2 rounded-2xl border border-border/60 bg-background/95 backdrop-blur-xl p-2.5 shadow-2xl flex gap-2">
-          <Button
-            type="button"
-            variant="gradient"
-            className="flex-1 whitespace-normal"
-            onClick={() => openDemo("sticky-mobile-start")}
-          >
-            Start gratis
-          </Button>
+          <Link to={SIGNUP} className="flex-1">
+            <Button
+              type="button"
+              variant="gradient"
+              className="w-full whitespace-normal"
+            >
+              Start gratis
+            </Button>
+          </Link>
           <Button
             type="button"
             variant="outline"
