@@ -230,7 +230,7 @@ export default function LandingPage() {
   const valueCards = [
     { icon: Calendar, title: "24/7 online boekingen", desc: "Klanten boeken zelf, ook 's avonds en in het weekend." },
     { icon: Bot, title: "Automatische herinneringen", desc: "Minder no-shows, zonder dat jij appjes hoeft te sturen." },
-    { icon: CreditCard, title: "Aanbetalingen via Mollie", desc: "Meer zekerheid vooraf bij nieuwe en risicoklanten." },
+    { icon: CreditCard, title: "Aanbetalingen met GlowPay", desc: "Meer zekerheid vooraf bij nieuwe en risicoklanten." },
     { icon: Repeat, title: "Abonnementen", desc: "Terugkerende maandinkomsten met automatische incasso." },
     { icon: TrendingUp, title: "Slimme klantopvolging", desc: "Vaste klanten krijgen op tijd een nieuw voorstel." },
     { icon: LineChart, title: "Realtime inzicht", desc: "Zie direct waar omzet blijft liggen in je salon." },
@@ -245,7 +245,7 @@ export default function LandingPage() {
   ];
 
   const trustItems = [
-    { icon: CreditCard, label: "Veilige betalingen via Mollie" },
+    { icon: CreditCard, label: "Veilig betalen met GlowPay" },
     { icon: Lock, label: "AVG-bewust gebouwd" },
     { icon: Globe, label: "White-label boekingspagina" },
     { icon: Smartphone, label: "Werkt mobiel perfect" },
@@ -306,7 +306,7 @@ export default function LandingPage() {
   const faqs = [
     { q: "Is GlowSuite geschikt voor kleine salons?", a: "Ja. GlowSuite werkt voor solo-professionals én teams. Je betaalt alleen voor wat je nodig hebt en je kunt op elk moment opschalen." },
     { q: "Hoe werkt de AI van GlowSuite precies?", a: "GlowSuite kijkt rustig mee in je agenda, klanten en betalingen. Op het juiste moment komt er een concrete actie naar boven, zoals een lege plek vullen, een klant opvolgen of een betaling oppakken. Jij beslist, GlowSuite doet het werk." },
-    { q: "Kan ik Mollie koppelen?", a: "Ja. Je koppelt je Mollie-account in een paar klikken en ontvangt direct online betalingen, aanbetalingen en abonnementen." },
+    { q: "Hoe werken betalingen in GlowSuite?", a: "Met GlowPay loopt alles mee: online betalingen, aanbetalingen, betaalverzoeken, Tap to Pay en pinbetalingen in de salon. Direct gekoppeld aan afspraken, kassa en boekhouding. Bekijk de details op /betalingen." },
     { q: "Kan ik GlowSuite op mijn eigen website plaatsen?", a: "Ja. Onze white-label boekingswidget plaats je met één regel code op elke website, van WordPress tot Squarespace." },
     { q: "Werkt dit ook mobiel?", a: "GlowSuite is volledig mobiel geoptimaliseerd. Jij én je klanten werken vanaf elk apparaat." },
     { q: "Kan ik later upgraden?", a: "Altijd. Je begint klein en breidt features of teamleden uit wanneer je salon groeit." },
@@ -336,6 +336,7 @@ export default function LandingPage() {
             <a href="#ai" className="hover:text-foreground transition-colors">AI</a>
             <a href="#features" className="hover:text-foreground transition-colors">Features</a>
             <a href="#prijzen" onClick={scrollToPricing} className="hover:text-foreground transition-colors">Prijzen</a>
+            <Link to="/betalingen" className="hover:text-foreground transition-colors">GlowPay</Link>
             <button type="button" onClick={() => openDemo("nav")} className="hover:text-foreground transition-colors">Demo</button>
             <Link to={LOGIN} className="hover:text-foreground transition-colors">Login</Link>
           </nav>
@@ -368,6 +369,7 @@ export default function LandingPage() {
               >
                 Prijzen
               </a>
+              <Link to="/betalingen" onClick={() => setMenuOpen(false)} className="py-3 text-foreground/80">GlowPay</Link>
               <button
                 type="button"
                 onClick={() => { setMenuOpen(false); openDemo("mobile-nav"); }}
@@ -741,18 +743,23 @@ export default function LandingPage() {
             <Shot src={shotBetalingen} alt="GlowPay betalingen overzicht met live betaalstatussen" />
           </MockWindow>
           <div>
-            <Eyebrow icon={CreditCard}>Betalingen</Eyebrow>
+            <Eyebrow icon={CreditCard}>GlowPay</Eyebrow>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-              Ontvang aanbetalingen en betalingen via Mollie.
+              Betalingen die meelopen met je salon.
             </h2>
             <p className="mt-4 text-muted-foreground text-lg">
-              Veilige online betalingen, automatische bevestigingen en refunds in één klik. Meer zekerheid vooraf.
+              Online betalingen, betaalverzoeken, Tap to Pay en pinbetalingen. Direct gekoppeld aan afspraken, kassa en boekhouding.
             </p>
             <ul className="mt-6 space-y-2.5 text-sm">
-              {["Mollie verbonden in 2 minuten", "iDEAL, Wero, Bancontact, kaart", "Live betaalstatussen", "Refunds direct vanuit GlowSuite"].map((i) => (
+              {["GlowPay actief in een paar minuten", "iDEAL, Bancontact, Apple Pay, kaart", "Pin en Tap to Pay in de salon", "Automatisch verwerkt in administratie"].map((i) => (
                 <li key={i} className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-primary shrink-0" />{i}</li>
               ))}
             </ul>
+            <div className="mt-6">
+              <Link to="/betalingen" className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
+                Bekijk GlowPay <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
           </div>
         </div>
       </Section>
@@ -906,7 +913,7 @@ export default function LandingPage() {
               Verkoop maandpakketten met credits en houd MRR, leden en churn realtime in beeld.
             </p>
             <ul className="mt-6 space-y-2.5 text-sm">
-              {["Eigen aanmeldpagina per salon", "Credits per behandeling", "MRR & churn dashboard", "Automatische incasso via Mollie"].map((i) => (
+              {["Eigen aanmeldpagina per salon", "Credits per behandeling", "MRR & churn dashboard", "Automatische incasso met GlowPay"].map((i) => (
                 <li key={i} className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-primary shrink-0" />{i}</li>
               ))}
             </ul>
@@ -959,7 +966,7 @@ export default function LandingPage() {
               </div>
 
               <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                <span>Automatische incasso via Mollie</span>
+                <span>Automatische incasso met GlowPay</span>
                 <span>Bijgewerkt zojuist</span>
               </div>
             </div>
@@ -1150,7 +1157,7 @@ export default function LandingPage() {
                       Nu live starten
                     </Button>
                     <p className="text-[11px] text-muted-foreground text-center leading-snug">
-                      Veilig betalen via Mollie. Maandelijks opzegbaar.
+                      Veilig betalen met GlowPay. Maandelijks opzegbaar.
                     </p>
                   </>
                 )}
