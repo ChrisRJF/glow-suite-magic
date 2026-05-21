@@ -124,6 +124,8 @@ const App = () => (
               <Route path="/" element={<RootRoute />} />
               <Route path="/pricing" element={<PricingPage />} />
               <Route path="/prijzen" element={<PricingPage />} />
+              <Route path="/glowpay-info" element={<GlowPayMarketingPage />} />
+              <Route path="/betalingen" element={<GlowPayMarketingPage />} />
               <Route path="/agenda" element={<RoleProtectedRoute><CalendarPage /></RoleProtectedRoute>} />
               <Route path="/klanten" element={<RoleProtectedRoute><CustomersPage /></RoleProtectedRoute>} />
               <Route path="/segmenten" element={<RoleProtectedRoute><CustomerSegmentsPage /></RoleProtectedRoute>} />
