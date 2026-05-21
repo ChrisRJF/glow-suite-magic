@@ -1206,15 +1206,38 @@ export default function LandingPage() {
             Een indicatief beeld van wat er verandert zodra GlowSuite op de achtergrond meedraait. Geen marketingclaims, gewoon wat de software wegneemt.
           </p>
         </div>
-        {/* Logo strip placeholder (verschijnt zodra eerste salons live zijn) */}
-        <div className="mt-8 rounded-2xl border border-dashed border-border/60 bg-muted/20 px-6 py-5 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-xs uppercase tracking-wide text-muted-foreground/70">
-          <span className="font-semibold text-muted-foreground/80">Binnenkort live met</span>
-          <span>Salon A</span>
-          <span>Clinic B</span>
-          <span>Studio C</span>
-          <span>Spa D</span>
-          <span>Barber E</span>
+        {/* Early-stage trust block (no fake names or quotes) */}
+        <div className="mt-8 rounded-2xl border border-border/60 bg-muted/20 px-6 py-5 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs sm:text-sm text-muted-foreground">
+          <span className="inline-flex items-center gap-2 font-medium text-foreground/80">
+            <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
+            Binnenkort live met de eerste salons en klinieken
+          </span>
+          <span className="hidden sm:inline text-muted-foreground/40">·</span>
+          <span>Pilotplekken beschikbaar</span>
+          <span className="hidden sm:inline text-muted-foreground/40">·</span>
+          <span>Gebouwd samen met salonhouders</span>
         </div>
+
+        {/* 3 trust cards */}
+        <div className="mt-6 grid sm:grid-cols-3 gap-4">
+          {[
+            { label: "Minder losse handelingen", icon: Wand2, d: "Bevestigingen, herinneringen en opvolging lopen vanzelf mee." },
+            { label: "Minder vergeten opvolging", icon: Bell, d: "Klanten en betalingen blijven niet liggen, ook op drukke dagen." },
+            { label: "Meer rust in de werkdag", icon: Heart, d: "Eén overzicht met alleen wat aandacht vraagt. Geen ruis." },
+          ].map((c) => {
+            const Icon = c.icon;
+            return (
+              <Card key={c.label} className="p-5">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-3">
+                  <Icon className="w-5 h-5" />
+                </div>
+                <div className="font-semibold">{c.label}</div>
+                <div className="mt-1.5 text-sm text-muted-foreground leading-relaxed">{c.d}</div>
+              </Card>
+            );
+          })}
+        </div>
+
         <div className="mt-10 grid md:grid-cols-3 gap-4">
           {[
             { label: "No-show preventie", before: "Losse appjes en gemiste herinneringen", after: "Automatische bevestiging en reminder per klant" },
@@ -1225,7 +1248,10 @@ export default function LandingPage() {
             { label: "Werkdruk", before: "Continu schakelen tussen taken", after: "Rustigere dagen met minder ad-hoc beslissingen" },
           ].map((r) => (
             <Card key={r.label} className="p-6">
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-primary/80">{r.label}</div>
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-primary/80">{r.label}</div>
+                <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/70 px-2 py-0.5 rounded-full bg-muted/60">Indicatief voorbeeld</span>
+              </div>
               <div className="mt-3 text-sm text-muted-foreground leading-relaxed">
                 <span className="font-medium text-foreground/70">Vandaag:</span> {r.before}
               </div>
@@ -1235,8 +1261,29 @@ export default function LandingPage() {
             </Card>
           ))}
         </div>
+
+        {/* Empty testimonial placeholders, ready for real quotes */}
+        <div className="mt-10 grid sm:grid-cols-3 gap-4">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="p-6 rounded-2xl border border-dashed border-border/70 bg-muted/10 flex flex-col items-start gap-3 min-h-[160px]"
+            >
+              <div className="flex gap-1 text-muted-foreground/40">
+                {[0, 1, 2, 3, 4].map((s) => (
+                  <Star key={s} className="w-4 h-4" />
+                ))}
+              </div>
+              <p className="text-sm text-muted-foreground italic leading-relaxed">
+                Binnenkort: ervaringen van pilot salons.
+              </p>
+              <div className="mt-auto text-xs text-muted-foreground/70">Quote volgt zodra eerste partners live zijn</div>
+            </div>
+          ))}
+        </div>
+
         <p className="mt-6 text-xs text-muted-foreground text-center">
-          Illustratief overzicht. Logo strip met salons volgt zodra eerste partners live zijn.
+          Indicatief overzicht. Echte klantresultaten en namen volgen zodra eerste partners live zijn.
         </p>
       </Section>
 
