@@ -11,7 +11,7 @@ import { GlowSuiteLogo } from "@/components/GlowSuiteLogo";
 import { DemoRequestDialog } from "@/components/DemoRequestDialog";
 import { MigrationHelpDialog } from "@/components/MigrationHelpDialog";
 import { useTrackOnMount } from "@/hooks/useAnalytics";
-import sunmiP2 from "@/assets/glowpay/sunmi-p3-hand.webp";
+import sunmiP2 from "@/assets/glowpay/sunmi-p2-smartpad.jpeg";
 import sunmiP3 from "@/assets/glowpay/sunmi-p3-orange.jpeg";
 import sunmiFeatures from "@/assets/glowpay/sunmi-features.jpeg";
 import sunmiBrand from "@/assets/glowpay/sunmi-brand.jpeg";
@@ -360,10 +360,6 @@ export default function GlowPayMarketingPage() {
             <div className="rounded-3xl bg-gradient-to-br from-white/[0.06] to-white/[0.02] border border-white/10 overflow-hidden">
               <div className="relative bg-gradient-to-br from-[#1a0a0a] to-[#0a0a14] aspect-[4/3] flex items-center justify-center p-6">
                 <img src={sunmiP3} alt="Sunmi P3 Scanner pinapparaat" className="max-h-full w-auto object-contain drop-shadow-2xl" />
-                {/* GlowSuite "brand on screen" badge overlay */}
-                <div className="absolute bottom-4 right-4 inline-flex items-center gap-1.5 rounded-full bg-white/10 backdrop-blur border border-white/15 px-2.5 py-1 text-[10px] text-white/80">
-                  <Sparkles className="w-3 h-3" /> Brand: GlowSuite
-                </div>
               </div>
               <div className="p-6">
                 <div className="text-[11px] uppercase tracking-wide text-white/50 font-semibold">Scanner Terminal</div>
