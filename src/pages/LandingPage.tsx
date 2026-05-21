@@ -1155,7 +1155,7 @@ export default function LandingPage() {
                       Nu live starten
                     </Button>
                     <p className="text-[11px] text-muted-foreground text-center leading-snug">
-                      Veilig betalen via Mollie. Maandelijks opzegbaar.
+                      Veilig betalen met GlowPay. Maandelijks opzegbaar.
                     </p>
                   </>
                 )}
