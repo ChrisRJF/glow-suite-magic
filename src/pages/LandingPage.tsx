@@ -185,6 +185,9 @@ export default function LandingPage() {
   const [demoOpen, setDemoOpen] = useState(false);
   const [demoSource, setDemoSource] = useState<string>("landing");
   const openDemo = (source: string) => { setDemoSource(source); setDemoOpen(true); };
+  const [migrationOpen, setMigrationOpen] = useState(false);
+  const [migrationSource, setMigrationSource] = useState<string>("migration-help");
+  const openMigration = (source: string) => { setMigrationSource(source); setMigrationOpen(true); };
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutPlan, setCheckoutPlan] = useState<{ slug: string; name: string; price: string } | null>(null);
   const openCheckout = (slug: string, name: string, price: string) => {
