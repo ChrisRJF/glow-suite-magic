@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { GlowSuiteLogo } from "@/components/GlowSuiteLogo";
 import { DemoRequestDialog } from "@/components/DemoRequestDialog";
+import { MigrationHelpDialog } from "@/components/MigrationHelpDialog";
 import { TestimonialsSection } from "@/components/TestimonialsSection";
 import { RoiCalculator } from "@/components/RoiCalculator";
 import { useTrackOnMount } from "@/hooks/useAnalytics";
