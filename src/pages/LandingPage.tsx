@@ -372,14 +372,15 @@ export default function LandingPage() {
                 Demo
               </button>
               <Link to={LOGIN} onClick={() => setMenuOpen(false)} className="py-3 text-foreground/80">Login</Link>
-              <Button
-                type="button"
-                variant="gradient"
-                className="w-full mt-2"
-                onClick={() => { setMenuOpen(false); openDemo("mobile-cta"); }}
-              >
-                Start gratis proefperiode
-              </Button>
+              <Link to={SIGNUP} onClick={() => setMenuOpen(false)} className="w-full mt-2">
+                <Button
+                  type="button"
+                  variant="gradient"
+                  className="w-full"
+                >
+                  Start gratis proefperiode
+                </Button>
+              </Link>
             </nav>
           </div>
         )}
