@@ -222,6 +222,19 @@ Deno.serve(async (req) => {
     }
 
     if (!payment) {
+      // SaaS subscription checkout (GlowPay/Viva). Activate subscription if this
+      // orderCode matches a pending_saas_signups row.
+      if (orderCode) {
+        const handled = await handleSaasSubscriptionEvent(supabase, orderCode, status);
+        if (handled) {
+          if (ledgerId) {
+            await supabase.from("viva_webhook_events")
+              .update({ processed: true, processed_at: new Date().toISOString(), error: `saas_${status}` })
+              .eq("id", ledgerId);
+          }
+          return okText();
+        }
+      }
       if (ledgerId) {
         await supabase.from("viva_webhook_events")
           .update({ error: "payment_not_found", processed: false })
