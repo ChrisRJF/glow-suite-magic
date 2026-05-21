@@ -964,7 +964,7 @@ export default function LandingPage() {
               </div>
 
               <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                <span>Automatische incasso via Mollie</span>
+                <span>Automatische incasso met GlowPay</span>
                 <span>Bijgewerkt zojuist</span>
               </div>
             </div>
