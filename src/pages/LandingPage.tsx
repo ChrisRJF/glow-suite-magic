@@ -819,7 +819,7 @@ export default function LandingPage() {
               ))}
             </ul>
             <div className="mt-7">
-              <CTADemoRequest onClick={() => openDemo("migration-help")} variant="gradient">
+              <CTADemoRequest onClick={() => openMigration("migration-help")} variant="gradient">
                 Vraag hulp bij overstappen
               </CTADemoRequest>
             </div>
