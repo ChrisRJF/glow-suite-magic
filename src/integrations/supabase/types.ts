@@ -2069,6 +2069,51 @@ export type Database = {
           },
         ]
       }
+      pending_saas_signups: {
+        Row: {
+          activated_at: string | null
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          metadata: Json
+          order_code: string
+          plan_slug: string
+          salon_name: string | null
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          activated_at?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          metadata?: Json
+          order_code: string
+          plan_slug: string
+          salon_name?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          activated_at?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          metadata?: Json
+          order_code?: string
+          plan_slug?: string
+          salon_name?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           category: string | null

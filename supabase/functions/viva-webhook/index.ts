@@ -19,6 +19,151 @@ function slugify(value: string) {
   return value.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "").slice(0, 48) || "salon";
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// GlowPay SaaS subscription activation. Triggered when a Viva orderCode matches
+// a pending_saas_signups row (created by saas-subscribe-viva or
+// saas-checkout-public-viva). Returns true if the order belonged to a SaaS
+// signup so the main webhook flow can skip the payments-table path.
+// TODO: recurring billing automation via Viva is not implemented yet — only the
+// first month is charged here. Renewal will require a separate scheduler.
+// ─────────────────────────────────────────────────────────────────────────────
+async function handleSaasSubscriptionEvent(
+  supabase: ReturnType<typeof createClient>,
+  orderCode: string,
+  status: string,
+): Promise<boolean> {
+  const { data: signup } = await supabase
+    .from("pending_saas_signups")
+    .select("*")
+    .eq("order_code", orderCode)
+    .maybeSingle();
+  if (!signup) return false;
+
+  if (signup.status === "activated") return true; // idempotent
+  if (status !== "paid") {
+    if (["failed", "expired", "cancelled"].includes(status)) {
+      await supabase
+        .from("pending_saas_signups")
+        .update({ status: "failed", updated_at: new Date().toISOString() })
+        .eq("id", signup.id);
+    }
+    return true;
+  }
+
+  let userId: string | null = (signup as any).user_id || null;
+  const email: string = String((signup as any).email || "").toLowerCase();
+  const planSlug: string = String((signup as any).plan_slug || "growth");
+  const fullName: string = String((signup as any).full_name || "");
+
+  const { data: plan } = await supabase
+    .from("subscription_plans")
+    .select("*")
+    .eq("slug", planSlug)
+    .maybeSingle();
+
+  // Provision user when public-flow signup
+  if (!userId && email) {
+    const { data: list } = await (supabase as any).auth.admin.listUsers({ page: 1, perPage: 200 });
+    const existing = list?.users?.find((u: any) => (u.email || "").toLowerCase() === email);
+    if (existing) {
+      userId = existing.id;
+    } else {
+      const { data: created, error: createErr } = await (supabase as any).auth.admin.createUser({
+        email,
+        email_confirm: true,
+        user_metadata: {
+          plan: planSlug,
+          salon_name: (signup as any).salon_name || "",
+          full_name: fullName,
+        },
+      });
+      if (createErr) console.error("[viva-webhook] saas createUser failed", createErr);
+      else userId = created?.user?.id || null;
+    }
+  }
+
+  if (!userId) {
+    console.error("[viva-webhook] saas activation skipped: no user_id");
+    return true;
+  }
+
+  const periodStart = new Date();
+  const periodEnd = new Date();
+  periodEnd.setMonth(periodEnd.getMonth() + 1);
+
+  const subUpdate: Record<string, unknown> = {
+    status: "active",
+    plan_slug: planSlug,
+    last_payment_id: orderCode,
+    current_period_start: periodStart.toISOString(),
+    current_period_end: periodEnd.toISOString(),
+    trial_ends_at: periodEnd.toISOString(),
+  };
+  const { data: existingSub } = await supabase
+    .from("subscriptions")
+    .select("id")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (existingSub) {
+    await supabase.from("subscriptions").update(subUpdate).eq("id", (existingSub as any).id);
+  } else {
+    await supabase.from("subscriptions").insert({ user_id: userId, ...subUpdate });
+  }
+
+  await supabase
+    .from("pending_saas_signups")
+    .update({
+      status: "activated",
+      user_id: userId,
+      activated_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", signup.id);
+
+  // Send GlowSuite login email (best-effort)
+  if (email) {
+    try {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const origin = "https://glowsuite.nl";
+      let loginUrl = `${origin}/login?subscribed=1&email=${encodeURIComponent(email)}`;
+      const { data: linkData } = await (supabase as any).auth.admin.generateLink({
+        type: "magiclink",
+        email,
+        options: { redirectTo: `${origin}/?subscribed=1` },
+      });
+      if (linkData?.properties?.action_link) loginUrl = linkData.properties.action_link;
+
+      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+      const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+      if (LOVABLE_API_KEY && RESEND_API_KEY) {
+        const html = `<p>Je betaling is gelukt en je ${plan?.name || planSlug}-abonnement is direct actief.</p><p><a href="${loginUrl}">Log in op GlowSuite</a></p>`;
+        await fetch("https://connector-gateway.lovable.dev/resend/emails", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+            "X-Connection-Api-Key": RESEND_API_KEY,
+          },
+          body: JSON.stringify({
+            from: "GlowSuite <no-reply@glowsuite.nl>",
+            to: [email],
+            subject: "Je GlowSuite account is klaar",
+            html,
+            reply_to: "support@glowsuite.nl",
+          }),
+        }).catch((e) => console.error("[viva-webhook] saas email send failed", e));
+      }
+      // suppress unused-var
+      void supabaseUrl;
+    } catch (e) {
+      console.error("[viva-webhook] saas magiclink/email error", e);
+    }
+  }
+
+  return true;
+}
+
+
 function mapVivaStatus(statusId: string, eventTypeId?: number): "paid" | "failed" | "expired" | "cancelled" | "pending" | "refunded" {
   if (eventTypeId === 1798 || eventTypeId === 1799) return "refunded";
   if (statusId === "F" || eventTypeId === 1796) return "paid";
@@ -222,6 +367,19 @@ Deno.serve(async (req) => {
     }
 
     if (!payment) {
+      // SaaS subscription checkout (GlowPay/Viva). Activate subscription if this
+      // orderCode matches a pending_saas_signups row.
+      if (orderCode) {
+        const handled = await handleSaasSubscriptionEvent(supabase, orderCode, status);
+        if (handled) {
+          if (ledgerId) {
+            await supabase.from("viva_webhook_events")
+              .update({ processed: true, processed_at: new Date().toISOString(), error: `saas_${status}` })
+              .eq("id", ledgerId);
+          }
+          return okText();
+        }
+      }
       if (ledgerId) {
         await supabase.from("viva_webhook_events")
           .update({ error: "payment_not_found", processed: false })

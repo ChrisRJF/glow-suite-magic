@@ -177,7 +177,7 @@ export default function PricingPage() {
                           )}
                         </Button>
                         <p className="text-[11px] text-muted-foreground text-center mt-1 leading-snug">
-                          Veilig betalen via Mollie. Maandelijks opzegbaar.
+                          Veilig betalen met GlowPay. Maandelijks opzegbaar.
                         </p>
                       </>
                     )}
@@ -188,7 +188,7 @@ export default function PricingPage() {
           )}
 
           <p className="mt-10 text-center text-sm text-muted-foreground">
-            Veilige betalingen via Mollie • SEPA automatische incasso •
+            Veilig betalen met GlowPay • iDEAL, Bancontact, creditcard en meer •
             Maandelijks opzegbaar
           </p>
         </div>

@@ -99,13 +99,16 @@ export function trialDaysLeft(sub: UserSubscription | null): number | null {
 }
 
 export async function startMollieCheckout(planSlug: string): Promise<string> {
-  const { data, error } = await supabase.functions.invoke("saas-subscribe", {
+  // GlowPay (Viva Smart Checkout) is now the primary checkout path. The
+  // function name is preserved to avoid touching all call sites.
+  const { data, error } = await supabase.functions.invoke("saas-subscribe-viva", {
     body: { plan_slug: planSlug },
   });
   if (error) throw error;
   if (!data?.checkout_url) throw new Error("Geen checkout-url ontvangen");
   return data.checkout_url as string;
 }
+
 
 export async function manageSubscription(
   action: "cancel" | "reactivate" | "change_plan",

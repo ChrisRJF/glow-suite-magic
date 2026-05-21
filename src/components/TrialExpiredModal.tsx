@@ -116,7 +116,7 @@ export function TrialExpiredModal() {
                     ) : p.requires_demo ? (
                       "Demo aanvragen"
                     ) : (
-                      "Betaal via Mollie"
+                      "Doorgaan naar GlowPay"
                     )}
                   </Button>
                 </Card>
@@ -128,7 +128,7 @@ export function TrialExpiredModal() {
           <div className="px-6 sm:px-10 pb-8 flex flex-wrap justify-center items-center gap-x-5 gap-y-2 text-xs text-muted-foreground border-t pt-4 mx-4 sm:mx-10">
             <span className="flex items-center gap-1.5">
               <ShieldCheck className="w-3.5 h-3.5 text-success" />
-              Veilig betalen via Mollie
+              Veilig betalen met GlowPay
             </span>
             <span>Maandelijks opzegbaar</span>
             <span>Je data blijft bewaard</span>

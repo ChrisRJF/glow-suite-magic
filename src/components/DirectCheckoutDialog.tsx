@@ -31,7 +31,7 @@ export function DirectCheckoutDialog({
     setBusy(true);
     try {
       const { data, error } = await supabase.functions.invoke(
-        "saas-checkout-public",
+        "saas-checkout-public-viva",
         {
           body: {
             plan_slug: planSlug,
@@ -65,7 +65,7 @@ export function DirectCheckoutDialog({
             {planPrice
               ? `${planPrice} per maand. Maandelijks opzegbaar.`
               : "Maandelijks opzegbaar."}{" "}
-            Je gaat direct door naar de beveiligde Mollie betaalpagina.
+            Je gaat direct door naar de beveiligde GlowPay betaalpagina.
           </DialogDescription>
         </DialogHeader>
 
@@ -116,25 +116,25 @@ export function DirectCheckoutDialog({
             {busy ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Doorsturen naar betaling...
+                Doorsturen naar GlowPay...
               </>
             ) : (
-              <>Doorgaan naar Mollie</>
+              <>Doorgaan naar GlowPay</>
             )}
           </Button>
 
           <ul className="grid grid-cols-1 gap-1.5 pt-1">
             <li className="flex items-center gap-2 text-xs text-muted-foreground">
               <ShieldCheck className="w-3.5 h-3.5 text-primary shrink-0" />
-              Veilig betalen via Mollie
+              Veilig betalen met GlowPay
             </li>
             <li className="flex items-center gap-2 text-xs text-muted-foreground">
               <CreditCard className="w-3.5 h-3.5 text-primary shrink-0" />
-              SEPA, iDEAL, Bancontact, creditcard
+              iDEAL, Bancontact, creditcard en meer
             </li>
             <li className="flex items-center gap-2 text-xs text-muted-foreground">
               <Lock className="w-3.5 h-3.5 text-primary shrink-0" />
-              Maandelijks opzegbaar — direct actief, geen trial
+              Maandelijks opzegbaar — direct actief na betaling
             </li>
           </ul>
         </form>
