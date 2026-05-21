@@ -306,7 +306,7 @@ export default function LandingPage() {
   const faqs = [
     { q: "Is GlowSuite geschikt voor kleine salons?", a: "Ja. GlowSuite werkt voor solo-professionals én teams. Je betaalt alleen voor wat je nodig hebt en je kunt op elk moment opschalen." },
     { q: "Hoe werkt de AI van GlowSuite precies?", a: "GlowSuite kijkt rustig mee in je agenda, klanten en betalingen. Op het juiste moment komt er een concrete actie naar boven, zoals een lege plek vullen, een klant opvolgen of een betaling oppakken. Jij beslist, GlowSuite doet het werk." },
-    { q: "Kan ik Mollie koppelen?", a: "Ja. Je koppelt je Mollie-account in een paar klikken en ontvangt direct online betalingen, aanbetalingen en abonnementen." },
+    { q: "Hoe werken betalingen in GlowSuite?", a: "Met GlowPay loopt alles mee: online betalingen, aanbetalingen, betaalverzoeken, Tap to Pay en pinbetalingen in de salon. Direct gekoppeld aan afspraken, kassa en boekhouding. Bekijk de details op /betalingen." },
     { q: "Kan ik GlowSuite op mijn eigen website plaatsen?", a: "Ja. Onze white-label boekingswidget plaats je met één regel code op elke website, van WordPress tot Squarespace." },
     { q: "Werkt dit ook mobiel?", a: "GlowSuite is volledig mobiel geoptimaliseerd. Jij én je klanten werken vanaf elk apparaat." },
     { q: "Kan ik later upgraden?", a: "Altijd. Je begint klein en breidt features of teamleden uit wanneer je salon groeit." },
