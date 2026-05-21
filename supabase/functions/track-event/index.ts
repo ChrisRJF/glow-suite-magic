@@ -23,6 +23,7 @@ const ALLOWED_EVENTS = new Set([
   "testimonial_submitted",
   "google_review_clicked",
   "checkout_started",
+  "glowpay_marketing_view",
 ]);
 
 Deno.serve(async (req) => {
