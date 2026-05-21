@@ -911,7 +911,7 @@ export default function LandingPage() {
               Verkoop maandpakketten met credits en houd MRR, leden en churn realtime in beeld.
             </p>
             <ul className="mt-6 space-y-2.5 text-sm">
-              {["Eigen aanmeldpagina per salon", "Credits per behandeling", "MRR & churn dashboard", "Automatische incasso via Mollie"].map((i) => (
+              {["Eigen aanmeldpagina per salon", "Credits per behandeling", "MRR & churn dashboard", "Automatische incasso met GlowPay"].map((i) => (
                 <li key={i} className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-primary shrink-0" />{i}</li>
               ))}
             </ul>
