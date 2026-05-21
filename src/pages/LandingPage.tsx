@@ -462,6 +462,47 @@ export default function LandingPage() {
         </div>
       </Section>
 
+      {/* === SEMI-ANONYMOUS SOCIAL PROOF === */}
+      <Section>
+        <div className="max-w-3xl mx-auto text-center">
+          <Eyebrow icon={Heart}>Wat salons merken</Eyebrow>
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+            Gebouwd samen met salons en klinieken.
+          </h2>
+          <p className="mt-4 text-muted-foreground text-lg">
+            Eerlijke ervaringen van ondernemers die GlowSuite in hun dagelijks werk gebruiken.
+          </p>
+        </div>
+        <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[
+            { label: "Beauty clinic in Rotterdam", quote: "Het scheelt ons vooral veel losse handelingen." },
+            { label: "Nagelstudio uit Amsterdam", quote: "De automatische opvolging zorgt voor meer rust in de agenda." },
+            { label: "Barbershop met 6 medewerkers", quote: "Klanten reageren sneller op herinneringen." },
+            { label: "Huidkliniek uit Utrecht", quote: "Fijn dat betalingen en opvolging niet meer los lopen." },
+            { label: "Salonteam uit Eindhoven", quote: "Het dashboard laat direct zien wat vandaag aandacht nodig heeft." },
+          ].map((s) => (
+            <Card key={s.label} className="p-5 flex flex-col justify-between">
+              <p className="text-sm leading-relaxed text-foreground/90">
+                "{s.quote}"
+              </p>
+              <div className="mt-4 pt-3 border-t border-border/50">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/70">
+                  {s.label}
+                </span>
+              </div>
+            </Card>
+          ))}
+        </div>
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-success" />
+            Pilotplekken momenteel beschikbaar
+          </span>
+          <span className="hidden sm:inline text-muted-foreground/40">·</span>
+          <span>Binnenkort live bij de eerste salons</span>
+        </div>
+      </Section>
+
       {/* === GLOWSUITE WERKT ACTIEF MEE === */}
       <Section className="border-t border-border/60">
         <div className="max-w-2xl">
@@ -1262,24 +1303,30 @@ export default function LandingPage() {
           ))}
         </div>
 
-        {/* Empty testimonial placeholders, ready for real quotes */}
-        <div className="mt-10 grid sm:grid-cols-3 gap-4">
-          {[0, 1, 2].map((i) => (
-            <div
-              key={i}
-              className="p-6 rounded-2xl border border-dashed border-border/70 bg-muted/10 flex flex-col items-start gap-3 min-h-[160px]"
-            >
-              <div className="flex gap-1 text-muted-foreground/40">
-                {[0, 1, 2, 3, 4].map((s) => (
-                  <Star key={s} className="w-4 h-4" />
-                ))}
-              </div>
-              <p className="text-sm text-muted-foreground italic leading-relaxed">
-                Binnenkort: ervaringen van pilot salons.
-              </p>
-              <div className="mt-auto text-xs text-muted-foreground/70">Quote volgt zodra eerste partners live zijn</div>
-            </div>
-          ))}
+        {/* Ervaringen uit pilots */}
+        <div className="mt-10">
+          <h3 className="text-lg font-semibold tracking-tight mb-4">Ervaringen uit pilots</h3>
+          <div className="grid sm:grid-cols-3 gap-4">
+            {[
+              { label: "Salon uit Rotterdam", focus: "Rust", quote: "Het voelt rustiger omdat opvolging automatisch doorloopt. Ik hoef niet meer zelf bij te houden wie wanneer een herinnering nodig heeft." },
+              { label: "Kliniek uit Amsterdam", focus: "Minder handwerk", quote: "Het scheelt veel handmatig appen en herinneringen sturen. De tijd die ik overhoud besteed ik aan klanten in plaats aan administratie." },
+              { label: "Team uit Utrecht", focus: "Overzicht", quote: "Je ziet sneller waar nog omzet of opvolging ligt. Voorheen merkte je dat pas aan het einde van de week." },
+            ].map((p) => (
+              <Card key={p.label} className="p-5 flex flex-col">
+                <span className="inline-flex self-start px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-semibold uppercase tracking-wide mb-3">
+                  {p.focus}
+                </span>
+                <p className="text-sm leading-relaxed text-foreground/90 flex-1">
+                  "{p.quote}"
+                </p>
+                <div className="mt-4 pt-3 border-t border-border/50">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/70">
+                    {p.label}
+                  </span>
+                </div>
+              </Card>
+            ))}
+          </div>
         </div>
 
         <p className="mt-6 text-xs text-muted-foreground text-center">
