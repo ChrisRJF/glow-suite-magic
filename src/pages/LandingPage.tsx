@@ -1342,6 +1342,7 @@ export default function LandingPage() {
       </div>
 
       <DemoRequestDialog open={demoOpen} onOpenChange={setDemoOpen} source={demoSource} />
+      <MigrationHelpDialog open={migrationOpen} onOpenChange={setMigrationOpen} source={migrationSource} />
       <DirectCheckoutDialog
         open={checkoutOpen}
         onOpenChange={setCheckoutOpen}
