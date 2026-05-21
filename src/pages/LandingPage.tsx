@@ -741,18 +741,23 @@ export default function LandingPage() {
             <Shot src={shotBetalingen} alt="GlowPay betalingen overzicht met live betaalstatussen" />
           </MockWindow>
           <div>
-            <Eyebrow icon={CreditCard}>Betalingen</Eyebrow>
+            <Eyebrow icon={CreditCard}>GlowPay</Eyebrow>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-              Ontvang aanbetalingen en betalingen via Mollie.
+              Betalingen die meelopen met je salon.
             </h2>
             <p className="mt-4 text-muted-foreground text-lg">
-              Veilige online betalingen, automatische bevestigingen en refunds in één klik. Meer zekerheid vooraf.
+              Online betalingen, betaalverzoeken, Tap to Pay en pinbetalingen. Direct gekoppeld aan afspraken, kassa en boekhouding.
             </p>
             <ul className="mt-6 space-y-2.5 text-sm">
-              {["Mollie verbonden in 2 minuten", "iDEAL, Wero, Bancontact, kaart", "Live betaalstatussen", "Refunds direct vanuit GlowSuite"].map((i) => (
+              {["GlowPay actief in een paar minuten", "iDEAL, Bancontact, Apple Pay, kaart", "Pin en Tap to Pay in de salon", "Automatisch verwerkt in administratie"].map((i) => (
                 <li key={i} className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-primary shrink-0" />{i}</li>
               ))}
             </ul>
+            <div className="mt-6">
+              <Link to="/betalingen" className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
+                Bekijk GlowPay <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
           </div>
         </div>
       </Section>
