@@ -104,8 +104,21 @@ export async function startMollieCheckout(planSlug: string): Promise<string> {
   const { data, error } = await supabase.functions.invoke("saas-subscribe-viva", {
     body: { plan_slug: planSlug },
   });
-  if (error) throw error;
-  if (!data?.checkout_url) throw new Error("Geen checkout-url ontvangen");
+  if (error) {
+    // Try to surface the JSON error message from the edge function
+    let readable = error.message || "GlowPay checkout kon niet worden gestart";
+    try {
+      const ctx = (error as any).context;
+      if (ctx && typeof ctx.json === "function") {
+        const body = await ctx.json();
+        if (body?.error) readable = body.error;
+      }
+    } catch {
+      // ignore parse failure, keep readable fallback
+    }
+    throw new Error(readable);
+  }
+  if (!data?.checkout_url) throw new Error("Geen checkout-url ontvangen van GlowPay");
   return data.checkout_url as string;
 }
 
