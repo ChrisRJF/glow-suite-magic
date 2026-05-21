@@ -322,7 +322,15 @@ export default function LandingPage() {
       >
         <div className="max-w-6xl mx-auto px-5 sm:px-8 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2.5 min-w-0" aria-label="GlowSuite">
-            <GlowSuiteLogo size="md" withWordmark priority />
+            <GlowSuiteLogo size="md" priority />
+            <span className="flex flex-col leading-none min-w-0">
+              <span className="text-lg font-semibold tracking-tight bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
+                GlowSuite
+              </span>
+              <span className="mt-0.5 text-[8px] sm:text-[9px] font-medium tracking-[0.18em] text-primary/70 uppercase whitespace-nowrap">
+                Actief. Slim. Betrokken.
+              </span>
+            </span>
             <span className="hidden sm:inline-flex items-center gap-1.5 pl-2.5 ml-0.5 border-l border-border/60 text-[11px] font-medium text-muted-foreground tracking-wide">
               <span className="relative flex h-1.5 w-1.5">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
