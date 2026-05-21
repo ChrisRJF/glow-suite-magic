@@ -22,6 +22,7 @@ import AutoRevenuePage from "./pages/AutoRevenuePage";
 import GlowSuiteAIPage from "./pages/GlowSuiteAIPage";
 import KassaPage from "./pages/KassaPage";
 import GlowPayPage from "./pages/GlowPayPage";
+import GlowPayMarketingPage from "./pages/GlowPayMarketingPage";
 import ProductenPage from "./pages/ProductenPage";
 import RapportenPage from "./pages/RapportenPage";
 import InstellingenPage from "./pages/InstellingenPage";
