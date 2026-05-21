@@ -336,6 +336,7 @@ export default function LandingPage() {
             <a href="#ai" className="hover:text-foreground transition-colors">AI</a>
             <a href="#features" className="hover:text-foreground transition-colors">Features</a>
             <a href="#prijzen" onClick={scrollToPricing} className="hover:text-foreground transition-colors">Prijzen</a>
+            <Link to="/betalingen" className="hover:text-foreground transition-colors">GlowPay</Link>
             <button type="button" onClick={() => openDemo("nav")} className="hover:text-foreground transition-colors">Demo</button>
             <Link to={LOGIN} className="hover:text-foreground transition-colors">Login</Link>
           </nav>
