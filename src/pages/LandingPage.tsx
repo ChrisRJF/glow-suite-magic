@@ -462,47 +462,6 @@ export default function LandingPage() {
         </div>
       </Section>
 
-      {/* === SEMI-ANONYMOUS SOCIAL PROOF === */}
-      <Section>
-        <div className="max-w-3xl mx-auto text-center">
-          <Eyebrow icon={Heart}>Wat salons merken</Eyebrow>
-          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-            Gebouwd samen met salons en klinieken.
-          </h2>
-          <p className="mt-4 text-muted-foreground text-lg">
-            Eerlijke ervaringen van ondernemers die GlowSuite in hun dagelijks werk gebruiken.
-          </p>
-        </div>
-        <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[
-            { label: "Beauty clinic in Rotterdam", quote: "Het scheelt ons vooral veel losse handelingen." },
-            { label: "Nagelstudio uit Amsterdam", quote: "De automatische opvolging zorgt voor meer rust in de agenda." },
-            { label: "Barbershop met 6 medewerkers", quote: "Klanten reageren sneller op herinneringen." },
-            { label: "Huidkliniek uit Utrecht", quote: "Fijn dat betalingen en opvolging niet meer los lopen." },
-            { label: "Salonteam uit Eindhoven", quote: "Het dashboard laat direct zien wat vandaag aandacht nodig heeft." },
-          ].map((s) => (
-            <Card key={s.label} className="p-5 flex flex-col justify-between">
-              <p className="text-sm leading-relaxed text-foreground/90">
-                "{s.quote}"
-              </p>
-              <div className="mt-4 pt-3 border-t border-border/50">
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/70">
-                  {s.label}
-                </span>
-              </div>
-            </Card>
-          ))}
-        </div>
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
-          <span className="inline-flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-success" />
-            Pilotplekken momenteel beschikbaar
-          </span>
-          <span className="hidden sm:inline text-muted-foreground/40">·</span>
-          <span>Binnenkort live bij de eerste salons</span>
-        </div>
-      </Section>
-
       {/* === GLOWSUITE WERKT ACTIEF MEE === */}
       <Section className="border-t border-border/60">
         <div className="max-w-2xl">
