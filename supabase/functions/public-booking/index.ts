@@ -311,6 +311,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     let customerId = existingCustomer?.id;
+    const preferredLanguage = (data.customer as any).preferred_language || (data as any).language || null;
     if (!customerId) {
       const { data: newCustomer, error: customerError } = await supabase
         .from("customers")
@@ -322,12 +323,20 @@ Deno.serve(async (req) => {
           phone: data.customer.phone,
           marketing_consent: data.customer.marketing_consent,
           privacy_consent: data.customer.privacy_consent,
+          preferred_language: preferredLanguage || "nl",
           notes: ctx.settings.demo_mode ? "Demo boeking via online boeken" : "Aangemaakt via online boeken",
         })
         .select("id")
         .single();
       if (customerError) throw customerError;
       customerId = newCustomer.id;
+    } else if (preferredLanguage) {
+      // Update existing customer's language preference (non-fatal)
+      await supabase
+        .from("customers")
+        .update({ preferred_language: preferredLanguage })
+        .eq("id", customerId)
+        .eq("user_id", ctx.settings.user_id);
     }
 
     const appointmentsToInsert = bookingRows.map((row, index) => {
