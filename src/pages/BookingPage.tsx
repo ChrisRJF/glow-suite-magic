@@ -1053,7 +1053,10 @@ export default function BookingPage() {
               >
                 <div className="w-2 h-10 rounded-full" style={{ backgroundColor: item.color || "hsl(var(--primary))" }} />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold">{item.name}</p>
+                  <p className="text-sm font-semibold">{localizedServiceName(item, i18n.language)}</p>
+                  {localizedServiceDescription(item, i18n.language) && (
+                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{localizedServiceDescription(item, i18n.language)}</p>
+                  )}
                   <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Clock className="w-3 h-3" />
