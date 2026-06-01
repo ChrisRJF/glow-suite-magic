@@ -1,0 +1,2 @@
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS preferred_language text NOT NULL DEFAULT 'nl';
+COMMENT ON COLUMN public.customers.preferred_language IS 'Customer preferred UI/communication language (nl,en,de,fr,es,...)';

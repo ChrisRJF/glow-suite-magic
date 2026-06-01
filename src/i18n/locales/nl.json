@@ -1,0 +1,133 @@
+{
+  "common": {
+    "back": "Terug",
+    "next": "Volgende",
+    "continue": "Doorgaan",
+    "cancel": "Annuleren",
+    "confirm": "Bevestigen",
+    "close": "Sluiten",
+    "save": "Opslaan",
+    "loading": "Laden...",
+    "processing": "Bezig...",
+    "retry": "Opnieuw proberen",
+    "language": "Taal",
+    "selectLanguage": "Kies taal",
+    "backToGlowSuite": "Terug naar GlowSuite",
+    "newBooking": "Nieuwe afspraak boeken",
+    "required": "Verplicht",
+    "optional": "Optioneel"
+  },
+  "booking": {
+    "title": "Online boeken",
+    "metaDescription": "Boek eenvoudig online een afspraak.",
+    "steps": {
+      "service": "Behandeling",
+      "staff": "Medewerker",
+      "date": "Datum",
+      "time": "Tijd",
+      "details": "Jouw gegevens",
+      "confirm": "Bevestigen",
+      "payment": "Betaling"
+    },
+    "chooseService": "Kies een behandeling",
+    "chooseCategory": "Kies een categorie",
+    "chooseStaff": "Kies een medewerker",
+    "chooseDate": "Kies een datum",
+    "chooseTime": "Kies een tijd",
+    "yourDetails": "Vul je gegevens in",
+    "anyStaff": "Eerstvolgende beschikbaar",
+    "duration": "Duur",
+    "price": "Prijs",
+    "totalDuration": "Totale duur",
+    "totalPrice": "Totaal",
+    "firstName": "Voornaam",
+    "lastName": "Achternaam",
+    "fullName": "Naam",
+    "email": "E-mailadres",
+    "phone": "Telefoonnummer",
+    "notes": "Opmerkingen",
+    "notesPlaceholder": "Eventuele wensen of opmerkingen",
+    "agreeTerms": "Ik ga akkoord met de salonvoorwaarden",
+    "confirmBooking": "Boeking bevestigen",
+    "payAndBook": "Betalen en boeken",
+    "bookingSuccess": "Je afspraak is bevestigd",
+    "bookingSuccessText": "Je ontvangt een bevestiging per e-mail of WhatsApp.",
+    "bookingFailed": "Boeking mislukt",
+    "bookingFailedText": "Probeer het opnieuw of neem contact op met de salon.",
+    "noSlotsAvailable": "Geen tijden beschikbaar op deze datum",
+    "selectAtLeastOneService": "Selecteer minimaal één behandeling",
+    "addAnotherPerson": "Persoon toevoegen",
+    "removePerson": "Persoon verwijderen",
+    "rescheduleTitle": "Afspraak verzetten",
+    "cancelTitle": "Afspraak annuleren"
+  },
+  "payment": {
+    "checking": "We controleren je betaling…",
+    "confirmed": "Betaling bevestigd",
+    "received": "Betaling ontvangen",
+    "notCompleted": "Betaling niet voltooid",
+    "notCompletedText": "Probeer het opnieuw of neem contact op met de salon.",
+    "processingBooking": "We verwerken je afspraak. Je ontvangt zo een bevestiging per e-mail of WhatsApp.",
+    "paymentFailed": "Betaling niet gelukt",
+    "paymentFailedText": "De betaling is geannuleerd of niet voltooid. Je kunt het opnieuw proberen via je boekingslink.",
+    "method": "Betaalmethode",
+    "secureNotice": "Veilig betalen via GlowPay"
+  },
+  "publicAction": {
+    "afspraak": {
+      "title": "Afspraak beheren",
+      "text": "Deze beveiligde beheerlink is ontvangen. Neem contact op met de salon als je je afspraak wilt wijzigen."
+    },
+    "route-contact": {
+      "title": "Route en contact",
+      "text": "Bekijk de contactgegevens van de salon of neem direct contact op voor route-informatie."
+    },
+    "salonvoorwaarden": {
+      "title": "Salonvoorwaarden",
+      "text": "Op afspraken gelden de voorwaarden van de salon, zoals tijdig wijzigen of annuleren en eventuele betaalafspraken.",
+      "bullets": [
+        "Kom op tijd voor je afspraak.",
+        "Wijzig of annuleer zo vroeg mogelijk.",
+        "Bij te laat annuleren kunnen kosten gelden."
+      ]
+    },
+    "betaalbewijs": {
+      "title": "Betaalbewijs",
+      "text": "Je betaalbewijs is gekoppeld aan je afspraak of bestelling. Bewaar de e-mail als referentie."
+    },
+    "abonnement-beheren": {
+      "title": "Abonnement beheren",
+      "text": "Je abonnement is gekoppeld aan de salon. Neem contact op met de salon voor wijzigingen of vragen."
+    },
+    "review": {
+      "title": "Review schrijven",
+      "text": "Bedankt dat je je ervaring wilt delen. Je feedback helpt de salon om de service nog beter te maken."
+    }
+  },
+  "membership": {
+    "title": "Lidmaatschappen",
+    "yourPlan": "Jouw lidmaatschap",
+    "creditsAvailable": "Beschikbare tegoeden",
+    "renewsOn": "Vernieuwt op",
+    "managePlan": "Beheer lidmaatschap"
+  },
+  "giftcard": {
+    "title": "Cadeaubonnen",
+    "buy": "Cadeaubon kopen",
+    "balance": "Saldo",
+    "code": "Code",
+    "redeem": "Inwisselen"
+  },
+  "waitlist": {
+    "title": "Wachtlijst",
+    "join": "Plaats me op de wachtlijst",
+    "joined": "Je staat op de wachtlijst"
+  },
+  "errors": {
+    "generic": "Er ging iets mis. Probeer het opnieuw.",
+    "network": "Geen verbinding. Controleer je internet.",
+    "requiredField": "Dit veld is verplicht",
+    "invalidEmail": "Ongeldig e-mailadres",
+    "invalidPhone": "Ongeldig telefoonnummer"
+  }
+}
