@@ -1098,7 +1098,7 @@ export default function BookingPage() {
                     >
                       {bookingServices.map((item) => (
                         <option key={item.id} value={item.id}>
-                          {item.name} — {formatEuro(item.price)}
+                          {localizedServiceName(item, i18n.language)} — {formatEuro(item.price)}
                         </option>
                       ))}
                     </select>
