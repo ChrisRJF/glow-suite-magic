@@ -84,12 +84,12 @@
       "confirm": "Confirm",
       "payment": "Payment"
     },
-    "chooseService": "Choose a service",
+    "chooseService": "Choose your treatment",
     "chooseCategory": "Choose a category",
     "chooseStaff": "Choose a staff member",
     "chooseDate": "Choose a date",
     "chooseTime": "Choose a time",
-    "yourDetails": "Enter your details",
+    "yourDetails": "Your details",
     "anyStaff": "First available",
     "duration": "Duration",
     "price": "Price",
@@ -116,7 +116,147 @@
     "rescheduleTitle": "Reschedule appointment",
     "cancelTitle": "Cancel appointment",
     "welcomeBack": "Welcome back",
-    "detailsPrefilled": "Your details are filled in."
+    "detailsPrefilled": "Your details are filled in.",
+    "subtitle": "Booked within 1 minute · No account needed",
+    "stepLabel": "STEP {{current}} OF {{total}}",
+    "treatmentFallback": "treatment",
+    "loading": "Loading...",
+    "back": "Back",
+    "next": "Next",
+    "welcomeBackName": "Welcome back{{name}}",
+    "calendarEventDescription": "Appointment at {{salon}}",
+    "shareText": "My appointment at {{salon}} for {{service}} at {{time}}",
+    "stepNames": {
+      "appointment": "Appointment",
+      "details": "Details",
+      "payment": "Payment",
+      "detailsAndPay": "Details & payment",
+      "confirmed": "Confirmed"
+    },
+    "trust": {
+      "instantConfirm": "Instantly confirmed",
+      "securePayment": "Secure payment",
+      "noAccount": "No account needed",
+      "freeCancel": "Free cancellation up to 24h ahead"
+    },
+    "group": {
+      "title": "Group booking",
+      "subtitle": "Book for multiple people at once",
+      "mainPerson": "Main person",
+      "mainPersonChoose": "Start with your treatment",
+      "extraPeople": "Additional people",
+      "addPerson": "Add person",
+      "person": "Person {{n}}",
+      "namePlaceholder": "Name",
+      "totalLabel": "Total:",
+      "peopleCount": "({{count}} people)",
+      "summaryLabel": "{{count}} people",
+      "staffOrAutoLabel": "Staff or automatic",
+      "startPreference": "{{service}} from {{time}}",
+      "simultaneous": "Start together",
+      "simultaneousDesc": "Everyone starts at the same time",
+      "sequential": "One after another",
+      "sequentialDesc": "Scheduled back to back",
+      "bestMatch": "Best match",
+      "bestMatchDesc": "Optimal for your group",
+      "placementOverview": "Placement overview",
+      "notAllSimultaneous": "Not everyone can start at the same time",
+      "bestAlternative": "This is the best alternative"
+    },
+    "assignment": {
+      "manualLabel": "Manual",
+      "autoLabel": "Automatic",
+      "chooseStaff": "Choose a staff member",
+      "autoPlacement": "Automatically placed",
+      "chooseStaffPlaceholder": "Choose a staff member...",
+      "availableStaff": "Available: {{names}}"
+    },
+    "fields": {
+      "email": "Email",
+      "emailPlaceholder": "you@email.com",
+      "name": "Name",
+      "namePlaceholder": "First and last name",
+      "phone": "Phone",
+      "phonePlaceholder": "+44 7700 900000"
+    },
+    "summary": {
+      "service": "Treatment",
+      "time": "Time",
+      "total": "Total"
+    },
+    "rebook": {
+      "title": "Quickly rebook",
+      "previous": "Previous appointment: {{date}}"
+    },
+    "notFound": {
+      "title": "Not found",
+      "text": "This booking link is invalid or expired."
+    },
+    "paymentReturn": {
+      "success": "Payment successful. Your appointment is confirmed.",
+      "pending": "Processing payment..."
+    },
+    "payment": {
+      "requiredFull": "Full payment required",
+      "requiredDeposit": "Deposit required",
+      "notRequired": "No prepayment needed",
+      "toPay": "To pay: {{amount}}",
+      "payTo": "Pay to",
+      "totalToPay": "Total to pay",
+      "noHidden": "No hidden costs",
+      "secureMollie": "Secure via Mollie",
+      "instantConfirm": "Instantly confirmed",
+      "thousandSafe": "100% safe",
+      "choosePaymentMethod": "Choose your payment method",
+      "statusPaid": "Paid",
+      "statusPending": "Pending",
+      "tryAgainOrMethod": "Try again or choose another method",
+      "processing": "Processing...",
+      "payAndConfirm": "Pay {{amount}} and confirm",
+      "confirmAppointment": "Confirm appointment",
+      "depositRequiredHint": "Deposit will be deducted from your final bill"
+    },
+    "confirmation": {
+      "title": "Appointment confirmed!",
+      "subtext": "You will receive a confirmation by email.",
+      "salon": "Salon",
+      "service": "Treatment",
+      "date": "Date",
+      "time": "Time",
+      "staff": "Staff",
+      "reference": "Reference",
+      "payment": "Payment",
+      "addToCalendar": "Add to calendar",
+      "share": "Share",
+      "newBooking": "Book another appointment"
+    },
+    "terms": {
+      "glowsuiteBefore": "I agree to the ",
+      "glowsuiteLink": "GlowSuite terms",
+      "glowsuiteAfter": ".",
+      "salon": "I agree to the salon's terms.",
+      "required": "Please accept the terms to continue"
+    },
+    "toasts": {
+      "chooseStaffMain": "Choose a staff member for the main person",
+      "chooseStaffEach": "Choose a staff member for everyone",
+      "noSimultaneous": "Not everyone can start at the same time",
+      "chooseServiceAndTime": "Choose a treatment and time",
+      "acceptTerms": "Please accept the terms first",
+      "bookingSaved": "Booking saved",
+      "bookingConfirmedNoPay": "Appointment confirmed",
+      "bookingConfirmed": "Appointment confirmed!",
+      "groupConfirmed": "Group booking confirmed for {{count}} people",
+      "bookingError": "Booking failed",
+      "paymentFailed": "Payment failed",
+      "paymentStatusError": "Could not retrieve payment status",
+      "copied": "Copied!"
+    },
+    "slot": {
+      "firstAvailable": "First available",
+      "todayStillSlots": "Slots today",
+      "popularTime": "Popular time"
+    }
   },
   "payment": {
     "checking": "Checking your payment…",

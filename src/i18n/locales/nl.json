@@ -84,7 +84,7 @@
       "confirm": "Bevestigen",
       "payment": "Betaling"
     },
-    "chooseService": "Kies een behandeling",
+    "chooseService": "Kies je behandeling",
     "chooseCategory": "Kies een categorie",
     "chooseStaff": "Kies een medewerker",
     "chooseDate": "Kies een datum",
@@ -116,7 +116,147 @@
     "rescheduleTitle": "Afspraak verzetten",
     "cancelTitle": "Afspraak annuleren",
     "welcomeBack": "Welkom terug",
-    "detailsPrefilled": "Je gegevens zijn ingevuld."
+    "detailsPrefilled": "Je gegevens zijn ingevuld.",
+    "subtitle": "Binnen 1 minuut geboekt · Geen account nodig",
+    "stepLabel": "STAP {{current}} VAN {{total}}",
+    "treatmentFallback": "behandeling",
+    "loading": "Laden...",
+    "back": "Terug",
+    "next": "Volgende",
+    "welcomeBackName": "Welkom terug{{name}}",
+    "calendarEventDescription": "Afspraak bij {{salon}}",
+    "shareText": "Mijn afspraak bij {{salon}} voor {{service}} om {{time}}",
+    "stepNames": {
+      "appointment": "Afspraak",
+      "details": "Gegevens",
+      "payment": "Betaling",
+      "detailsAndPay": "Gegevens & betaling",
+      "confirmed": "Bevestigd"
+    },
+    "trust": {
+      "instantConfirm": "Direct bevestigd",
+      "securePayment": "Veilig betalen",
+      "noAccount": "Geen account nodig",
+      "freeCancel": "Gratis annuleren tot 24u vooraf"
+    },
+    "group": {
+      "title": "Groepsboeking",
+      "subtitle": "Boek voor meerdere personen tegelijk",
+      "mainPerson": "Hoofdpersoon",
+      "mainPersonChoose": "Begin met jouw behandeling",
+      "extraPeople": "Extra personen",
+      "addPerson": "Persoon toevoegen",
+      "person": "Persoon {{n}}",
+      "namePlaceholder": "Naam",
+      "totalLabel": "Totaal:",
+      "peopleCount": "({{count}} personen)",
+      "summaryLabel": "{{count}} personen",
+      "staffOrAutoLabel": "Medewerker of automatisch",
+      "startPreference": "{{service}} vanaf {{time}}",
+      "simultaneous": "Tegelijk starten",
+      "simultaneousDesc": "Alle personen beginnen op hetzelfde moment",
+      "sequential": "Achter elkaar",
+      "sequentialDesc": "Achter elkaar ingepland",
+      "bestMatch": "Beste match",
+      "bestMatchDesc": "Optimaal voor jullie groep",
+      "placementOverview": "Overzicht plaatsing",
+      "notAllSimultaneous": "Niet alle personen kunnen tegelijk",
+      "bestAlternative": "Dit is het beste alternatief"
+    },
+    "assignment": {
+      "manualLabel": "Handmatig",
+      "autoLabel": "Automatisch",
+      "chooseStaff": "Kies een medewerker",
+      "autoPlacement": "Automatisch ingepland",
+      "chooseStaffPlaceholder": "Kies een medewerker...",
+      "availableStaff": "Beschikbaar: {{names}}"
+    },
+    "fields": {
+      "email": "E-mail",
+      "emailPlaceholder": "jouw@email.nl",
+      "name": "Naam",
+      "namePlaceholder": "Voor- en achternaam",
+      "phone": "Telefoon",
+      "phonePlaceholder": "06 12 34 56 78"
+    },
+    "summary": {
+      "service": "Behandeling",
+      "time": "Tijd",
+      "total": "Totaal"
+    },
+    "rebook": {
+      "title": "Snel opnieuw boeken",
+      "previous": "Vorige afspraak: {{date}}"
+    },
+    "notFound": {
+      "title": "Niet gevonden",
+      "text": "Deze boekingslink is ongeldig of verlopen."
+    },
+    "paymentReturn": {
+      "success": "Betaling geslaagd. Je afspraak is bevestigd.",
+      "pending": "Betaling wordt verwerkt..."
+    },
+    "payment": {
+      "requiredFull": "Volledige betaling vereist",
+      "requiredDeposit": "Aanbetaling vereist",
+      "notRequired": "Geen vooruitbetaling nodig",
+      "toPay": "Te betalen: {{amount}}",
+      "payTo": "Betaal aan",
+      "totalToPay": "Totaal te betalen",
+      "noHidden": "Geen verborgen kosten",
+      "secureMollie": "Veilig via Mollie",
+      "instantConfirm": "Direct bevestigd",
+      "thousandSafe": "100% veilig",
+      "choosePaymentMethod": "Kies je betaalmethode",
+      "statusPaid": "Betaald",
+      "statusPending": "In afwachting",
+      "tryAgainOrMethod": "Probeer opnieuw of kies een andere methode",
+      "processing": "Bezig met verwerken...",
+      "payAndConfirm": "Betaal {{amount}} en bevestig",
+      "confirmAppointment": "Bevestig afspraak",
+      "depositRequiredHint": "Aanbetaling wordt verrekend bij je afspraak"
+    },
+    "confirmation": {
+      "title": "Afspraak bevestigd!",
+      "subtext": "Je ontvangt een bevestiging per e-mail.",
+      "salon": "Salon",
+      "service": "Behandeling",
+      "date": "Datum",
+      "time": "Tijd",
+      "staff": "Medewerker",
+      "reference": "Referentie",
+      "payment": "Betaling",
+      "addToCalendar": "Voeg toe aan agenda",
+      "share": "Delen",
+      "newBooking": "Nieuwe afspraak boeken"
+    },
+    "terms": {
+      "glowsuiteBefore": "Ik ga akkoord met de ",
+      "glowsuiteLink": "algemene voorwaarden van GlowSuite",
+      "glowsuiteAfter": ".",
+      "salon": "Ik ga akkoord met de voorwaarden van de salon.",
+      "required": "Accepteer de voorwaarden om door te gaan"
+    },
+    "toasts": {
+      "chooseStaffMain": "Kies een medewerker voor de hoofdpersoon",
+      "chooseStaffEach": "Kies een medewerker voor iedereen",
+      "noSimultaneous": "Niet alle personen kunnen tegelijk starten",
+      "chooseServiceAndTime": "Kies een behandeling en tijd",
+      "acceptTerms": "Accepteer eerst de voorwaarden",
+      "bookingSaved": "Afspraak opgeslagen",
+      "bookingConfirmedNoPay": "Afspraak bevestigd",
+      "bookingConfirmed": "Afspraak bevestigd!",
+      "groupConfirmed": "Groepsboeking bevestigd voor {{count}} personen",
+      "bookingError": "Boeken mislukt",
+      "paymentFailed": "Betaling mislukt",
+      "paymentStatusError": "Kan betaalstatus niet ophalen",
+      "copied": "Gekopieerd!"
+    },
+    "slot": {
+      "firstAvailable": "Eerstvolgende",
+      "todayStillSlots": "Vandaag nog plek",
+      "popularTime": "Populaire tijd"
+    }
   },
   "payment": {
     "checking": "We controleren je betaling…",
