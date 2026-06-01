@@ -1454,7 +1454,7 @@ export default function BookingPage() {
 
                 <div className="mt-4 grid gap-1.5 text-left text-sm bg-background/60 rounded-xl p-3">
                   <div className="flex justify-between"><span className="text-muted-foreground">{t("booking.confirmation.salon")}</span><span className="font-medium">{confirmation?.salon_name || publicData?.salon.name || branding.salon_name}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">{t("booking.confirmation.service")}</span><span className="font-medium">{confirmation?.service_name || service?.name}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">{t("booking.confirmation.service")}</span><span className="font-medium">{confirmation?.service_name || localizedServiceName(service, i18n.language)}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">{t("booking.confirmation.date")}</span><span className="font-medium">{confirmation?.date ? new Date(`${confirmation.date}T00:00:00`).toLocaleDateString(dateLocale, { weekday: "short", day: "numeric", month: "short" }) : new Date(`${selectedDate}T00:00:00`).toLocaleDateString(dateLocale, { weekday: "short", day: "numeric", month: "short" })}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">{t("booking.confirmation.time")}</span><span className="font-medium">{confirmation?.time || selectedTime}</span></div>
                   {selectedPlacements[0]?.employee && (
