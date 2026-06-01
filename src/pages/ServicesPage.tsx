@@ -48,8 +48,8 @@ export default function ServicesPage() {
   };
 
   const close = () => {
-    setShowForm(false); setEditingId(null);
-    setForm({ name: '', duration_minutes: 30, price: 0, category: '', color: '#7B61FF', description: '', is_active: true, is_online_bookable: true, is_internal_only: false });
+    setShowForm(false); setEditingId(null); setShowTranslations(false);
+    setForm({ name: '', duration_minutes: 30, price: 0, category: '', color: '#7B61FF', description: '', is_active: true, is_online_bookable: true, is_internal_only: false, translations: {} });
   };
 
   const openEdit = (s: any) => {
@@ -58,8 +58,16 @@ export default function ServicesPage() {
       name: s.name, duration_minutes: s.duration_minutes, price: s.price,
       category: s.category || '', color: s.color || '#7B61FF', description: s.description || '',
       is_active: s.is_active ?? true, is_online_bookable: s.is_online_bookable ?? true, is_internal_only: s.is_internal_only ?? false,
+      translations: (s.translations && typeof s.translations === 'object') ? s.translations : {},
     });
     setShowForm(true);
+  };
+
+  const updateTranslation = (lang: string, field: 'name' | 'description' | 'category', value: string) => {
+    setForm((f) => ({
+      ...f,
+      translations: { ...f.translations, [lang]: { ...(f.translations as any)[lang], [field]: value } },
+    }));
   };
 
   return (
