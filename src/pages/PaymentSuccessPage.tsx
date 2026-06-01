@@ -1,9 +1,14 @@
 import { Link, useSearchParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { CheckCircle2, Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
+import { useLanguagePersistence } from "@/hooks/useLanguagePersistence";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 export default function PaymentSuccessPage() {
+  useLanguagePersistence();
+  const { t } = useTranslation();
   const [params] = useSearchParams();
   const transactionId = params.get("t") || params.get("transaction_id");
   const orderCode = params.get("s") || params.get("order_code");
@@ -41,22 +46,25 @@ export default function PaymentSuccessPage() {
   }, [transactionId, orderCode]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <div className="max-w-md w-full text-center space-y-5 p-8 rounded-2xl border border-border bg-card shadow-sm">
-        <div className="mx-auto w-14 h-14 rounded-full bg-success/15 flex items-center justify-center">
-          {state === "checking" ? <Loader2 className="w-7 h-7 text-success animate-spin" /> : <CheckCircle2 className="w-7 h-7 text-success" />}
+    <div className="min-h-screen flex flex-col bg-background px-4">
+      <div className="w-full flex justify-end py-3"><LanguageSwitcher /></div>
+      <div className="flex-1 flex items-center justify-center">
+        <div className="max-w-md w-full text-center space-y-5 p-8 rounded-2xl border border-border bg-card shadow-sm">
+          <div className="mx-auto w-14 h-14 rounded-full bg-success/15 flex items-center justify-center">
+            {state === "checking" ? <Loader2 className="w-7 h-7 text-success animate-spin" /> : <CheckCircle2 className="w-7 h-7 text-success" />}
+          </div>
+          <h1 className="text-xl font-semibold">
+            {state === "paid" ? t("payment.confirmed") : state === "failed" ? t("payment.notCompleted") : t("payment.received")}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {state === "checking"
+              ? t("payment.checking")
+              : state === "failed"
+              ? t("payment.notCompletedText")
+              : t("payment.processingBooking")}
+          </p>
+          <Link to="/" className="inline-block text-sm text-primary hover:underline">{t("common.backToGlowSuite")}</Link>
         </div>
-        <h1 className="text-xl font-semibold">
-          {state === "paid" ? "Betaling bevestigd" : state === "failed" ? "Betaling niet voltooid" : "Betaling ontvangen"}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {state === "checking"
-            ? "We controleren je betaling…"
-            : state === "failed"
-            ? "Probeer het opnieuw of neem contact op met de salon."
-            : "We verwerken je afspraak. Je ontvangt zo een bevestiging per e-mail of WhatsApp."}
-        </p>
-        <Link to="/" className="inline-block text-sm text-primary hover:underline">Terug naar GlowSuite</Link>
       </div>
     </div>
   );
