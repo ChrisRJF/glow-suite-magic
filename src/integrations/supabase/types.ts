@@ -970,6 +970,7 @@ export type Database = {
           no_show_count: number | null
           notes: string | null
           phone: string | null
+          preferred_language: string
           privacy_consent: boolean | null
           total_spent: number | null
           updated_at: string
@@ -989,6 +990,7 @@ export type Database = {
           no_show_count?: number | null
           notes?: string | null
           phone?: string | null
+          preferred_language?: string
           privacy_consent?: boolean | null
           total_spent?: number | null
           updated_at?: string
@@ -1008,6 +1010,7 @@ export type Database = {
           no_show_count?: number | null
           notes?: string | null
           phone?: string | null
+          preferred_language?: string
           privacy_consent?: boolean | null
           total_spent?: number | null
           updated_at?: string
