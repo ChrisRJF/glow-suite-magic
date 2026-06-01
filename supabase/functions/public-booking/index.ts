@@ -48,7 +48,7 @@ const RequestSchema = z.discriminatedUnion("action", [
   }),
 ]);
 
-type ServiceRow = { id: string; name: string; duration_minutes: number; price: number; color?: string | null; description?: string | null; user_id: string };
+type ServiceRow = { id: string; name: string; duration_minutes: number; price: number; color?: string | null; description?: string | null; translations?: Record<string, { name?: string; description?: string; category?: string }> | null; category?: string | null; user_id: string };
 
 type SalonContext = {
   settings: any;
