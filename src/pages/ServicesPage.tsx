@@ -3,10 +3,18 @@ import { Button } from "@/components/ui/button";
 import { useServices } from "@/hooks/useSupabaseData";
 import { useCrud } from "@/hooks/useCrud";
 import { formatEuro } from "@/lib/data";
-import { Plus, Clock, Euro, Pencil, Trash2, Globe, Eye, EyeOff } from "lucide-react";
+import { Plus, Clock, Euro, Pencil, Trash2, Globe, Eye, EyeOff, ChevronDown, Languages } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { TRANSLATABLE_LANGS, type ServiceTranslations } from "@/lib/serviceTranslations";
+
+const LANG_LABELS: Record<string, { label: string; flag: string }> = {
+  en: { label: "Engels", flag: "🇬🇧" },
+  de: { label: "Duits", flag: "🇩🇪" },
+  fr: { label: "Frans", flag: "🇫🇷" },
+  es: { label: "Spaans", flag: "🇪🇸" },
+};
 
 export default function ServicesPage() {
   const { data: services, loading, refetch } = useServices();
