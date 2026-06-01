@@ -128,6 +128,8 @@ function safeSalonPayload(ctx: SalonContext) {
       price: ctx.settings.show_prices_online === false ? 0 : Number(service.price || 0),
       color: service.color,
       description: service.description,
+      category: service.category || null,
+      translations: service.translations || {},
     })),
     employees: ctx.settings.public_employees_enabled === false ? [] : EMPLOYEES,
   };
