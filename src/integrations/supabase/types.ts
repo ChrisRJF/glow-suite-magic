@@ -2526,6 +2526,7 @@ export type Database = {
           is_online_bookable: boolean | null
           name: string
           price: number
+          translations: Json
           updated_at: string
           user_id: string
         }
@@ -2542,6 +2543,7 @@ export type Database = {
           is_online_bookable?: boolean | null
           name: string
           price?: number
+          translations?: Json
           updated_at?: string
           user_id: string
         }
@@ -2558,6 +2560,7 @@ export type Database = {
           is_online_bookable?: boolean | null
           name?: string
           price?: number
+          translations?: Json
           updated_at?: string
           user_id?: string
         }
