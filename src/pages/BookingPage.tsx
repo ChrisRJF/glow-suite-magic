@@ -894,10 +894,11 @@ export default function BookingPage() {
             <div className="w-9 h-9 rounded-xl gradient-bg flex items-center justify-center">
               <span className="text-sm font-bold text-primary-foreground">GS</span>
             </div>
-            <div>
-              <h1 className="text-base font-bold tracking-tight">{publicData?.salon.name || branding.salon_name || "Glow Studio"}</h1>
-              <p className="text-[11px] text-muted-foreground">Boek je afspraak · Direct bevestigd</p>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-base font-bold tracking-tight truncate">{publicData?.salon.name || branding.salon_name || "Glow Studio"}</h1>
+              <p className="text-[11px] text-muted-foreground">{t("booking.title")}</p>
             </div>
+            <LanguageSwitcher />
           </div>
         </header>
       )}
@@ -910,11 +911,17 @@ export default function BookingPage() {
               <span className="text-sm font-bold text-white">{branding.salon_name.charAt(0)}</span>
             </div>
           )}
-          <div>
-            <h1 className="text-base font-bold tracking-tight">{branding.salon_name}</h1>
-            <p className="text-[11px] text-muted-foreground">Boek je afspraak · Direct bevestigd</p>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-base font-bold tracking-tight truncate">{branding.salon_name}</h1>
+            <p className="text-[11px] text-muted-foreground">{t("booking.title")}</p>
           </div>
+          <LanguageSwitcher />
         </header>
+      )}
+      {isEmbed && !branding.show_logo && (
+        <div className="px-4 pt-3 max-w-2xl mx-auto w-full flex justify-end">
+          <LanguageSwitcher />
+        </div>
       )}
 
       <div className="flex-1 max-w-2xl mx-auto w-full p-4 sm:p-6 pb-28 sm:pb-6">
