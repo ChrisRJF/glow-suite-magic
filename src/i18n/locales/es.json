@@ -73,7 +73,7 @@
     }
   },
   "booking": {
-    "title": "Reserva online",
+    "title": "Reservar online",
     "metaDescription": "Reserva fácilmente una cita online.",
     "steps": {
       "service": "Servicio",
@@ -84,12 +84,12 @@
       "confirm": "Confirmar",
       "payment": "Pago"
     },
-    "chooseService": "Elige un servicio",
+    "chooseService": "Elige un tratamiento",
     "chooseCategory": "Elige una categoría",
     "chooseStaff": "Elige un profesional",
     "chooseDate": "Elige una fecha",
     "chooseTime": "Elige una hora",
-    "yourDetails": "Introduce tus datos",
+    "yourDetails": "Tus datos",
     "anyStaff": "Primero disponible",
     "duration": "Duración",
     "price": "Precio",
@@ -116,7 +116,147 @@
     "rescheduleTitle": "Reprogramar cita",
     "cancelTitle": "Cancelar cita",
     "welcomeBack": "Bienvenido de nuevo",
-    "detailsPrefilled": "Tus datos se han rellenado."
+    "detailsPrefilled": "Tus datos se han rellenado.",
+    "subtitle": "Reservado en 1 minuto · No necesitas cuenta",
+    "stepLabel": "PASO {{current}} DE {{total}}",
+    "treatmentFallback": "tratamiento",
+    "loading": "Cargando...",
+    "back": "Atrás",
+    "next": "Siguiente",
+    "welcomeBackName": "Bienvenido de nuevo{{name}}",
+    "calendarEventDescription": "Cita en {{salon}}",
+    "shareText": "Mi cita en {{salon}} para {{service}} a las {{time}}",
+    "stepNames": {
+      "appointment": "Cita",
+      "details": "Datos",
+      "payment": "Pago",
+      "detailsAndPay": "Datos y pago",
+      "confirmed": "Confirmado"
+    },
+    "trust": {
+      "instantConfirm": "Confirmación instantánea",
+      "securePayment": "Pago seguro",
+      "noAccount": "No necesitas cuenta",
+      "freeCancel": "Cancelación gratuita hasta 24h antes"
+    },
+    "group": {
+      "title": "Reserva en grupo",
+      "subtitle": "Reserva para varias personas a la vez",
+      "mainPerson": "Persona principal",
+      "mainPersonChoose": "Empieza con tu tratamiento",
+      "extraPeople": "Personas adicionales",
+      "addPerson": "Añadir persona",
+      "person": "Persona {{n}}",
+      "namePlaceholder": "Nombre",
+      "totalLabel": "Total:",
+      "peopleCount": "({{count}} personas)",
+      "summaryLabel": "{{count}} personas",
+      "staffOrAutoLabel": "Profesional o automático",
+      "startPreference": "{{service}} desde las {{time}}",
+      "simultaneous": "Empezar juntos",
+      "simultaneousDesc": "Todos empiezan a la vez",
+      "sequential": "Uno tras otro",
+      "sequentialDesc": "Programados seguidos",
+      "bestMatch": "Mejor opción",
+      "bestMatchDesc": "Óptimo para tu grupo",
+      "placementOverview": "Resumen de asignación",
+      "notAllSimultaneous": "No todos pueden empezar a la vez",
+      "bestAlternative": "Esta es la mejor alternativa"
+    },
+    "assignment": {
+      "manualLabel": "Manual",
+      "autoLabel": "Automático",
+      "chooseStaff": "Elige un profesional",
+      "autoPlacement": "Asignado automáticamente",
+      "chooseStaffPlaceholder": "Elige un profesional...",
+      "availableStaff": "Disponibles: {{names}}"
+    },
+    "fields": {
+      "email": "Correo",
+      "emailPlaceholder": "tu@email.es",
+      "name": "Nombre",
+      "namePlaceholder": "Nombre y apellidos",
+      "phone": "Teléfono",
+      "phonePlaceholder": "612 34 56 78"
+    },
+    "summary": {
+      "service": "Tratamiento",
+      "time": "Hora",
+      "total": "Total"
+    },
+    "rebook": {
+      "title": "Reservar de nuevo rápido",
+      "previous": "Cita anterior: {{date}}"
+    },
+    "notFound": {
+      "title": "No encontrado",
+      "text": "Este enlace de reserva no es válido o ha caducado."
+    },
+    "paymentReturn": {
+      "success": "Pago realizado. Tu cita está confirmada.",
+      "pending": "Procesando pago..."
+    },
+    "payment": {
+      "requiredFull": "Pago completo requerido",
+      "requiredDeposit": "Depósito requerido",
+      "notRequired": "No es necesario pagar por adelantado",
+      "toPay": "A pagar: {{amount}}",
+      "payTo": "Pagar a",
+      "totalToPay": "Total a pagar",
+      "noHidden": "Sin costes ocultos",
+      "secureMollie": "Seguro vía Mollie",
+      "instantConfirm": "Confirmación instantánea",
+      "thousandSafe": "100% seguro",
+      "choosePaymentMethod": "Elige tu método de pago",
+      "statusPaid": "Pagado",
+      "statusPending": "Pendiente",
+      "tryAgainOrMethod": "Inténtalo de nuevo o elige otro método",
+      "processing": "Procesando...",
+      "payAndConfirm": "Pagar {{amount}} y confirmar",
+      "confirmAppointment": "Confirmar cita",
+      "depositRequiredHint": "El depósito se descontará de la factura final"
+    },
+    "confirmation": {
+      "title": "¡Cita confirmada!",
+      "subtext": "Recibirás una confirmación por correo.",
+      "salon": "Salón",
+      "service": "Tratamiento",
+      "date": "Fecha",
+      "time": "Hora",
+      "staff": "Profesional",
+      "reference": "Referencia",
+      "payment": "Pago",
+      "addToCalendar": "Añadir al calendario",
+      "share": "Compartir",
+      "newBooking": "Reservar otra cita"
+    },
+    "terms": {
+      "glowsuiteBefore": "Acepto los ",
+      "glowsuiteLink": "términos de GlowSuite",
+      "glowsuiteAfter": ".",
+      "salon": "Acepto los términos del salón.",
+      "required": "Por favor acepta los términos"
+    },
+    "toasts": {
+      "chooseStaffMain": "Elige un profesional para la persona principal",
+      "chooseStaffEach": "Elige un profesional para cada uno",
+      "noSimultaneous": "No todos pueden empezar a la vez",
+      "chooseServiceAndTime": "Elige un tratamiento y una hora",
+      "acceptTerms": "Acepta primero los términos",
+      "bookingSaved": "Reserva guardada",
+      "bookingConfirmedNoPay": "Cita confirmada",
+      "bookingConfirmed": "¡Cita confirmada!",
+      "groupConfirmed": "Reserva en grupo confirmada para {{count}} personas",
+      "bookingError": "Reserva fallida",
+      "paymentFailed": "Pago fallido",
+      "paymentStatusError": "No se pudo obtener el estado del pago",
+      "copied": "¡Copiado!"
+    },
+    "slot": {
+      "firstAvailable": "Primer disponible",
+      "todayStillSlots": "Aún hay huecos hoy",
+      "popularTime": "Hora popular"
+    }
   },
   "payment": {
     "checking": "Verificando tu pago…",
@@ -131,12 +271,35 @@
     "secureNotice": "Pago seguro con GlowPay"
   },
   "publicAction": {
-    "afspraak": { "title": "Gestionar cita", "text": "Este enlace seguro ha sido recibido. Contacta con el salón para cambiar tu cita." },
-    "route-contact": { "title": "Cómo llegar y contacto", "text": "Consulta los datos de contacto del salón o llama para indicaciones." },
-    "salonvoorwaarden": { "title": "Condiciones del salón", "text": "Las citas están sujetas a las condiciones del salón, incluidos los cambios y cancelaciones puntuales y los acuerdos de pago.", "bullets": ["Llega puntual a tu cita.", "Cambia o cancela con la mayor antelación posible.", "Las cancelaciones tardías pueden tener coste."] },
-    "betaalbewijs": { "title": "Comprobante de pago", "text": "Tu comprobante está vinculado a tu cita o pedido. Guarda el correo como referencia." },
-    "abonnement-beheren": { "title": "Gestionar suscripción", "text": "Tu suscripción está vinculada al salón. Contacta con el salón para cambios o dudas." },
-    "review": { "title": "Escribir una reseña", "text": "Gracias por compartir tu experiencia. Tu opinión ayuda al salón a mejorar." }
+    "afspraak": {
+      "title": "Gestionar cita",
+      "text": "Este enlace seguro ha sido recibido. Contacta con el salón para cambiar tu cita."
+    },
+    "route-contact": {
+      "title": "Cómo llegar y contacto",
+      "text": "Consulta los datos de contacto del salón o llama para indicaciones."
+    },
+    "salonvoorwaarden": {
+      "title": "Condiciones del salón",
+      "text": "Las citas están sujetas a las condiciones del salón, incluidos los cambios y cancelaciones puntuales y los acuerdos de pago.",
+      "bullets": [
+        "Llega puntual a tu cita.",
+        "Cambia o cancela con la mayor antelación posible.",
+        "Las cancelaciones tardías pueden tener coste."
+      ]
+    },
+    "betaalbewijs": {
+      "title": "Comprobante de pago",
+      "text": "Tu comprobante está vinculado a tu cita o pedido. Guarda el correo como referencia."
+    },
+    "abonnement-beheren": {
+      "title": "Gestionar suscripción",
+      "text": "Tu suscripción está vinculada al salón. Contacta con el salón para cambios o dudas."
+    },
+    "review": {
+      "title": "Escribir una reseña",
+      "text": "Gracias por compartir tu experiencia. Tu opinión ayuda al salón a mejorar."
+    }
   },
   "membership": {
     "title": "Suscripciones",
@@ -155,7 +318,12 @@
     "fillNameEmail": "Introduce tu nombre y correo",
     "firstTerm": "Primer pago:",
     "perInterval": "/{{interval}}",
-    "intervals": { "monthly": "mes", "quarterly": "trimestre", "yearly": "año", "period": "período" },
+    "intervals": {
+      "monthly": "mes",
+      "quarterly": "trimestre",
+      "yearly": "año",
+      "period": "período"
+    },
     "includedTreatments_one": "{{count}} tratamiento incluido",
     "includedTreatments_other": "{{count}} tratamientos incluidos",
     "memberDiscount": "{{percent}}% de descuento para miembros",
@@ -177,7 +345,11 @@
     "notValid": "Esta tarjeta ya no es válida",
     "maxRedeemable": "Importe máximo: {{amount}}"
   },
-  "waitlist": { "title": "Lista de espera", "join": "Apuntarme a la lista de espera", "joined": "Estás en la lista de espera" },
+  "waitlist": {
+    "title": "Lista de espera",
+    "join": "Apuntarme a la lista de espera",
+    "joined": "Estás en la lista de espera"
+  },
   "errors": {
     "generic": "Algo salió mal. Inténtalo de nuevo.",
     "network": "Sin conexión. Comprueba tu internet.",

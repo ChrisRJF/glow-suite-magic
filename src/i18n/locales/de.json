@@ -89,7 +89,7 @@
     "chooseStaff": "Mitarbeiter wählen",
     "chooseDate": "Datum wählen",
     "chooseTime": "Uhrzeit wählen",
-    "yourDetails": "Deine Daten eingeben",
+    "yourDetails": "Deine Daten",
     "anyStaff": "Nächstverfügbar",
     "duration": "Dauer",
     "price": "Preis",
@@ -116,7 +116,147 @@
     "rescheduleTitle": "Termin verschieben",
     "cancelTitle": "Termin stornieren",
     "welcomeBack": "Willkommen zurück",
-    "detailsPrefilled": "Deine Daten wurden eingetragen."
+    "detailsPrefilled": "Deine Daten wurden eingetragen.",
+    "subtitle": "In 1 Minute gebucht · Kein Konto erforderlich",
+    "stepLabel": "SCHRITT {{current}} VON {{total}}",
+    "treatmentFallback": "Behandlung",
+    "loading": "Laden...",
+    "back": "Zurück",
+    "next": "Weiter",
+    "welcomeBackName": "Willkommen zurück{{name}}",
+    "calendarEventDescription": "Termin bei {{salon}}",
+    "shareText": "Mein Termin bei {{salon}} für {{service}} um {{time}}",
+    "stepNames": {
+      "appointment": "Termin",
+      "details": "Daten",
+      "payment": "Zahlung",
+      "detailsAndPay": "Daten & Zahlung",
+      "confirmed": "Bestätigt"
+    },
+    "trust": {
+      "instantConfirm": "Sofort bestätigt",
+      "securePayment": "Sichere Zahlung",
+      "noAccount": "Kein Konto erforderlich",
+      "freeCancel": "Kostenlose Stornierung bis 24h vorher"
+    },
+    "group": {
+      "title": "Gruppenbuchung",
+      "subtitle": "Buche für mehrere Personen gleichzeitig",
+      "mainPerson": "Hauptperson",
+      "mainPersonChoose": "Beginne mit deiner Behandlung",
+      "extraPeople": "Weitere Personen",
+      "addPerson": "Person hinzufügen",
+      "person": "Person {{n}}",
+      "namePlaceholder": "Name",
+      "totalLabel": "Gesamt:",
+      "peopleCount": "({{count}} Personen)",
+      "summaryLabel": "{{count}} Personen",
+      "staffOrAutoLabel": "Mitarbeiter oder automatisch",
+      "startPreference": "{{service}} ab {{time}}",
+      "simultaneous": "Gleichzeitig starten",
+      "simultaneousDesc": "Alle beginnen zur gleichen Zeit",
+      "sequential": "Nacheinander",
+      "sequentialDesc": "Hintereinander geplant",
+      "bestMatch": "Beste Übereinstimmung",
+      "bestMatchDesc": "Optimal für deine Gruppe",
+      "placementOverview": "Übersicht Planung",
+      "notAllSimultaneous": "Nicht alle können gleichzeitig starten",
+      "bestAlternative": "Dies ist die beste Alternative"
+    },
+    "assignment": {
+      "manualLabel": "Manuell",
+      "autoLabel": "Automatisch",
+      "chooseStaff": "Mitarbeiter wählen",
+      "autoPlacement": "Automatisch zugewiesen",
+      "chooseStaffPlaceholder": "Mitarbeiter wählen...",
+      "availableStaff": "Verfügbar: {{names}}"
+    },
+    "fields": {
+      "email": "E-Mail",
+      "emailPlaceholder": "du@email.de",
+      "name": "Name",
+      "namePlaceholder": "Vor- und Nachname",
+      "phone": "Telefon",
+      "phonePlaceholder": "0151 23456789"
+    },
+    "summary": {
+      "service": "Behandlung",
+      "time": "Zeit",
+      "total": "Gesamt"
+    },
+    "rebook": {
+      "title": "Schnell wieder buchen",
+      "previous": "Letzter Termin: {{date}}"
+    },
+    "notFound": {
+      "title": "Nicht gefunden",
+      "text": "Dieser Buchungslink ist ungültig oder abgelaufen."
+    },
+    "paymentReturn": {
+      "success": "Zahlung erfolgreich. Dein Termin ist bestätigt.",
+      "pending": "Zahlung wird verarbeitet..."
+    },
+    "payment": {
+      "requiredFull": "Volle Zahlung erforderlich",
+      "requiredDeposit": "Anzahlung erforderlich",
+      "notRequired": "Keine Vorauszahlung nötig",
+      "toPay": "Zu zahlen: {{amount}}",
+      "payTo": "Zahlen an",
+      "totalToPay": "Gesamtbetrag",
+      "noHidden": "Keine versteckten Kosten",
+      "secureMollie": "Sicher über Mollie",
+      "instantConfirm": "Sofort bestätigt",
+      "thousandSafe": "100% sicher",
+      "choosePaymentMethod": "Wähle deine Zahlungsmethode",
+      "statusPaid": "Bezahlt",
+      "statusPending": "Ausstehend",
+      "tryAgainOrMethod": "Versuche es erneut oder wähle eine andere Methode",
+      "processing": "Wird verarbeitet...",
+      "payAndConfirm": "{{amount}} zahlen und bestätigen",
+      "confirmAppointment": "Termin bestätigen",
+      "depositRequiredHint": "Anzahlung wird mit deiner Rechnung verrechnet"
+    },
+    "confirmation": {
+      "title": "Termin bestätigt!",
+      "subtext": "Du erhältst eine Bestätigung per E-Mail.",
+      "salon": "Salon",
+      "service": "Behandlung",
+      "date": "Datum",
+      "time": "Zeit",
+      "staff": "Mitarbeiter",
+      "reference": "Referenz",
+      "payment": "Zahlung",
+      "addToCalendar": "Zum Kalender hinzufügen",
+      "share": "Teilen",
+      "newBooking": "Neuen Termin buchen"
+    },
+    "terms": {
+      "glowsuiteBefore": "Ich stimme den ",
+      "glowsuiteLink": "GlowSuite-AGB",
+      "glowsuiteAfter": " zu.",
+      "salon": "Ich stimme den AGB des Salons zu.",
+      "required": "Bitte akzeptiere die AGB"
+    },
+    "toasts": {
+      "chooseStaffMain": "Wähle einen Mitarbeiter für die Hauptperson",
+      "chooseStaffEach": "Wähle einen Mitarbeiter für jeden",
+      "noSimultaneous": "Nicht alle können gleichzeitig starten",
+      "chooseServiceAndTime": "Wähle eine Behandlung und Zeit",
+      "acceptTerms": "Bitte akzeptiere zuerst die AGB",
+      "bookingSaved": "Buchung gespeichert",
+      "bookingConfirmedNoPay": "Termin bestätigt",
+      "bookingConfirmed": "Termin bestätigt!",
+      "groupConfirmed": "Gruppenbuchung bestätigt für {{count}} Personen",
+      "bookingError": "Buchung fehlgeschlagen",
+      "paymentFailed": "Zahlung fehlgeschlagen",
+      "paymentStatusError": "Zahlungsstatus nicht abrufbar",
+      "copied": "Kopiert!"
+    },
+    "slot": {
+      "firstAvailable": "Frühester Termin",
+      "todayStillSlots": "Heute noch frei",
+      "popularTime": "Beliebte Zeit"
+    }
   },
   "payment": {
     "checking": "Wir prüfen deine Zahlung…",
@@ -131,12 +271,35 @@
     "secureNotice": "Sicher bezahlen mit GlowPay"
   },
   "publicAction": {
-    "afspraak": { "title": "Termin verwalten", "text": "Dieser sichere Verwaltungslink wurde empfangen. Kontaktiere den Salon, um deinen Termin zu ändern." },
-    "route-contact": { "title": "Anfahrt & Kontakt", "text": "Sieh dir die Kontaktdaten des Salons an oder nimm direkt Kontakt für Wegbeschreibungen auf." },
-    "salonvoorwaarden": { "title": "Salonbedingungen", "text": "Termine unterliegen den Bedingungen des Salons, einschließlich rechtzeitiger Änderungen oder Stornierungen und Zahlungsabsprachen.", "bullets": ["Bitte pünktlich erscheinen.", "Termine möglichst früh ändern oder absagen.", "Bei späten Absagen können Gebühren anfallen."] },
-    "betaalbewijs": { "title": "Zahlungsbeleg", "text": "Dein Zahlungsbeleg ist mit deinem Termin oder deiner Bestellung verknüpft. Bewahre die E-Mail als Referenz auf." },
-    "abonnement-beheren": { "title": "Mitgliedschaft verwalten", "text": "Deine Mitgliedschaft ist mit dem Salon verknüpft. Kontaktiere den Salon für Änderungen oder Fragen." },
-    "review": { "title": "Bewertung schreiben", "text": "Danke, dass du deine Erfahrung teilst. Dein Feedback hilft dem Salon, besser zu werden." }
+    "afspraak": {
+      "title": "Termin verwalten",
+      "text": "Dieser sichere Verwaltungslink wurde empfangen. Kontaktiere den Salon, um deinen Termin zu ändern."
+    },
+    "route-contact": {
+      "title": "Anfahrt & Kontakt",
+      "text": "Sieh dir die Kontaktdaten des Salons an oder nimm direkt Kontakt für Wegbeschreibungen auf."
+    },
+    "salonvoorwaarden": {
+      "title": "Salonbedingungen",
+      "text": "Termine unterliegen den Bedingungen des Salons, einschließlich rechtzeitiger Änderungen oder Stornierungen und Zahlungsabsprachen.",
+      "bullets": [
+        "Bitte pünktlich erscheinen.",
+        "Termine möglichst früh ändern oder absagen.",
+        "Bei späten Absagen können Gebühren anfallen."
+      ]
+    },
+    "betaalbewijs": {
+      "title": "Zahlungsbeleg",
+      "text": "Dein Zahlungsbeleg ist mit deinem Termin oder deiner Bestellung verknüpft. Bewahre die E-Mail als Referenz auf."
+    },
+    "abonnement-beheren": {
+      "title": "Mitgliedschaft verwalten",
+      "text": "Deine Mitgliedschaft ist mit dem Salon verknüpft. Kontaktiere den Salon für Änderungen oder Fragen."
+    },
+    "review": {
+      "title": "Bewertung schreiben",
+      "text": "Danke, dass du deine Erfahrung teilst. Dein Feedback hilft dem Salon, besser zu werden."
+    }
   },
   "membership": {
     "title": "Mitgliedschaften",
@@ -155,7 +318,12 @@
     "fillNameEmail": "Bitte Name und E-Mail eingeben",
     "firstTerm": "Erste Rate:",
     "perInterval": "/{{interval}}",
-    "intervals": { "monthly": "Monat", "quarterly": "Quartal", "yearly": "Jahr", "period": "Zeitraum" },
+    "intervals": {
+      "monthly": "Monat",
+      "quarterly": "Quartal",
+      "yearly": "Jahr",
+      "period": "Zeitraum"
+    },
     "includedTreatments_one": "{{count}} Behandlung enthalten",
     "includedTreatments_other": "{{count}} Behandlungen enthalten",
     "memberDiscount": "{{percent}}% Mitgliederrabatt",
@@ -177,7 +345,11 @@
     "notValid": "Dieser Gutschein ist nicht mehr gültig",
     "maxRedeemable": "Maximal einlösbar: {{amount}}"
   },
-  "waitlist": { "title": "Warteliste", "join": "Auf die Warteliste setzen", "joined": "Du stehst auf der Warteliste" },
+  "waitlist": {
+    "title": "Warteliste",
+    "join": "Auf die Warteliste setzen",
+    "joined": "Du stehst auf der Warteliste"
+  },
   "errors": {
     "generic": "Etwas ist schiefgelaufen. Bitte erneut versuchen.",
     "network": "Keine Verbindung. Prüfe dein Internet.",
