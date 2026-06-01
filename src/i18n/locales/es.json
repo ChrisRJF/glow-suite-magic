@@ -1,0 +1,133 @@
+{
+  "common": {
+    "back": "Atrás",
+    "next": "Siguiente",
+    "continue": "Continuar",
+    "cancel": "Cancelar",
+    "confirm": "Confirmar",
+    "close": "Cerrar",
+    "save": "Guardar",
+    "loading": "Cargando...",
+    "processing": "Procesando...",
+    "retry": "Reintentar",
+    "language": "Idioma",
+    "selectLanguage": "Elegir idioma",
+    "backToGlowSuite": "Volver a GlowSuite",
+    "newBooking": "Reservar nueva cita",
+    "required": "Obligatorio",
+    "optional": "Opcional"
+  },
+  "booking": {
+    "title": "Reservar online",
+    "metaDescription": "Reserva fácilmente una cita online.",
+    "steps": {
+      "service": "Tratamiento",
+      "staff": "Personal",
+      "date": "Fecha",
+      "time": "Hora",
+      "details": "Tus datos",
+      "confirm": "Confirmar",
+      "payment": "Pago"
+    },
+    "chooseService": "Elige un tratamiento",
+    "chooseCategory": "Elige una categoría",
+    "chooseStaff": "Elige a un profesional",
+    "chooseDate": "Elige una fecha",
+    "chooseTime": "Elige una hora",
+    "yourDetails": "Introduce tus datos",
+    "anyStaff": "Primero disponible",
+    "duration": "Duración",
+    "price": "Precio",
+    "totalDuration": "Duración total",
+    "totalPrice": "Total",
+    "firstName": "Nombre",
+    "lastName": "Apellido",
+    "fullName": "Nombre",
+    "email": "Correo electrónico",
+    "phone": "Teléfono",
+    "notes": "Notas",
+    "notesPlaceholder": "Preferencias o notas",
+    "agreeTerms": "Acepto las condiciones del salón",
+    "confirmBooking": "Confirmar reserva",
+    "payAndBook": "Pagar y reservar",
+    "bookingSuccess": "Tu cita está confirmada",
+    "bookingSuccessText": "Recibirás una confirmación por correo o WhatsApp.",
+    "bookingFailed": "Reserva fallida",
+    "bookingFailedText": "Inténtalo de nuevo o ponte en contacto con el salón.",
+    "noSlotsAvailable": "No hay horas disponibles en esta fecha",
+    "selectAtLeastOneService": "Selecciona al menos un tratamiento",
+    "addAnotherPerson": "Añadir persona",
+    "removePerson": "Quitar persona",
+    "rescheduleTitle": "Reprogramar cita",
+    "cancelTitle": "Cancelar cita"
+  },
+  "payment": {
+    "checking": "Verificando tu pago…",
+    "confirmed": "Pago confirmado",
+    "received": "Pago recibido",
+    "notCompleted": "Pago no completado",
+    "notCompletedText": "Inténtalo de nuevo o ponte en contacto con el salón.",
+    "processingBooking": "Estamos procesando tu cita. Recibirás pronto una confirmación por correo o WhatsApp.",
+    "paymentFailed": "Pago fallido",
+    "paymentFailedText": "El pago se canceló o no se completó. Puedes intentarlo de nuevo desde tu enlace de reserva.",
+    "method": "Método de pago",
+    "secureNotice": "Pago seguro mediante GlowPay"
+  },
+  "publicAction": {
+    "afspraak": {
+      "title": "Gestionar cita",
+      "text": "Se ha recibido este enlace de gestión seguro. Contacta con el salón si quieres modificar tu cita."
+    },
+    "route-contact": {
+      "title": "Cómo llegar y contacto",
+      "text": "Consulta los datos de contacto del salón o ponte en contacto directamente para indicaciones."
+    },
+    "salonvoorwaarden": {
+      "title": "Condiciones del salón",
+      "text": "Las condiciones del salón se aplican a las citas, incluidos cambios o cancelaciones a tiempo y cualquier acuerdo de pago.",
+      "bullets": [
+        "Llega a tiempo a tu cita.",
+        "Cambia o cancela lo antes posible.",
+        "Las cancelaciones tardías pueden conllevar un cargo."
+      ]
+    },
+    "betaalbewijs": {
+      "title": "Recibo de pago",
+      "text": "Tu recibo de pago está vinculado a tu cita o pedido. Guarda el correo como referencia."
+    },
+    "abonnement-beheren": {
+      "title": "Gestionar suscripción",
+      "text": "Tu suscripción está vinculada al salón. Contacta con el salón para cambios o preguntas."
+    },
+    "review": {
+      "title": "Dejar una reseña",
+      "text": "Gracias por compartir tu experiencia. Tus comentarios ayudan al salón a mejorar su servicio."
+    }
+  },
+  "membership": {
+    "title": "Suscripciones",
+    "yourPlan": "Tu suscripción",
+    "creditsAvailable": "Créditos disponibles",
+    "renewsOn": "Se renueva el",
+    "managePlan": "Gestionar suscripción"
+  },
+  "giftcard": {
+    "title": "Tarjetas regalo",
+    "buy": "Comprar tarjeta regalo",
+    "balance": "Saldo",
+    "code": "Código",
+    "redeem": "Canjear"
+  },
+  "waitlist": {
+    "title": "Lista de espera",
+    "join": "Añádeme a la lista de espera",
+    "joined": "Estás en la lista de espera"
+  },
+  "errors": {
+    "generic": "Algo salió mal. Inténtalo de nuevo.",
+    "network": "Sin conexión. Comprueba tu internet.",
+    "requiredField": "Este campo es obligatorio",
+    "invalidEmail": "Correo electrónico inválido",
+    "invalidPhone": "Número de teléfono inválido"
+  }
+}

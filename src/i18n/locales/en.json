@@ -1,0 +1,133 @@
+{
+  "common": {
+    "back": "Back",
+    "next": "Next",
+    "continue": "Continue",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "close": "Close",
+    "save": "Save",
+    "loading": "Loading...",
+    "processing": "Processing...",
+    "retry": "Try again",
+    "language": "Language",
+    "selectLanguage": "Select language",
+    "backToGlowSuite": "Back to GlowSuite",
+    "newBooking": "Book a new appointment",
+    "required": "Required",
+    "optional": "Optional"
+  },
+  "booking": {
+    "title": "Book online",
+    "metaDescription": "Easily book an appointment online.",
+    "steps": {
+      "service": "Treatment",
+      "staff": "Staff",
+      "date": "Date",
+      "time": "Time",
+      "details": "Your details",
+      "confirm": "Confirm",
+      "payment": "Payment"
+    },
+    "chooseService": "Choose a treatment",
+    "chooseCategory": "Choose a category",
+    "chooseStaff": "Choose a staff member",
+    "chooseDate": "Choose a date",
+    "chooseTime": "Choose a time",
+    "yourDetails": "Enter your details",
+    "anyStaff": "First available",
+    "duration": "Duration",
+    "price": "Price",
+    "totalDuration": "Total duration",
+    "totalPrice": "Total",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "fullName": "Name",
+    "email": "Email",
+    "phone": "Phone number",
+    "notes": "Notes",
+    "notesPlaceholder": "Any preferences or notes",
+    "agreeTerms": "I agree to the salon terms",
+    "confirmBooking": "Confirm booking",
+    "payAndBook": "Pay and book",
+    "bookingSuccess": "Your appointment is confirmed",
+    "bookingSuccessText": "You'll receive a confirmation by email or WhatsApp.",
+    "bookingFailed": "Booking failed",
+    "bookingFailedText": "Please try again or contact the salon.",
+    "noSlotsAvailable": "No times available on this date",
+    "selectAtLeastOneService": "Select at least one treatment",
+    "addAnotherPerson": "Add person",
+    "removePerson": "Remove person",
+    "rescheduleTitle": "Reschedule appointment",
+    "cancelTitle": "Cancel appointment"
+  },
+  "payment": {
+    "checking": "Verifying your payment…",
+    "confirmed": "Payment confirmed",
+    "received": "Payment received",
+    "notCompleted": "Payment not completed",
+    "notCompletedText": "Please try again or contact the salon.",
+    "processingBooking": "We're processing your appointment. You'll receive a confirmation by email or WhatsApp shortly.",
+    "paymentFailed": "Payment failed",
+    "paymentFailedText": "The payment was cancelled or not completed. You can try again via your booking link.",
+    "method": "Payment method",
+    "secureNotice": "Secure payment via GlowPay"
+  },
+  "publicAction": {
+    "afspraak": {
+      "title": "Manage appointment",
+      "text": "This secure management link has been received. Contact the salon if you'd like to change your appointment."
+    },
+    "route-contact": {
+      "title": "Directions and contact",
+      "text": "View the salon's contact details or get in touch directly for directions."
+    },
+    "salonvoorwaarden": {
+      "title": "Salon terms",
+      "text": "Salon terms apply to all appointments, including timely changes or cancellations and any payment arrangements.",
+      "bullets": [
+        "Arrive on time for your appointment.",
+        "Change or cancel as early as possible.",
+        "Late cancellations may incur a fee."
+      ]
+    },
+    "betaalbewijs": {
+      "title": "Payment receipt",
+      "text": "Your payment receipt is linked to your appointment or order. Keep the email for reference."
+    },
+    "abonnement-beheren": {
+      "title": "Manage membership",
+      "text": "Your membership is linked to the salon. Contact the salon for changes or questions."
+    },
+    "review": {
+      "title": "Leave a review",
+      "text": "Thank you for sharing your experience. Your feedback helps the salon improve their service."
+    }
+  },
+  "membership": {
+    "title": "Memberships",
+    "yourPlan": "Your membership",
+    "creditsAvailable": "Credits available",
+    "renewsOn": "Renews on",
+    "managePlan": "Manage membership"
+  },
+  "giftcard": {
+    "title": "Gift cards",
+    "buy": "Buy gift card",
+    "balance": "Balance",
+    "code": "Code",
+    "redeem": "Redeem"
+  },
+  "waitlist": {
+    "title": "Waitlist",
+    "join": "Add me to the waitlist",
+    "joined": "You're on the waitlist"
+  },
+  "errors": {
+    "generic": "Something went wrong. Please try again.",
+    "network": "No connection. Check your internet.",
+    "requiredField": "This field is required",
+    "invalidEmail": "Invalid email address",
+    "invalidPhone": "Invalid phone number"
+  }
+}

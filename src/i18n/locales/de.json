@@ -1,0 +1,133 @@
+{
+  "common": {
+    "back": "Zurück",
+    "next": "Weiter",
+    "continue": "Fortfahren",
+    "cancel": "Abbrechen",
+    "confirm": "Bestätigen",
+    "close": "Schließen",
+    "save": "Speichern",
+    "loading": "Wird geladen...",
+    "processing": "Wird verarbeitet...",
+    "retry": "Erneut versuchen",
+    "language": "Sprache",
+    "selectLanguage": "Sprache auswählen",
+    "backToGlowSuite": "Zurück zu GlowSuite",
+    "newBooking": "Neuen Termin buchen",
+    "required": "Pflichtfeld",
+    "optional": "Optional"
+  },
+  "booking": {
+    "title": "Online buchen",
+    "metaDescription": "Buchen Sie ganz einfach online einen Termin.",
+    "steps": {
+      "service": "Behandlung",
+      "staff": "Mitarbeiter",
+      "date": "Datum",
+      "time": "Uhrzeit",
+      "details": "Ihre Daten",
+      "confirm": "Bestätigen",
+      "payment": "Zahlung"
+    },
+    "chooseService": "Wähle eine Behandlung",
+    "chooseCategory": "Wähle eine Kategorie",
+    "chooseStaff": "Wähle einen Mitarbeiter",
+    "chooseDate": "Wähle ein Datum",
+    "chooseTime": "Wähle eine Uhrzeit",
+    "yourDetails": "Gib deine Daten ein",
+    "anyStaff": "Nächster freier Termin",
+    "duration": "Dauer",
+    "price": "Preis",
+    "totalDuration": "Gesamtdauer",
+    "totalPrice": "Gesamt",
+    "firstName": "Vorname",
+    "lastName": "Nachname",
+    "fullName": "Name",
+    "email": "E-Mail-Adresse",
+    "phone": "Telefonnummer",
+    "notes": "Anmerkungen",
+    "notesPlaceholder": "Wünsche oder Anmerkungen",
+    "agreeTerms": "Ich akzeptiere die Salonbedingungen",
+    "confirmBooking": "Buchung bestätigen",
+    "payAndBook": "Bezahlen und buchen",
+    "bookingSuccess": "Dein Termin ist bestätigt",
+    "bookingSuccessText": "Du erhältst eine Bestätigung per E-Mail oder WhatsApp.",
+    "bookingFailed": "Buchung fehlgeschlagen",
+    "bookingFailedText": "Versuche es erneut oder kontaktiere den Salon.",
+    "noSlotsAvailable": "Keine Zeiten an diesem Datum verfügbar",
+    "selectAtLeastOneService": "Wähle mindestens eine Behandlung",
+    "addAnotherPerson": "Person hinzufügen",
+    "removePerson": "Person entfernen",
+    "rescheduleTitle": "Termin verschieben",
+    "cancelTitle": "Termin stornieren"
+  },
+  "payment": {
+    "checking": "Zahlung wird überprüft…",
+    "confirmed": "Zahlung bestätigt",
+    "received": "Zahlung erhalten",
+    "notCompleted": "Zahlung nicht abgeschlossen",
+    "notCompletedText": "Versuche es erneut oder kontaktiere den Salon.",
+    "processingBooking": "Wir verarbeiten deinen Termin. Du erhältst in Kürze eine Bestätigung per E-Mail oder WhatsApp.",
+    "paymentFailed": "Zahlung fehlgeschlagen",
+    "paymentFailedText": "Die Zahlung wurde abgebrochen oder nicht abgeschlossen. Du kannst es über deinen Buchungslink erneut versuchen.",
+    "method": "Zahlungsmethode",
+    "secureNotice": "Sichere Zahlung über GlowPay"
+  },
+  "publicAction": {
+    "afspraak": {
+      "title": "Termin verwalten",
+      "text": "Dieser sichere Verwaltungslink wurde empfangen. Kontaktiere den Salon, wenn du deinen Termin ändern möchtest."
+    },
+    "route-contact": {
+      "title": "Anfahrt und Kontakt",
+      "text": "Sieh dir die Kontaktdaten des Salons an oder nimm direkt Kontakt für Wegbeschreibungen auf."
+    },
+    "salonvoorwaarden": {
+      "title": "Salonbedingungen",
+      "text": "Für Termine gelten die Bedingungen des Salons, einschließlich rechtzeitiger Änderung oder Stornierung und etwaiger Zahlungsvereinbarungen.",
+      "bullets": [
+        "Sei pünktlich zu deinem Termin.",
+        "Ändere oder storniere so früh wie möglich.",
+        "Bei verspäteter Stornierung können Kosten anfallen."
+      ]
+    },
+    "betaalbewijs": {
+      "title": "Zahlungsbeleg",
+      "text": "Dein Zahlungsbeleg ist mit deinem Termin oder deiner Bestellung verknüpft. Bewahre die E-Mail als Referenz auf."
+    },
+    "abonnement-beheren": {
+      "title": "Mitgliedschaft verwalten",
+      "text": "Deine Mitgliedschaft ist mit dem Salon verknüpft. Kontaktiere den Salon für Änderungen oder Fragen."
+    },
+    "review": {
+      "title": "Bewertung schreiben",
+      "text": "Danke, dass du deine Erfahrung teilst. Dein Feedback hilft dem Salon, den Service weiter zu verbessern."
+    }
+  },
+  "membership": {
+    "title": "Mitgliedschaften",
+    "yourPlan": "Deine Mitgliedschaft",
+    "creditsAvailable": "Verfügbare Guthaben",
+    "renewsOn": "Verlängert sich am",
+    "managePlan": "Mitgliedschaft verwalten"
+  },
+  "giftcard": {
+    "title": "Gutscheine",
+    "buy": "Gutschein kaufen",
+    "balance": "Guthaben",
+    "code": "Code",
+    "redeem": "Einlösen"
+  },
+  "waitlist": {
+    "title": "Warteliste",
+    "join": "Auf die Warteliste setzen",
+    "joined": "Du stehst auf der Warteliste"
+  },
+  "errors": {
+    "generic": "Etwas ist schiefgelaufen. Bitte versuche es erneut.",
+    "network": "Keine Verbindung. Überprüfe dein Internet.",
+    "requiredField": "Dieses Feld ist erforderlich",
+    "invalidEmail": "Ungültige E-Mail-Adresse",
+    "invalidPhone": "Ungültige Telefonnummer"
+  }
+}
