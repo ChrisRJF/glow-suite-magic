@@ -196,7 +196,7 @@ export default function BookingPage() {
   }, [isEmbed, branding, isPublicBooking]);
 
   const bookingServices = useMemo<BookingServiceOption[]>(() => {
-    if (publicData) return publicData.services;
+    if (publicData) return publicData.services as BookingServiceOption[];
     if (!isPublicBooking && liveServices.length > 0) {
       return liveServices
         .filter((service) => service.is_active && service.is_online_bookable && !service.is_internal_only)
@@ -207,6 +207,7 @@ export default function BookingPage() {
           price: Number(service.price ?? 0),
           color: service.color,
           description: service.description,
+          translations: (service as any).translations || null,
         }));
     }
 
@@ -218,6 +219,7 @@ export default function BookingPage() {
       price: service.price,
       color: service.color,
       description: null,
+      translations: null,
     }));
   }, [isPublicBooking, liveServices, publicData]);
 
