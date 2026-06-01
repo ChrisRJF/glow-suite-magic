@@ -13,6 +13,9 @@ import { queueLeadIntent } from "@/hooks/useLeadAutomation";
 import { getBranding, fetchBranding, applyBrandingToDocument, type WhiteLabelBranding } from "@/lib/whitelabel";
 import { callPublicBooking, nextBookingDate, type PublicBookingData } from "@/lib/publicBooking";
 import { PaymentMethodLogo } from "@/components/PaymentMethodLogo";
+import { useTranslation } from "react-i18next";
+import { useLanguagePersistence } from "@/hooks/useLanguagePersistence";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 // Lightweight conversion tracking — sends events to host page via postMessage
 function trackEvent(event: string, data?: Record<string, any>) {
