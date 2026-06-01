@@ -22,9 +22,12 @@ export default function ServicesPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [showTranslations, setShowTranslations] = useState(false);
+  const [activeLang, setActiveLang] = useState<string>("en");
   const [form, setForm] = useState({
     name: '', duration_minutes: 30, price: 0, category: '', color: '#7B61FF', description: '',
     is_active: true, is_online_bookable: true, is_internal_only: false,
+    translations: {} as ServiceTranslations,
   });
 
   const categories = [...new Set(services.map(s => s.category).filter(Boolean))];
