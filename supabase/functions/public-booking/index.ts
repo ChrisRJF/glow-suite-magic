@@ -30,6 +30,7 @@ const RequestSchema = z.discriminatedUnion("action", [
       accepted_glowsuite_terms: z.boolean().optional().default(false),
       accepted_salon_terms: z.boolean().optional().default(false),
       accepted_terms_at: z.string().datetime().optional().nullable(),
+      preferred_language: z.enum(["nl","en","de","fr","es"]).optional(),
     }),
     date: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/),
     time: z.string().trim().regex(/^\d{2}:\d{2}$/),
@@ -43,6 +44,7 @@ const RequestSchema = z.discriminatedUnion("action", [
     })).max(8).optional().default([]),
     payment: z.object({ required: z.boolean(), amount: z.number().min(0).max(100000), type: z.enum(["deposit", "full", "remainder"]).optional().default("deposit"), method: z.enum(["ideal", "bancontact", "creditcard", "applepay", "paypal"]).optional().default("ideal") }),
     notes: z.string().trim().max(1000).optional().default(""),
+    language: z.enum(["nl","en","de","fr","es"]).optional(),
   }),
 ]);
 
@@ -267,7 +269,7 @@ Deno.serve(async (req) => {
       const email = parsed.data.email.toLowerCase();
       const { data: customer } = await supabase
         .from("customers")
-        .select("id, name, phone")
+        .select("id, name, phone, preferred_language")
         .eq("user_id", ctx.settings.user_id)
         .ilike("email", email)
         .maybeSingle();
@@ -279,7 +281,7 @@ Deno.serve(async (req) => {
         .eq("customer_id", customer.id)
         .order("appointment_date", { ascending: false })
         .limit(3);
-      return json({ customer: { name: customer.name, phone: customer.phone || "" }, recentAppointments: appts || [] });
+      return json({ customer: { name: customer.name, phone: customer.phone || "", preferred_language: (customer as any).preferred_language || null }, recentAppointments: appts || [] });
     }
 
     const data = parsed.data;
