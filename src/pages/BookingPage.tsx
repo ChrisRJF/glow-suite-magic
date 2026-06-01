@@ -68,6 +68,7 @@ interface BookingServiceOption {
   price: number;
   color?: string | null;
   description?: string | null;
+  translations?: ServiceTranslations | null;
 }
 
 interface GroupMember {
