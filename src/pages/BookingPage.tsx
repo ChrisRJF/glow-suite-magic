@@ -16,6 +16,7 @@ import { PaymentMethodLogo } from "@/components/PaymentMethodLogo";
 import { useTranslation } from "react-i18next";
 import { useLanguagePersistence } from "@/hooks/useLanguagePersistence";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { localizedServiceName, localizedServiceDescription, type ServiceTranslations } from "@/lib/serviceTranslations";
 
 // Lightweight conversion tracking — sends events to host page via postMessage
 function trackEvent(event: string, data?: Record<string, any>) {
@@ -67,6 +68,7 @@ interface BookingServiceOption {
   price: number;
   color?: string | null;
   description?: string | null;
+  translations?: ServiceTranslations | null;
 }
 
 interface GroupMember {
@@ -194,7 +196,7 @@ export default function BookingPage() {
   }, [isEmbed, branding, isPublicBooking]);
 
   const bookingServices = useMemo<BookingServiceOption[]>(() => {
-    if (publicData) return publicData.services;
+    if (publicData) return publicData.services as BookingServiceOption[];
     if (!isPublicBooking && liveServices.length > 0) {
       return liveServices
         .filter((service) => service.is_active && service.is_online_bookable && !service.is_internal_only)
@@ -205,6 +207,7 @@ export default function BookingPage() {
           price: Number(service.price ?? 0),
           color: service.color,
           description: service.description,
+          translations: (service as any).translations || null,
         }));
     }
 
@@ -216,6 +219,7 @@ export default function BookingPage() {
       price: service.price,
       color: service.color,
       description: null,
+      translations: null,
     }));
   }, [isPublicBooking, liveServices, publicData]);
 
@@ -779,7 +783,7 @@ export default function BookingPage() {
     const start = new Date(); start.setHours(h, m, 0, 0);
     const end = new Date(start.getTime() + (service.duration || 30) * 60000);
     const fmt = (d: Date) => d.toISOString().replace(/[-:]|\.\d{3}/g, "");
-    const ics = `BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nUID:${Date.now()}@glowsuite\nDTSTAMP:${fmt(new Date())}\nDTSTART:${fmt(start)}\nDTEND:${fmt(end)}\nSUMMARY:${service.name} — ${branding.salon_name}\nDESCRIPTION:${t("booking.calendarEventDescription", { salon: branding.salon_name })}\nEND:VEVENT\nEND:VCALENDAR`;
+    const ics = `BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nUID:${Date.now()}@glowsuite\nDTSTAMP:${fmt(new Date())}\nDTSTART:${fmt(start)}\nDTEND:${fmt(end)}\nSUMMARY:${localizedServiceName(service, i18n.language)} — ${branding.salon_name}\nDESCRIPTION:${t("booking.calendarEventDescription", { salon: branding.salon_name })}\nEND:VEVENT\nEND:VCALENDAR`;
     const blob = new Blob([ics], { type: "text/calendar" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a"); a.href = url; a.download = "afspraak.ics"; a.click();
@@ -1049,7 +1053,10 @@ export default function BookingPage() {
               >
                 <div className="w-2 h-10 rounded-full" style={{ backgroundColor: item.color || "hsl(var(--primary))" }} />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold">{item.name}</p>
+                  <p className="text-sm font-semibold">{localizedServiceName(item, i18n.language)}</p>
+                  {localizedServiceDescription(item, i18n.language) && (
+                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{localizedServiceDescription(item, i18n.language)}</p>
+                  )}
                   <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Clock className="w-3 h-3" />
@@ -1091,7 +1098,7 @@ export default function BookingPage() {
                     >
                       {bookingServices.map((item) => (
                         <option key={item.id} value={item.id}>
-                          {item.name} — {formatEuro(item.price)}
+                          {localizedServiceName(item, i18n.language)} — {formatEuro(item.price)}
                         </option>
                       ))}
                     </select>
@@ -1226,14 +1233,14 @@ export default function BookingPage() {
             <div className="glass-card p-4 mb-6">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">{t("booking.summary.service")}</span>
-                <span className="font-medium">{service?.name}</span>
+                <span className="font-medium">{localizedServiceName(service, i18n.language)}</span>
               </div>
               {isGroupBooking && groupMembers.map((member, index) => {
                 const memberService = bookingServices.find((item) => item.id === member.serviceId);
                 return (
                   <div key={member.id} className="flex items-center justify-between text-sm mt-1">
                     <span className="text-muted-foreground text-xs">{member.name || t("booking.group.person", { n: index + 2 })}</span>
-                    <span className="text-xs">{memberService?.name} — {formatEuro(memberService?.price || 0)}</span>
+                    <span className="text-xs">{localizedServiceName(memberService, i18n.language)} — {formatEuro(memberService?.price || 0)}</span>
                   </div>
                 );
               })}
@@ -1447,7 +1454,7 @@ export default function BookingPage() {
 
                 <div className="mt-4 grid gap-1.5 text-left text-sm bg-background/60 rounded-xl p-3">
                   <div className="flex justify-between"><span className="text-muted-foreground">{t("booking.confirmation.salon")}</span><span className="font-medium">{confirmation?.salon_name || publicData?.salon.name || branding.salon_name}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">{t("booking.confirmation.service")}</span><span className="font-medium">{confirmation?.service_name || service?.name}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">{t("booking.confirmation.service")}</span><span className="font-medium">{confirmation?.service_name || localizedServiceName(service, i18n.language)}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">{t("booking.confirmation.date")}</span><span className="font-medium">{confirmation?.date ? new Date(`${confirmation.date}T00:00:00`).toLocaleDateString(dateLocale, { weekday: "short", day: "numeric", month: "short" }) : new Date(`${selectedDate}T00:00:00`).toLocaleDateString(dateLocale, { weekday: "short", day: "numeric", month: "short" })}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">{t("booking.confirmation.time")}</span><span className="font-medium">{confirmation?.time || selectedTime}</span></div>
                   {selectedPlacements[0]?.employee && (

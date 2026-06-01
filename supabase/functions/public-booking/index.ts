@@ -48,7 +48,7 @@ const RequestSchema = z.discriminatedUnion("action", [
   }),
 ]);
 
-type ServiceRow = { id: string; name: string; duration_minutes: number; price: number; color?: string | null; description?: string | null; user_id: string };
+type ServiceRow = { id: string; name: string; duration_minutes: number; price: number; color?: string | null; description?: string | null; translations?: Record<string, { name?: string; description?: string; category?: string }> | null; category?: string | null; user_id: string };
 
 type SalonContext = {
   settings: any;
@@ -86,7 +86,7 @@ async function getSalon(supabase: ReturnType<typeof createClient>, slug: string)
 
   const { data: services, error: serviceError } = await supabase
     .from("services")
-    .select("id, user_id, name, duration_minutes, price, color, description")
+    .select("id, user_id, name, duration_minutes, price, color, description, category, translations")
     .eq("user_id", settings.user_id)
     .eq("is_active", true)
     .eq("is_online_bookable", true)
@@ -128,6 +128,8 @@ function safeSalonPayload(ctx: SalonContext) {
       price: ctx.settings.show_prices_online === false ? 0 : Number(service.price || 0),
       color: service.color,
       description: service.description,
+      category: service.category || null,
+      translations: service.translations || {},
     })),
     employees: ctx.settings.public_employees_enabled === false ? [] : EMPLOYEES,
   };
