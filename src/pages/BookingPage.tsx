@@ -783,7 +783,7 @@ export default function BookingPage() {
     const start = new Date(); start.setHours(h, m, 0, 0);
     const end = new Date(start.getTime() + (service.duration || 30) * 60000);
     const fmt = (d: Date) => d.toISOString().replace(/[-:]|\.\d{3}/g, "");
-    const ics = `BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nUID:${Date.now()}@glowsuite\nDTSTAMP:${fmt(new Date())}\nDTSTART:${fmt(start)}\nDTEND:${fmt(end)}\nSUMMARY:${service.name} — ${branding.salon_name}\nDESCRIPTION:${t("booking.calendarEventDescription", { salon: branding.salon_name })}\nEND:VEVENT\nEND:VCALENDAR`;
+    const ics = `BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nUID:${Date.now()}@glowsuite\nDTSTAMP:${fmt(new Date())}\nDTSTART:${fmt(start)}\nDTEND:${fmt(end)}\nSUMMARY:${localizedServiceName(service, i18n.language)} — ${branding.salon_name}\nDESCRIPTION:${t("booking.calendarEventDescription", { salon: branding.salon_name })}\nEND:VEVENT\nEND:VCALENDAR`;
     const blob = new Blob([ics], { type: "text/calendar" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a"); a.href = url; a.download = "afspraak.ics"; a.click();
