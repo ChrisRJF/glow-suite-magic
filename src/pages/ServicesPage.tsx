@@ -86,7 +86,7 @@ export default function ServicesPage() {
 
       {showForm && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={close}>
-          <div className="glass-card p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+          <div className="glass-card p-6 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-4">{editingId ? 'Behandeling bewerken' : 'Nieuwe behandeling'}</h3>
             <div className="space-y-3">
               <div><label className="text-xs text-muted-foreground">Naam *</label><input value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" /></div>
@@ -95,7 +95,69 @@ export default function ServicesPage() {
                 <div><label className="text-xs text-muted-foreground">Prijs (€)</label><input type="number" step="0.01" value={form.price} onChange={e => setForm({...form, price: parseFloat(e.target.value) || 0})} className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" /></div>
               </div>
               <div><label className="text-xs text-muted-foreground">Categorie</label><input value={form.category} onChange={e => setForm({...form, category: e.target.value})} className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="bijv. Haar, Kleur, Styling" /></div>
+              <div><label className="text-xs text-muted-foreground">Beschrijving</label><textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} rows={2} className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" placeholder="Korte beschrijving (optioneel)" /></div>
               <div><label className="text-xs text-muted-foreground">Kleur</label><input type="color" value={form.color} onChange={e => setForm({...form, color: e.target.value})} className="w-full mt-1 h-10 rounded-xl" /></div>
+
+              {/* Translations */}
+              <div className="border-t border-border pt-3">
+                <button
+                  type="button"
+                  onClick={() => setShowTranslations(v => !v)}
+                  className="w-full flex items-center justify-between text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <span className="flex items-center gap-1.5"><Languages className="w-3.5 h-3.5" /> Vertalingen</span>
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showTranslations ? 'rotate-180' : ''}`} />
+                </button>
+                {showTranslations && (
+                  <div className="mt-3 space-y-3">
+                    <p className="text-[11px] text-muted-foreground">Laat leeg om de standaard naam te tonen.</p>
+                    <div className="flex gap-1 flex-wrap">
+                      {TRANSLATABLE_LANGS.map((lang) => (
+                        <button
+                          key={lang}
+                          type="button"
+                          onClick={() => setActiveLang(lang)}
+                          className={`text-xs px-2.5 py-1 rounded-lg border transition-colors ${activeLang === lang ? 'bg-primary/10 border-primary text-foreground' : 'border-border text-muted-foreground hover:text-foreground'}`}
+                        >
+                          {LANG_LABELS[lang].flag} {LANG_LABELS[lang].label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="space-y-2">
+                      <div>
+                        <label className="text-xs text-muted-foreground">Naam ({LANG_LABELS[activeLang].label})</label>
+                        <input
+                          value={(form.translations as any)[activeLang]?.name || ''}
+                          onChange={(e) => updateTranslation(activeLang, 'name', e.target.value)}
+                          placeholder={form.name}
+                          className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">Beschrijving ({LANG_LABELS[activeLang].label})</label>
+                        <textarea
+                          value={(form.translations as any)[activeLang]?.description || ''}
+                          onChange={(e) => updateTranslation(activeLang, 'description', e.target.value)}
+                          rows={2}
+                          placeholder={form.description || 'Korte beschrijving'}
+                          className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+                        />
+                      </div>
+                      {form.category && (
+                        <div>
+                          <label className="text-xs text-muted-foreground">Categorie ({LANG_LABELS[activeLang].label})</label>
+                          <input
+                            value={(form.translations as any)[activeLang]?.category || ''}
+                            onChange={(e) => updateTranslation(activeLang, 'category', e.target.value)}
+                            placeholder={form.category}
+                            className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* Status & Visibility */}
               <div className="border-t border-border pt-3 space-y-2.5">
