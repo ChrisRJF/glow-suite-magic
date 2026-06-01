@@ -29,10 +29,10 @@ function trackEvent(event: string, data?: Record<string, any>) {
   } catch {}
 }
 
-const SLOT_LABELS: Record<string, { label: string; tone: "primary" | "success" | "muted" }> = {
-  "09:00": { label: "Eerst beschikbaar", tone: "primary" },
-  "10:00": { label: "Vandaag nog plek", tone: "success" },
-  "14:30": { label: "Populaire tijd", tone: "muted" },
+const SLOT_LABEL_KEYS: Record<string, { key: string; tone: "primary" | "success" | "muted" }> = {
+  "09:00": { key: "booking.slot.firstAvailable", tone: "primary" },
+  "10:00": { key: "booking.slot.todayStillSlots", tone: "success" },
+  "14:30": { key: "booking.slot.popularTime", tone: "muted" },
 };
 
 const STORAGE_KEY = "glowsuite:booking-progress";
@@ -95,6 +95,10 @@ interface PlacementOption {
 export default function BookingPage() {
   useLanguagePersistence();
   const { t, i18n } = useTranslation();
+  const dateLocale = useMemo(() => {
+    const map: Record<string, string> = { nl: "nl-NL", en: "en-US", de: "de-DE", fr: "fr-FR", es: "es-ES" };
+    return map[i18n.language.split("-")[0]] || "nl-NL";
+  }, [i18n.language]);
   const { salonSlug } = useParams();
   const isPublicBooking = Boolean(salonSlug);
   const { data: liveServices } = useServices();
@@ -146,7 +150,7 @@ export default function BookingPage() {
         }));
       })
       .catch((error) => {
-        if (!cancelled) setPublicError(error.message || "Deze boekingspagina bestaat niet.");
+        if (!cancelled) setPublicError(error.message || t("booking.notFound.title"));
       })
       .finally(() => {
         if (!cancelled) setPublicLoading(false);
@@ -165,12 +169,12 @@ export default function BookingPage() {
         setPaymentResult({
           status: result.confirmation?.payment_status === "paid" ? "success" : "failed",
           message: result.confirmation?.payment_status === "paid"
-            ? "Betaling ontvangen. Je afspraak is bevestigd."
-            : "Je afspraak is opgeslagen. De betaling is nog niet afgerond.",
+            ? t("booking.paymentReturn.success")
+            : t("booking.paymentReturn.pending"),
         });
         setStep(3);
       })
-      .catch((error) => toast.error(error.message || "Betaalstatus kon niet worden opgehaald."));
+      .catch((error) => toast.error(error.message || t("booking.toasts.paymentStatusError")));
   }, [salonSlug]);
 
   // White-label embed mode: detect ?embed=1 in URL and load salon branding
@@ -462,7 +466,7 @@ export default function BookingPage() {
     const people = [
       {
         id: "main",
-        personLabel: name.trim() || "Hoofdpersoon",
+        personLabel: name.trim() || t("booking.group.mainPerson"),
         serviceId: selectedService,
         serviceName: service.name,
         assignmentMode: mainAssignmentMode,
@@ -470,9 +474,9 @@ export default function BookingPage() {
       },
       ...groupMembers.map((member, index) => ({
         id: member.id,
-        personLabel: member.name.trim() || `Persoon ${index + 2}`,
+        personLabel: member.name.trim() || t("booking.group.person", { n: index + 2 }),
         serviceId: member.serviceId,
-        serviceName: bookingServices.find((item) => item.id === member.serviceId)?.name || "Behandeling",
+        serviceName: bookingServices.find((item) => item.id === member.serviceId)?.name || t("booking.treatmentFallback"),
         assignmentMode: member.assignmentMode,
         assignedEmployee: member.assignedEmployee,
       })),
@@ -526,8 +530,8 @@ export default function BookingPage() {
 
     if (simultaneousValid && simultaneousPlacements.length === people.length) {
       options.push({
-        label: "Optie 1 · Tegelijk",
-        description: "Alle personen starten op hetzelfde tijdstip als de medewerkers beschikbaar zijn.",
+        label: t("booking.group.simultaneous"),
+        description: t("booking.group.simultaneousDesc"),
         placements: simultaneousPlacements,
       });
     }
@@ -588,10 +592,10 @@ export default function BookingPage() {
     if (sequentialValid && sequentialPlacements.length === people.length) {
       const hasMultipleTimes = new Set(sequentialPlacements.map((placement) => placement.time)).size > 1;
       options.push({
-        label: hasMultipleTimes ? "Optie 2 · Na elkaar" : "Optie 2 · Beste match",
+        label: hasMultipleTimes ? t("booking.group.sequential") : t("booking.group.bestMatch"),
         description: hasMultipleTimes
-          ? "Niet iedereen past tegelijk; dit is de slimste planning met minimale wachttijd."
-          : "Beste beschikbare verdeling op hetzelfde tijdstip.",
+          ? t("booking.group.sequentialDesc")
+          : t("booking.group.bestMatchDesc"),
         placements: sequentialPlacements,
       });
     }
@@ -608,19 +612,19 @@ export default function BookingPage() {
     }
 
     if (mainAssignmentMode === "manual" && !mainAssignedEmployee) {
-      toast.error("Kies een medewerker voor de hoofdpersoon of gebruik automatische plaatsing.");
+      toast.error(t("booking.toasts.chooseStaffMain"));
       return;
     }
 
     const missingEmployee = groupMembers.find((member) => member.assignmentMode === "manual" && !member.assignedEmployee);
     if (missingEmployee) {
-      toast.error("Kies voor elke handmatige persoon een medewerker.");
+      toast.error(t("booking.toasts.chooseStaffEach"));
       return;
     }
 
     const options = buildPlacementOptions();
     if (options.length === 0) {
-      toast.error("Niet alle personen tegelijk beschikbaar. Kies een andere tijd of andere medewerker.");
+      toast.error(t("booking.toasts.noSimultaneous"));
       return;
     }
 
@@ -632,12 +636,12 @@ export default function BookingPage() {
   const handleConfirm = async () => {
     trackEvent("booking_attempt", { service: selectedService, time: selectedTime, total: totalPrice });
     if (!service || !selectedService || !selectedTime) {
-      toast.error("Kies eerst een behandeling en tijdstip.");
+      toast.error(t("booking.toasts.chooseServiceAndTime"));
       return;
     }
     if (!acceptedGlowsuiteTerms || !acceptedSalonTerms) {
       setShowTermsError(true);
-      toast.error("Ga akkoord met de voorwaarden om verder te gaan.");
+      toast.error(t("booking.toasts.acceptTerms"));
       return;
     }
     const acceptedTermsAt = new Date().toISOString();
@@ -678,13 +682,13 @@ export default function BookingPage() {
           return;
         }
 
-        const message = result.paymentInitError || (paymentDecision?.required ? "Afspraak opgeslagen. Betaling staat in afwachting." : "Afspraak bevestigd! Geen betaling vereist.");
+        const message = result.paymentInitError || (paymentDecision?.required ? t("booking.toasts.bookingSaved") : t("booking.toasts.bookingConfirmedNoPay"));
         setPaymentResult({ status: result.paymentInitError ? "failed" : "success", message });
         toast[result.paymentInitError ? "error" : "success"](message);
         try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
         trackEvent("booking_completed", { paid: !paymentDecision?.required, public: true });
       } catch (err: any) {
-        const msg = err?.message || "Boeking kon niet worden opgeslagen.";
+        const msg = err?.message || t("booking.toasts.bookingError");
         if (err?.code === "slot_unavailable") {
           setPaymentResult(null);
           setSelectedTime(null);
@@ -700,12 +704,12 @@ export default function BookingPage() {
     }
 
     if (!paymentDecision?.required) {
-      toast.success("Afspraak bevestigd! ✅");
+      toast.success(t("booking.toasts.bookingConfirmed"));
       setPaymentResult({
         status: "success",
         message: isGroupBooking
-          ? `Groepsboeking bevestigd! ${groupMembers.length + 1} personen ingepland.`
-          : "Afspraak bevestigd! Geen betaling vereist.",
+          ? t("booking.toasts.groupConfirmed", { count: groupMembers.length + 1 })
+          : t("booking.toasts.bookingConfirmedNoPay"),
       });
       try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
       trackEvent("booking_completed", { paid: false });
@@ -741,7 +745,7 @@ export default function BookingPage() {
         window.location.href = data.checkoutUrl;
       }
     } catch (err: any) {
-      const msg = err?.message || "Betaling mislukt";
+      const msg = err?.message || t("booking.toasts.paymentFailed");
       setPaymentResult({ status: "failed", message: msg });
       toast.error(msg);
       trackEvent("payment_failed", { error: msg });
@@ -775,7 +779,7 @@ export default function BookingPage() {
     const start = new Date(); start.setHours(h, m, 0, 0);
     const end = new Date(start.getTime() + (service.duration || 30) * 60000);
     const fmt = (d: Date) => d.toISOString().replace(/[-:]|\.\d{3}/g, "");
-    const ics = `BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nUID:${Date.now()}@glowsuite\nDTSTAMP:${fmt(new Date())}\nDTSTART:${fmt(start)}\nDTEND:${fmt(end)}\nSUMMARY:${service.name} — ${branding.salon_name}\nDESCRIPTION:Afspraak bij ${branding.salon_name}\nEND:VEVENT\nEND:VCALENDAR`;
+    const ics = `BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nUID:${Date.now()}@glowsuite\nDTSTAMP:${fmt(new Date())}\nDTSTART:${fmt(start)}\nDTEND:${fmt(end)}\nSUMMARY:${service.name} — ${branding.salon_name}\nDESCRIPTION:${t("booking.calendarEventDescription", { salon: branding.salon_name })}\nEND:VEVENT\nEND:VCALENDAR`;
     const blob = new Blob([ics], { type: "text/calendar" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a"); a.href = url; a.download = "afspraak.ics"; a.click();
@@ -784,10 +788,10 @@ export default function BookingPage() {
   };
 
   const shareAppointment = async () => {
-    const text = `Mijn afspraak bij ${branding.salon_name}: ${service?.name} om ${selectedTime}`;
+    const text = t("booking.shareText", { salon: branding.salon_name, service: service?.name || "", time: selectedTime || "" });
     try {
       if (navigator.share) await navigator.share({ title: branding.salon_name, text });
-      else { await navigator.clipboard.writeText(text); toast.success("Gekopieerd"); }
+      else { await navigator.clipboard.writeText(text); toast.success(t("booking.toasts.copied")); }
       trackEvent("appointment_shared");
     } catch {}
   };
@@ -818,7 +822,7 @@ export default function BookingPage() {
             <p className="text-sm font-medium">{title}</p>
             <p className="text-[11px] text-muted-foreground">{subtitle}</p>
           </div>
-          <span className="text-[11px] text-muted-foreground">{assignmentMode === "manual" ? "Handmatig gekozen" : "Automatisch geplaatst"}</span>
+          <span className="text-[11px] text-muted-foreground">{assignmentMode === "manual" ? t("booking.assignment.manualLabel") : t("booking.assignment.autoLabel")}</span>
         </div>
 
         <div className="flex gap-2">
@@ -832,7 +836,7 @@ export default function BookingPage() {
               assignmentMode === "manual" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"
             )}
           >
-            Medewerker kiezen
+            {t("booking.assignment.chooseStaff")}
           </button>
           <button
             onClick={() => {
@@ -845,7 +849,7 @@ export default function BookingPage() {
               assignmentMode === "auto" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"
             )}
           >
-            <Zap className="w-3 h-3 inline mr-1" />Automatische plaatsing
+            <Zap className="w-3 h-3 inline mr-1" />{t("booking.assignment.autoPlacement")}
           </button>
         </div>
 
@@ -858,7 +862,7 @@ export default function BookingPage() {
             }}
             className="w-full px-3 py-2 rounded-xl bg-background border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
           >
-            <option value="">Kies medewerker</option>
+            <option value="">{t("booking.assignment.chooseStaffPlaceholder")}</option>
             {availableEmployees.map((employee) => (
               <option key={employee.name} value={employee.name}>
                 {employee.name} ({employee.role})
@@ -867,7 +871,7 @@ export default function BookingPage() {
           </select>
         ) : (
           <div className="px-3 py-2 rounded-xl bg-primary/5 border border-primary/10 text-[11px] text-muted-foreground">
-            Beschikbare medewerkers: {availableEmployees.map((employee) => employee.name).join(", ")}
+            {t("booking.assignment.availableStaff", { names: availableEmployees.map((employee) => employee.name).join(", ") })}
           </div>
         )}
       </div>
@@ -881,7 +885,7 @@ export default function BookingPage() {
           <div className="h-10 w-40 rounded-xl bg-secondary animate-pulse" />
           <div className="h-24 rounded-2xl bg-secondary animate-pulse" />
           <div className="h-24 rounded-2xl bg-secondary animate-pulse" />
-          <p className="text-sm text-muted-foreground">Boekingspagina laden...</p>
+          <p className="text-sm text-muted-foreground">{t("booking.loading")}</p>
         </div>
       </div>
     );
@@ -894,8 +898,8 @@ export default function BookingPage() {
           <div className="w-12 h-12 rounded-2xl bg-secondary flex items-center justify-center mx-auto">
             <AlertCircle className="w-6 h-6 text-muted-foreground" />
           </div>
-          <h1 className="text-xl font-bold">Deze boekingspagina bestaat niet.</h1>
-          <p className="text-sm text-muted-foreground">Controleer de link of neem contact op met de salon.</p>
+          <h1 className="text-xl font-bold">{t("booking.notFound.title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("booking.notFound.text")}</p>
         </div>
       </div>
     );
@@ -943,10 +947,10 @@ export default function BookingPage() {
         {/* Conversion progress: Afspraak → Gegevens → Betalen */}
         <div className="mb-3 flex items-center justify-between">
           <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
-            Stap {paymentResult ? 3 : step <= 2 ? 1 : 2} van 3
+            {t("booking.stepLabel", { current: paymentResult ? 3 : step <= 2 ? 1 : 2, total: 3 })}
           </span>
           <span className="text-[11px] text-muted-foreground hidden sm:block">
-            {paymentResult ? "Bevestigd" : step <= 2 ? "Afspraak" : "Gegevens en betalen"}
+            {paymentResult ? t("booking.stepNames.confirmed") : step <= 2 ? t("booking.stepNames.appointment") : t("booking.stepNames.detailsAndPay")}
           </span>
         </div>
         <div className="flex items-center gap-2 mb-8">
@@ -963,7 +967,7 @@ export default function BookingPage() {
                   {currentStep > s ? <Check className="w-4 h-4" /> : s}
                 </div>
                 <span className={cn("text-xs font-medium hidden sm:block", currentStep >= s ? "text-foreground" : "text-muted-foreground")}>
-                  {s === 1 ? "Afspraak" : s === 2 ? "Gegevens" : "Betalen"}
+                  {s === 1 ? t("booking.stepNames.appointment") : s === 2 ? t("booking.stepNames.details") : t("booking.stepNames.payment")}
                 </span>
                 {s < 3 && <div className={cn("flex-1 h-px", currentStep > s ? "bg-primary" : "bg-border")} />}
               </div>
@@ -974,22 +978,22 @@ export default function BookingPage() {
         {step === 1 && (
           <div className="space-y-3 opacity-0 animate-fade-in-up" style={{ animationDelay: "100ms" }}>
             <div className="mb-2">
-              <h2 className="text-xl font-bold">Kies je behandeling</h2>
-              <p className="text-xs text-muted-foreground mt-1">Binnen 1 minuut geboekt · Geen account nodig</p>
+              <h2 className="text-xl font-bold">{t("booking.chooseService")}</h2>
+              <p className="text-xs text-muted-foreground mt-1">{t("booking.subtitle")}</p>
             </div>
 
             <div className="flex flex-wrap gap-2 mb-3">
               <span className="trust-chip">
-                <Check className="w-3 h-3 text-primary" /> Direct bevestigd
+                <Check className="w-3 h-3 text-primary" /> {t("booking.trust.instantConfirm")}
               </span>
               <span className="trust-chip">
-                <Shield className="w-3 h-3 text-primary" /> Veilig betalen
+                <Shield className="w-3 h-3 text-primary" /> {t("booking.trust.securePayment")}
               </span>
               <span className="trust-chip">
-                <Sparkles className="w-3 h-3 text-primary" /> Geen account nodig
+                <Sparkles className="w-3 h-3 text-primary" /> {t("booking.trust.noAccount")}
               </span>
               <span className="trust-chip">
-                Gratis annuleren
+                {t("booking.trust.freeCancel")}
               </span>
             </div>
 
@@ -1008,8 +1012,8 @@ export default function BookingPage() {
             >
               <Users className="w-5 h-5" />
               <div className="flex-1">
-                <span className="font-medium">Groepsboeking</span>
-                <p className="text-[11px] text-muted-foreground">Boek voor meerdere personen tegelijk</p>
+                <span className="font-medium">{t("booking.group.title")}</span>
+                <p className="text-[11px] text-muted-foreground">{t("booking.group.subtitle")}</p>
               </div>
               <span
                 aria-hidden="true"
@@ -1029,7 +1033,7 @@ export default function BookingPage() {
               </span>
             </button>
 
-            <p className="text-xs text-muted-foreground mt-2 mb-1">{isGroupBooking ? "Hoofdpersoon — kies behandeling:" : ""}</p>
+            <p className="text-xs text-muted-foreground mt-2 mb-1">{isGroupBooking ? t("booking.group.mainPersonChoose") : ""}</p>
 
             {bookingServices.map((item) => (
               <button
@@ -1060,22 +1064,22 @@ export default function BookingPage() {
             {isGroupBooking && selectedService && (
               <div className="mt-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold">Extra personen</p>
+                  <p className="text-sm font-semibold">{t("booking.group.extraPeople")}</p>
                   <Button variant="outline" size="sm" onClick={addGroupMember}>
-                    <Plus className="w-3.5 h-3.5 mr-1" />Persoon toevoegen
+                    <Plus className="w-3.5 h-3.5 mr-1" />{t("booking.group.addPerson")}
                   </Button>
                 </div>
 
                 {groupMembers.map((member, idx) => (
                   <div key={member.id} className="p-3 rounded-xl bg-secondary/50 border border-border space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-muted-foreground">Persoon {idx + 2}</span>
+                      <span className="text-xs font-medium text-muted-foreground">{t("booking.group.person", { n: idx + 2 })}</span>
                       <button onClick={() => removeGroupMember(member.id)} className="p-1 rounded hover:bg-destructive/20">
                         <Trash2 className="w-3.5 h-3.5 text-destructive" />
                       </button>
                     </div>
                     <input
-                      placeholder="Naam"
+                      placeholder={t("booking.group.namePlaceholder")}
                       value={member.name}
                       onChange={(e) => updateGroupMember(member.id, { name: e.target.value })}
                       className="w-full px-3 py-2 rounded-xl bg-background border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
@@ -1096,8 +1100,8 @@ export default function BookingPage() {
 
                 {groupMembers.length > 0 && (
                   <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 text-sm">
-                    <span className="text-muted-foreground">Totaalprijs:</span> <span className="font-bold">{formatEuro(totalPrice)}</span>
-                    <span className="text-muted-foreground ml-2">({groupMembers.length + 1} personen)</span>
+                    <span className="text-muted-foreground">{t("booking.group.totalLabel")}</span> <span className="font-bold">{formatEuro(totalPrice)}</span>
+                    <span className="text-muted-foreground ml-2">{t("booking.group.peopleCount", { count: groupMembers.length + 1 })}</span>
                   </div>
                 )}
               </div>
@@ -1109,7 +1113,7 @@ export default function BookingPage() {
               disabled={!selectedService || (isGroupBooking && groupMembers.some((member) => !member.name || !member.serviceId))}
               onClick={() => setStep(2)}
             >
-              Volgende <ArrowRight className="w-4 h-4 ml-1" />
+              {t("booking.next")} <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
           </div>
         )}
@@ -1117,11 +1121,11 @@ export default function BookingPage() {
         {step === 2 && (
           <div className="opacity-0 animate-fade-in-up" style={{ animationDelay: "100ms" }}>
             <button onClick={() => setStep(1)} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors">
-              <ArrowLeft className="w-4 h-4" /> Terug
+              <ArrowLeft className="w-4 h-4" /> {t("booking.back")}
             </button>
-            <h2 className="text-xl font-bold mb-2">Kies een tijdstip</h2>
+            <h2 className="text-xl font-bold mb-2">{t("booking.chooseTime")}</h2>
             <p className="text-sm text-muted-foreground mb-6">
-              <Calendar className="w-4 h-4 inline mr-1" />{new Date(`${selectedDate}T00:00:00`).toLocaleDateString("nl-NL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+              <Calendar className="w-4 h-4 inline mr-1" />{new Date(`${selectedDate}T00:00:00`).toLocaleDateString(dateLocale, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
             </p>
 
             {isPublicBooking && (
@@ -1139,7 +1143,7 @@ export default function BookingPage() {
                         selectedDate === value ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-secondary/60"
                       )}
                     >
-                      {option.toLocaleDateString("nl-NL", { weekday: "short", day: "numeric" })}
+                      {option.toLocaleDateString(dateLocale, { weekday: "short", day: "numeric" })}
                     </button>
                   );
                 })}
@@ -1148,7 +1152,7 @@ export default function BookingPage() {
 
              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {availableSlots.map((slot) => {
-                const meta = SLOT_LABELS[slot];
+                const meta = SLOT_LABEL_KEYS[slot];
                 const isSelected = selectedTime === slot;
                 return (
                   <button
@@ -1170,7 +1174,7 @@ export default function BookingPage() {
                         meta.tone === "primary" && "bg-primary/15 text-primary",
                         meta.tone === "success" && "bg-success/15 text-success",
                         meta.tone === "muted" && "bg-secondary text-muted-foreground",
-                      )}>{meta.label}</span>
+                      )}>{t(meta.key)}</span>
                     )}
                   </button>
                 );
@@ -1179,10 +1183,10 @@ export default function BookingPage() {
 
             {isGroupBooking && selectedService && selectedTime && (
               <div className="mt-6 space-y-3">
-                <p className="text-sm font-semibold">Medewerker keuze of automatische plaatsing</p>
+                <p className="text-sm font-semibold">{t("booking.group.staffOrAutoLabel")}</p>
                 {renderAssignmentCard({
-                  title: "Hoofdpersoon",
-                  subtitle: `${service?.name || "Behandeling"} · Startvoorkeur ${selectedTime}`,
+                  title: t("booking.group.mainPerson"),
+                  subtitle: t("booking.group.startPreference", { service: service?.name || t("booking.treatmentFallback"), time: selectedTime }),
                   serviceId: selectedService,
                   assignmentMode: mainAssignmentMode,
                   assignedEmployee: mainAssignedEmployee,
@@ -1194,8 +1198,8 @@ export default function BookingPage() {
                   const memberService = bookingServices.find((item) => item.id === member.serviceId);
 
                   return renderAssignmentCard({
-                    title: member.name || `Persoon ${idx + 2}`,
-                    subtitle: `${memberService?.name || "Behandeling"} · Startvoorkeur ${selectedTime}`,
+                    title: member.name || t("booking.group.person", { n: idx + 2 }),
+                    subtitle: t("booking.group.startPreference", { service: memberService?.name || t("booking.treatmentFallback"), time: selectedTime }),
                     serviceId: member.serviceId,
                     assignmentMode: member.assignmentMode,
                     assignedEmployee: member.assignedEmployee,
@@ -1207,7 +1211,7 @@ export default function BookingPage() {
             )}
 
             <Button variant="gradient" className="w-full mt-6" disabled={!selectedTime} onClick={handleProceedToDetails}>
-              Volgende <ArrowRight className="w-4 h-4 ml-1" />
+              {t("booking.next")} <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
           </div>
         )}
@@ -1215,36 +1219,36 @@ export default function BookingPage() {
         {step === 3 && (
           <div className="opacity-0 animate-fade-in-up" style={{ animationDelay: "100ms" }}>
             <button onClick={() => { setStep(2); setPaymentResult(null); }} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors">
-              <ArrowLeft className="w-4 h-4" /> Terug
+              <ArrowLeft className="w-4 h-4" /> {t("booking.back")}
             </button>
-            <h2 className="text-xl font-bold mb-6">Jouw gegevens</h2>
+            <h2 className="text-xl font-bold mb-6">{t("booking.yourDetails")}</h2>
 
             <div className="glass-card p-4 mb-6">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Behandeling</span>
+                <span className="text-muted-foreground">{t("booking.summary.service")}</span>
                 <span className="font-medium">{service?.name}</span>
               </div>
               {isGroupBooking && groupMembers.map((member, index) => {
                 const memberService = bookingServices.find((item) => item.id === member.serviceId);
                 return (
                   <div key={member.id} className="flex items-center justify-between text-sm mt-1">
-                    <span className="text-muted-foreground text-xs">{member.name || `Persoon ${index + 2}`}</span>
+                    <span className="text-muted-foreground text-xs">{member.name || t("booking.group.person", { n: index + 2 })}</span>
                     <span className="text-xs">{memberService?.name} — {formatEuro(memberService?.price || 0)}</span>
                   </div>
                 );
               })}
               <div className="flex items-center justify-between text-sm mt-2">
-                <span className="text-muted-foreground">Tijdstip</span>
-                <span className="font-medium">{selectedTime} · {new Date(`${selectedDate}T00:00:00`).toLocaleDateString("nl-NL", { weekday: "short", day: "numeric", month: "short" })}</span>
+                <span className="text-muted-foreground">{t("booking.summary.time")}</span>
+                <span className="font-medium">{selectedTime} · {new Date(`${selectedDate}T00:00:00`).toLocaleDateString(dateLocale, { weekday: "short", day: "numeric", month: "short" })}</span>
               </div>
               <div className="flex items-center justify-between text-sm mt-2">
-                <span className="text-muted-foreground">Totaalprijs</span>
+                <span className="text-muted-foreground">{t("booking.summary.total")}</span>
                 <span className="font-bold">{formatEuro(totalPrice)}</span>
               </div>
               {isGroupBooking && (
                 <div className="mt-2 pt-2 border-t border-border">
                   <span className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Users className="w-3 h-3" />Groepsboeking · {groupMembers.length + 1} personen
+                    <Users className="w-3 h-3" />{t("booking.group.summaryLabel", { count: groupMembers.length + 1 })}
                   </span>
                 </div>
               )}
@@ -1272,13 +1276,13 @@ export default function BookingPage() {
 
                 <div className="p-4 rounded-xl border border-border bg-secondary/30 space-y-2">
                   <div className="flex items-center gap-2 text-sm font-medium">
-                    <Check className="w-4 h-4 text-primary" />Plaatsing overzicht
+                    <Check className="w-4 h-4 text-primary" />{t("booking.group.placementOverview")}
                   </div>
                   {selectedPlacements.map((placement) => (
                     <div key={placement.id} className="flex items-start justify-between gap-3 text-sm">
                       <div>
                         <p className="font-medium">{placement.personLabel}</p>
-                        <p className="text-[11px] text-muted-foreground">{placement.serviceName} · {placement.assignmentMode === "manual" ? "Handmatig gekozen" : "Automatisch geplaatst"}</p>
+                        <p className="text-[11px] text-muted-foreground">{placement.serviceName} · {placement.assignmentMode === "manual" ? t("booking.assignment.manualLabel") : t("booking.assignment.autoLabel")}</p>
                       </div>
                       <div className="text-right">
                         <p className="font-medium">{placement.employee}</p>
@@ -1288,12 +1292,12 @@ export default function BookingPage() {
                   ))}
                 </div>
 
-                {placementOptions[selectedPlacementIndex]?.label.includes("Na elkaar") && (
+                {placementOptions[selectedPlacementIndex]?.label === t("booking.group.sequential") && (
                   <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 text-sm flex items-start gap-2">
                     <AlertCircle className="w-4 h-4 text-primary mt-0.5" />
                     <div>
-                      <p className="font-medium">Niet alle personen tegelijk beschikbaar</p>
-                      <p className="text-xs text-muted-foreground">We tonen automatisch het beste alternatief met minimale wachttijd.</p>
+                      <p className="font-medium">{t("booking.group.notAllSimultaneous")}</p>
+                      <p className="text-xs text-muted-foreground">{t("booking.group.bestAlternative")}</p>
                     </div>
                   </div>
                 )}
@@ -1307,24 +1311,24 @@ export default function BookingPage() {
                   <span className="font-medium">
                     {paymentDecision.required
                       ? paymentDecision.type === "full"
-                        ? "Volledige betaling vereist"
-                        : "Aanbetaling vereist"
-                      : "Geen betaling nodig"}
+                        ? t("booking.payment.requiredFull")
+                        : t("booking.payment.requiredDeposit")
+                      : t("booking.payment.notRequired")}
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground">{paymentDecision.reason}</p>
-                {paymentDecision.required && <p className="font-semibold mt-1">Te betalen: {formatEuro(paymentDecision.amount)}</p>}
+                {paymentDecision.required && <p className="font-semibold mt-1">{t("booking.payment.toPay", { amount: formatEuro(paymentDecision.amount) })}</p>}
               </div>
             )}
 
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium mb-1.5 block">E-mail</label>
+                <label className="text-sm font-medium mb-1.5 block">{t("booking.fields.email")}</label>
                 <div className="relative">
                   <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <input
                     type="email"
-                    placeholder="jouw@email.nl"
+                    placeholder={t("booking.fields.emailPlaceholder")}
                     value={email}
                     onChange={(e) => { setEmail(e.target.value); if (e.target.value) trackEvent("email_filled"); }}
                     className="w-full h-11 pl-10 pr-10 rounded-xl bg-secondary border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
@@ -1333,14 +1337,14 @@ export default function BookingPage() {
                 </div>
                 {recognizedCustomer && (
                   <p className="text-[11px] text-primary mt-1.5 flex items-center gap-1">
-                    <Sparkles className="w-3 h-3" /> Welkom terug{recognizedCustomer.name ? `, ${recognizedCustomer.name.split(" ")[0]}` : ""}! Je gegevens zijn ingevuld.
+                    <Sparkles className="w-3 h-3" /> {t("booking.welcomeBackName", { name: recognizedCustomer.name ? `, ${recognizedCustomer.name.split(" ")[0]}` : "" })}
                   </p>
                 )}
               </div>
 
               {recentAppointments.length > 0 && (
                 <div className="p-3 rounded-xl bg-primary/5 border border-primary/15 space-y-2">
-                  <p className="text-xs font-semibold flex items-center gap-1"><RotateCcw className="w-3 h-3" /> Boek opnieuw</p>
+                  <p className="text-xs font-semibold flex items-center gap-1"><RotateCcw className="w-3 h-3" /> {t("booking.rebook.title")}</p>
                   {recentAppointments.slice(0, 2).map((appt) => (
                     <button
                       key={appt.id}
@@ -1348,8 +1352,8 @@ export default function BookingPage() {
                       className="w-full flex items-center justify-between text-left p-2 rounded-lg bg-background border border-border hover:border-primary transition-colors"
                     >
                       <div>
-                        <p className="text-sm font-medium">{appt.service_name || "Behandeling"}</p>
-                        <p className="text-[10px] text-muted-foreground">Vorige: {new Date(appt.appointment_date).toLocaleDateString("nl-NL")}</p>
+                        <p className="text-sm font-medium">{appt.service_name || t("booking.treatmentFallback")}</p>
+                        <p className="text-[10px] text-muted-foreground">{t("booking.rebook.previous", { date: new Date(appt.appointment_date).toLocaleDateString(dateLocale) })}</p>
                       </div>
                       <ArrowRight className="w-3.5 h-3.5 text-primary" />
                     </button>
@@ -1358,12 +1362,12 @@ export default function BookingPage() {
               )}
 
               <div>
-                <label className="text-sm font-medium mb-1.5 block">Naam</label>
+                <label className="text-sm font-medium mb-1.5 block">{t("booking.fields.name")}</label>
                 <div className="relative">
                   <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <input
                     type="text"
-                    placeholder="Je volledige naam"
+                    placeholder={t("booking.fields.namePlaceholder")}
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="w-full h-11 pl-10 pr-4 rounded-xl bg-secondary border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
@@ -1371,10 +1375,10 @@ export default function BookingPage() {
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium mb-1.5 block">Telefoonnummer</label>
+                <label className="text-sm font-medium mb-1.5 block">{t("booking.fields.phone")}</label>
                 <input
                   type="tel"
-                  placeholder="+31 6 1234 5678"
+                  placeholder={t("booking.fields.phonePlaceholder")}
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   className="w-full h-11 px-4 rounded-xl bg-secondary border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
@@ -1387,26 +1391,26 @@ export default function BookingPage() {
                 <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4 space-y-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-xs text-muted-foreground">Betaling aan:</p>
+                      <p className="text-xs text-muted-foreground">{t("booking.payment.payTo")}</p>
                       <p className="text-base font-bold">{publicData?.salon.name || branding.salon_name || "Glow Studio"}</p>
                     </div>
                     <span className="trust-chip shrink-0"><Lock className="w-3 h-3 text-primary" /> Mollie</span>
                   </div>
                   <div className="rounded-xl bg-background border border-border p-3">
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-sm text-muted-foreground">Totaal te betalen</span>
+                      <span className="text-sm text-muted-foreground">{t("booking.payment.totalToPay")}</span>
                       <span className="text-2xl font-bold tabular-nums">{formatEuro(paymentDecision.amount)}</span>
                     </div>
-                    <p className="text-[11px] text-muted-foreground mt-1">Geen verborgen kosten · inclusief veilige verwerking</p>
+                    <p className="text-[11px] text-muted-foreground mt-1">{t("booking.payment.noHidden")}</p>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] text-muted-foreground">
-                    <span className="flex items-center gap-1"><Lock className="w-3 h-3 text-primary" /> Veilig betalen via Mollie</span>
-                    <span className="flex items-center gap-1"><Check className="w-3 h-3 text-primary" /> Afspraak direct bevestigd</span>
-                    <span className="flex items-center gap-1"><Shield className="w-3 h-3 text-primary" /> 1000+ veilige boekingen verwerkt</span>
+                    <span className="flex items-center gap-1"><Lock className="w-3 h-3 text-primary" /> {t("booking.payment.secureMollie")}</span>
+                    <span className="flex items-center gap-1"><Check className="w-3 h-3 text-primary" /> {t("booking.payment.instantConfirm")}</span>
+                    <span className="flex items-center gap-1"><Shield className="w-3 h-3 text-primary" /> {t("booking.payment.thousandSafe")}</span>
                   </div>
                 </div>
 
-                <label className="text-sm font-medium block">Kies je betaalmethode</label>
+                <label className="text-sm font-medium block">{t("booking.payment.choosePaymentMethod")}</label>
                 <div className="grid grid-cols-1 gap-2">
                   {paymentMethods.map((method) => (
                     <button
@@ -1433,33 +1437,33 @@ export default function BookingPage() {
                 <div className="w-14 h-14 rounded-full bg-success/20 flex items-center justify-center mx-auto mb-3">
                   <Check className="w-7 h-7 text-success" />
                 </div>
-                <p className="font-bold text-success text-xl">Boeking bevestigd</p>
-                <p className="text-sm text-muted-foreground mt-1">Je afspraak staat vast. Voeg hem direct toe aan je agenda.</p>
+                <p className="font-bold text-success text-xl">{t("booking.confirmation.title")}</p>
+                <p className="text-sm text-muted-foreground mt-1">{t("booking.confirmation.subtext")}</p>
 
                 <div className="mt-4 flex flex-wrap justify-center gap-2">
-                  <span className="trust-chip"><Check className="w-3 h-3 text-primary" /> Afspraak direct bevestigd</span>
-                  <span className="trust-chip"><Lock className="w-3 h-3 text-primary" /> Betaling veilig verwerkt</span>
+                  <span className="trust-chip"><Check className="w-3 h-3 text-primary" /> {t("booking.payment.instantConfirm")}</span>
+                  <span className="trust-chip"><Lock className="w-3 h-3 text-primary" /> {t("booking.payment.secureMollie")}</span>
                 </div>
 
                 <div className="mt-4 grid gap-1.5 text-left text-sm bg-background/60 rounded-xl p-3">
-                  <div className="flex justify-between"><span className="text-muted-foreground">Salon</span><span className="font-medium">{confirmation?.salon_name || publicData?.salon.name || branding.salon_name}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Behandeling</span><span className="font-medium">{confirmation?.service_name || service?.name}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Datum</span><span className="font-medium">{confirmation?.date ? new Date(`${confirmation.date}T00:00:00`).toLocaleDateString("nl-NL", { weekday: "short", day: "numeric", month: "short" }) : "Di 22 mrt"}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Tijd</span><span className="font-medium">{confirmation?.time || selectedTime}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">{t("booking.confirmation.salon")}</span><span className="font-medium">{confirmation?.salon_name || publicData?.salon.name || branding.salon_name}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">{t("booking.confirmation.service")}</span><span className="font-medium">{confirmation?.service_name || service?.name}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">{t("booking.confirmation.date")}</span><span className="font-medium">{confirmation?.date ? new Date(`${confirmation.date}T00:00:00`).toLocaleDateString(dateLocale, { weekday: "short", day: "numeric", month: "short" }) : new Date(`${selectedDate}T00:00:00`).toLocaleDateString(dateLocale, { weekday: "short", day: "numeric", month: "short" })}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">{t("booking.confirmation.time")}</span><span className="font-medium">{confirmation?.time || selectedTime}</span></div>
                   {selectedPlacements[0]?.employee && (
-                    <div className="flex justify-between"><span className="text-muted-foreground">Medewerker</span><span className="font-medium">{selectedPlacements[0].employee}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">{t("booking.confirmation.staff")}</span><span className="font-medium">{selectedPlacements[0].employee}</span></div>
                   )}
                   {confirmation?.reference && (
-                    <div className="flex justify-between"><span className="text-muted-foreground">Referentie</span><span className="font-medium tabular-nums">{confirmation.reference}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">{t("booking.confirmation.reference")}</span><span className="font-medium tabular-nums">{confirmation.reference}</span></div>
                   )}
                   {paymentDecision?.required && (
-                    <div className="flex justify-between"><span className="text-muted-foreground">Betaling</span><span className="font-medium text-success">{confirmation?.payment_status === "paid" ? "Voldaan" : "In afwachting"} · {formatEuro(paymentDecision.amount)}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">{t("booking.confirmation.payment")}</span><span className="font-medium text-success">{confirmation?.payment_status === "paid" ? t("booking.payment.statusPaid") : t("booking.payment.statusPending")} · {formatEuro(paymentDecision.amount)}</span></div>
                   )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 mt-4">
-                  <Button variant="gradient" size="sm" onClick={downloadIcs}><CalendarPlus className="w-3.5 h-3.5 mr-1" />Zet in agenda</Button>
-                  <Button variant="outline" size="sm" onClick={shareAppointment}><Share2 className="w-3.5 h-3.5 mr-1" />Delen</Button>
+                  <Button variant="gradient" size="sm" onClick={downloadIcs}><CalendarPlus className="w-3.5 h-3.5 mr-1" />{t("booking.confirmation.addToCalendar")}</Button>
+                  <Button variant="outline" size="sm" onClick={shareAppointment}><Share2 className="w-3.5 h-3.5 mr-1" />{t("booking.confirmation.share")}</Button>
                 </div>
               </div>
             )}
@@ -1467,7 +1471,7 @@ export default function BookingPage() {
             {paymentResult && paymentResult.status !== "success" && (
               <div className="mt-6 p-4 rounded-xl text-sm text-center bg-destructive/10 border border-destructive/20 text-destructive">
                 <p className="font-semibold">{paymentResult.message}</p>
-                <p className="text-xs mt-1 text-muted-foreground">Probeer het opnieuw of kies een andere betaalmethode.</p>
+                <p className="text-xs mt-1 text-muted-foreground">{t("booking.payment.tryAgainOrMethod")}</p>
               </div>
             )}
 
@@ -1481,7 +1485,7 @@ export default function BookingPage() {
                       className="h-4 w-4 min-h-4 min-w-4 max-h-4 max-w-4 shrink-0 mt-0.5 rounded-[4px] border-muted-foreground/30 p-0 [&_svg]:h-3 [&_svg]:w-3 [&>span]:flex [&>span]:h-full [&>span]:w-full [&>span]:items-center [&>span]:justify-center"
                     />
                     <span className="block text-sm leading-5 text-muted-foreground select-none">
-                      Ik ga akkoord met de{" "}
+                      {t("booking.terms.glowsuiteBefore")}
                       <a
                         href="https://glowsuite.nl/voorwaarden"
                         target="_blank"
@@ -1489,9 +1493,9 @@ export default function BookingPage() {
                         className="text-primary hover:underline underline-offset-2"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        algemene voorwaarden
+                        {t("booking.terms.glowsuiteLink")}
                       </a>
-                      {" "}van GlowSuite.
+                      {t("booking.terms.glowsuiteAfter")}
                     </span>
                   </label>
                   <label className="flex items-start gap-2 cursor-pointer mb-2">
@@ -1501,27 +1505,27 @@ export default function BookingPage() {
                       className="h-4 w-4 min-h-4 min-w-4 max-h-4 max-w-4 shrink-0 mt-0.5 rounded-[4px] border-muted-foreground/30 p-0 [&_svg]:h-3 [&_svg]:w-3 [&>span]:flex [&>span]:h-full [&>span]:w-full [&>span]:items-center [&>span]:justify-center"
                     />
                     <span className="block text-sm leading-5 text-muted-foreground select-none">
-                      Ik ga akkoord met de voorwaarden van deze salon/kliniek.
+                      {t("booking.terms.salon")}
                     </span>
                   </label>
                   {showTermsError && (
                     <p className="text-xs text-destructive flex items-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5" /> Ga akkoord met de voorwaarden om verder te gaan.
+                      <AlertCircle className="w-3.5 h-3.5" /> {t("booking.terms.required")}
                     </p>
                   )}
                 </div>
                 <Button variant="gradient" className="w-full mt-4" disabled={!name || !phone || !email || paymentLoading || !acceptedGlowsuiteTerms || !acceptedSalonTerms} onClick={handleConfirm}>
                   {paymentLoading ? (
-                    <><Loader2 className="w-4 h-4 animate-spin" /> Betaling verwerken...</>
+                    <><Loader2 className="w-4 h-4 animate-spin" /> {t("booking.payment.processing")}</>
                   ) : paymentDecision?.required ? (
-                    <><CreditCard className="w-4 h-4" /> Betaal {formatEuro(paymentDecision.amount)} & bevestig</>
+                    <><CreditCard className="w-4 h-4" /> {t("booking.payment.payAndConfirm", { amount: formatEuro(paymentDecision.amount) })}</>
                   ) : (
-                    <><Check className="w-4 h-4" /> Bevestig afspraak</>
+                    <><Check className="w-4 h-4" /> {t("booking.payment.confirmAppointment")}</>
                   )}
                 </Button>
                 {paymentDecision?.required && (
                   <p className="text-[10px] text-center text-muted-foreground mt-2">
-                    Aanbetaling vereist om je plek te bevestigen
+                    {t("booking.payment.depositRequiredHint")}
                   </p>
                 )}
               </>
@@ -1529,7 +1533,7 @@ export default function BookingPage() {
 
             {paymentResult && (
               <Button variant="outline" className="w-full mt-3" onClick={resetAll}>
-                Nieuwe afspraak maken
+                {t("booking.confirmation.newBooking")}
               </Button>
             )}
           </div>
