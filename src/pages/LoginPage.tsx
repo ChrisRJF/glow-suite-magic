@@ -5,10 +5,15 @@ import { GlowSuiteLogo } from "@/components/GlowSuiteLogo";
 import { toast } from "sonner";
 import { Play, Loader2, Check, Sparkles, ShieldCheck, Clock, Gift } from "lucide-react";
 import { trackEvent } from "@/hooks/useAnalytics";
+import { useTranslation } from "react-i18next";
+import { useLanguagePersistence } from "@/hooks/useLanguagePersistence";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 const REF_STORAGE_KEY = "gs_ref_code";
 
 export default function LoginPage() {
+  useLanguagePersistence();
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [salonName, setSalonName] = useState("");
@@ -56,7 +61,6 @@ export default function LoginPage() {
         });
         if (error) throw error;
         trackEvent("signup_completed", { plan, ref_code: refCode });
-        // Attach referral as soon as session exists (after email confirm OR auto-confirm)
         if (refCode) {
           try {
             const { data: { session } } = await supabase.auth.getSession();
@@ -67,18 +71,18 @@ export default function LoginPage() {
             }
           } catch (_e) { /* noop */ }
         }
-        toast.success("Account aangemaakt! Check je e-mail om te bevestigen.");
+        toast.success(t("auth.toasts.accountCreated"));
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        toast.success("Welkom terug!");
+        toast.success(t("auth.toasts.welcomeBack"));
         if (wantsCheckout && plan) {
           window.location.href = `/?checkout=1&plan=${plan}`;
           return;
         }
       }
     } catch (err: any) {
-      toast.error(err.message || "Er ging iets mis");
+      toast.error(err.message || t("auth.toasts.genericError"));
     } finally {
       setLoading(false);
     }
@@ -87,18 +91,18 @@ export default function LoginPage() {
   const handleForgot = async (e: React.FormEvent) => {
     e.preventDefault();
     if (forgotLoading) return;
-    if (!forgotEmail.trim()) { toast.error("Vul je e-mailadres in"); return; }
+    if (!forgotEmail.trim()) { toast.error(t("auth.toasts.enterEmail")); return; }
     setForgotLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail.trim(), {
         redirectTo: `${window.location.origin}/reset-password`,
       });
       if (error) throw error;
-      toast.success("Reset-link verstuurd. Check je e-mail.");
+      toast.success(t("auth.toasts.resetSent"));
       setForgotOpen(false);
       setForgotEmail("");
     } catch (err: any) {
-      toast.error(err.message || "Versturen mislukt");
+      toast.error(err.message || t("auth.toasts.sendFailed"));
     } finally {
       setForgotLoading(false);
     }
@@ -119,19 +123,19 @@ export default function LoginPage() {
         if (signInError) throw signInError;
       }
 
-      toast.loading("Demo omgeving laden...");
+      toast.loading(t("auth.toasts.demoLoading"));
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         const { data, error: seedError } = await supabase.functions.invoke("seed-demo-data", {
           headers: { Authorization: `Bearer ${session.access_token}` },
         });
-        if (seedError || data?.error) throw new Error(data?.error || seedError?.message || "Demo omgeving kon niet opnieuw geladen worden.");
+        if (seedError || data?.error) throw new Error(data?.error || seedError?.message || "Demo failed");
       }
       toast.dismiss();
-      toast.success("Welkom bij de GlowSuite demo!");
+      toast.success(t("auth.toasts.demoWelcome"));
     } catch (err: any) {
       toast.dismiss();
-      toast.error(err.message || "Demo laden mislukt");
+      toast.error(err.message || t("auth.toasts.demoFailed"));
     } finally {
       setDemoLoading(false);
     }
@@ -145,6 +149,7 @@ export default function LoginPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
   return (
     <div
       className="min-h-[100dvh] bg-background flex items-start sm:items-center justify-center p-4 sm:p-6"
@@ -154,42 +159,43 @@ export default function LoginPage() {
       }}
     >
       <div className="w-full max-w-md">
+        <div className="flex justify-end mb-2">
+          <LanguageSwitcher />
+        </div>
         <div className="flex flex-col items-center mb-7 sm:mb-9 gap-3">
           <GlowSuiteLogo size="xl" priority />
-          <p className="text-sm text-muted-foreground tracking-wide">Salon business system</p>
+          <p className="text-sm text-muted-foreground tracking-wide">{t("auth.tagline")}</p>
         </div>
 
         {forgotOpen ? (
           <form onSubmit={handleForgot} className="glass-card p-6 space-y-4">
-            <h2 className="text-lg font-semibold text-center">Wachtwoord vergeten</h2>
-            <p className="text-xs text-muted-foreground text-center">
-              We sturen je een link om je wachtwoord opnieuw in te stellen.
-            </p>
+            <h2 className="text-lg font-semibold text-center">{t("auth.forgotTitle")}</h2>
+            <p className="text-xs text-muted-foreground text-center">{t("auth.forgotIntro")}</p>
             <div>
-              <label className="text-xs text-muted-foreground">E-mail</label>
+              <label className="text-xs text-muted-foreground">{t("auth.email")}</label>
               <input type="email" required value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)}
                 className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                placeholder="jouw@email.nl" />
+                placeholder={t("auth.emailPlaceholder")} />
             </div>
             <Button type="submit" variant="gradient" className="w-full h-11" disabled={forgotLoading}>
               {forgotLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {forgotLoading ? "Versturen..." : "Reset-link versturen"}
+              {forgotLoading ? t("auth.forgotSubmitLoading") : t("auth.forgotSubmit")}
             </Button>
             <button type="button" onClick={() => setForgotOpen(false)} className="text-xs text-primary hover:underline w-full text-center py-2">
-              Terug naar inloggen
+              {t("auth.backToLogin")}
             </button>
           </form>
         ) : isSignUp ? (
           <form onSubmit={handleSubmit} className="glass-card p-6 sm:p-7 space-y-4">
             <div className="text-center space-y-1.5">
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-[11px] font-medium mb-1">
-                <Sparkles className="w-3 h-3" /> 14 dagen gratis
+                <Sparkles className="w-3 h-3" /> {t("auth.trialBadge")}
               </div>
               <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">
-                Start je 14 dagen gratis proefperiode
+                {t("auth.signupTitle")}
               </h1>
               <p className="text-sm text-muted-foreground">
-                Geen betaalkaart nodig. Binnen 2 minuten live.
+                {t("auth.signupSubtitle")}
               </p>
             </div>
 
@@ -197,7 +203,7 @@ export default function LoginPage() {
               <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-success/10 border border-success/30 text-success text-xs">
                 <Gift className="w-4 h-4 shrink-0" />
                 <span>
-                  <strong>Welkomstcadeau:</strong> 30 extra dagen gratis met code{" "}
+                  <strong>{t("auth.referralGift")}</strong> {t("auth.referralBonusText")}{" "}
                   <span className="font-mono font-semibold">{refCode}</span>
                 </span>
               </div>
@@ -205,41 +211,41 @@ export default function LoginPage() {
 
             <div className="space-y-3 pt-1">
               <div>
-                <label className="text-xs text-muted-foreground">Salonnaam</label>
+                <label className="text-xs text-muted-foreground">{t("auth.salonName")}</label>
                 <input type="text" required value={salonName} onChange={(e) => setSalonName(e.target.value)}
                   className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  placeholder="Bijv. Studio Nova" autoComplete="organization" />
+                  placeholder={t("auth.salonNamePlaceholder")} autoComplete="organization" />
               </div>
               <div>
-                <label className="text-xs text-muted-foreground">Jouw naam</label>
+                <label className="text-xs text-muted-foreground">{t("auth.yourName")}</label>
                 <input type="text" required value={fullName} onChange={(e) => setFullName(e.target.value)}
                   className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  placeholder="Voor- en achternaam" autoComplete="name" />
+                  placeholder={t("auth.yourNamePlaceholder")} autoComplete="name" />
               </div>
               <div>
-                <label className="text-xs text-muted-foreground">E-mailadres</label>
+                <label className="text-xs text-muted-foreground">{t("auth.email")}</label>
                 <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
                   className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  placeholder="jouw@email.nl" autoComplete="email" />
+                  placeholder={t("auth.emailPlaceholder")} autoComplete="email" />
               </div>
               <div>
-                <label className="text-xs text-muted-foreground">Wachtwoord</label>
+                <label className="text-xs text-muted-foreground">{t("auth.password")}</label>
                 <input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)}
                   className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  placeholder="Min. 6 tekens" autoComplete="new-password" />
+                  placeholder={t("auth.passwordPlaceholder")} autoComplete="new-password" />
               </div>
             </div>
 
             <Button type="submit" variant="gradient" className="w-full h-11 text-base font-semibold" disabled={loading}>
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {loading ? "Account aanmaken..." : "Start 14 dagen gratis"}
+              {loading ? t("auth.submitSignupLoading") : t("auth.submitSignup")}
             </Button>
 
             <ul className="grid grid-cols-1 gap-1.5 pt-1">
               {[
-                { icon: ShieldCheck, text: "Geen betaalkaart nodig" },
-                { icon: Clock, text: "Binnen 2 minuten live" },
-                { icon: Check, text: "Gratis overstap hulp" },
+                { icon: ShieldCheck, text: t("auth.perks.noCard") },
+                { icon: Clock, text: t("auth.perks.fastLaunch") },
+                { icon: Check, text: t("auth.perks.freeMigration") },
               ].map(({ icon: Icon, text }) => (
                 <li key={text} className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Icon className="w-3.5 h-3.5 text-primary shrink-0" />
@@ -249,42 +255,42 @@ export default function LoginPage() {
             </ul>
 
             <p className="text-[11px] text-center text-muted-foreground/80 pt-1">
-              Door te starten ga je akkoord met onze voorwaarden. Je kunt op elk moment opzeggen.
+              {t("auth.termsNotice")}
             </p>
 
             <p className="text-xs text-center text-muted-foreground">
-              Al een account?{" "}
+              {t("auth.hasAccount")}{" "}
               <button type="button" onClick={() => setIsSignUp(false)} className="text-primary hover:underline font-medium">
-                Inloggen
+                {t("auth.login")}
               </button>
             </p>
           </form>
         ) : (
           <form onSubmit={handleSubmit} className="glass-card p-6 space-y-4">
-            <h2 className="text-lg font-semibold text-center">Inloggen</h2>
+            <h2 className="text-lg font-semibold text-center">{t("auth.loginTitle")}</h2>
             <div>
-              <label className="text-xs text-muted-foreground">E-mail</label>
+              <label className="text-xs text-muted-foreground">{t("auth.email")}</label>
               <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
                 className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                placeholder="jouw@email.nl" autoComplete="email" />
+                placeholder={t("auth.emailPlaceholder")} autoComplete="email" />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground">Wachtwoord</label>
+              <label className="text-xs text-muted-foreground">{t("auth.password")}</label>
               <input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)}
                 className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                placeholder="••••••••" autoComplete="current-password" />
+                placeholder={t("auth.passwordHiddenPlaceholder")} autoComplete="current-password" />
             </div>
             <Button type="submit" variant="gradient" className="w-full h-11" disabled={loading}>
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {loading ? "Even geduld..." : "Inloggen"}
+              {loading ? t("auth.submitLoginLoading") : t("auth.submitLogin")}
             </Button>
             <button type="button" onClick={() => setForgotOpen(true)} className="text-xs text-primary hover:underline w-full text-center py-2">
-              Wachtwoord vergeten?
+              {t("auth.forgotPassword")}
             </button>
             <p className="text-xs text-center text-muted-foreground">
-              Nog geen account?{" "}
+              {t("auth.noAccount")}{" "}
               <button type="button" onClick={() => setIsSignUp(true)} className="text-primary hover:underline font-medium">
-                Start gratis proefperiode
+                {t("auth.startFreeTrial")}
               </button>
             </p>
           </form>
@@ -293,14 +299,14 @@ export default function LoginPage() {
         <div className="mt-4">
           <div className="relative mb-4">
             <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
-            <div className="relative flex justify-center"><span className="bg-background px-3 text-xs text-muted-foreground">of</span></div>
+            <div className="relative flex justify-center"><span className="bg-background px-3 text-xs text-muted-foreground">{t("common.or")}</span></div>
           </div>
           <Button variant="outline" className="w-full h-11 border-primary/30 hover:bg-primary/5" onClick={handleDemoLogin} disabled={demoLoading}>
             {demoLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
-            {demoLoading ? "Demo laden..." : "Bekijk live demo"}
+            {demoLoading ? t("auth.demoCtaLoading") : t("auth.demoCta")}
           </Button>
           <p className="text-[11px] text-center text-muted-foreground/60 mt-2">
-            Ontdek GlowSuite met realistische voorbeelddata
+            {t("auth.demoHint")}
           </p>
         </div>
       </div>

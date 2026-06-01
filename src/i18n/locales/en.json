@@ -8,20 +8,75 @@
     "close": "Close",
     "save": "Save",
     "loading": "Loading...",
-    "processing": "Processing...",
+    "processing": "Working...",
     "retry": "Try again",
     "language": "Language",
     "selectLanguage": "Select language",
     "backToGlowSuite": "Back to GlowSuite",
     "newBooking": "Book a new appointment",
     "required": "Required",
-    "optional": "Optional"
+    "optional": "Optional",
+    "or": "or",
+    "tryAgain": "Try again"
+  },
+  "auth": {
+    "login": "Log in",
+    "loginTitle": "Log in",
+    "signup": "Create account",
+    "signupTitle": "Start your 14-day free trial",
+    "signupSubtitle": "No credit card required. Live in under 2 minutes.",
+    "trialBadge": "14 days free",
+    "salonName": "Salon name",
+    "salonNamePlaceholder": "e.g. Studio Nova",
+    "yourName": "Your name",
+    "yourNamePlaceholder": "First and last name",
+    "email": "Email",
+    "emailPlaceholder": "you@email.com",
+    "password": "Password",
+    "passwordPlaceholder": "Min. 6 characters",
+    "passwordHiddenPlaceholder": "••••••••",
+    "submitSignup": "Start 14 days free",
+    "submitSignupLoading": "Creating account...",
+    "submitLogin": "Log in",
+    "submitLoginLoading": "Please wait...",
+    "forgotPassword": "Forgot password?",
+    "forgotTitle": "Forgot password",
+    "forgotIntro": "We'll send you a link to reset your password.",
+    "forgotSubmit": "Send reset link",
+    "forgotSubmitLoading": "Sending...",
+    "backToLogin": "Back to log in",
+    "noAccount": "No account yet?",
+    "startFreeTrial": "Start free trial",
+    "hasAccount": "Already have an account?",
+    "demoCta": "View live demo",
+    "demoCtaLoading": "Loading demo...",
+    "demoHint": "Explore GlowSuite with realistic sample data",
+    "tagline": "Salon business system",
+    "termsNotice": "By starting you agree to our terms. You can cancel any time.",
+    "referralGift": "Welcome gift:",
+    "referralBonusText": "30 extra free days with code",
+    "perks": {
+      "noCard": "No credit card required",
+      "fastLaunch": "Live in under 2 minutes",
+      "freeMigration": "Free migration support"
+    },
+    "toasts": {
+      "accountCreated": "Account created! Check your email to confirm.",
+      "welcomeBack": "Welcome back!",
+      "demoWelcome": "Welcome to the GlowSuite demo!",
+      "demoLoading": "Loading demo environment...",
+      "resetSent": "Reset link sent. Check your email.",
+      "enterEmail": "Enter your email address",
+      "sendFailed": "Sending failed",
+      "genericError": "Something went wrong",
+      "demoFailed": "Demo failed to load"
+    }
   },
   "booking": {
     "title": "Book online",
     "metaDescription": "Easily book an appointment online.",
     "steps": {
-      "service": "Treatment",
+      "service": "Service",
       "staff": "Staff",
       "date": "Date",
       "time": "Time",
@@ -29,7 +84,7 @@
       "confirm": "Confirm",
       "payment": "Payment"
     },
-    "chooseService": "Choose a treatment",
+    "chooseService": "Choose a service",
     "chooseCategory": "Choose a category",
     "chooseStaff": "Choose a staff member",
     "chooseDate": "Choose a date",
@@ -43,10 +98,10 @@
     "firstName": "First name",
     "lastName": "Last name",
     "fullName": "Name",
-    "email": "Email",
+    "email": "Email address",
     "phone": "Phone number",
     "notes": "Notes",
-    "notesPlaceholder": "Any preferences or notes",
+    "notesPlaceholder": "Any wishes or remarks",
     "agreeTerms": "I agree to the salon terms",
     "confirmBooking": "Confirm booking",
     "payAndBook": "Pay and book",
@@ -55,79 +110,112 @@
     "bookingFailed": "Booking failed",
     "bookingFailedText": "Please try again or contact the salon.",
     "noSlotsAvailable": "No times available on this date",
-    "selectAtLeastOneService": "Select at least one treatment",
+    "selectAtLeastOneService": "Select at least one service",
     "addAnotherPerson": "Add person",
     "removePerson": "Remove person",
     "rescheduleTitle": "Reschedule appointment",
-    "cancelTitle": "Cancel appointment"
+    "cancelTitle": "Cancel appointment",
+    "welcomeBack": "Welcome back",
+    "detailsPrefilled": "Your details are filled in."
   },
   "payment": {
-    "checking": "Verifying your payment…",
+    "checking": "Checking your payment…",
     "confirmed": "Payment confirmed",
     "received": "Payment received",
     "notCompleted": "Payment not completed",
     "notCompletedText": "Please try again or contact the salon.",
     "processingBooking": "We're processing your appointment. You'll receive a confirmation by email or WhatsApp shortly.",
     "paymentFailed": "Payment failed",
-    "paymentFailedText": "The payment was cancelled or not completed. You can try again via your booking link.",
+    "paymentFailedText": "The payment was cancelled or not completed. You can try again from your booking link.",
     "method": "Payment method",
     "secureNotice": "Secure payment via GlowPay"
   },
   "publicAction": {
     "afspraak": {
       "title": "Manage appointment",
-      "text": "This secure management link has been received. Contact the salon if you'd like to change your appointment."
+      "text": "This secure management link was received. Contact the salon to change your appointment."
     },
     "route-contact": {
-      "title": "Directions and contact",
-      "text": "View the salon's contact details or get in touch directly for directions."
+      "title": "Directions & contact",
+      "text": "View the salon's contact details or get in touch for directions."
     },
     "salonvoorwaarden": {
       "title": "Salon terms",
-      "text": "Salon terms apply to all appointments, including timely changes or cancellations and any payment arrangements.",
+      "text": "Appointments are subject to the salon's terms, including timely changes or cancellations and any payment arrangements.",
       "bullets": [
-        "Arrive on time for your appointment.",
-        "Change or cancel as early as possible.",
+        "Please arrive on time for your appointment.",
+        "Reschedule or cancel as early as possible.",
         "Late cancellations may incur a fee."
       ]
     },
     "betaalbewijs": {
       "title": "Payment receipt",
-      "text": "Your payment receipt is linked to your appointment or order. Keep the email for reference."
+      "text": "Your payment receipt is linked to your appointment or order. Keep the email as reference."
     },
     "abonnement-beheren": {
       "title": "Manage membership",
       "text": "Your membership is linked to the salon. Contact the salon for changes or questions."
     },
     "review": {
-      "title": "Leave a review",
-      "text": "Thank you for sharing your experience. Your feedback helps the salon improve their service."
+      "title": "Write a review",
+      "text": "Thank you for sharing your experience. Your feedback helps the salon improve."
     }
   },
   "membership": {
     "title": "Memberships",
+    "headerSubtitle": "Pick your recurring benefit and pay securely online.",
+    "salonMemberships": "{{salon}} memberships",
     "yourPlan": "Your membership",
-    "creditsAvailable": "Credits available",
+    "creditsAvailable": "Available credits",
     "renewsOn": "Renews on",
-    "managePlan": "Manage membership"
+    "managePlan": "Manage membership",
+    "choosePlan": "Choose plan",
+    "noPlans": "No memberships available yet",
+    "notAvailable": "Memberships unavailable",
+    "pageInactive": "This page is not active yet.",
+    "loadError": "Memberships page could not be loaded.",
+    "joinFailed": "Could not start signup.",
+    "fillNameEmail": "Enter your name and email",
+    "firstTerm": "First term:",
+    "perInterval": "/{{interval}}",
+    "intervals": {
+      "monthly": "month",
+      "quarterly": "quarter",
+      "yearly": "year",
+      "period": "period"
+    },
+    "includedTreatments_one": "{{count}} treatment included",
+    "includedTreatments_other": "{{count}} treatments included",
+    "memberDiscount": "{{percent}}% member discount",
+    "joinTitle": "Subscribe to {{plan}}",
+    "namePlaceholder": "Name",
+    "emailPlaceholder": "Email",
+    "phonePlaceholder": "Phone",
+    "payNow": "Pay securely",
+    "joinReceivedTitle": "Signup received",
+    "joinReceivedText": "Thank you. Your membership at {{salon}} will activate automatically once payment is confirmed."
   },
   "giftcard": {
     "title": "Gift cards",
     "buy": "Buy gift card",
     "balance": "Balance",
     "code": "Code",
-    "redeem": "Redeem"
+    "redeem": "Redeem",
+    "invalidCode": "Invalid code",
+    "notValid": "This card is no longer valid",
+    "maxRedeemable": "Max redeemable: {{amount}}"
   },
   "waitlist": {
     "title": "Waitlist",
-    "join": "Add me to the waitlist",
-    "joined": "You're on the waitlist"
+    "join": "Put me on the waitlist",
+    "joined": "You are on the waitlist"
   },
   "errors": {
     "generic": "Something went wrong. Please try again.",
     "network": "No connection. Check your internet.",
     "requiredField": "This field is required",
     "invalidEmail": "Invalid email address",
-    "invalidPhone": "Invalid phone number"
+    "invalidPhone": "Invalid phone number",
+    "invalidAmount": "Enter a valid amount"
   }
 }

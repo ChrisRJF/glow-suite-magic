@@ -94,7 +94,7 @@ interface PlacementOption {
 
 export default function BookingPage() {
   useLanguagePersistence();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { salonSlug } = useParams();
   const isPublicBooking = Boolean(salonSlug);
   const { data: liveServices } = useServices();
@@ -306,7 +306,7 @@ export default function BookingPage() {
     setEmailLookupLoading(true);
     try {
       if (isPublicBooking && salonSlug) {
-        const result = await callPublicBooking<{ customer: { name?: string; phone?: string } | null; recentAppointments: Array<{ id: string; service_id: string | null; appointment_date: string }> }>({
+        const result = await callPublicBooking<{ customer: { name?: string; phone?: string; preferred_language?: string | null } | null; recentAppointments: Array<{ id: string; service_id: string | null; appointment_date: string }> }>({
           action: "lookup_customer",
           slug: salonSlug,
           email: value,
@@ -320,6 +320,15 @@ export default function BookingPage() {
         setRecognizedCustomer({ name: customer.name, phone: customer.phone || "" });
         setName((current) => current || customer.name || "");
         setPhone((current) => current || customer.phone || "");
+        // If the user hasn't explicitly chosen a language via ?lang= in this session,
+        // honour the customer's stored preferred_language.
+        try {
+          const explicitLang = new URL(window.location.href).searchParams.get("lang");
+          const supported = ["nl","en","de","fr","es"];
+          if (!explicitLang && customer.preferred_language && supported.includes(customer.preferred_language) && i18n.language !== customer.preferred_language) {
+            void i18n.changeLanguage(customer.preferred_language);
+          }
+        } catch { /* noop */ }
         setRecentAppointments((result.recentAppointments || []).map((appt) => ({
           ...appt,
           service_name: bookingServices.find((s) => s.id === appt.service_id)?.name,
@@ -651,7 +660,7 @@ export default function BookingPage() {
         const result = await callPublicBooking<any>({
           action: "create_booking",
           slug: salonSlug,
-          customer: { name, email, phone, privacy_consent: true, marketing_consent: false, accepted_glowsuite_terms: true, accepted_salon_terms: true, accepted_terms_at: acceptedTermsAt },
+          customer: { name, email, phone, privacy_consent: true, marketing_consent: false, accepted_glowsuite_terms: true, accepted_salon_terms: true, accepted_terms_at: acceptedTermsAt, preferred_language: i18n.language },
           date: selectedDate,
           time: selectedPlacements[0]?.time || selectedTime,
           service_id: selectedService,
@@ -659,6 +668,7 @@ export default function BookingPage() {
           group_members: groupPayload,
           payment: { required: Boolean(paymentDecision?.required), amount: paymentDecision?.amount || 0, type: paymentDecision?.type || "deposit", method: selectedMethod },
           notes: "",
+          language: i18n.language,
         });
 
         setConfirmation(result.confirmation);

@@ -11,17 +11,72 @@
     "processing": "Procesando...",
     "retry": "Reintentar",
     "language": "Idioma",
-    "selectLanguage": "Elegir idioma",
+    "selectLanguage": "Seleccionar idioma",
     "backToGlowSuite": "Volver a GlowSuite",
     "newBooking": "Reservar nueva cita",
     "required": "Obligatorio",
-    "optional": "Opcional"
+    "optional": "Opcional",
+    "or": "o",
+    "tryAgain": "Reintentar"
+  },
+  "auth": {
+    "login": "Iniciar sesión",
+    "loginTitle": "Iniciar sesión",
+    "signup": "Crear cuenta",
+    "signupTitle": "Inicia tu prueba gratuita de 14 días",
+    "signupSubtitle": "Sin tarjeta bancaria. En línea en menos de 2 minutos.",
+    "trialBadge": "14 días gratis",
+    "salonName": "Nombre del salón",
+    "salonNamePlaceholder": "p. ej. Studio Nova",
+    "yourName": "Tu nombre",
+    "yourNamePlaceholder": "Nombre y apellidos",
+    "email": "Correo electrónico",
+    "emailPlaceholder": "tu@email.com",
+    "password": "Contraseña",
+    "passwordPlaceholder": "Mín. 6 caracteres",
+    "passwordHiddenPlaceholder": "••••••••",
+    "submitSignup": "Empezar 14 días gratis",
+    "submitSignupLoading": "Creando cuenta...",
+    "submitLogin": "Iniciar sesión",
+    "submitLoginLoading": "Un momento...",
+    "forgotPassword": "¿Olvidaste tu contraseña?",
+    "forgotTitle": "Contraseña olvidada",
+    "forgotIntro": "Te enviaremos un enlace para restablecerla.",
+    "forgotSubmit": "Enviar enlace",
+    "forgotSubmitLoading": "Enviando...",
+    "backToLogin": "Volver al inicio de sesión",
+    "noAccount": "¿Aún no tienes cuenta?",
+    "startFreeTrial": "Empezar prueba gratuita",
+    "hasAccount": "¿Ya tienes cuenta?",
+    "demoCta": "Ver demo en vivo",
+    "demoCtaLoading": "Cargando demo...",
+    "demoHint": "Explora GlowSuite con datos de ejemplo realistas",
+    "tagline": "Sistema para salones",
+    "termsNotice": "Al comenzar aceptas nuestros términos. Puedes cancelar cuando quieras.",
+    "referralGift": "Regalo de bienvenida:",
+    "referralBonusText": "30 días gratis extra con el código",
+    "perks": {
+      "noCard": "Sin tarjeta bancaria",
+      "fastLaunch": "En línea en menos de 2 minutos",
+      "freeMigration": "Migración gratuita"
+    },
+    "toasts": {
+      "accountCreated": "¡Cuenta creada! Revisa tu correo para confirmar.",
+      "welcomeBack": "¡Bienvenido de nuevo!",
+      "demoWelcome": "¡Bienvenido a la demo de GlowSuite!",
+      "demoLoading": "Cargando entorno de demostración...",
+      "resetSent": "Enlace enviado. Revisa tu correo.",
+      "enterEmail": "Introduce tu correo electrónico",
+      "sendFailed": "Error al enviar",
+      "genericError": "Algo salió mal",
+      "demoFailed": "No se pudo cargar la demo"
+    }
   },
   "booking": {
-    "title": "Reservar online",
+    "title": "Reserva online",
     "metaDescription": "Reserva fácilmente una cita online.",
     "steps": {
-      "service": "Tratamiento",
+      "service": "Servicio",
       "staff": "Personal",
       "date": "Fecha",
       "time": "Hora",
@@ -29,9 +84,9 @@
       "confirm": "Confirmar",
       "payment": "Pago"
     },
-    "chooseService": "Elige un tratamiento",
+    "chooseService": "Elige un servicio",
     "chooseCategory": "Elige una categoría",
-    "chooseStaff": "Elige a un profesional",
+    "chooseStaff": "Elige un profesional",
     "chooseDate": "Elige una fecha",
     "chooseTime": "Elige una hora",
     "yourDetails": "Introduce tus datos",
@@ -46,88 +101,89 @@
     "email": "Correo electrónico",
     "phone": "Teléfono",
     "notes": "Notas",
-    "notesPlaceholder": "Preferencias o notas",
+    "notesPlaceholder": "Deseos o comentarios",
     "agreeTerms": "Acepto las condiciones del salón",
     "confirmBooking": "Confirmar reserva",
     "payAndBook": "Pagar y reservar",
     "bookingSuccess": "Tu cita está confirmada",
     "bookingSuccessText": "Recibirás una confirmación por correo o WhatsApp.",
     "bookingFailed": "Reserva fallida",
-    "bookingFailedText": "Inténtalo de nuevo o ponte en contacto con el salón.",
-    "noSlotsAvailable": "No hay horas disponibles en esta fecha",
-    "selectAtLeastOneService": "Selecciona al menos un tratamiento",
+    "bookingFailedText": "Inténtalo de nuevo o contacta con el salón.",
+    "noSlotsAvailable": "No hay horarios disponibles en esta fecha",
+    "selectAtLeastOneService": "Selecciona al menos un servicio",
     "addAnotherPerson": "Añadir persona",
     "removePerson": "Quitar persona",
     "rescheduleTitle": "Reprogramar cita",
-    "cancelTitle": "Cancelar cita"
+    "cancelTitle": "Cancelar cita",
+    "welcomeBack": "Bienvenido de nuevo",
+    "detailsPrefilled": "Tus datos se han rellenado."
   },
   "payment": {
     "checking": "Verificando tu pago…",
     "confirmed": "Pago confirmado",
     "received": "Pago recibido",
     "notCompleted": "Pago no completado",
-    "notCompletedText": "Inténtalo de nuevo o ponte en contacto con el salón.",
-    "processingBooking": "Estamos procesando tu cita. Recibirás pronto una confirmación por correo o WhatsApp.",
+    "notCompletedText": "Inténtalo de nuevo o contacta con el salón.",
+    "processingBooking": "Estamos procesando tu cita. Recibirás una confirmación en breve.",
     "paymentFailed": "Pago fallido",
-    "paymentFailedText": "El pago se canceló o no se completó. Puedes intentarlo de nuevo desde tu enlace de reserva.",
+    "paymentFailedText": "El pago fue cancelado o no se completó. Vuelve a intentarlo desde tu enlace de reserva.",
     "method": "Método de pago",
-    "secureNotice": "Pago seguro mediante GlowPay"
+    "secureNotice": "Pago seguro con GlowPay"
   },
   "publicAction": {
-    "afspraak": {
-      "title": "Gestionar cita",
-      "text": "Se ha recibido este enlace de gestión seguro. Contacta con el salón si quieres modificar tu cita."
-    },
-    "route-contact": {
-      "title": "Cómo llegar y contacto",
-      "text": "Consulta los datos de contacto del salón o ponte en contacto directamente para indicaciones."
-    },
-    "salonvoorwaarden": {
-      "title": "Condiciones del salón",
-      "text": "Las condiciones del salón se aplican a las citas, incluidos cambios o cancelaciones a tiempo y cualquier acuerdo de pago.",
-      "bullets": [
-        "Llega a tiempo a tu cita.",
-        "Cambia o cancela lo antes posible.",
-        "Las cancelaciones tardías pueden conllevar un cargo."
-      ]
-    },
-    "betaalbewijs": {
-      "title": "Recibo de pago",
-      "text": "Tu recibo de pago está vinculado a tu cita o pedido. Guarda el correo como referencia."
-    },
-    "abonnement-beheren": {
-      "title": "Gestionar suscripción",
-      "text": "Tu suscripción está vinculada al salón. Contacta con el salón para cambios o preguntas."
-    },
-    "review": {
-      "title": "Dejar una reseña",
-      "text": "Gracias por compartir tu experiencia. Tus comentarios ayudan al salón a mejorar su servicio."
-    }
+    "afspraak": { "title": "Gestionar cita", "text": "Este enlace seguro ha sido recibido. Contacta con el salón para cambiar tu cita." },
+    "route-contact": { "title": "Cómo llegar y contacto", "text": "Consulta los datos de contacto del salón o llama para indicaciones." },
+    "salonvoorwaarden": { "title": "Condiciones del salón", "text": "Las citas están sujetas a las condiciones del salón, incluidos los cambios y cancelaciones puntuales y los acuerdos de pago.", "bullets": ["Llega puntual a tu cita.", "Cambia o cancela con la mayor antelación posible.", "Las cancelaciones tardías pueden tener coste."] },
+    "betaalbewijs": { "title": "Comprobante de pago", "text": "Tu comprobante está vinculado a tu cita o pedido. Guarda el correo como referencia." },
+    "abonnement-beheren": { "title": "Gestionar suscripción", "text": "Tu suscripción está vinculada al salón. Contacta con el salón para cambios o dudas." },
+    "review": { "title": "Escribir una reseña", "text": "Gracias por compartir tu experiencia. Tu opinión ayuda al salón a mejorar." }
   },
   "membership": {
     "title": "Suscripciones",
+    "headerSubtitle": "Elige tu beneficio recurrente y paga online de forma segura.",
+    "salonMemberships": "Suscripciones de {{salon}}",
     "yourPlan": "Tu suscripción",
     "creditsAvailable": "Créditos disponibles",
     "renewsOn": "Se renueva el",
-    "managePlan": "Gestionar suscripción"
+    "managePlan": "Gestionar suscripción",
+    "choosePlan": "Elegir plan",
+    "noPlans": "Aún no hay suscripciones disponibles",
+    "notAvailable": "Suscripciones no disponibles",
+    "pageInactive": "Esta página aún no está activa.",
+    "loadError": "No se pudo cargar la página de suscripciones.",
+    "joinFailed": "No se pudo iniciar la suscripción.",
+    "fillNameEmail": "Introduce tu nombre y correo",
+    "firstTerm": "Primer pago:",
+    "perInterval": "/{{interval}}",
+    "intervals": { "monthly": "mes", "quarterly": "trimestre", "yearly": "año", "period": "período" },
+    "includedTreatments_one": "{{count}} tratamiento incluido",
+    "includedTreatments_other": "{{count}} tratamientos incluidos",
+    "memberDiscount": "{{percent}}% de descuento para miembros",
+    "joinTitle": "Suscribirse a {{plan}}",
+    "namePlaceholder": "Nombre",
+    "emailPlaceholder": "Correo",
+    "phonePlaceholder": "Teléfono",
+    "payNow": "Pagar de forma segura",
+    "joinReceivedTitle": "Solicitud recibida",
+    "joinReceivedText": "Gracias. Tu suscripción en {{salon}} se activará automáticamente cuando se confirme el pago."
   },
   "giftcard": {
     "title": "Tarjetas regalo",
     "buy": "Comprar tarjeta regalo",
     "balance": "Saldo",
     "code": "Código",
-    "redeem": "Canjear"
+    "redeem": "Canjear",
+    "invalidCode": "Código no válido",
+    "notValid": "Esta tarjeta ya no es válida",
+    "maxRedeemable": "Importe máximo: {{amount}}"
   },
-  "waitlist": {
-    "title": "Lista de espera",
-    "join": "Añádeme a la lista de espera",
-    "joined": "Estás en la lista de espera"
-  },
+  "waitlist": { "title": "Lista de espera", "join": "Apuntarme a la lista de espera", "joined": "Estás en la lista de espera" },
   "errors": {
     "generic": "Algo salió mal. Inténtalo de nuevo.",
     "network": "Sin conexión. Comprueba tu internet.",
     "requiredField": "Este campo es obligatorio",
-    "invalidEmail": "Correo electrónico inválido",
-    "invalidPhone": "Número de teléfono inválido"
+    "invalidEmail": "Correo no válido",
+    "invalidPhone": "Teléfono no válido",
+    "invalidAmount": "Introduce un importe válido"
   }
 }

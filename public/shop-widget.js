@@ -6,7 +6,17 @@
   var salon = (script && (script.getAttribute('data-salon') || script.getAttribute('data-shop'))) || '';
   var height = (script && script.getAttribute('data-height')) || '720';
   var selector = (script && script.getAttribute('data-target')) || '[data-glowsuite-shop]';
-  function url() { return origin + '/shop/' + encodeURIComponent(salon) + '?embed=1'; }
+  var SUPPORTED_LANGS = ['nl','en','de','fr','es'];
+  function pickLang(value) {
+    if (!value) return null;
+    var short = String(value).toLowerCase().split('-')[0];
+    return SUPPORTED_LANGS.indexOf(short) !== -1 ? short : null;
+  }
+  var LANG = pickLang(script && script.getAttribute('data-lang'))
+    || pickLang(new URLSearchParams(window.location.search).get('lang'))
+    || pickLang(document.documentElement.lang)
+    || 'nl';
+  function url() { return origin + '/shop/' + encodeURIComponent(salon) + '?embed=1&lang=' + encodeURIComponent(LANG); }
   function injectStyles() {
     if (document.getElementById('gs-shop-widget-styles')) return;
     var style = document.createElement('style');

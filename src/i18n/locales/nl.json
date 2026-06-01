@@ -15,7 +15,62 @@
     "backToGlowSuite": "Terug naar GlowSuite",
     "newBooking": "Nieuwe afspraak boeken",
     "required": "Verplicht",
-    "optional": "Optioneel"
+    "optional": "Optioneel",
+    "or": "of",
+    "tryAgain": "Probeer opnieuw"
+  },
+  "auth": {
+    "login": "Inloggen",
+    "loginTitle": "Inloggen",
+    "signup": "Account aanmaken",
+    "signupTitle": "Start je 14 dagen gratis proefperiode",
+    "signupSubtitle": "Geen betaalkaart nodig. Binnen 2 minuten live.",
+    "trialBadge": "14 dagen gratis",
+    "salonName": "Salonnaam",
+    "salonNamePlaceholder": "Bijv. Studio Nova",
+    "yourName": "Jouw naam",
+    "yourNamePlaceholder": "Voor- en achternaam",
+    "email": "E-mail",
+    "emailPlaceholder": "jouw@email.nl",
+    "password": "Wachtwoord",
+    "passwordPlaceholder": "Min. 6 tekens",
+    "passwordHiddenPlaceholder": "••••••••",
+    "submitSignup": "Start 14 dagen gratis",
+    "submitSignupLoading": "Account aanmaken...",
+    "submitLogin": "Inloggen",
+    "submitLoginLoading": "Even geduld...",
+    "forgotPassword": "Wachtwoord vergeten?",
+    "forgotTitle": "Wachtwoord vergeten",
+    "forgotIntro": "We sturen je een link om je wachtwoord opnieuw in te stellen.",
+    "forgotSubmit": "Reset-link versturen",
+    "forgotSubmitLoading": "Versturen...",
+    "backToLogin": "Terug naar inloggen",
+    "noAccount": "Nog geen account?",
+    "startFreeTrial": "Start gratis proefperiode",
+    "hasAccount": "Al een account?",
+    "demoCta": "Bekijk live demo",
+    "demoCtaLoading": "Demo laden...",
+    "demoHint": "Ontdek GlowSuite met realistische voorbeelddata",
+    "tagline": "Salon business system",
+    "termsNotice": "Door te starten ga je akkoord met onze voorwaarden. Je kunt op elk moment opzeggen.",
+    "referralGift": "Welkomstcadeau:",
+    "referralBonusText": "30 extra dagen gratis met code",
+    "perks": {
+      "noCard": "Geen betaalkaart nodig",
+      "fastLaunch": "Binnen 2 minuten live",
+      "freeMigration": "Gratis overstap hulp"
+    },
+    "toasts": {
+      "accountCreated": "Account aangemaakt! Check je e-mail om te bevestigen.",
+      "welcomeBack": "Welkom terug!",
+      "demoWelcome": "Welkom bij de GlowSuite demo!",
+      "demoLoading": "Demo omgeving laden...",
+      "resetSent": "Reset-link verstuurd. Check je e-mail.",
+      "enterEmail": "Vul je e-mailadres in",
+      "sendFailed": "Versturen mislukt",
+      "genericError": "Er ging iets mis",
+      "demoFailed": "Demo laden mislukt"
+    }
   },
   "booking": {
     "title": "Online boeken",
@@ -59,7 +114,9 @@
     "addAnotherPerson": "Persoon toevoegen",
     "removePerson": "Persoon verwijderen",
     "rescheduleTitle": "Afspraak verzetten",
-    "cancelTitle": "Afspraak annuleren"
+    "cancelTitle": "Afspraak annuleren",
+    "welcomeBack": "Welkom terug",
+    "detailsPrefilled": "Je gegevens zijn ingevuld."
   },
   "payment": {
     "checking": "We controleren je betaling…",
@@ -106,17 +163,47 @@
   },
   "membership": {
     "title": "Lidmaatschappen",
+    "headerSubtitle": "Kies je vaste voordeel en betaal veilig online.",
+    "salonMemberships": "{{salon}} abonnementen",
     "yourPlan": "Jouw lidmaatschap",
     "creditsAvailable": "Beschikbare tegoeden",
     "renewsOn": "Vernieuwt op",
-    "managePlan": "Beheer lidmaatschap"
+    "managePlan": "Beheer lidmaatschap",
+    "choosePlan": "Abonnement kiezen",
+    "noPlans": "Nog geen abonnementen beschikbaar",
+    "notAvailable": "Abonnementen niet beschikbaar",
+    "pageInactive": "Deze pagina is nog niet actief.",
+    "loadError": "Abonnementspagina kon niet worden geladen.",
+    "joinFailed": "Aanmelden kon niet worden gestart.",
+    "fillNameEmail": "Vul je naam en e-mail in",
+    "firstTerm": "Eerste termijn:",
+    "perInterval": "/{{interval}}",
+    "intervals": {
+      "monthly": "maand",
+      "quarterly": "kwartaal",
+      "yearly": "jaar",
+      "period": "periode"
+    },
+    "includedTreatments_one": "{{count}} behandeling inbegrepen",
+    "includedTreatments_other": "{{count}} behandelingen inbegrepen",
+    "memberDiscount": "{{percent}}% ledenkorting",
+    "joinTitle": "Abonnement kiezen van {{plan}}",
+    "namePlaceholder": "Naam",
+    "emailPlaceholder": "E-mail",
+    "phonePlaceholder": "Telefoon",
+    "payNow": "Veilig betalen",
+    "joinReceivedTitle": "Aanmelding ontvangen",
+    "joinReceivedText": "Bedankt. Je abonnement bij {{salon}} wordt automatisch geactiveerd zodra de betaling is bevestigd."
   },
   "giftcard": {
     "title": "Cadeaubonnen",
     "buy": "Cadeaubon kopen",
     "balance": "Saldo",
     "code": "Code",
-    "redeem": "Inwisselen"
+    "redeem": "Inwisselen",
+    "invalidCode": "Ongeldige code",
+    "notValid": "Deze bon is niet meer geldig",
+    "maxRedeemable": "Maximaal inwisselbaar: {{amount}}"
   },
   "waitlist": {
     "title": "Wachtlijst",
@@ -128,6 +215,7 @@
     "network": "Geen verbinding. Controleer je internet.",
     "requiredField": "Dit veld is verplicht",
     "invalidEmail": "Ongeldig e-mailadres",
-    "invalidPhone": "Ongeldig telefoonnummer"
+    "invalidPhone": "Ongeldig telefoonnummer",
+    "invalidAmount": "Vul een geldig bedrag in"
   }
 }

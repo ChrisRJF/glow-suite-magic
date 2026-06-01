@@ -32,8 +32,20 @@
   var INLINE_SELECTOR = '[data-glowsuite-booking]';
   var TRIGGER_SELECTOR = '[data-glowsuite-trigger]';
 
+  // Language: explicit data-lang > host page ?lang= > <html lang> > fallback 'nl'
+  var SUPPORTED_LANGS = ['nl','en','de','fr','es'];
+  function pickLang(value) {
+    if (!value) return null;
+    var short = String(value).toLowerCase().split('-')[0];
+    return SUPPORTED_LANGS.indexOf(short) !== -1 ? short : null;
+  }
+  var LANG = pickLang(script && script.getAttribute('data-lang'))
+    || pickLang(new URLSearchParams(window.location.search).get('lang'))
+    || pickLang(document.documentElement.lang)
+    || 'nl';
+
   function bookingUrl(extra) {
-    var url = SCRIPT_ORIGIN + '/boeken?embed=1';
+    var url = SCRIPT_ORIGIN + '/boeken?embed=1&lang=' + encodeURIComponent(LANG);
     if (SALON) url += '&salon=' + encodeURIComponent(SALON);
     if (extra) url += extra;
     return url;

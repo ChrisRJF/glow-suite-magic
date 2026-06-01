@@ -30,6 +30,7 @@ const RequestSchema = z.discriminatedUnion("action", [
       accepted_glowsuite_terms: z.boolean().optional().default(false),
       accepted_salon_terms: z.boolean().optional().default(false),
       accepted_terms_at: z.string().datetime().optional().nullable(),
+      preferred_language: z.enum(["nl","en","de","fr","es"]).optional(),
     }),
     date: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/),
     time: z.string().trim().regex(/^\d{2}:\d{2}$/),
@@ -43,6 +44,7 @@ const RequestSchema = z.discriminatedUnion("action", [
     })).max(8).optional().default([]),
     payment: z.object({ required: z.boolean(), amount: z.number().min(0).max(100000), type: z.enum(["deposit", "full", "remainder"]).optional().default("deposit"), method: z.enum(["ideal", "bancontact", "creditcard", "applepay", "paypal"]).optional().default("ideal") }),
     notes: z.string().trim().max(1000).optional().default(""),
+    language: z.enum(["nl","en","de","fr","es"]).optional(),
   }),
 ]);
 
@@ -267,7 +269,7 @@ Deno.serve(async (req) => {
       const email = parsed.data.email.toLowerCase();
       const { data: customer } = await supabase
         .from("customers")
-        .select("id, name, phone")
+        .select("id, name, phone, preferred_language")
         .eq("user_id", ctx.settings.user_id)
         .ilike("email", email)
         .maybeSingle();
@@ -279,7 +281,7 @@ Deno.serve(async (req) => {
         .eq("customer_id", customer.id)
         .order("appointment_date", { ascending: false })
         .limit(3);
-      return json({ customer: { name: customer.name, phone: customer.phone || "" }, recentAppointments: appts || [] });
+      return json({ customer: { name: customer.name, phone: customer.phone || "", preferred_language: (customer as any).preferred_language || null }, recentAppointments: appts || [] });
     }
 
     const data = parsed.data;
@@ -309,6 +311,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     let customerId = existingCustomer?.id;
+    const preferredLanguage = (data.customer as any).preferred_language || (data as any).language || null;
     if (!customerId) {
       const { data: newCustomer, error: customerError } = await supabase
         .from("customers")
@@ -320,12 +323,20 @@ Deno.serve(async (req) => {
           phone: data.customer.phone,
           marketing_consent: data.customer.marketing_consent,
           privacy_consent: data.customer.privacy_consent,
+          preferred_language: preferredLanguage || "nl",
           notes: ctx.settings.demo_mode ? "Demo boeking via online boeken" : "Aangemaakt via online boeken",
         })
         .select("id")
         .single();
       if (customerError) throw customerError;
       customerId = newCustomer.id;
+    } else if (preferredLanguage) {
+      // Update existing customer's language preference (non-fatal)
+      await supabase
+        .from("customers")
+        .update({ preferred_language: preferredLanguage })
+        .eq("id", customerId)
+        .eq("user_id", ctx.settings.user_id);
     }
 
     const appointmentsToInsert = bookingRows.map((row, index) => {
