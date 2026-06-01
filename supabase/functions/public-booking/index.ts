@@ -86,7 +86,7 @@ async function getSalon(supabase: ReturnType<typeof createClient>, slug: string)
 
   const { data: services, error: serviceError } = await supabase
     .from("services")
-    .select("id, user_id, name, duration_minutes, price, color, description")
+    .select("id, user_id, name, duration_minutes, price, color, description, category, translations")
     .eq("user_id", settings.user_id)
     .eq("is_active", true)
     .eq("is_online_bookable", true)
