@@ -1233,7 +1233,7 @@ export default function BookingPage() {
             <div className="glass-card p-4 mb-6">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">{t("booking.summary.service")}</span>
-                <span className="font-medium">{service?.name}</span>
+                <span className="font-medium">{localizedServiceName(service, i18n.language)}</span>
               </div>
               {isGroupBooking && groupMembers.map((member, index) => {
                 const memberService = bookingServices.find((item) => item.id === member.serviceId);
