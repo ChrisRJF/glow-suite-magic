@@ -93,6 +93,8 @@ interface PlacementOption {
 }
 
 export default function BookingPage() {
+  useLanguagePersistence();
+  const { t } = useTranslation();
   const { salonSlug } = useParams();
   const isPublicBooking = Boolean(salonSlug);
   const { data: liveServices } = useServices();
