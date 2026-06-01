@@ -1240,7 +1240,7 @@ export default function BookingPage() {
                 return (
                   <div key={member.id} className="flex items-center justify-between text-sm mt-1">
                     <span className="text-muted-foreground text-xs">{member.name || t("booking.group.person", { n: index + 2 })}</span>
-                    <span className="text-xs">{memberService?.name} — {formatEuro(memberService?.price || 0)}</span>
+                    <span className="text-xs">{localizedServiceName(memberService, i18n.language)} — {formatEuro(memberService?.price || 0)}</span>
                   </div>
                 );
               })}
