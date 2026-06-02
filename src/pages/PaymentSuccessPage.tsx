@@ -5,10 +5,13 @@ import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguagePersistence } from "@/hooks/useLanguagePersistence";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useEnforceSalonLanguage } from "@/i18n/useEnforceSalonLanguage";
+import { readSalonLanguageConfig } from "@/i18n/salonLanguageCache";
 
 export default function PaymentSuccessPage() {
   useLanguagePersistence();
   const { t } = useTranslation();
+  const { allowedLanguages, showSwitcher } = useEnforceSalonLanguage(readSalonLanguageConfig());
   const [params] = useSearchParams();
   const transactionId = params.get("t") || params.get("transaction_id");
   const orderCode = params.get("s") || params.get("order_code");
