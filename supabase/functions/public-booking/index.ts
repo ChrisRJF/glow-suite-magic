@@ -554,6 +554,7 @@ Deno.serve(async (req) => {
         recipient_name: data.customer.name,
         template_key: "booking_confirmation",
         idempotency_key: `booking-confirmation-${primaryAppointment.id}`,
+        language: preferredLanguage || undefined,
         template_data: {
           customer_name: data.customer.name,
           service_name: mainService.name,
