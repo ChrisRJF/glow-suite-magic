@@ -110,6 +110,10 @@ export default function InstellingenPage() {
   const [autoBlockNoshow, setAutoBlockNoshow] = useState(3);
   const [googleCalendar, setGoogleCalendar] = useState(false);
   const [instagramBooking, setInstagramBooking] = useState(false);
+  const [defaultLanguage, setDefaultLanguage] = useState<"nl"|"en"|"de"|"fr"|"es">("nl");
+  const [activeLanguages, setActiveLanguages] = useState<string[]>(["nl","en","de","fr","es"]);
+  const [allowLangSwitch, setAllowLangSwitch] = useState(true);
+  const [autoDetectLang, setAutoDetectLang] = useState(true);
   const [activeTab, setActiveTab] = useState("algemeen");
   const [saveLoading, setSaveLoading] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
