@@ -290,6 +290,7 @@ Deno.serve(async (req) => {
           template_key: payload.template_key || "appointment_reminder",
           idempotency_key: `automation-${run.id}-${run.idempotency_key}`,
           template_data: payload,
+          language: payload.language || undefined,
         });
       }
       await admin.from("automation_runs").update({ status: "sent", processed_at: new Date().toISOString() }).eq("id", run.id);
