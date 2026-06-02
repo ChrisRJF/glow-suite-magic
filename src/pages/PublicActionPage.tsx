@@ -21,6 +21,7 @@ export default function PublicActionPage() {
   const { t } = useTranslation();
   const location = useLocation();
   const params = useParams();
+  const { allowedLanguages, showSwitcher } = useEnforceSalonLanguage(readSalonLanguageConfig());
   const section = (params.section || location.pathname.split("/").filter(Boolean)[0] || "afspraak").toLowerCase();
   const knownSection = sectionIcons[section] ? section : "afspraak";
   const Icon = sectionIcons[knownSection];
