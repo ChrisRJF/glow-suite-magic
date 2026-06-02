@@ -4,6 +4,8 @@ import { Link, useLocation, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useLanguagePersistence } from "@/hooks/useLanguagePersistence";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useEnforceSalonLanguage } from "@/i18n/useEnforceSalonLanguage";
+import { readSalonLanguageConfig } from "@/i18n/salonLanguageCache";
 
 const sectionIcons: Record<string, typeof CalendarDays> = {
   afspraak: Settings,
@@ -19,6 +21,7 @@ export default function PublicActionPage() {
   const { t } = useTranslation();
   const location = useLocation();
   const params = useParams();
+  const { allowedLanguages, showSwitcher } = useEnforceSalonLanguage(readSalonLanguageConfig());
   const section = (params.section || location.pathname.split("/").filter(Boolean)[0] || "afspraak").toLowerCase();
   const knownSection = sectionIcons[section] ? section : "afspraak";
   const Icon = sectionIcons[knownSection];
@@ -30,7 +33,7 @@ export default function PublicActionPage() {
 
   return (
     <main className="min-h-screen bg-background flex flex-col p-6">
-      <div className="w-full flex justify-end"><LanguageSwitcher /></div>
+      <div className="w-full flex justify-end"><LanguageSwitcher allowedLanguages={allowedLanguages} hidden={!showSwitcher} /></div>
       <section className="flex-1 flex items-center justify-center">
         <div className="w-full max-w-md text-center">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">

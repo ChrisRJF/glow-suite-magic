@@ -17,6 +17,7 @@ import { useTranslation } from "react-i18next";
 import { useLanguagePersistence } from "@/hooks/useLanguagePersistence";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useEnforceSalonLanguage } from "@/i18n/useEnforceSalonLanguage";
+import { cacheSalonLanguageConfig } from "@/i18n/salonLanguageCache";
 import { localizedServiceName, localizedServiceDescription, type ServiceTranslations } from "@/lib/serviceTranslations";
 
 // Lightweight conversion tracking — sends events to host page via postMessage
@@ -118,6 +119,7 @@ export default function BookingPage() {
     auto_detect_language: settingsRow.auto_detect_language,
   } : null), [publicData?.salon.language_config, settingsRow]);
   const { allowedLanguages, showSwitcher } = useEnforceSalonLanguage(salonLanguageConfig);
+  useEffect(() => { cacheSalonLanguageConfig(salonLanguageConfig); }, [salonLanguageConfig]);
   const [step, setStep] = useState(1);
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(() => nextBookingDate());

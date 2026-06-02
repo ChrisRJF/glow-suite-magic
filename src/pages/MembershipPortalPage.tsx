@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next";
 import { useLanguagePersistence } from "@/hooks/useLanguagePersistence";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useEnforceSalonLanguage, type SalonLanguageConfig } from "@/i18n/useEnforceSalonLanguage";
+import { cacheSalonLanguageConfig } from "@/i18n/salonLanguageCache";
 
 type Plan = { id: string; name: string; description: string; price: number; billing_interval: string; benefits: string[]; included_treatments: number; discount_percentage: number; priority_booking: boolean };
 type PortalData = { salon: { name: string; primary_color?: string; secondary_color?: string; language_config?: SalonLanguageConfig }; plans: Plan[] };
@@ -43,6 +44,7 @@ export default function MembershipPortalPage() {
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const { allowedLanguages, showSwitcher } = useEnforceSalonLanguage(data?.salon.language_config || null);
+  useEffect(() => { cacheSalonLanguageConfig(data?.salon.language_config || null); }, [data?.salon.language_config]);
 
   const intervalLabel = (key: string) =>
     t(`membership.intervals.${key}`, { defaultValue: t("membership.intervals.period") });

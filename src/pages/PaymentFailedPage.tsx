@@ -3,13 +3,16 @@ import { XCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useLanguagePersistence } from "@/hooks/useLanguagePersistence";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useEnforceSalonLanguage } from "@/i18n/useEnforceSalonLanguage";
+import { readSalonLanguageConfig } from "@/i18n/salonLanguageCache";
 
 export default function PaymentFailedPage() {
   useLanguagePersistence();
   const { t } = useTranslation();
+  const { allowedLanguages, showSwitcher } = useEnforceSalonLanguage(readSalonLanguageConfig());
   return (
     <div className="min-h-screen flex flex-col bg-background px-4">
-      <div className="w-full flex justify-end py-3"><LanguageSwitcher /></div>
+      <div className="w-full flex justify-end py-3"><LanguageSwitcher allowedLanguages={allowedLanguages} hidden={!showSwitcher} /></div>
       <div className="flex-1 flex items-center justify-center">
         <div className="max-w-md w-full text-center space-y-5 p-8 rounded-2xl border border-border bg-card shadow-sm">
           <div className="mx-auto w-14 h-14 rounded-full bg-destructive/15 flex items-center justify-center">
