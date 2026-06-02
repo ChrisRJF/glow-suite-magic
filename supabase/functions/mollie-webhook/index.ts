@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { getDefaultMessageTemplate, normalizeMessageLang, renderMessage, intlLocale, resolveCustomerLanguage } from "../_shared/messageTranslations.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
