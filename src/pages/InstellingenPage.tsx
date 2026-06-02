@@ -162,6 +162,10 @@ export default function InstellingenPage() {
       setAutoBlockNoshow(s.auto_block_noshow ?? 3);
       setGoogleCalendar(s.google_calendar_enabled ?? false);
       setInstagramBooking(s.instagram_booking_enabled ?? false);
+      setDefaultLanguage((s.language as any) || "nl");
+      if (Array.isArray(s.active_languages) && s.active_languages.length) setActiveLanguages(s.active_languages);
+      setAllowLangSwitch(s.allow_customer_language_switch ?? true);
+      setAutoDetectLang(s.auto_detect_language ?? true);
     }
     if (user) setEmail(user.email || '');
   }, [settings, user]);
