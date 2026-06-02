@@ -121,6 +121,14 @@ function safeSalonPayload(ctx: SalonContext) {
         deposit_noshow_risk: ctx.settings.deposit_noshow_risk ?? true,
         mollie_mode: ctx.settings.mollie_mode || "test",
       },
+      language_config: {
+        default_language: (ctx.settings as any).language || "nl",
+        active_languages: Array.isArray((ctx.settings as any).active_languages) && (ctx.settings as any).active_languages.length
+          ? (ctx.settings as any).active_languages
+          : ["nl", "en", "de", "fr", "es"],
+        allow_customer_language_switch: (ctx.settings as any).allow_customer_language_switch !== false,
+        auto_detect_language: (ctx.settings as any).auto_detect_language !== false,
+      },
     },
     services: ctx.services.map((service) => ({
       id: service.id,
