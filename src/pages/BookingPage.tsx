@@ -119,6 +119,7 @@ export default function BookingPage() {
     auto_detect_language: settingsRow.auto_detect_language,
   } : null), [publicData?.salon.language_config, settingsRow]);
   const { allowedLanguages, showSwitcher } = useEnforceSalonLanguage(salonLanguageConfig);
+  useEffect(() => { cacheSalonLanguageConfig(salonLanguageConfig); }, [salonLanguageConfig]);
   const [step, setStep] = useState(1);
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(() => nextBookingDate());
