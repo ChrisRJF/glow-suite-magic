@@ -163,7 +163,7 @@ Deno.serve(async (req) => {
 
     if (status === "paid") {
       const { data: settings } = await supabase.from("settings").select("salon_name, public_slug").eq("user_id", payment.user_id).eq("is_demo", false).order("created_at", { ascending: false }).limit(1).maybeSingle();
-      const { data: customer } = payment.customer_id ? await supabase.from("customers").select("name, email, phone").eq("id", payment.customer_id).eq("user_id", payment.user_id).maybeSingle() : { data: null };
+      const { data: customer } = payment.customer_id ? await supabase.from("customers").select("name, email, phone, preferred_language").eq("id", payment.customer_id).eq("user_id", payment.user_id).maybeSingle() : { data: null };
       if (customer?.email) {
         await sendWhiteLabelEmail(supabase, {
           user_id: payment.user_id,
