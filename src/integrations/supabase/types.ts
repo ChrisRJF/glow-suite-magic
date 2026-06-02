@@ -2568,8 +2568,11 @@ export type Database = {
       }
       settings: {
         Row: {
+          active_languages: string[]
+          allow_customer_language_switch: boolean
           appointment_reminder_schedule: Json
           auto_block_noshow: number | null
+          auto_detect_language: boolean
           auto_revenue_deposit_enabled: boolean
           auto_revenue_deposit_fixed_cents: number
           auto_revenue_deposit_max_cents: number
@@ -2618,8 +2621,11 @@ export type Database = {
           whitelabel_branding: Json | null
         }
         Insert: {
+          active_languages?: string[]
+          allow_customer_language_switch?: boolean
           appointment_reminder_schedule?: Json
           auto_block_noshow?: number | null
+          auto_detect_language?: boolean
           auto_revenue_deposit_enabled?: boolean
           auto_revenue_deposit_fixed_cents?: number
           auto_revenue_deposit_max_cents?: number
@@ -2668,8 +2674,11 @@ export type Database = {
           whitelabel_branding?: Json | null
         }
         Update: {
+          active_languages?: string[]
+          allow_customer_language_switch?: boolean
           appointment_reminder_schedule?: Json
           auto_block_noshow?: number | null
+          auto_detect_language?: boolean
           auto_revenue_deposit_enabled?: boolean
           auto_revenue_deposit_fixed_cents?: number
           auto_revenue_deposit_max_cents?: number
