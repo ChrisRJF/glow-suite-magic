@@ -438,9 +438,6 @@ Deno.serve(async (req) => {
           if (nsTpl?.is_active === false) {
             // template disabled — skip
           } else {
-            const DEFAULT_NS = `Hoi {{customer_name}},\n\nWe hebben je vandaag gemist bij {{salon_name}} 💜\nGeen zorgen — we plannen graag een nieuwe afspraak in. Laat het ons weten!\n\n{{salon_name}}`;
-            const nsContent = nsTpl?.content || DEFAULT_NS;
-
             const { data: profileNs } = await admin
               .from("profiles")
               .select("salon_name")
@@ -464,7 +461,7 @@ Deno.serve(async (req) => {
 
               const { data: customer } = await admin
                 .from("customers")
-                .select("id, name, phone, whatsapp_opt_in")
+                .select("id, name, phone, whatsapp_opt_in, preferred_language")
                 .eq("id", appt.customer_id)
                 .maybeSingle();
               if (!customer || !customer.phone || customer.whatsapp_opt_in === false) {
@@ -472,21 +469,23 @@ Deno.serve(async (req) => {
                 continue;
               }
 
+              const nsLang = normalizeMessageLang((customer as any).preferred_language || "nl");
+              const nsContent = nsTpl?.content
+                || getDefaultMessageTemplate("no_show", nsLang, "whatsapp");
+
               const apptInstant = new Date(appt.appointment_date);
-              const dateStr = new Intl.DateTimeFormat("nl-NL", {
+              const dateStr = new Intl.DateTimeFormat(intlLocale(nsLang), {
                 day: "numeric", month: "long",
               }).format(apptInstant);
               const timeStr = (appt.start_time as string | null)?.substring(0, 5)
                 || String(appt.appointment_date).substring(11, 16);
 
-              const message = nsContent
-                .replace(/\{\{\s*customer_name\s*\}\}/g, customer.name || "")
-                .replace(/\{\{\s*salon_name\s*\}\}/g, salonNameNs)
-                .replace(/\{\{\s*appointment_date\s*\}\}/g, dateStr)
-                .replace(/\{\{\s*appointment_time\s*\}\}/g, timeStr)
-                .replace(/\{\{\s*services\s*\}\}/g, "")
-                .replace(/\{\{\s*reschedule_link\s*\}\}/g, "")
-                .replace(/\{\{\s*review_link\s*\}\}/g, "");
+              const message = renderMessage(nsContent, {
+                customer_name: customer.name || "",
+                salon_name: salonNameNs,
+                appointment_date: dateStr,
+                appointment_time: timeStr,
+              });
 
               try {
                 const fnUrl = `${SUPABASE_URL}/functions/v1/whatsapp-send`;
