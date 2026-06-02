@@ -324,9 +324,6 @@ Deno.serve(async (req) => {
           if (revTpl?.is_active === false) {
             // template disabled — skip review pass
           } else {
-            const DEFAULT_REVIEW = `Bedankt voor je bezoek aan {{salon_name}}, {{customer_name}}!\n\nWe horen graag je ervaring. Laat hier een korte review achter:\n{{review_link}}`;
-            const reviewContent = revTpl?.content || DEFAULT_REVIEW;
-
             const { data: profile2 } = await admin
               .from("profiles")
               .select("salon_name, google_review_url")
@@ -351,7 +348,7 @@ Deno.serve(async (req) => {
 
               const { data: customer } = await admin
                 .from("customers")
-                .select("id, name, phone, whatsapp_opt_in")
+                .select("id, name, phone, whatsapp_opt_in, preferred_language")
                 .eq("id", appt.customer_id)
                 .maybeSingle();
               if (!customer || !customer.phone || customer.whatsapp_opt_in === false) {
@@ -359,21 +356,26 @@ Deno.serve(async (req) => {
                 continue;
               }
 
+              const reviewLang = normalizeMessageLang((customer as any).preferred_language || "nl");
+              const reviewContent = revTpl?.content
+                || getDefaultMessageTemplate("review_request", reviewLang, "whatsapp");
+
               const apptInstant = new Date(appt.appointment_date);
-              const dateStr = new Intl.DateTimeFormat("nl-NL", {
+              const dateStr = new Intl.DateTimeFormat(intlLocale(reviewLang), {
                 timeZone: tz2, day: "numeric", month: "long",
               }).format(apptInstant);
               const timeStr = (appt.start_time as string | null)?.substring(0, 5)
                 || String(appt.appointment_date).substring(11, 16);
 
-              const message = reviewContent
-                .replace(/\{\{\s*customer_name\s*\}\}/g, customer.name || "")
-                .replace(/\{\{\s*salon_name\s*\}\}/g, salonName2)
-                .replace(/\{\{\s*appointment_date\s*\}\}/g, dateStr)
-                .replace(/\{\{\s*appointment_time\s*\}\}/g, timeStr)
-                .replace(/\{\{\s*services\s*\}\}/g, "")
-                .replace(/\{\{\s*reschedule_link\s*\}\}/g, "")
-                .replace(/\{\{\s*review_link\s*\}\}/g, reviewLink);
+              const message = renderMessage(reviewContent, {
+                customer_name: customer.name || "",
+                salon_name: salonName2,
+                appointment_date: dateStr,
+                appointment_time: timeStr,
+                services: "",
+                reschedule_link: "",
+                review_link: reviewLink,
+              });
 
               try {
                 const fnUrl = `${SUPABASE_URL}/functions/v1/whatsapp-send`;
