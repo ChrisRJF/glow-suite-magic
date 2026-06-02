@@ -779,6 +779,76 @@ export default function InstellingenPage() {
         {/* White-label embed for salon websites */}
         {activeTab === "boekingen" && <WhiteLabelEmbedCard />}
 
+        {/* Languages */}
+        {activeTab === "boekingen" && (
+          <div className="glass-card p-6">
+            <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><Globe className="w-4 h-4 text-primary" /> Talen</h3>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between py-2">
+                <div>
+                  <span className="text-sm">Standaardtaal</span>
+                  <p className="text-[11px] text-muted-foreground">Gebruikt als fallback voor klanten zonder taalvoorkeur</p>
+                </div>
+                <select value={defaultLanguage} onChange={(e) => setDefaultLanguage(e.target.value as any)}
+                  className="px-3 py-1.5 rounded-xl bg-secondary/50 border border-border text-sm">
+                  <option value="nl">Nederlands</option>
+                  <option value="en">English</option>
+                  <option value="de">Deutsch</option>
+                  <option value="fr">Français</option>
+                  <option value="es">Español</option>
+                </select>
+              </div>
+              <div className="py-2">
+                <span className="text-sm">Actieve talen</span>
+                <p className="text-[11px] text-muted-foreground mb-2">Alleen geselecteerde talen verschijnen in het boekingsscherm, de widget en het klantportaal</p>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                  {([
+                    { code: "nl", label: "🇳🇱 Nederlands" },
+                    { code: "en", label: "🇬🇧 English" },
+                    { code: "de", label: "🇩🇪 Deutsch" },
+                    { code: "fr", label: "🇫🇷 Français" },
+                    { code: "es", label: "🇪🇸 Español" },
+                  ]).map((l) => {
+                    const enabled = activeLanguages.includes(l.code) || l.code === defaultLanguage;
+                    const isDefault = l.code === defaultLanguage;
+                    return (
+                      <button
+                        key={l.code}
+                        type="button"
+                        disabled={isDefault}
+                        onClick={() => setActiveLanguages(prev =>
+                          prev.includes(l.code) ? prev.filter(x => x !== l.code) : [...prev, l.code]
+                        )}
+                        className={`text-left p-2.5 rounded-xl border transition text-xs ${enabled ? "border-primary bg-primary/10" : "border-border bg-secondary/30 hover:bg-secondary/50"} ${isDefault ? "opacity-70 cursor-not-allowed" : ""}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span>{l.label}</span>
+                          {enabled && <CheckCircle2 className="w-3.5 h-3.5 text-primary" />}
+                        </div>
+                        {isDefault && <span className="text-[10px] text-muted-foreground">Standaard</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="flex items-center justify-between py-2">
+                <div>
+                  <span className="text-sm">Klant mag taal kiezen</span>
+                  <p className="text-[11px] text-muted-foreground">Toon de taalkiezer in het boekingsscherm</p>
+                </div>
+                <ToggleSwitch value={allowLangSwitch} onChange={setAllowLangSwitch} />
+              </div>
+              <div className="flex items-center justify-between py-2">
+                <div>
+                  <span className="text-sm">Browsertaal automatisch detecteren</span>
+                  <p className="text-[11px] text-muted-foreground">Open boeking in de browsertaal van de klant (indien actief)</p>
+                </div>
+                <ToggleSwitch value={autoDetectLang} onChange={setAutoDetectLang} />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Payment Settings */}
         {activeTab === "betaling" && (
           <div className="glass-card p-6">
