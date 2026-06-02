@@ -30,7 +30,7 @@ export default function PublicActionPage() {
 
   return (
     <main className="min-h-screen bg-background flex flex-col p-6">
-      <div className="w-full flex justify-end"><LanguageSwitcher /></div>
+      <div className="w-full flex justify-end"><LanguageSwitcher allowedLanguages={allowedLanguages} hidden={!showSwitcher} /></div>
       <section className="flex-1 flex items-center justify-center">
         <div className="w-full max-w-md text-center">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">

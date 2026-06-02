@@ -116,7 +116,7 @@ export default function MembershipPortalPage() {
             <h1 className="text-2xl font-semibold">{t("membership.salonMemberships", { salon: data.salon.name })}</h1>
             <p className="text-sm text-muted-foreground mt-1">{t("membership.headerSubtitle")}</p>
           </div>
-          <LanguageSwitcher />
+          <LanguageSwitcher allowedLanguages={allowedLanguages} hidden={!showSwitcher} />
         </header>
 
         {data.plans.length === 0 ? (
