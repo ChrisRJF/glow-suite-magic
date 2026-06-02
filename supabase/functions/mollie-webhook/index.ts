@@ -203,11 +203,12 @@ Deno.serve(async (req) => {
                 .eq("template_type", "booking_confirmation")
                 .maybeSingle();
 
-              const DEFAULT_TPL = `Beste {{customer_name}},\n\nHierbij bevestigen we je afspraak op {{appointment_date}} om {{appointment_time}} voor de volgende behandeling(en):\n\n{{services}}\n\nLet op: de afspraak kan kosteloos tot uiterlijk 12 uur van tevoren worden verplaatst via deze link:\n{{reschedule_link}}\n\nTot dan!\n\n{{salon_name}}`;
-              const templateContent = (tpl?.is_active === false ? null : tpl?.content) || DEFAULT_TPL;
+              const waLang = normalizeMessageLang((customer as any)?.preferred_language || "nl");
+              const templateContent = (tpl?.is_active === false ? null : tpl?.content)
+                || getDefaultMessageTemplate("booking_confirmation", waLang, "whatsapp");
 
               const apptInstant = new Date(appt.appointment_date as string);
-              const dateStr = apptInstant.toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Amsterdam" });
+              const dateStr = apptInstant.toLocaleDateString(intlLocale(waLang), { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Amsterdam" });
               const timeStr = String(appt.start_time || "").substring(0, 5);
               const rescheduleLink = appt.booking_token
                 ? `https://glowsuite.nl/afspraak/${appt.booking_token}`
@@ -215,15 +216,21 @@ Deno.serve(async (req) => {
               if (!appt.booking_token) console.warn("WhatsApp: missing booking_token", appt.id);
 
               const waMessage = isAutoRevenue
-                ? "Je afspraak staat vast! 🙌 Tot dan."
-                : templateContent
-                    .replace(/\{\{\s*customer_name\s*\}\}/g, customer.name || "")
-                    .replace(/\{\{\s*salon_name\s*\}\}/g, settings?.salon_name || "ons salon")
-                    .replace(/\{\{\s*appointment_date\s*\}\}/g, dateStr)
-                    .replace(/\{\{\s*appointment_time\s*\}\}/g, timeStr)
-                    .replace(/\{\{\s*services\s*\}\}/g, service?.name ? `• ${service.name}` : "")
-                    .replace(/\{\{\s*reschedule_link\s*\}\}/g, rescheduleLink)
-                    .replace(/\{\{\s*review_link\s*\}\}/g, "");
+                ? renderMessage(getDefaultMessageTemplate("payment_received", waLang, "whatsapp"), {
+                    customer_name: customer.name || "",
+                    salon_name: settings?.salon_name || "ons salon",
+                    amount: `€${Number(payment.amount || 0).toFixed(2)}`,
+                  })
+                : renderMessage(templateContent, {
+                    customer_name: customer.name || "",
+                    salon_name: settings?.salon_name || "ons salon",
+                    appointment_date: dateStr,
+                    appointment_time: timeStr,
+                    services: service?.name ? `• ${service.name}` : "",
+                    reschedule_link: rescheduleLink,
+                    review_link: "",
+                    booking_link: rescheduleLink,
+                  });
 
               const fnUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/whatsapp-send`;
               fetch(fnUrl, {
