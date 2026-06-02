@@ -265,7 +265,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      const { data: settings } = await admin.from("settings").select("salon_name, public_slug, timezone, email_enabled, whatsapp_enabled, appointment_reminder_schedule").eq("user_id", rule.user_id).eq("is_demo", rule.is_demo).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      const { data: settings } = await admin.from("settings").select("salon_name, public_slug, timezone, email_enabled, whatsapp_enabled, appointment_reminder_schedule, language").eq("user_id", rule.user_id).eq("is_demo", rule.is_demo).order("created_at", { ascending: false }).limit(1).maybeSingle();
       const candidates = await candidatesForRule(admin, rule, settings);
       for (const candidate of candidates) {
         const { data: preferences } = candidate.customer?.id ? await admin.from("customer_message_preferences").select("*").eq("user_id", rule.user_id).eq("customer_id", candidate.customer.id).maybeSingle() : { data: null };
