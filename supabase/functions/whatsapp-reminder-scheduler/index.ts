@@ -542,9 +542,6 @@ Deno.serve(async (req) => {
           if (rbTpl?.is_active === false) {
             // template disabled — skip
           } else {
-            const DEFAULT_RB = `Hi {{customer_name}}, het is alweer even geleden sinds je laatste behandeling bij {{salon_name}}. Deze week hebben we nog enkele plekken vrij. Boek hier je afspraak: {{booking_link}}`;
-            const rbContent = rbTpl?.content || DEFAULT_RB;
-
             const { data: profileRb } = await admin
               .from("profiles")
               .select("salon_name")
@@ -556,7 +553,7 @@ Deno.serve(async (req) => {
             // Candidate customers for this salon
             const { data: candidates } = await admin
               .from("customers")
-              .select("id, name, phone, whatsapp_opt_in")
+              .select("id, name, phone, whatsapp_opt_in, preferred_language")
               .eq("user_id", s.user_id)
               .not("phone", "is", null)
               .neq("phone", "")
@@ -600,10 +597,15 @@ Deno.serve(async (req) => {
                 .gte("created_at", monthStart);
               if ((recentLogs?.length || 0) >= maxPerMonth) { stats.skipped++; continue; }
 
-              const message = rbContent
-                .replace(/\{\{\s*customer_name\s*\}\}/g, c.name || "")
-                .replace(/\{\{\s*salon_name\s*\}\}/g, salonNameRb)
-                .replace(/\{\{\s*booking_link\s*\}\}/g, bookingLink);
+              const rbLang = normalizeMessageLang((c as any).preferred_language || "nl");
+              const rbContent = rbTpl?.content
+                || getDefaultMessageTemplate("reactivation", rbLang, "whatsapp");
+
+              const message = renderMessage(rbContent, {
+                customer_name: c.name || "",
+                salon_name: salonNameRb,
+                booking_link: bookingLink,
+              });
 
               try {
                 const fnUrl = `${SUPABASE_URL}/functions/v1/whatsapp-send`;
