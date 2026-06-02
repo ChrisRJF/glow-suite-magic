@@ -576,7 +576,18 @@ Deno.serve(async (req) => {
               body: JSON.stringify({
                 user_id: payment.user_id,
                 to: customer.phone,
-                message: isAutoRevenue ? "Je afspraak staat vast! 🙌 Tot dan." : "Bedankt voor je betaling — je afspraak is bevestigd.",
+                message: (() => {
+                  const lang = ((customer as any)?.preferred_language || "nl").toLowerCase().split("-")[0];
+                  const MSGS: Record<string, { paid: string; auto: string }> = {
+                    nl: { paid: "Bedankt voor je betaling — je afspraak is bevestigd.", auto: "Je afspraak staat vast! 🙌 Tot dan." },
+                    en: { paid: "Thanks for your payment — your appointment is confirmed.", auto: "Your appointment is locked in! 🙌 See you then." },
+                    de: { paid: "Danke für Ihre Zahlung — Ihr Termin ist bestätigt.", auto: "Ihr Termin steht fest! 🙌 Bis bald." },
+                    fr: { paid: "Merci pour votre paiement — votre rendez-vous est confirmé.", auto: "Votre rendez-vous est confirmé ! 🙌 À bientôt." },
+                    es: { paid: "Gracias por tu pago — tu cita está confirmada.", auto: "¡Tu cita está confirmada! 🙌 Hasta pronto." },
+                  };
+                  const m = MSGS[lang] || MSGS.nl;
+                  return isAutoRevenue ? m.auto : m.paid;
+                })(),
                 customer_id: payment.customer_id,
                 appointment_id: appointmentId,
                 kind: "confirmation",
