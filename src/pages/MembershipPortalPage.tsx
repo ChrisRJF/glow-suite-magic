@@ -10,9 +10,10 @@ import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { useLanguagePersistence } from "@/hooks/useLanguagePersistence";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useEnforceSalonLanguage, type SalonLanguageConfig } from "@/i18n/useEnforceSalonLanguage";
 
 type Plan = { id: string; name: string; description: string; price: number; billing_interval: string; benefits: string[]; included_treatments: number; discount_percentage: number; priority_booking: boolean };
-type PortalData = { salon: { name: string; primary_color?: string; secondary_color?: string }; plans: Plan[] };
+type PortalData = { salon: { name: string; primary_color?: string; secondary_color?: string; language_config?: SalonLanguageConfig }; plans: Plan[] };
 
 function callPublicMemberships<T>(body: Record<string, unknown>) {
   return supabase.functions.invoke("public-abonnementen", { body }).then(({ data, error }) => {
