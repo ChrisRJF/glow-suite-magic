@@ -1,5 +1,13 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { z } from "https://esm.sh/zod@3.23.8";
+import {
+  emailStrings,
+  formatCurrency,
+  formatDateLong,
+  formatDateShort,
+  normalizeEmailLang,
+  type EmailLang,
+} from "../_shared/emailTranslations.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,6 +27,8 @@ const TemplateSchema = z.enum([
   "review_request",
 ]);
 
+const LangSchema = z.enum(["nl", "en", "de", "fr", "es"]);
+
 const BodySchema = z.object({
   user_id: z.string().uuid(),
   salon_slug: z.string().trim().min(1).max(80).optional(),
@@ -29,6 +39,7 @@ const BodySchema = z.object({
   template_data: z.record(z.unknown()).optional().default({}),
   idempotency_key: z.string().trim().min(8).max(180),
   preview_only: z.boolean().optional().default(false),
+  language: LangSchema.optional(),
 });
 
 type TemplateKey = z.infer<typeof TemplateSchema>;
@@ -67,18 +78,6 @@ function validReplyTo(value: unknown) {
   return z.string().email().safeParse(email).success ? email : undefined;
 }
 
-function formatEuro(value: unknown) {
-  const amount = Number(value || 0);
-  return new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" }).format(amount);
-}
-
-function nlDate(value: unknown) {
-  if (!value) return "";
-  const date = new Date(String(value));
-  if (Number.isNaN(date.getTime())) return String(value);
-  return date.toLocaleDateString("nl-NL", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-}
-
 function hexColor(value: unknown, fallback: string) {
   const color = String(value || "").trim();
   return /^#[0-9A-Fa-f]{6}$/.test(color) ? color : fallback;
@@ -88,13 +87,6 @@ function firstFilled(...values: unknown[]) {
   return values.map((value) => String(value ?? "").trim()).find(Boolean) || "";
 }
 
-function nlDateShort(value: unknown) {
-  if (!value) return "";
-  const date = new Date(String(value));
-  if (Number.isNaN(date.getTime())) return String(value);
-  return date.toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric" });
-}
-
 function absoluteUrl(value: unknown, fallbackPath: string, baseUrl: string) {
   const raw = String(value ?? "").trim();
   if (/^https?:\/\//i.test(raw)) return raw;
@@ -102,13 +94,13 @@ function absoluteUrl(value: unknown, fallbackPath: string, baseUrl: string) {
   return `${baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
-function shell(args: { salonName: string; title: string; intro: string; body: string; primaryAction?: Action; secondaryAction?: Action; logoUrl?: string; accent?: string; secondary?: string }) {
+function shell(args: { salonName: string; title: string; intro: string; body: string; primaryAction?: Action; secondaryAction?: Action; logoUrl?: string; accent?: string; secondary?: string; lang: EmailLang; footerText: string }) {
   const accent = hexColor(args.accent, "#7B61FF");
   const secondary = hexColor(args.secondary, "#C850C0");
   const logo = args.logoUrl ? `<img src="${escapeHtml(args.logoUrl)}" width="56" height="56" alt="${escapeHtml(args.salonName)}" style="border-radius:16px;display:block;margin:0 auto 18px;object-fit:cover;border:1px solid #F1EEF7;" />` : `<div style="width:56px;height:56px;border-radius:16px;margin:0 auto 18px;background:${accent};color:#ffffff;text-align:center;line-height:56px;font-size:20px;font-weight:800;">${escapeHtml(args.salonName.slice(0, 1).toUpperCase())}</div>`;
   const primaryCta = args.primaryAction?.url ? `<a href="${escapeHtml(args.primaryAction.url)}" style="display:block;background:${accent};color:#ffffff;text-decoration:none;border-radius:14px;padding:15px 18px;font-size:15px;font-weight:800;text-align:center;margin:18px 0 10px;">${escapeHtml(args.primaryAction.label)}</a>` : "";
   const secondaryCta = args.secondaryAction?.url ? `<a href="${escapeHtml(args.secondaryAction.url)}" style="display:block;background:#ffffff;color:${secondary};text-decoration:none;border:1px solid #E9DFF7;border-radius:14px;padding:13px 18px;font-size:14px;font-weight:750;text-align:center;margin:0 0 8px;">${escapeHtml(args.secondaryAction.label)}</a>` : "";
-  return `<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"><title>${escapeHtml(args.title)}</title></head><body style="margin:0;background:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;color:#111827;-webkit-font-smoothing:antialiased;"><div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">${escapeHtml(args.intro)}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#ffffff;"><tr><td align="center" style="padding:22px 12px;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:584px;border:1px solid #EEE7F8;border-radius:24px;overflow:hidden;background:#ffffff;"><tr><td style="padding:30px 24px 18px;text-align:center;background:linear-gradient(180deg,#FFFFFF 0%,#FCFAFF 100%);">${logo}<p style="margin:0 0 9px;color:${accent};font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;">${escapeHtml(args.salonName)}</p><h1 style="margin:0;color:#111827;font-size:26px;line-height:1.16;font-weight:800;letter-spacing:0;">${escapeHtml(args.title)}</h1><p style="margin:14px auto 0;color:#5F6673;font-size:16px;line-height:1.62;max-width:480px;">${escapeHtml(args.intro)}</p></td></tr><tr><td style="padding:8px 24px 30px;">${args.body}${primaryCta}${secondaryCta}<hr style="border:none;border-top:1px solid #F1EEF7;margin:26px 0 16px;" /><p style="margin:0;color:#8A8F98;font-size:12px;line-height:1.55;text-align:center;">Verzonden door ${escapeHtml(args.salonName)} via GlowSuite. Dit is een servicebericht over je afspraak, betaling of abonnement.</p></td></tr></table></td></tr></table></body></html>`;
+  return `<!doctype html><html lang="${args.lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"><title>${escapeHtml(args.title)}</title></head><body style="margin:0;background:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;color:#111827;-webkit-font-smoothing:antialiased;"><div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">${escapeHtml(args.intro)}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#ffffff;"><tr><td align="center" style="padding:22px 12px;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:584px;border:1px solid #EEE7F8;border-radius:24px;overflow:hidden;background:#ffffff;"><tr><td style="padding:30px 24px 18px;text-align:center;background:linear-gradient(180deg,#FFFFFF 0%,#FCFAFF 100%);">${logo}<p style="margin:0 0 9px;color:${accent};font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;">${escapeHtml(args.salonName)}</p><h1 style="margin:0;color:#111827;font-size:26px;line-height:1.16;font-weight:800;letter-spacing:0;">${escapeHtml(args.title)}</h1><p style="margin:14px auto 0;color:#5F6673;font-size:16px;line-height:1.62;max-width:480px;">${escapeHtml(args.intro)}</p></td></tr><tr><td style="padding:8px 24px 30px;">${args.body}${primaryCta}${secondaryCta}<hr style="border:none;border-top:1px solid #F1EEF7;margin:26px 0 16px;" /><p style="margin:0;color:#8A8F98;font-size:12px;line-height:1.55;text-align:center;">${escapeHtml(args.footerText)}</p></td></tr></table></td></tr></table></body></html>`;
 }
 
 function infoRows(rows: Array<[string, unknown]>) {
@@ -121,15 +113,17 @@ function noteBlock(title: string, items: unknown[]) {
   return `<div style="background:#FCFAFF;border:1px solid #F1EEF7;border-radius:18px;padding:16px 16px;margin:16px 0;"><p style="margin:0 0 10px;color:#111827;font-size:14px;font-weight:800;">${escapeHtml(title)}</p>${lines.map((item) => `<p style="margin:7px 0;color:#5F6673;font-size:14px;line-height:1.55;">• ${escapeHtml(item)}</p>`).join("")}</div>`;
 }
 
-function amountSummary(args: { amount?: unknown; vatAmount?: unknown; vatRate?: unknown; total?: unknown }) {
-  return `<div style="background:#111827;border-radius:20px;padding:18px;margin:16px 0;color:#ffffff;"><p style="margin:0 0 8px;color:#D1D5DB;font-size:13px;font-weight:700;">Totaal betaald</p><p style="margin:0;color:#ffffff;font-size:30px;line-height:1;font-weight:850;">${escapeHtml(formatEuro(args.total || args.amount))}</p>${args.vatAmount ? `<p style="margin:12px 0 0;color:#D1D5DB;font-size:13px;">Inclusief BTW${args.vatRate ? ` (${escapeHtml(args.vatRate)}%)` : ""}: ${escapeHtml(formatEuro(args.vatAmount))}</p>` : ""}</div>`;
+function amountSummary(args: { amount?: unknown; vatAmount?: unknown; vatRate?: unknown; total?: unknown; totalLabel: string; vatLine?: string }) {
+  return `<div style="background:#111827;border-radius:20px;padding:18px;margin:16px 0;color:#ffffff;"><p style="margin:0 0 8px;color:#D1D5DB;font-size:13px;font-weight:700;">${escapeHtml(args.totalLabel)}</p><p style="margin:0;color:#ffffff;font-size:30px;line-height:1;font-weight:850;">${escapeHtml(args.total as string)}</p>${args.vatLine ? `<p style="margin:12px 0 0;color:#D1D5DB;font-size:13px;">${escapeHtml(args.vatLine)}</p>` : ""}</div>`;
 }
 
-function template(key: TemplateKey, data: Record<string, unknown>, salonName: string, branding: any): TemplateResult {
+function template(key: TemplateKey, data: Record<string, unknown>, salonName: string, branding: any, lang: EmailLang): TemplateResult {
+  const s = emailStrings(lang);
+  const sh = s.shared;
   const firstName = String(data.customer_name || data.recipient_name || "").trim().split(/\s+/)[0] || "";
   const accent = hexColor(branding?.primary_color, "#7B61FF");
   const secondary = hexColor(branding?.secondary_color, "#C850C0");
-  const base = { salonName, logoUrl: branding?.logo_url || "", accent, secondary };
+  const base = { salonName, logoUrl: branding?.logo_url || "", accent, secondary, lang, footerText: sh.footer(salonName) };
   const publicBaseUrl = firstFilled(data.public_base_url, data.base_url) || `https://${slugify(String(data.salon_slug || salonName))}.glowsuite.nl`;
   const manageUrl = absoluteUrl(firstFilled(data.manage_url, data.appointment_url), "/afspraak/beheer", publicBaseUrl);
   const calendarUrl = firstFilled(data.calendar_url, data.add_to_calendar_url);
@@ -142,56 +136,162 @@ function template(key: TemplateKey, data: Record<string, unknown>, salonName: st
   const supportEmail = firstFilled(data.support_email, data.salon_contact_email, branding?.contact_email);
 
   if (key === "booking_confirmation") {
-    const title = "Je afspraak staat klaar";
-    const intro = `${firstName ? `${firstName}, je` : "Je"} behandeling bij ${salonName} is bevestigd. We kijken ernaar uit je te ontvangen.`;
-    const rows = infoRows([["Klant", data.customer_name || data.recipient_name], ["Datum", nlDate(data.appointment_date || data.date)], ["Tijd", data.time || data.start_time], ["Behandeling", data.service_name], ["Medewerker", data.employee || data.staff_name], ["Locatie", data.location || data.address], ["Referentie", data.reference], ["Totaal", data.total_amount ? formatEuro(data.total_amount) : undefined]]);
-    const calendarLink = calendarUrl ? `<a href="${escapeHtml(calendarUrl)}" style="display:block;background:#ffffff;color:${secondary};text-decoration:none;border:1px solid #E9DFF7;border-radius:14px;padding:13px 18px;font-size:14px;font-weight:750;text-align:center;margin:0 0 16px;">Toevoegen aan agenda</a>` : "";
-    const body = rows + calendarLink + noteBlock("Handig om te weten", ["Zet je afspraak direct in je agenda.", "Kun je niet komen? Beheer je afspraak op tijd."]) + `<p style="margin:10px 0 18px;color:#8A8F98;font-size:12px;line-height:1.55;text-align:center;">Op deze afspraak gelden de <a href="${escapeHtml(termsUrl)}" style="color:${secondary};text-decoration:underline;">salonvoorwaarden</a>.</p>`;
-    return { subject: `${salonName} · je afspraak op ${nlDateShort(data.appointment_date || data.date) || "is bevestigd"}`, preview: intro, html: shell({ ...base, title, intro, body, primaryAction: { label: "Afspraak beheren", url: manageUrl }, secondaryAction: { label: "Route bekijken", url: contactUrl } }), text: `${title}\n${intro}\n${String(data.service_name || "")}\n${nlDate(data.appointment_date || data.date)} ${String(data.time || data.start_time || "")}` };
+    const t = s.booking_confirmation;
+    const dateShort = formatDateShort(data.appointment_date || data.date, lang);
+    const title = t.title;
+    const intro = firstName ? t.intro_named(firstName, salonName) : t.intro(salonName);
+    const rows = infoRows([
+      [sh.row_customer, data.customer_name || data.recipient_name],
+      [sh.row_date, formatDateLong(data.appointment_date || data.date, lang)],
+      [sh.row_time, data.time || data.start_time],
+      [sh.row_service, data.service_name],
+      [sh.row_staff, data.employee || data.staff_name],
+      [sh.row_location, data.location || data.address],
+      [sh.row_reference, data.reference],
+      [sh.row_total, data.total_amount ? formatCurrency(data.total_amount, lang) : undefined],
+    ]);
+    const calendarLink = calendarUrl ? `<a href="${escapeHtml(calendarUrl)}" style="display:block;background:#ffffff;color:${secondary};text-decoration:none;border:1px solid #E9DFF7;border-radius:14px;padding:13px 18px;font-size:14px;font-weight:750;text-align:center;margin:0 0 16px;">${escapeHtml(t.cta_calendar)}</a>` : "";
+    const termsLink = t.terms_line(escapeHtml(termsUrl)).replace("<a href=", `<a style="color:${secondary};text-decoration:underline;" href=`);
+    const body = rows + calendarLink + noteBlock(t.note_title, [t.note_1, t.note_2]) + `<p style="margin:10px 0 18px;color:#8A8F98;font-size:12px;line-height:1.55;text-align:center;">${termsLink}</p>`;
+    return {
+      subject: dateShort ? t.subject(salonName, dateShort) : t.subject_no_date(salonName),
+      preview: intro,
+      html: shell({ ...base, title, intro, body, primaryAction: { label: t.cta_manage, url: manageUrl }, secondaryAction: { label: t.cta_route, url: contactUrl } }),
+      text: `${title}\n${intro}\n${String(data.service_name || "")}\n${formatDateLong(data.appointment_date || data.date, lang)} ${String(data.time || data.start_time || "")}`,
+    };
   }
 
   if (key === "payment_receipt") {
-    const title = "Je betaalbewijs";
-    const intro = `Dank je wel. Je betaling aan ${salonName} is veilig verwerkt.`;
-    const rows = infoRows([["Betaalmethode", data.method || data.payment_method], ["Omschrijving", data.description || data.service_name || data.membership_name], ["Datum", nlDate(data.paid_at || data.date)], ["Referentie", data.reference || data.receipt_number], ["BTW", data.vat_amount ? formatEuro(data.vat_amount) : data.vat_enabled ? "Actief" : undefined]]);
-    const body = amountSummary({ amount: data.amount, vatAmount: data.vat_amount, vatRate: data.vat_rate, total: data.total_amount }) + rows;
-    return { subject: `${salonName} · betaalbewijs ${data.reference ? `#${String(data.reference)}` : ""}`.trim(), preview: intro, html: shell({ ...base, title, intro, body, primaryAction: { label: "Bekijk betaalbewijs", url: receiptUrl }, secondaryAction: { label: "Afspraak bekijken", url: manageUrl } }), text: `${title}\n${intro}\nBedrag: ${formatEuro(data.total_amount || data.amount)}\nBetaalmethode: ${String(data.method || data.payment_method || "")}` };
+    const t = s.payment_receipt;
+    const title = t.title;
+    const intro = t.intro(salonName);
+    const totalStr = formatCurrency(data.total_amount || data.amount, lang);
+    const vatStr = data.vat_amount ? formatCurrency(data.vat_amount, lang) : "";
+    const vatLine = vatStr ? (data.vat_rate ? t.vat_line(vatStr, String(data.vat_rate)) : t.vat_no_rate(vatStr)) : undefined;
+    const rows = infoRows([
+      [sh.row_method, data.method || data.payment_method],
+      [sh.row_description, data.description || data.service_name || data.membership_name],
+      [sh.row_date, formatDateLong(data.paid_at || data.date, lang)],
+      [sh.row_reference, data.reference || data.receipt_number],
+      [sh.row_vat, data.vat_amount ? formatCurrency(data.vat_amount, lang) : data.vat_enabled ? sh.row_vat_active : undefined],
+    ]);
+    const body = amountSummary({ total: totalStr, totalLabel: t.total_label, vatLine }) + rows;
+    return {
+      subject: t.subject(salonName, String(data.reference || "")).trim(),
+      preview: intro,
+      html: shell({ ...base, title, intro, body, primaryAction: { label: t.cta_receipt, url: receiptUrl }, secondaryAction: { label: t.cta_appointment, url: manageUrl } }),
+      text: `${title}\n${intro}\n${totalStr}\n${String(data.method || data.payment_method || "")}`,
+    };
   }
 
   if (key === "appointment_reminder") {
-    const title = "Tot snel bij je afspraak";
-    const intro = `${firstName ? `${firstName}, dit` : "Dit"} is een vriendelijke herinnering aan je afspraak bij ${salonName}.`;
-    const rows = infoRows([["Datum", nlDate(data.appointment_date || data.date)], ["Tijd", data.time || data.start_time], ["Behandeling", data.service_name], ["Medewerker", data.employee || data.staff_name], ["Locatie", data.location || data.address]]);
-    const calendarLink = calendarUrl ? `<a href="${escapeHtml(calendarUrl)}" style="display:block;background:#ffffff;color:${secondary};text-decoration:none;border:1px solid #E9DFF7;border-radius:14px;padding:13px 18px;font-size:14px;font-weight:750;text-align:center;margin:0 0 16px;">Toevoegen aan kalender</a>` : "";
-    const body = rows + calendarLink + noteBlock("Voor je afspraak", [data.preparation_tip || "Kom liefst een paar minuten op tijd.", "Ben je verhinderd? Beheer je afspraak op tijd.", data.aftercare_note]);
-    return { subject: `${salonName} · herinnering voor ${nlDateShort(data.appointment_date || data.date) || "je afspraak"}`, preview: intro, html: shell({ ...base, title, intro, body, primaryAction: { label: "Afspraak beheren", url: manageUrl }, secondaryAction: { label: "Route bekijken", url: contactUrl } }), text: `${title}\n${intro}\n${nlDate(data.appointment_date || data.date)} ${String(data.time || data.start_time || "")}` };
+    const t = s.appointment_reminder;
+    const dateShort = formatDateShort(data.appointment_date || data.date, lang);
+    const title = t.title;
+    const intro = firstName ? t.intro_named(firstName, salonName) : t.intro(salonName);
+    const rows = infoRows([
+      [sh.row_date, formatDateLong(data.appointment_date || data.date, lang)],
+      [sh.row_time, data.time || data.start_time],
+      [sh.row_service, data.service_name],
+      [sh.row_staff, data.employee || data.staff_name],
+      [sh.row_location, data.location || data.address],
+    ]);
+    const calendarLink = calendarUrl ? `<a href="${escapeHtml(calendarUrl)}" style="display:block;background:#ffffff;color:${secondary};text-decoration:none;border:1px solid #E9DFF7;border-radius:14px;padding:13px 18px;font-size:14px;font-weight:750;text-align:center;margin:0 0 16px;">${escapeHtml(t.cta_calendar)}</a>` : "";
+    const body = rows + calendarLink + noteBlock(t.note_title, [data.preparation_tip || t.note_default_tip, t.note_reschedule, data.aftercare_note]);
+    return {
+      subject: t.subject(salonName, dateShort || ""),
+      preview: intro,
+      html: shell({ ...base, title, intro, body, primaryAction: { label: t.cta_manage, url: manageUrl }, secondaryAction: { label: t.cta_route, url: contactUrl } }),
+      text: `${title}\n${intro}\n${formatDateLong(data.appointment_date || data.date, lang)} ${String(data.time || data.start_time || "")}`,
+    };
   }
 
   if (key === "booking_cancellation") {
-    const title = "Je afspraak is geannuleerd";
-    const intro = `We bevestigen dat je afspraak bij ${salonName} is geannuleerd. Je bent altijd welkom om een nieuw moment te kiezen.`;
-    const rows = infoRows([["Status", data.status || "Geannuleerd"], ["Behandeling", data.service_name], ["Datum", nlDate(data.appointment_date || data.date)], ["Tijd", data.time || data.start_time], ["Referentie", data.reference], ["Support", supportEmail]]);
-    const body = rows + noteBlock("Hulp nodig?", ["Neem gerust contact op als dit niet klopt.", supportEmail ? `Je kunt ons bereiken via ${supportEmail}.` : "Ons team helpt je graag met het plannen van een nieuw moment."]);
-    return { subject: `${salonName} · annulering bevestigd`, preview: intro, html: shell({ ...base, title, intro, body, primaryAction: { label: "Nieuwe afspraak maken", url: absoluteUrl(data.new_booking_url, "/boeken", publicBaseUrl) }, secondaryAction: { label: "Route bekijken", url: contactUrl } }), text: `${title}\n${intro}\nStatus: geannuleerd` };
+    const t = s.booking_cancellation;
+    const title = t.title;
+    const intro = t.intro(salonName);
+    const rows = infoRows([
+      [sh.row_status, t.status_cancelled],
+      [sh.row_service, data.service_name],
+      [sh.row_date, formatDateLong(data.appointment_date || data.date, lang)],
+      [sh.row_time, data.time || data.start_time],
+      [sh.row_reference, data.reference],
+      [sh.row_support, supportEmail],
+    ]);
+    const body = rows + noteBlock(t.note_title, [t.note_check, supportEmail ? t.note_contact(supportEmail) : t.note_help]);
+    return {
+      subject: t.subject(salonName),
+      preview: intro,
+      html: shell({ ...base, title, intro, body, primaryAction: { label: t.cta_new, url: absoluteUrl(data.new_booking_url, "/boeken", publicBaseUrl) }, secondaryAction: { label: t.cta_route, url: contactUrl } }),
+      text: `${title}\n${intro}`,
+    };
   }
 
   if (key === "membership_notification") {
-    const title = "Welkom bij je abonnement";
-    const intro = `${firstName ? `${firstName}, welkom` : "Welkom"} bij je abonnement van ${salonName}. Je voordelen staan voor je klaar.`;
+    const t = s.membership_notification;
+    const title = t.title;
+    const intro = firstName ? t.intro_named(firstName, salonName) : t.intro(salonName);
     const benefits = Array.isArray(data.benefits) ? data.benefits : [data.benefit_1, data.benefit_2, data.benefit_3];
-    const rows = infoRows([["Abonnement", data.membership_name], ["Status", data.status || "Actief"], ["Credits", data.credits || data.credits_status], ["Volgende incasso", nlDate(data.next_payment_at)], ["Maandbedrag", data.amount ? formatEuro(data.amount) : undefined]]);
-    const body = rows + noteBlock("Jouw voordelen", benefits);
-    return { subject: `${salonName} · welkom bij je abonnement`, preview: intro, html: shell({ ...base, title, intro, body, primaryAction: { label: "Abonnement beheren", url: membershipUrl }, secondaryAction: { label: "Nieuwe afspraak boeken", url: bookingUrl } }), text: `${title}\n${intro}\nAbonnement: ${String(data.membership_name || "")}` };
+    const rows = infoRows([
+      [sh.row_membership, data.membership_name],
+      [sh.row_status, data.status || t.status_active],
+      [sh.row_credits, data.credits ?? data.credits_status],
+      [sh.row_next_payment, formatDateLong(data.next_payment_at, lang)],
+      [sh.row_monthly, data.amount ? formatCurrency(data.amount, lang) : undefined],
+    ]);
+    const body = rows + noteBlock(t.benefits_title, benefits);
+    return {
+      subject: t.subject(salonName),
+      preview: intro,
+      html: shell({ ...base, title, intro, body, primaryAction: { label: t.cta_manage, url: membershipUrl }, secondaryAction: { label: t.cta_book, url: bookingUrl } }),
+      text: `${title}\n${intro}\n${String(data.membership_name || "")}`,
+    };
   }
 
-  const title = "Dank je wel voor je bezoek";
-  const intro = `${firstName ? `${firstName}, bedankt` : "Bedankt"} voor je bezoek aan ${salonName}. We hopen dat je tevreden bent met je behandeling.`;
-  const body = infoRows([["Behandeling", data.service_name], ["Datum", nlDate(data.appointment_date || data.completed_at || data.date)], ["Medewerker", data.employee || data.staff_name]]) + `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.65;">Met je review help je ons de salonervaring nog beter te maken. Ook help je nieuwe klanten kiezen met vertrouwen.</p>`;
-  return { subject: `${salonName} · hoe was je ervaring?`, preview: intro, html: shell({ ...base, title, intro, body, primaryAction: { label: "Review schrijven", url: reviewUrl }, secondaryAction: { label: "Nieuwe afspraak boeken", url: absoluteUrl(data.rebook_url, "/boeken", publicBaseUrl) } }), text: `${title}\n${intro}` };
+  // review_request
+  const t = s.review_request;
+  const title = t.title;
+  const intro = firstName ? t.intro_named(firstName, salonName) : t.intro(salonName);
+  const body = infoRows([
+    [sh.row_service, data.service_name],
+    [sh.row_date, formatDateLong(data.appointment_date || data.completed_at || data.date, lang)],
+    [sh.row_staff, data.employee || data.staff_name],
+  ]) + `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.65;">${escapeHtml(t.body_text)}</p>`;
+  return {
+    subject: t.subject(salonName),
+    preview: intro,
+    html: shell({ ...base, title, intro, body, primaryAction: { label: t.cta_review, url: reviewUrl }, secondaryAction: { label: t.cta_rebook, url: absoluteUrl(data.rebook_url, "/boeken", publicBaseUrl) } }),
+    text: `${title}\n${intro}`,
+  };
 }
 
 async function logEmail(admin: ReturnType<typeof createClient>, row: Record<string, unknown>) {
   await admin.from("white_label_email_logs").insert(row as any);
+}
+
+async function resolveLanguage(
+  admin: ReturnType<typeof createClient>,
+  explicit: EmailLang | undefined,
+  userId: string,
+  recipientEmail: string,
+  settings: any,
+): Promise<EmailLang> {
+  if (explicit) return explicit;
+  // Lookup customer by email + user_id and use preferred_language if set.
+  try {
+    const { data: customer } = await admin
+      .from("customers")
+      .select("preferred_language")
+      .eq("user_id", userId)
+      .eq("email", recipientEmail.toLowerCase())
+      .maybeSingle();
+    const customerLang = (customer as any)?.preferred_language;
+    if (customerLang) return normalizeEmailLang(customerLang);
+  } catch (_e) { /* ignore */ }
+  // Fall back to salon's configured language.
+  const settingsLang = (settings as any)?.language;
+  if (settingsLang) return normalizeEmailLang(settingsLang);
+  return "nl";
 }
 
 Deno.serve(async (req) => {
@@ -205,7 +305,7 @@ Deno.serve(async (req) => {
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const { data: settings, error: settingsError } = await admin
       .from("settings")
-      .select("user_id, salon_name, public_slug, whitelabel_branding, demo_mode, is_demo")
+      .select("user_id, salon_name, public_slug, whitelabel_branding, demo_mode, is_demo, language")
       .eq("user_id", parsed.data.user_id)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -226,7 +326,8 @@ Deno.serve(async (req) => {
     const salonSlug = uniqueSalonSlug({ requested: parsed.data.salon_slug, publicSlug: (settings as any).public_slug, salonName, userId: parsed.data.user_id });
     const fromEmail = `${salonSlug}@${SENDER_DOMAIN}`;
     const replyTo = validReplyTo((parsed.data.template_data as any).salon_contact_email || branding.contact_email || (profile as any)?.email);
-    const rendered = template(parsed.data.template_key, { ...parsed.data.template_data, recipient_name: parsed.data.recipient_name, salon_slug: salonSlug }, salonName, branding);
+    const lang = await resolveLanguage(admin, parsed.data.language, parsed.data.user_id, parsed.data.recipient_email, settings);
+    const rendered = template(parsed.data.template_key, { ...parsed.data.template_data, recipient_name: parsed.data.recipient_name, salon_slug: salonSlug }, salonName, branding, lang);
     const commonLog = {
       user_id: parsed.data.user_id,
       salon_slug: salonSlug,
@@ -236,7 +337,7 @@ Deno.serve(async (req) => {
       template_key: parsed.data.template_key,
       subject: rendered.subject,
       provider: "resend",
-      metadata: { idempotency_key: parsed.data.idempotency_key, preview: rendered.preview, reply_to: replyTo || null },
+      metadata: { idempotency_key: parsed.data.idempotency_key, preview: rendered.preview, reply_to: replyTo || null, language: lang },
       is_demo: Boolean((settings as any).is_demo || (settings as any).demo_mode),
     };
 
@@ -251,6 +352,7 @@ Deno.serve(async (req) => {
         preview: rendered.preview,
         html: rendered.html,
         text: rendered.text,
+        language: lang,
       });
     }
 
@@ -283,7 +385,7 @@ Deno.serve(async (req) => {
     }
 
     await logEmail(admin, { ...commonLog, status: "sent", provider_message_id: result?.id || result?.data?.id || null });
-    return json({ success: true, from: `${salonName} <${fromEmail}>`, reply_to: replyTo || null, subject: rendered.subject, provider_message_id: result?.id || result?.data?.id || null });
+    return json({ success: true, from: `${salonName} <${fromEmail}>`, reply_to: replyTo || null, subject: rendered.subject, provider_message_id: result?.id || result?.data?.id || null, language: lang });
   } catch (error) {
     return json({ error: (error as Error).message || "Email kon niet worden verwerkt" }, 500);
   }
