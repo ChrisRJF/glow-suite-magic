@@ -120,7 +120,22 @@ Deno.serve(async (req) => {
     if (planError) throw planError;
 
     if (parsed.data.action === "get_memberships") {
-      return json({ salon: { name: settings.salon_name || branding.salon_name || "Salon", primary_color: branding.primary_color || "#7B61FF", secondary_color: branding.secondary_color || "#C850C0" }, plans: plans || [] });
+      return json({
+        salon: {
+          name: settings.salon_name || branding.salon_name || "Salon",
+          primary_color: branding.primary_color || "#7B61FF",
+          secondary_color: branding.secondary_color || "#C850C0",
+          language_config: {
+            default_language: (settings as any).language || "nl",
+            active_languages: Array.isArray((settings as any).active_languages) && (settings as any).active_languages.length
+              ? (settings as any).active_languages
+              : ["nl", "en", "de", "fr", "es"],
+            allow_customer_language_switch: (settings as any).allow_customer_language_switch !== false,
+            auto_detect_language: (settings as any).auto_detect_language !== false,
+          },
+        },
+        plans: plans || [],
+      });
     }
 
     const data = parsed.data;

@@ -90,11 +90,17 @@ async function insertRun(admin: any, rule: Rule, settings: any, candidate: any, 
   const serviceSlug = slugify(candidate.service?.name || "afspraak");
   const reminderSuffix = candidate.reminder?.hours_before ? `-${candidate.reminder.hours_before}h` : "";
   const publicBaseUrl = `https://${salonSlug}.glowsuite.nl`;
-  const body = renderTemplate(templates.nl || templates.en || "", {
+  // Language priority: customer.preferred_language → salon default → nl
+  const supported = ["nl", "en", "de", "fr", "es"];
+  const preferred = String(customer?.preferred_language || settings?.language || "nl").toLowerCase().split("-")[0];
+  const lang = (supported.includes(preferred) ? preferred : "nl") as "nl" | "en" | "de" | "fr" | "es";
+  const localeMap: Record<string, string> = { nl: "nl-NL", en: "en-GB", de: "de-DE", fr: "fr-FR", es: "es-ES" };
+  const templateBody = templates[lang] || templates.nl || templates.en || "";
+  const body = renderTemplate(templateBody, {
     first_name: firstName(customer?.name),
     last_name: String(customer?.name || "").trim().split(/\s+/).slice(1).join(" "),
     salon_name: salonName,
-    appointment_date: candidate.appointment?.appointment_date ? new Date(candidate.appointment.appointment_date).toLocaleString("nl-NL") : "",
+    appointment_date: candidate.appointment?.appointment_date ? new Date(candidate.appointment.appointment_date).toLocaleString(localeMap[lang]) : "",
     service_name: candidate.service?.name || "",
     credits_left: String(candidate.membership?.credits_available ?? ""),
     membership_name: candidate.plan?.name || "",
@@ -133,6 +139,7 @@ async function insertRun(admin: any, rule: Rule, settings: any, candidate: any, 
       membership_name: candidate.plan?.name || "",
       credits: candidate.membership?.credits_available ?? "",
       template_key: emailTemplateForTrigger(rule.trigger_type),
+      language: lang,
     },
     error_message: providerAvailable(channel, settings) ? null : "Provider vereist",
     is_demo: rule.is_demo,
@@ -258,7 +265,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      const { data: settings } = await admin.from("settings").select("salon_name, public_slug, timezone, email_enabled, whatsapp_enabled, appointment_reminder_schedule").eq("user_id", rule.user_id).eq("is_demo", rule.is_demo).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      const { data: settings } = await admin.from("settings").select("salon_name, public_slug, timezone, email_enabled, whatsapp_enabled, appointment_reminder_schedule, language").eq("user_id", rule.user_id).eq("is_demo", rule.is_demo).order("created_at", { ascending: false }).limit(1).maybeSingle();
       const candidates = await candidatesForRule(admin, rule, settings);
       for (const candidate of candidates) {
         const { data: preferences } = candidate.customer?.id ? await admin.from("customer_message_preferences").select("*").eq("user_id", rule.user_id).eq("customer_id", candidate.customer.id).maybeSingle() : { data: null };
@@ -283,6 +290,7 @@ Deno.serve(async (req) => {
           template_key: payload.template_key || "appointment_reminder",
           idempotency_key: `automation-${run.id}-${run.idempotency_key}`,
           template_data: payload,
+          language: payload.language || undefined,
         });
       }
       await admin.from("automation_runs").update({ status: "sent", processed_at: new Date().toISOString() }).eq("id", run.id);

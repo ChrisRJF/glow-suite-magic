@@ -15,12 +15,30 @@ interface LanguageSwitcherProps {
   variant?: "compact" | "full";
   className?: string;
   onChange?: (lang: SupportedLanguage) => void;
+  /** Restrict the selectable languages (e.g. salon's active_languages). */
+  allowedLanguages?: SupportedLanguage[] | null;
+  /** Force-hide the switcher (e.g. allow_customer_language_switch=false). */
+  hidden?: boolean;
 }
 
-export function LanguageSwitcher({ variant = "compact", className, onChange }: LanguageSwitcherProps) {
+export function LanguageSwitcher({
+  variant = "compact",
+  className,
+  onChange,
+  allowedLanguages,
+  hidden,
+}: LanguageSwitcherProps) {
   const { i18n, t } = useTranslation();
   const current = normalizeLanguage(i18n.language);
-  const currentLang = SUPPORTED_LANGUAGES.find((l) => l.code === current) ?? SUPPORTED_LANGUAGES[0];
+
+  const filtered = (allowedLanguages && allowedLanguages.length > 0)
+    ? SUPPORTED_LANGUAGES.filter((l) => allowedLanguages.includes(l.code))
+    : SUPPORTED_LANGUAGES;
+
+  // Hide when explicitly disabled or only one language available.
+  if (hidden || filtered.length < 2) return null;
+
+  const currentLang = filtered.find((l) => l.code === current) ?? filtered[0];
 
   const handleSelect = (lang: SupportedLanguage) => {
     setLanguage(lang);
@@ -49,7 +67,7 @@ export function LanguageSwitcher({ variant = "compact", className, onChange }: L
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-[180px]">
-        {SUPPORTED_LANGUAGES.map((lang) => (
+        {filtered.map((lang) => (
           <DropdownMenuItem
             key={lang.code}
             onSelect={() => handleSelect(lang.code)}

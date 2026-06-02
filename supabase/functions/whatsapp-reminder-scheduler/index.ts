@@ -324,9 +324,6 @@ Deno.serve(async (req) => {
           if (revTpl?.is_active === false) {
             // template disabled — skip review pass
           } else {
-            const DEFAULT_REVIEW = `Bedankt voor je bezoek aan {{salon_name}}, {{customer_name}}!\n\nWe horen graag je ervaring. Laat hier een korte review achter:\n{{review_link}}`;
-            const reviewContent = revTpl?.content || DEFAULT_REVIEW;
-
             const { data: profile2 } = await admin
               .from("profiles")
               .select("salon_name, google_review_url")
@@ -351,7 +348,7 @@ Deno.serve(async (req) => {
 
               const { data: customer } = await admin
                 .from("customers")
-                .select("id, name, phone, whatsapp_opt_in")
+                .select("id, name, phone, whatsapp_opt_in, preferred_language")
                 .eq("id", appt.customer_id)
                 .maybeSingle();
               if (!customer || !customer.phone || customer.whatsapp_opt_in === false) {
@@ -359,21 +356,26 @@ Deno.serve(async (req) => {
                 continue;
               }
 
+              const reviewLang = normalizeMessageLang((customer as any).preferred_language || "nl");
+              const reviewContent = revTpl?.content
+                || getDefaultMessageTemplate("review_request", reviewLang, "whatsapp");
+
               const apptInstant = new Date(appt.appointment_date);
-              const dateStr = new Intl.DateTimeFormat("nl-NL", {
+              const dateStr = new Intl.DateTimeFormat(intlLocale(reviewLang), {
                 timeZone: tz2, day: "numeric", month: "long",
               }).format(apptInstant);
               const timeStr = (appt.start_time as string | null)?.substring(0, 5)
                 || String(appt.appointment_date).substring(11, 16);
 
-              const message = reviewContent
-                .replace(/\{\{\s*customer_name\s*\}\}/g, customer.name || "")
-                .replace(/\{\{\s*salon_name\s*\}\}/g, salonName2)
-                .replace(/\{\{\s*appointment_date\s*\}\}/g, dateStr)
-                .replace(/\{\{\s*appointment_time\s*\}\}/g, timeStr)
-                .replace(/\{\{\s*services\s*\}\}/g, "")
-                .replace(/\{\{\s*reschedule_link\s*\}\}/g, "")
-                .replace(/\{\{\s*review_link\s*\}\}/g, reviewLink);
+              const message = renderMessage(reviewContent, {
+                customer_name: customer.name || "",
+                salon_name: salonName2,
+                appointment_date: dateStr,
+                appointment_time: timeStr,
+                services: "",
+                reschedule_link: "",
+                review_link: reviewLink,
+              });
 
               try {
                 const fnUrl = `${SUPABASE_URL}/functions/v1/whatsapp-send`;
@@ -436,9 +438,6 @@ Deno.serve(async (req) => {
           if (nsTpl?.is_active === false) {
             // template disabled — skip
           } else {
-            const DEFAULT_NS = `Hoi {{customer_name}},\n\nWe hebben je vandaag gemist bij {{salon_name}} 💜\nGeen zorgen — we plannen graag een nieuwe afspraak in. Laat het ons weten!\n\n{{salon_name}}`;
-            const nsContent = nsTpl?.content || DEFAULT_NS;
-
             const { data: profileNs } = await admin
               .from("profiles")
               .select("salon_name")
@@ -462,7 +461,7 @@ Deno.serve(async (req) => {
 
               const { data: customer } = await admin
                 .from("customers")
-                .select("id, name, phone, whatsapp_opt_in")
+                .select("id, name, phone, whatsapp_opt_in, preferred_language")
                 .eq("id", appt.customer_id)
                 .maybeSingle();
               if (!customer || !customer.phone || customer.whatsapp_opt_in === false) {
@@ -470,21 +469,23 @@ Deno.serve(async (req) => {
                 continue;
               }
 
+              const nsLang = normalizeMessageLang((customer as any).preferred_language || "nl");
+              const nsContent = nsTpl?.content
+                || getDefaultMessageTemplate("no_show", nsLang, "whatsapp");
+
               const apptInstant = new Date(appt.appointment_date);
-              const dateStr = new Intl.DateTimeFormat("nl-NL", {
+              const dateStr = new Intl.DateTimeFormat(intlLocale(nsLang), {
                 day: "numeric", month: "long",
               }).format(apptInstant);
               const timeStr = (appt.start_time as string | null)?.substring(0, 5)
                 || String(appt.appointment_date).substring(11, 16);
 
-              const message = nsContent
-                .replace(/\{\{\s*customer_name\s*\}\}/g, customer.name || "")
-                .replace(/\{\{\s*salon_name\s*\}\}/g, salonNameNs)
-                .replace(/\{\{\s*appointment_date\s*\}\}/g, dateStr)
-                .replace(/\{\{\s*appointment_time\s*\}\}/g, timeStr)
-                .replace(/\{\{\s*services\s*\}\}/g, "")
-                .replace(/\{\{\s*reschedule_link\s*\}\}/g, "")
-                .replace(/\{\{\s*review_link\s*\}\}/g, "");
+              const message = renderMessage(nsContent, {
+                customer_name: customer.name || "",
+                salon_name: salonNameNs,
+                appointment_date: dateStr,
+                appointment_time: timeStr,
+              });
 
               try {
                 const fnUrl = `${SUPABASE_URL}/functions/v1/whatsapp-send`;
@@ -541,9 +542,6 @@ Deno.serve(async (req) => {
           if (rbTpl?.is_active === false) {
             // template disabled — skip
           } else {
-            const DEFAULT_RB = `Hi {{customer_name}}, het is alweer even geleden sinds je laatste behandeling bij {{salon_name}}. Deze week hebben we nog enkele plekken vrij. Boek hier je afspraak: {{booking_link}}`;
-            const rbContent = rbTpl?.content || DEFAULT_RB;
-
             const { data: profileRb } = await admin
               .from("profiles")
               .select("salon_name")
@@ -555,7 +553,7 @@ Deno.serve(async (req) => {
             // Candidate customers for this salon
             const { data: candidates } = await admin
               .from("customers")
-              .select("id, name, phone, whatsapp_opt_in")
+              .select("id, name, phone, whatsapp_opt_in, preferred_language")
               .eq("user_id", s.user_id)
               .not("phone", "is", null)
               .neq("phone", "")
@@ -599,10 +597,15 @@ Deno.serve(async (req) => {
                 .gte("created_at", monthStart);
               if ((recentLogs?.length || 0) >= maxPerMonth) { stats.skipped++; continue; }
 
-              const message = rbContent
-                .replace(/\{\{\s*customer_name\s*\}\}/g, c.name || "")
-                .replace(/\{\{\s*salon_name\s*\}\}/g, salonNameRb)
-                .replace(/\{\{\s*booking_link\s*\}\}/g, bookingLink);
+              const rbLang = normalizeMessageLang((c as any).preferred_language || "nl");
+              const rbContent = rbTpl?.content
+                || getDefaultMessageTemplate("reactivation", rbLang, "whatsapp");
+
+              const message = renderMessage(rbContent, {
+                customer_name: c.name || "",
+                salon_name: salonNameRb,
+                booking_link: bookingLink,
+              });
 
               try {
                 const fnUrl = `${SUPABASE_URL}/functions/v1/whatsapp-send`;

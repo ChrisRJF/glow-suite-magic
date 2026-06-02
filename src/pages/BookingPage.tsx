@@ -16,6 +16,7 @@ import { PaymentMethodLogo } from "@/components/PaymentMethodLogo";
 import { useTranslation } from "react-i18next";
 import { useLanguagePersistence } from "@/hooks/useLanguagePersistence";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useEnforceSalonLanguage } from "@/i18n/useEnforceSalonLanguage";
 import { localizedServiceName, localizedServiceDescription, type ServiceTranslations } from "@/lib/serviceTranslations";
 
 // Lightweight conversion tracking — sends events to host page via postMessage
@@ -110,6 +111,13 @@ export default function BookingPage() {
   const [publicLoading, setPublicLoading] = useState(isPublicBooking);
   const [publicError, setPublicError] = useState<string | null>(null);
   const isDemoMode = Boolean(publicData?.salon.demo_mode ?? settingsRow?.demo_mode);
+  const salonLanguageConfig = useMemo(() => publicData?.salon.language_config || (settingsRow ? {
+    default_language: settingsRow.language,
+    active_languages: settingsRow.active_languages,
+    allow_customer_language_switch: settingsRow.allow_customer_language_switch,
+    auto_detect_language: settingsRow.auto_detect_language,
+  } : null), [publicData?.salon.language_config, settingsRow]);
+  const { allowedLanguages, showSwitcher } = useEnforceSalonLanguage(salonLanguageConfig);
   const [step, setStep] = useState(1);
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(() => nextBookingDate());
@@ -921,7 +929,7 @@ export default function BookingPage() {
               <h1 className="text-base font-bold tracking-tight truncate">{publicData?.salon.name || branding.salon_name || "Glow Studio"}</h1>
               <p className="text-[11px] text-muted-foreground">{t("booking.title")}</p>
             </div>
-            <LanguageSwitcher />
+            <LanguageSwitcher allowedLanguages={allowedLanguages} hidden={!showSwitcher} />
           </div>
         </header>
       )}
@@ -938,12 +946,12 @@ export default function BookingPage() {
             <h1 className="text-base font-bold tracking-tight truncate">{branding.salon_name}</h1>
             <p className="text-[11px] text-muted-foreground">{t("booking.title")}</p>
           </div>
-          <LanguageSwitcher />
+          <LanguageSwitcher allowedLanguages={allowedLanguages} hidden={!showSwitcher} />
         </header>
       )}
       {isEmbed && !branding.show_logo && (
         <div className="px-4 pt-3 max-w-2xl mx-auto w-full flex justify-end">
-          <LanguageSwitcher />
+          <LanguageSwitcher allowedLanguages={allowedLanguages} hidden={!showSwitcher} />
         </div>
       )}
 

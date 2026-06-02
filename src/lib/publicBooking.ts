@@ -29,6 +29,12 @@ export interface PublicBookingSalon {
     deposit_noshow_risk: boolean;
     mollie_mode: string;
   };
+  language_config?: {
+    default_language?: string;
+    active_languages?: string[];
+    allow_customer_language_switch?: boolean;
+    auto_detect_language?: boolean;
+  };
 }
 
 export interface PublicBookingData {

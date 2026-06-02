@@ -10,9 +10,10 @@ import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { useLanguagePersistence } from "@/hooks/useLanguagePersistence";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useEnforceSalonLanguage, type SalonLanguageConfig } from "@/i18n/useEnforceSalonLanguage";
 
 type Plan = { id: string; name: string; description: string; price: number; billing_interval: string; benefits: string[]; included_treatments: number; discount_percentage: number; priority_booking: boolean };
-type PortalData = { salon: { name: string; primary_color?: string; secondary_color?: string }; plans: Plan[] };
+type PortalData = { salon: { name: string; primary_color?: string; secondary_color?: string; language_config?: SalonLanguageConfig }; plans: Plan[] };
 
 function callPublicMemberships<T>(body: Record<string, unknown>) {
   return supabase.functions.invoke("public-abonnementen", { body }).then(({ data, error }) => {
@@ -41,6 +42,7 @@ export default function MembershipPortalPage() {
   const [method, setMethod] = useState("ideal");
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+  const { allowedLanguages, showSwitcher } = useEnforceSalonLanguage(data?.salon.language_config || null);
 
   const intervalLabel = (key: string) =>
     t(`membership.intervals.${key}`, { defaultValue: t("membership.intervals.period") });
@@ -114,7 +116,7 @@ export default function MembershipPortalPage() {
             <h1 className="text-2xl font-semibold">{t("membership.salonMemberships", { salon: data.salon.name })}</h1>
             <p className="text-sm text-muted-foreground mt-1">{t("membership.headerSubtitle")}</p>
           </div>
-          <LanguageSwitcher />
+          <LanguageSwitcher allowedLanguages={allowedLanguages} hidden={!showSwitcher} />
         </header>
 
         {data.plans.length === 0 ? (
