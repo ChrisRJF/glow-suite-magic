@@ -42,6 +42,7 @@ export default function MembershipPortalPage() {
   const [method, setMethod] = useState("ideal");
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+  const { allowedLanguages, showSwitcher } = useEnforceSalonLanguage(data?.salon.language_config || null);
 
   const intervalLabel = (key: string) =>
     t(`membership.intervals.${key}`, { defaultValue: t("membership.intervals.period") });
