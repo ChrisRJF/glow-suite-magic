@@ -929,7 +929,7 @@ export default function BookingPage() {
               <h1 className="text-base font-bold tracking-tight truncate">{publicData?.salon.name || branding.salon_name || "Glow Studio"}</h1>
               <p className="text-[11px] text-muted-foreground">{t("booking.title")}</p>
             </div>
-            <LanguageSwitcher />
+            <LanguageSwitcher allowedLanguages={allowedLanguages} hidden={!showSwitcher} />
           </div>
         </header>
       )}
@@ -946,12 +946,12 @@ export default function BookingPage() {
             <h1 className="text-base font-bold tracking-tight truncate">{branding.salon_name}</h1>
             <p className="text-[11px] text-muted-foreground">{t("booking.title")}</p>
           </div>
-          <LanguageSwitcher />
+          <LanguageSwitcher allowedLanguages={allowedLanguages} hidden={!showSwitcher} />
         </header>
       )}
       {isEmbed && !branding.show_logo && (
         <div className="px-4 pt-3 max-w-2xl mx-auto w-full flex justify-end">
-          <LanguageSwitcher />
+          <LanguageSwitcher allowedLanguages={allowedLanguages} hidden={!showSwitcher} />
         </div>
       )}
 
