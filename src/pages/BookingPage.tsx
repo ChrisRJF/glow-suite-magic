@@ -111,6 +111,13 @@ export default function BookingPage() {
   const [publicLoading, setPublicLoading] = useState(isPublicBooking);
   const [publicError, setPublicError] = useState<string | null>(null);
   const isDemoMode = Boolean(publicData?.salon.demo_mode ?? settingsRow?.demo_mode);
+  const salonLanguageConfig = useMemo(() => publicData?.salon.language_config || (settingsRow ? {
+    default_language: settingsRow.language,
+    active_languages: settingsRow.active_languages,
+    allow_customer_language_switch: settingsRow.allow_customer_language_switch,
+    auto_detect_language: settingsRow.auto_detect_language,
+  } : null), [publicData?.salon.language_config, settingsRow]);
+  const { allowedLanguages, showSwitcher } = useEnforceSalonLanguage(salonLanguageConfig);
   const [step, setStep] = useState(1);
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(() => nextBookingDate());
