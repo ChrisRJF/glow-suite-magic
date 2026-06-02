@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { loadAIModes, canAutoRun, effectiveMode, type AICategory } from "../_shared/aiModes.ts";
+import { getDefaultMessageTemplate, normalizeMessageLang, renderMessage, intlLocale } from "../_shared/messageTranslations.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -206,7 +207,7 @@ Deno.serve(async (req) => {
 
         const { data: customer } = await admin
           .from("customers")
-          .select("id, name, phone, whatsapp_opt_in")
+          .select("id, name, phone, whatsapp_opt_in, preferred_language")
           .eq("id", appt.customer_id)
           .maybeSingle();
         if (!customer || !customer.phone || customer.whatsapp_opt_in === false) {
@@ -221,10 +222,12 @@ Deno.serve(async (req) => {
           .maybeSingle();
         const salonName = profile?.salon_name || "ons salon";
 
+        const waLang = normalizeMessageLang((customer as any).preferred_language || "nl");
+
         // Format using salon timezone for display
         const apptInstant = new Date(appt.appointment_date);
         const localApptParts = getLocalParts(apptInstant, tz);
-        const dateStr = new Intl.DateTimeFormat("nl-NL", {
+        const dateStr = new Intl.DateTimeFormat(intlLocale(waLang), {
           timeZone: tz, day: "numeric", month: "long",
         }).format(apptInstant);
         const timeStr = startTime.substring(0, 5);
@@ -238,17 +241,18 @@ Deno.serve(async (req) => {
           .eq("template_type", "reminder")
           .maybeSingle();
 
-        const DEFAULT_REMINDER = `Hi {{customer_name}} 👋\n\nHerinnering: je afspraak bij {{salon_name}} is op {{appointment_date}} om {{appointment_time}}.\n\nTot dan!`;
-        const templateContent = (tpl?.is_active === false ? null : tpl?.content) || DEFAULT_REMINDER;
+        const templateContent = (tpl?.is_active === false ? null : tpl?.content)
+          || getDefaultMessageTemplate("booking_reminder", waLang, "whatsapp");
 
-        const message = templateContent
-          .replace(/\{\{\s*customer_name\s*\}\}/g, customer.name || "")
-          .replace(/\{\{\s*salon_name\s*\}\}/g, salonName)
-          .replace(/\{\{\s*appointment_date\s*\}\}/g, dateStr)
-          .replace(/\{\{\s*appointment_time\s*\}\}/g, timeStr)
-          .replace(/\{\{\s*services\s*\}\}/g, "")
-          .replace(/\{\{\s*reschedule_link\s*\}\}/g, "")
-          .replace(/\{\{\s*review_link\s*\}\}/g, "");
+        const message = renderMessage(templateContent, {
+          customer_name: customer.name || "",
+          salon_name: salonName,
+          appointment_date: dateStr,
+          appointment_time: timeStr,
+          services: "",
+          reschedule_link: "",
+          review_link: "",
+        });
 
         try {
           const fnUrl = `${SUPABASE_URL}/functions/v1/whatsapp-send`;

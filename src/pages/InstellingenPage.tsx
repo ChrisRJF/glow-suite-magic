@@ -110,6 +110,10 @@ export default function InstellingenPage() {
   const [autoBlockNoshow, setAutoBlockNoshow] = useState(3);
   const [googleCalendar, setGoogleCalendar] = useState(false);
   const [instagramBooking, setInstagramBooking] = useState(false);
+  const [defaultLanguage, setDefaultLanguage] = useState<"nl"|"en"|"de"|"fr"|"es">("nl");
+  const [activeLanguages, setActiveLanguages] = useState<string[]>(["nl","en","de","fr","es"]);
+  const [allowLangSwitch, setAllowLangSwitch] = useState(true);
+  const [autoDetectLang, setAutoDetectLang] = useState(true);
   const [activeTab, setActiveTab] = useState("algemeen");
   const [saveLoading, setSaveLoading] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
@@ -158,6 +162,10 @@ export default function InstellingenPage() {
       setAutoBlockNoshow(s.auto_block_noshow ?? 3);
       setGoogleCalendar(s.google_calendar_enabled ?? false);
       setInstagramBooking(s.instagram_booking_enabled ?? false);
+      setDefaultLanguage((s.language as any) || "nl");
+      if (Array.isArray(s.active_languages) && s.active_languages.length) setActiveLanguages(s.active_languages);
+      setAllowLangSwitch(s.allow_customer_language_switch ?? true);
+      setAutoDetectLang(s.auto_detect_language ?? true);
     }
     if (user) setEmail(user.email || '');
   }, [settings, user]);
@@ -434,6 +442,10 @@ export default function InstellingenPage() {
         auto_block_noshow: autoBlockNoshow,
         google_calendar_enabled: googleCalendar,
         instagram_booking_enabled: instagramBooking,
+        language: defaultLanguage,
+        active_languages: Array.from(new Set([defaultLanguage, ...activeLanguages])),
+        allow_customer_language_switch: allowLangSwitch,
+        auto_detect_language: autoDetectLang,
       };
       if (settings.length > 0) {
         await update(settings[0].id, data);
@@ -766,6 +778,76 @@ export default function InstellingenPage() {
 
         {/* White-label embed for salon websites */}
         {activeTab === "boekingen" && <WhiteLabelEmbedCard />}
+
+        {/* Languages */}
+        {activeTab === "boekingen" && (
+          <div className="glass-card p-6">
+            <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><Globe className="w-4 h-4 text-primary" /> Talen</h3>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between py-2">
+                <div>
+                  <span className="text-sm">Standaardtaal</span>
+                  <p className="text-[11px] text-muted-foreground">Gebruikt als fallback voor klanten zonder taalvoorkeur</p>
+                </div>
+                <select value={defaultLanguage} onChange={(e) => setDefaultLanguage(e.target.value as any)}
+                  className="px-3 py-1.5 rounded-xl bg-secondary/50 border border-border text-sm">
+                  <option value="nl">Nederlands</option>
+                  <option value="en">English</option>
+                  <option value="de">Deutsch</option>
+                  <option value="fr">Français</option>
+                  <option value="es">Español</option>
+                </select>
+              </div>
+              <div className="py-2">
+                <span className="text-sm">Actieve talen</span>
+                <p className="text-[11px] text-muted-foreground mb-2">Alleen geselecteerde talen verschijnen in het boekingsscherm, de widget en het klantportaal</p>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                  {([
+                    { code: "nl", label: "🇳🇱 Nederlands" },
+                    { code: "en", label: "🇬🇧 English" },
+                    { code: "de", label: "🇩🇪 Deutsch" },
+                    { code: "fr", label: "🇫🇷 Français" },
+                    { code: "es", label: "🇪🇸 Español" },
+                  ]).map((l) => {
+                    const enabled = activeLanguages.includes(l.code) || l.code === defaultLanguage;
+                    const isDefault = l.code === defaultLanguage;
+                    return (
+                      <button
+                        key={l.code}
+                        type="button"
+                        disabled={isDefault}
+                        onClick={() => setActiveLanguages(prev =>
+                          prev.includes(l.code) ? prev.filter(x => x !== l.code) : [...prev, l.code]
+                        )}
+                        className={`text-left p-2.5 rounded-xl border transition text-xs ${enabled ? "border-primary bg-primary/10" : "border-border bg-secondary/30 hover:bg-secondary/50"} ${isDefault ? "opacity-70 cursor-not-allowed" : ""}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span>{l.label}</span>
+                          {enabled && <CheckCircle2 className="w-3.5 h-3.5 text-primary" />}
+                        </div>
+                        {isDefault && <span className="text-[10px] text-muted-foreground">Standaard</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="flex items-center justify-between py-2">
+                <div>
+                  <span className="text-sm">Klant mag taal kiezen</span>
+                  <p className="text-[11px] text-muted-foreground">Toon de taalkiezer in het boekingsscherm</p>
+                </div>
+                <ToggleSwitch value={allowLangSwitch} onChange={setAllowLangSwitch} />
+              </div>
+              <div className="flex items-center justify-between py-2">
+                <div>
+                  <span className="text-sm">Browsertaal automatisch detecteren</span>
+                  <p className="text-[11px] text-muted-foreground">Open boeking in de browsertaal van de klant (indien actief)</p>
+                </div>
+                <ToggleSwitch value={autoDetectLang} onChange={setAutoDetectLang} />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Payment Settings */}
         {activeTab === "betaling" && (

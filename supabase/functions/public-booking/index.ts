@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { z } from "https://esm.sh/zod@3.23.8";
 import { createVivaOrder, vivaCheckoutUrl, isVivaConfigured } from "../_shared/viva.ts";
+import { getDefaultMessageTemplate, normalizeMessageLang, renderMessage, intlLocale } from "../_shared/messageTranslations.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -588,10 +589,11 @@ Deno.serve(async (req) => {
             .eq("template_type", "booking_confirmation")
             .maybeSingle();
 
-          const DEFAULT_TPL = `Beste {{customer_name}},\n\nHierbij bevestigen we je afspraak op {{appointment_date}} om {{appointment_time}} voor de volgende behandeling(en):\n\n{{services}}\n\nLet op: de afspraak kan kosteloos tot uiterlijk 12 uur van tevoren worden verplaatst via deze link:\n{{reschedule_link}}\n\nTot dan!\n\n{{salon_name}}`;
-          const templateContent = (tpl?.is_active === false ? null : tpl?.content) || DEFAULT_TPL;
+          const waLang = normalizeMessageLang(preferredLanguage || (ctx.settings as any).language || "nl");
+          const templateContent = (tpl?.is_active === false ? null : tpl?.content)
+            || getDefaultMessageTemplate("booking_confirmation", waLang, "whatsapp");
 
-          const dateStr = new Date(data.date).toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric" });
+          const dateStr = new Date(data.date).toLocaleDateString(intlLocale(waLang), { day: "numeric", month: "long", year: "numeric" });
           const servicesList = bookingRows.map((r) => `• ${r.service.name}`).join("\n");
           const origin = req.headers.get("origin") || "https://glowsuite.nl";
           const rescheduleLink = primaryAppointment.booking_token
@@ -601,14 +603,16 @@ Deno.serve(async (req) => {
             console.warn("WhatsApp: missing booking_token for reschedule link", primaryAppointment.id);
           }
 
-          const waMessage = templateContent
-            .replace(/\{\{\s*customer_name\s*\}\}/g, data.customer.name)
-            .replace(/\{\{\s*salon_name\s*\}\}/g, ctx.settings.salon_name || "ons salon")
-            .replace(/\{\{\s*appointment_date\s*\}\}/g, dateStr)
-            .replace(/\{\{\s*appointment_time\s*\}\}/g, data.time)
-            .replace(/\{\{\s*services\s*\}\}/g, servicesList)
-            .replace(/\{\{\s*reschedule_link\s*\}\}/g, rescheduleLink)
-            .replace(/\{\{\s*review_link\s*\}\}/g, "");
+          const waMessage = renderMessage(templateContent, {
+            customer_name: data.customer.name,
+            salon_name: ctx.settings.salon_name || "ons salon",
+            appointment_date: dateStr,
+            appointment_time: data.time,
+            services: servicesList,
+            reschedule_link: rescheduleLink,
+            review_link: "",
+            booking_link: rescheduleLink,
+          });
 
           const fnUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/whatsapp-send`;
           fetch(fnUrl, {
