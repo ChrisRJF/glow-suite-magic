@@ -442,6 +442,10 @@ export default function InstellingenPage() {
         auto_block_noshow: autoBlockNoshow,
         google_calendar_enabled: googleCalendar,
         instagram_booking_enabled: instagramBooking,
+        language: defaultLanguage,
+        active_languages: Array.from(new Set([defaultLanguage, ...activeLanguages])),
+        allow_customer_language_switch: allowLangSwitch,
+        auto_detect_language: autoDetectLang,
       };
       if (settings.length > 0) {
         await update(settings[0].id, data);
