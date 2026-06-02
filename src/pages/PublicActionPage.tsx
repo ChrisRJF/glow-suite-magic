@@ -4,6 +4,8 @@ import { Link, useLocation, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useLanguagePersistence } from "@/hooks/useLanguagePersistence";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useEnforceSalonLanguage } from "@/i18n/useEnforceSalonLanguage";
+import { readSalonLanguageConfig } from "@/i18n/salonLanguageCache";
 
 const sectionIcons: Record<string, typeof CalendarDays> = {
   afspraak: Settings,
