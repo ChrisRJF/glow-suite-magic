@@ -90,11 +90,17 @@ async function insertRun(admin: any, rule: Rule, settings: any, candidate: any, 
   const serviceSlug = slugify(candidate.service?.name || "afspraak");
   const reminderSuffix = candidate.reminder?.hours_before ? `-${candidate.reminder.hours_before}h` : "";
   const publicBaseUrl = `https://${salonSlug}.glowsuite.nl`;
-  const body = renderTemplate(templates.nl || templates.en || "", {
+  // Language priority: customer.preferred_language → salon default → nl
+  const supported = ["nl", "en", "de", "fr", "es"];
+  const preferred = String(customer?.preferred_language || settings?.language || "nl").toLowerCase().split("-")[0];
+  const lang = (supported.includes(preferred) ? preferred : "nl") as "nl" | "en" | "de" | "fr" | "es";
+  const localeMap: Record<string, string> = { nl: "nl-NL", en: "en-GB", de: "de-DE", fr: "fr-FR", es: "es-ES" };
+  const templateBody = templates[lang] || templates.nl || templates.en || "";
+  const body = renderTemplate(templateBody, {
     first_name: firstName(customer?.name),
     last_name: String(customer?.name || "").trim().split(/\s+/).slice(1).join(" "),
     salon_name: salonName,
-    appointment_date: candidate.appointment?.appointment_date ? new Date(candidate.appointment.appointment_date).toLocaleString("nl-NL") : "",
+    appointment_date: candidate.appointment?.appointment_date ? new Date(candidate.appointment.appointment_date).toLocaleString(localeMap[lang]) : "",
     service_name: candidate.service?.name || "",
     credits_left: String(candidate.membership?.credits_available ?? ""),
     membership_name: candidate.plan?.name || "",
