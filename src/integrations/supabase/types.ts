@@ -3838,6 +3838,7 @@ export type Database = {
         Args: { _failed: number; _sent: number; _user_id: string }
         Returns: undefined
       }
+      lookup_referral_owner: { Args: { _code: string }; Returns: string }
       prevent_live_demo_reset: { Args: { _user_id: string }; Returns: boolean }
       process_paid_webshop_order_stock: {
         Args: { _order_id: string }
