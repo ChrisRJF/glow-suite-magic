@@ -362,6 +362,35 @@ Deno.serve(async (req) => {
         .maybeSingle();
       payment = data;
     }
+    // Terminal payments: merchantReference == payment.id (UUID). Also lookup by
+    // session_id stored in metadata so we never miss the final webhook.
+    if (!payment && merchantReference && UUID_RE.test(merchantReference)) {
+      const { data } = await supabase.from("payments").select("*").eq("id", merchantReference).eq("provider", "viva").maybeSingle();
+      payment = data;
+    }
+    if (!payment && orderCode && UUID_RE.test(orderCode)) {
+      const { data } = await supabase.from("payments").select("*").eq("id", orderCode).eq("provider", "viva").maybeSingle();
+      payment = data;
+    }
+    if (!payment && sessionIdEvt) {
+      const { data } = await supabase
+        .from("payments")
+        .select("*")
+        .or(`checkout_reference.eq.${sessionIdEvt}`)
+        .eq("provider", "viva")
+        .limit(1)
+        .maybeSingle();
+      payment = data;
+    }
+    if (!payment && sessionIdEvt) {
+      const { data } = await supabase
+        .from("payments")
+        .select("*")
+        .contains("metadata", { session_id: sessionIdEvt })
+        .limit(1)
+        .maybeSingle();
+      payment = data;
+    }
     if (!payment && transactionId) {
       const { data } = await supabase
         .from("payments")
