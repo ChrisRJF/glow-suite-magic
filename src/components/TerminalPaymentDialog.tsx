@@ -107,8 +107,12 @@ export function TerminalPaymentDialog({
         idempotency_key: idemKeyRef.current,
       },
     });
-    if (err || (data as any)?.error) {
-      setState("failed"); setError((data as any)?.detail || (data as any)?.error || err?.message || "Onbekende fout");
+    if (err || (data as any)?.error || (data as any)?.success === false) {
+      const d: any = data || {};
+      const vivaMsg = d.message || d.detail || d.error || err?.message || "Onbekende fout";
+      const vivaCode = d.code ? ` (${d.code})` : "";
+      setState("failed");
+      setError(`${vivaMsg}${vivaCode}`);
       return;
     }
     const pid = (data as any).payment_id as string;
@@ -226,7 +230,7 @@ export function TerminalPaymentDialog({
                 state === "present_card" ? <Smartphone className="w-7 h-7 text-primary animate-pulse shrink-0" /> :
                 <Loader2 className="w-7 h-7 animate-spin text-primary shrink-0" />}
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold">{STATE_LABELS[state]}</p>
+                <p className="text-sm font-semibold">{state === "failed" && error ? error : STATE_LABELS[state]}</p>
                 {state === "waiting_customer" && <p className="text-xs text-muted-foreground mt-0.5">Geef het pinapparaat aan de klant.</p>}
                 {state === "present_card" && <p className="text-xs text-muted-foreground mt-0.5">Klant kan tikken, swipen of pincode invoeren.</p>}
                 {state === "processing" && <p className="text-xs text-muted-foreground mt-0.5">Even geduld — bank bevestigt de betaling.</p>}
