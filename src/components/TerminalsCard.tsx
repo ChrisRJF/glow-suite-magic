@@ -266,19 +266,6 @@ export function TerminalsCard() {
         <Button type="button" size="sm" disabled={loading} onClick={add} className="w-full h-9 text-[11px]">
           <Plus className="w-3 h-3 mr-1" /> Terminal toevoegen
         </Button>
-        <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
-          <input type="checkbox" checked={tdefault} onChange={(e) => setTdefault(e.target.checked)} className="h-3.5 w-3.5" />
-          <span className="break-words">Stel in als standaard pinapparaat voor {demoMode ? "demo" : "live"}</span>
-        </label>
-        {formError && (
-          <p className="text-[11px] text-destructive break-words">{formError}</p>
-        )}
-        {!formError && existingDup && cleanTid && (
-          <p className="text-[11px] text-amber-600 break-words">Deze terminal is al gekoppeld.</p>
-        )}
-        <Button type="button" size="sm" disabled={loading} onClick={add} className="w-full h-8 text-[11px]">
-          <Plus className="w-3 h-3 mr-1" /> Terminal toevoegen
-        </Button>
         <p className="text-[10px] text-muted-foreground break-words">Terminal ID en Source Terminal ID vind je in je Viva merchant portal onder POS / Cloud Terminals. Serienummer staat op de achterkant van het pinapparaat.</p>
       </div>
 
