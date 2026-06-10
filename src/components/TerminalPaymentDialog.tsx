@@ -230,7 +230,7 @@ export function TerminalPaymentDialog({
                 state === "present_card" ? <Smartphone className="w-7 h-7 text-primary animate-pulse shrink-0" /> :
                 <Loader2 className="w-7 h-7 animate-spin text-primary shrink-0" />}
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold">{STATE_LABELS[state]}</p>
+                <p className="text-sm font-semibold">{state === "failed" && error ? error : STATE_LABELS[state]}</p>
                 {state === "waiting_customer" && <p className="text-xs text-muted-foreground mt-0.5">Geef het pinapparaat aan de klant.</p>}
                 {state === "present_card" && <p className="text-xs text-muted-foreground mt-0.5">Klant kan tikken, swipen of pincode invoeren.</p>}
                 {state === "processing" && <p className="text-xs text-muted-foreground mt-0.5">Even geduld — bank bevestigt de betaling.</p>}
