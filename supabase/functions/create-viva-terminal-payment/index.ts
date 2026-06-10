@@ -191,8 +191,10 @@ Deno.serve(async (req) => {
           customerTrns: description.slice(0, 100),
           preauth: false,
           sourceTerminalId,
+          tipAmount: Math.max(0, Number(tip_cents) || 0),
         };
         if (sourceCode) requestBody.sourceCode = sourceCode;
+        console.log("[create-viva-terminal-payment] outgoing payload", { url, ...logCtx, payload: requestBody });
         console.log("[create-viva-terminal-payment] viva request", { url, credential_kind: kind, body: requestBody });
         const res = await fetch(url, {
           method: "POST",
