@@ -257,7 +257,7 @@ export function TerminalPaymentDialog({
           {state === "idle" && (
             <>
               <Button variant="ghost" onClick={close} className="w-full sm:w-auto">Annuleer</Button>
-              <Button onClick={startPayment} disabled={!selectedTerminal || terminals.length === 0} className="w-full sm:w-auto">Start betaling</Button>
+              <Button onClick={startPayment} disabled={!selectedTerminal || terminals.length === 0 || posReady === false} className="w-full sm:w-auto">Start betaling</Button>
             </>
           )}
           {isLive && <Button variant="ghost" onClick={close} className="w-full sm:w-auto">Sluiten</Button>}
