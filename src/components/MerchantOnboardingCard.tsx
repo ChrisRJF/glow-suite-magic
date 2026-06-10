@@ -83,48 +83,48 @@ export function MerchantOnboardingCard() {
   };
 
   return (
-    <div className="rounded-xl border border-border bg-background/60 p-3 space-y-3">
-      <div className="flex items-center justify-between">
+    <div className="rounded-xl border border-border bg-background/60 p-3 space-y-3 max-w-full overflow-hidden min-w-0">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <p className="text-[11px] font-semibold flex items-center gap-2"><Building2 className="w-3.5 h-3.5" /> Merchant onboarding</p>
         <span className="text-[10px] text-muted-foreground">{demoMode ? "Demo" : "Live"}</span>
       </div>
 
       {demoMode && (
-        <p className="text-[10px] text-muted-foreground rounded-md bg-muted/40 p-2">
+        <p className="text-[10px] text-muted-foreground rounded-md bg-muted/40 p-2 break-words">
           Demo modus gebruikt handmatige Viva credentials. Productie-onboarding gebruikt Viva connected accounts.
         </p>
       )}
 
-      <div className="grid grid-cols-2 gap-2 text-[10px]">
-        <div><span className="text-muted-foreground">Status:</span> <code>{merchant?.onboarding_status || "not_started"}</code></div>
-        <div><span className="text-muted-foreground">KYC:</span> <code>{merchant?.kyc_status || "—"}</code></div>
-        <div><span className="text-muted-foreground">Payouts:</span> {merchant?.payouts_enabled ? "✓" : "—"}</div>
-        <div><span className="text-muted-foreground">Terminals:</span> {merchant?.terminals_enabled ? "✓" : "—"}</div>
-        <div><span className="text-muted-foreground">Online:</span> {merchant?.online_payments_enabled ? "✓" : "—"}</div>
-        <div><span className="text-muted-foreground">Account:</span> <code className="break-all">{merchant?.viva_account_id || "—"}</code></div>
-        <div className="col-span-2"><span className="text-muted-foreground">Merchant ID:</span> <code className="break-all">{merchant?.viva_merchant_id || "—"}</code></div>
-        <div className="col-span-2"><span className="text-muted-foreground">Laatst gesynced:</span> {merchant?.last_synced_at ? new Date(merchant.last_synced_at).toLocaleString("nl-NL") : "—"}</div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[10px] min-w-0">
+        <div className="min-w-0 break-words"><span className="text-muted-foreground">Status:</span> <code className="break-all">{merchant?.onboarding_status || "not_started"}</code></div>
+        <div className="min-w-0 break-words"><span className="text-muted-foreground">KYC:</span> <code className="break-all">{merchant?.kyc_status || "—"}</code></div>
+        <div className="min-w-0"><span className="text-muted-foreground">Payouts:</span> {merchant?.payouts_enabled ? "✓" : "—"}</div>
+        <div className="min-w-0"><span className="text-muted-foreground">Terminals:</span> {merchant?.terminals_enabled ? "✓" : "—"}</div>
+        <div className="min-w-0"><span className="text-muted-foreground">Online:</span> {merchant?.online_payments_enabled ? "✓" : "—"}</div>
+        <div className="min-w-0 break-words"><span className="text-muted-foreground">Account:</span> <code className="break-all">{merchant?.viva_account_id || "—"}</code></div>
+        <div className="sm:col-span-2 min-w-0 break-words"><span className="text-muted-foreground">Merchant ID:</span> <code className="break-all">{merchant?.viva_merchant_id || "—"}</code></div>
+        <div className="sm:col-span-2 min-w-0 break-words"><span className="text-muted-foreground">Laatst gesynced:</span> {merchant?.last_synced_at ? new Date(merchant.last_synced_at).toLocaleString("nl-NL") : "—"}</div>
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
-        <input value={businessName} onChange={(e) => setBusinessName(e.target.value)} placeholder="Bedrijfsnaam" className="text-[11px] h-8 rounded-md border border-border bg-background px-2" />
-        <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Contact e-mail" className="text-[11px] h-8 rounded-md border border-border bg-background px-2" />
-        <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Telefoon" className="text-[11px] h-8 rounded-md border border-border bg-background px-2" />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <input value={businessName} onChange={(e) => setBusinessName(e.target.value)} placeholder="Bedrijfsnaam" className="text-[11px] h-8 rounded-md border border-border bg-background px-2 w-full min-w-0" />
+        <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Contact e-mail" className="text-[11px] h-8 rounded-md border border-border bg-background px-2 w-full min-w-0" />
+        <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Telefoon" className="text-[11px] h-8 rounded-md border border-border bg-background px-2 w-full min-w-0" />
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <Button size="sm" disabled={loading} onClick={startOnboarding} className="h-8 text-[11px]">
+      <div className="flex flex-col sm:flex-row flex-wrap gap-2">
+        <Button size="sm" disabled={loading} onClick={startOnboarding} className="h-8 text-[11px] w-full sm:w-auto">
           {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : "Start Viva onboarding"}
         </Button>
         {merchant?.onboarding_url && (
-          <Button size="sm" variant="outline" asChild className="h-8 text-[11px]">
+          <Button size="sm" variant="outline" asChild className="h-8 text-[11px] w-full sm:w-auto">
             <a href={merchant.onboarding_url} target="_blank" rel="noopener noreferrer">
               Open onboarding link <ExternalLink className="w-3 h-3 ml-1" />
             </a>
           </Button>
         )}
         {merchant?.viva_account_id && !demoMode && (
-          <Button size="sm" variant="outline" disabled={syncing} onClick={refresh} className="h-8 text-[11px]">
+          <Button size="sm" variant="outline" disabled={syncing} onClick={refresh} className="h-8 text-[11px] w-full sm:w-auto">
             {syncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <><RefreshCw className="w-3 h-3 mr-1" /> Refresh status</>}
           </Button>
         )}
