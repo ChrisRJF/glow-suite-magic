@@ -1044,6 +1044,9 @@ export default function InstellingenPage() {
                   {/* Bedrijfsaccount koppelen */}
                   <MerchantOnboardingCard />
 
+                  {/* Viva POS API credentials (terminal payments only) */}
+                  <VivaPosCredentialsCard />
+
                   {/* Pinapparaten */}
                   <TerminalsCard />
 
