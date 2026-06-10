@@ -7,7 +7,7 @@ import { formatEuro } from "@/lib/data";
 import { Loader2, CheckCircle2, XCircle, CreditCard, RotateCcw, Wifi, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 
-type Terminal = { id: string; terminal_id: string; terminal_name: string; status: string; location_name: string | null };
+type Terminal = { id: string; terminal_id: string; terminal_name: string; status: string; location_name: string | null; is_default?: boolean };
 
 type TerminalState =
   | "idle"
