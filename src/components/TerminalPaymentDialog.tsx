@@ -61,14 +61,22 @@ export function TerminalPaymentDialog({
   const [tipPct, setTipPct] = useState<number>(0);
   const pollRef = useRef<number | null>(null);
   const tickRef = useRef<number | null>(null);
+  const idemKeyRef = useRef<string>("");
 
   const tipCents = Math.round((amountCents * tipPct) / 100);
   const totalCents = amountCents + tipCents;
 
   const loadTerminals = async () => {
-    const { data } = await supabase.from("viva_terminals").select("id,terminal_id,terminal_name,status,location_name").eq("status", "active");
-    setTerminals((data as any) || []);
-    if (data && data.length === 1) setSelectedTerminal((data[0] as any).terminal_id);
+    const { data } = await supabase
+      .from("viva_terminals")
+      .select("id,terminal_id,terminal_name,status,location_name,is_default")
+      .eq("status", "active")
+      .order("is_default", { ascending: false });
+    const list = ((data as any) || []) as Terminal[];
+    setTerminals(list);
+    const def = list.find((t) => t.is_default);
+    if (def) setSelectedTerminal(def.terminal_id);
+    else if (list.length === 1) setSelectedTerminal(list[0].terminal_id);
   };
 
   useEffect(() => {
