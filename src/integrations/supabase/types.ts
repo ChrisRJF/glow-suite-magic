@@ -3216,45 +3216,60 @@ export type Database = {
           connected_merchant_id: string | null
           created_at: string
           id: string
+          is_default: boolean
           is_demo: boolean
           last_seen_at: string | null
+          last_used_at: string | null
           location_name: string | null
           metadata: Json
+          serial_number: string | null
+          source_terminal_id: string | null
           status: string
           terminal_id: string
           terminal_name: string
           updated_at: string
           user_id: string
+          virtual_id: string | null
           viva_account_id: string | null
         }
         Insert: {
           connected_merchant_id?: string | null
           created_at?: string
           id?: string
+          is_default?: boolean
           is_demo?: boolean
           last_seen_at?: string | null
+          last_used_at?: string | null
           location_name?: string | null
           metadata?: Json
+          serial_number?: string | null
+          source_terminal_id?: string | null
           status?: string
           terminal_id: string
           terminal_name: string
           updated_at?: string
           user_id: string
+          virtual_id?: string | null
           viva_account_id?: string | null
         }
         Update: {
           connected_merchant_id?: string | null
           created_at?: string
           id?: string
+          is_default?: boolean
           is_demo?: boolean
           last_seen_at?: string | null
+          last_used_at?: string | null
           location_name?: string | null
           metadata?: Json
+          serial_number?: string | null
+          source_terminal_id?: string | null
           status?: string
           terminal_id?: string
           terminal_name?: string
           updated_at?: string
           user_id?: string
+          virtual_id?: string | null
           viva_account_id?: string | null
         }
         Relationships: []
