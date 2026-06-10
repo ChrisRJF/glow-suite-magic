@@ -82,6 +82,7 @@ export function TerminalPaymentDialog({
   useEffect(() => {
     if (!open) return;
     setState("idle"); setPaymentId(null); setError(null); setTipPct(0);
+    idemKeyRef.current = (crypto as any).randomUUID?.() || `idem-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     loadTerminals();
     return () => {
       if (pollRef.current) window.clearInterval(pollRef.current);
@@ -90,10 +91,21 @@ export function TerminalPaymentDialog({
   }, [open]);
 
   const startPayment = async () => {
+    if (state !== "idle") return; // anti-double-click
     if (!selectedTerminal) { toast.error("Selecteer een pinapparaat"); return; }
     setState("initiating"); setError(null);
     const { data, error: err } = await supabase.functions.invoke("create-viva-terminal-payment", {
-      body: { terminal_id: selectedTerminal, amount_cents: totalCents, description: tipCents ? `${description} (incl. €${(tipCents / 100).toFixed(2)} fooi)` : description, appointment_id: appointmentId, customer_id: customerId, source, is_demo: demoMode, tip_cents: tipCents },
+      body: {
+        terminal_id: selectedTerminal,
+        amount_cents: totalCents,
+        description: tipCents ? `${description} (incl. €${(tipCents / 100).toFixed(2)} fooi)` : description,
+        appointment_id: appointmentId,
+        customer_id: customerId,
+        source,
+        is_demo: demoMode,
+        tip_cents: tipCents,
+        idempotency_key: idemKeyRef.current,
+      },
     });
     if (err || (data as any)?.error) {
       setState("failed"); setError((data as any)?.detail || (data as any)?.error || err?.message || "Onbekende fout");
