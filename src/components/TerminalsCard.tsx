@@ -28,7 +28,7 @@ export function TerminalsCard() {
   const [tdefault, setTdefault] = useState(false);
 
   const load = async () => {
-    const { data } = await supabase.from("viva_terminals").select("*").order("is_default", { ascending: false }).order("created_at", { ascending: false });
+    const { data } = await (supabase.from("viva_terminals").select("*") as any).order("is_default", { ascending: false }).order("created_at", { ascending: false });
     setTerminals((data as any) || []);
   };
   useEffect(() => { load(); }, [demoMode]);
