@@ -39,9 +39,11 @@ Deno.serve(async (req) => {
       description = "Terminal payment",
       source = "manual",
       is_demo = false,
+      idempotency_key = null,
+      tip_cents = 0,
     } = body || {};
 
-    const amt = Number(amount_cents);
+    let amt = Number(amount_cents);
     if (!Number.isFinite(amt) || amt < 30) return json({ error: "amount_too_small", message: "amount_cents must be >= 30" }, 400);
     if (!terminal_id || typeof terminal_id !== "string") return json({ error: "terminal_id_required" }, 400);
     const allowedSources = ["appointment", "checkout", "manual", "auto_revenue", "membership"];
@@ -61,7 +63,51 @@ Deno.serve(async (req) => {
     if (!terminal) return json({ error: "terminal_not_found" }, 404);
     if (terminal.status !== "active") return json({ error: "terminal_inactive" }, 400);
 
+    // Server-side amount enforcement: when paying an appointment, cap the
+    // amount to the appointment's outstanding balance + tip. Prevents a
+    // tampered client from overcharging the customer.
+    let appointmentRef: any = null;
+    if (appointment_id) {
+      const { data: appt, error: apptErr } = await admin
+        .from("appointments")
+        .select("id, user_id, total_price, amount_paid, payment_status, customer_id")
+        .eq("id", appointment_id)
+        .maybeSingle();
+      if (apptErr) return json({ error: "appointment_lookup_failed", detail: apptErr.message }, 500);
+      if (!appt) return json({ error: "appointment_not_found" }, 404);
+      if (appt.user_id !== userId) return json({ error: "appointment_not_yours" }, 403);
+      appointmentRef = appt;
+      const tipC = Math.max(0, Number(tip_cents) || 0);
+      const outstandingCents = Math.max(0, Math.round((Number(appt.total_price || 0) - Number(appt.amount_paid || 0)) * 100));
+      const maxAllowed = outstandingCents + tipC;
+      if (outstandingCents > 0 && amt > maxAllowed) amt = maxAllowed;
+      if (appt.payment_status === "paid" && amt > tipC) {
+        return json({ error: "appointment_already_paid" }, 409);
+      }
+    }
+
     const sessionId = crypto.randomUUID();
+    const idemKey = (typeof idempotency_key === "string" && idempotency_key.length >= 8) ? idempotency_key : sessionId;
+
+    // Idempotent return: same idempotency_key for same user reuses existing row.
+    {
+      const { data: existing } = await admin
+        .from("payments")
+        .select("id, status, metadata")
+        .eq("user_id", userId)
+        .eq("method", "terminal")
+        .contains("metadata", { idempotency_key: idemKey })
+        .maybeSingle();
+      if (existing) {
+        return json({
+          payment_id: existing.id,
+          terminal_status: (existing.metadata as any)?.terminal_status || existing.status || "pending",
+          provider_reference: (existing.metadata as any)?.provider_reference || null,
+          session_id: (existing.metadata as any)?.session_id || null,
+          idempotent: true,
+        });
+      }
+    }
 
     // Create pending payment row
     const { data: payment, error: payErr } = await admin
@@ -81,17 +127,29 @@ Deno.serve(async (req) => {
         checkout_reference: sessionId,
         metadata: {
           terminal_id,
+          terminal_row_id: terminal.id,
+          source_terminal_id: (terminal as any).source_terminal_id || terminal_id,
           source,
           appointment_id,
           customer_id,
           channel: "cloud_terminal",
           created_by: "create-viva-terminal-payment",
           session_id: sessionId,
+          idempotency_key: idemKey,
+          tip_cents: Math.max(0, Number(tip_cents) || 0),
+          appointment_total: appointmentRef?.total_price ?? null,
+          environment: is_demo ? "demo" : (Deno.env.get("VIVA_ENVIRONMENT") || "demo"),
         },
       })
       .select()
       .single();
     if (payErr) return json({ error: "payment_create_failed", detail: payErr.message }, 500);
+
+    // Touch terminal usage
+    await admin
+      .from("viva_terminals")
+      .update({ last_used_at: new Date().toISOString() })
+      .eq("id", terminal.id);
 
     // Call Viva Cloud Terminal API
     let providerReference: string | null = null;
@@ -116,7 +174,7 @@ Deno.serve(async (req) => {
             merchantReference: payment.id,
             customerTrns: description.slice(0, 100),
             preauth: false,
-            sourceTerminalId: terminal_id,
+            sourceTerminalId: (terminal as any).source_terminal_id || terminal_id,
             sourceCode,
           }),
         });

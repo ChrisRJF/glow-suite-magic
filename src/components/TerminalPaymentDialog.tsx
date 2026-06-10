@@ -7,7 +7,7 @@ import { formatEuro } from "@/lib/data";
 import { Loader2, CheckCircle2, XCircle, CreditCard, RotateCcw, Wifi, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 
-type Terminal = { id: string; terminal_id: string; terminal_name: string; status: string; location_name: string | null };
+type Terminal = { id: string; terminal_id: string; terminal_name: string; status: string; location_name: string | null; is_default?: boolean };
 
 type TerminalState =
   | "idle"
@@ -61,19 +61,28 @@ export function TerminalPaymentDialog({
   const [tipPct, setTipPct] = useState<number>(0);
   const pollRef = useRef<number | null>(null);
   const tickRef = useRef<number | null>(null);
+  const idemKeyRef = useRef<string>("");
 
   const tipCents = Math.round((amountCents * tipPct) / 100);
   const totalCents = amountCents + tipCents;
 
   const loadTerminals = async () => {
-    const { data } = await supabase.from("viva_terminals").select("id,terminal_id,terminal_name,status,location_name").eq("status", "active");
-    setTerminals((data as any) || []);
-    if (data && data.length === 1) setSelectedTerminal((data[0] as any).terminal_id);
+    const { data } = await (supabase
+      .from("viva_terminals")
+      .select("id,terminal_id,terminal_name,status,location_name,is_default")
+      .eq("status", "active") as any)
+      .order("is_default", { ascending: false });
+    const list = ((data as any) || []) as Terminal[];
+    setTerminals(list);
+    const def = list.find((t) => t.is_default);
+    if (def) setSelectedTerminal(def.terminal_id);
+    else if (list.length === 1) setSelectedTerminal(list[0].terminal_id);
   };
 
   useEffect(() => {
     if (!open) return;
     setState("idle"); setPaymentId(null); setError(null); setTipPct(0);
+    idemKeyRef.current = (crypto as any).randomUUID?.() || `idem-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     loadTerminals();
     return () => {
       if (pollRef.current) window.clearInterval(pollRef.current);
@@ -82,10 +91,21 @@ export function TerminalPaymentDialog({
   }, [open]);
 
   const startPayment = async () => {
+    if (state !== "idle") return; // anti-double-click
     if (!selectedTerminal) { toast.error("Selecteer een pinapparaat"); return; }
     setState("initiating"); setError(null);
     const { data, error: err } = await supabase.functions.invoke("create-viva-terminal-payment", {
-      body: { terminal_id: selectedTerminal, amount_cents: totalCents, description: tipCents ? `${description} (incl. €${(tipCents / 100).toFixed(2)} fooi)` : description, appointment_id: appointmentId, customer_id: customerId, source, is_demo: demoMode, tip_cents: tipCents },
+      body: {
+        terminal_id: selectedTerminal,
+        amount_cents: totalCents,
+        description: tipCents ? `${description} (incl. €${(tipCents / 100).toFixed(2)} fooi)` : description,
+        appointment_id: appointmentId,
+        customer_id: customerId,
+        source,
+        is_demo: demoMode,
+        tip_cents: tipCents,
+        idempotency_key: idemKeyRef.current,
+      },
     });
     if (err || (data as any)?.error) {
       setState("failed"); setError((data as any)?.detail || (data as any)?.error || err?.message || "Onbekende fout");
