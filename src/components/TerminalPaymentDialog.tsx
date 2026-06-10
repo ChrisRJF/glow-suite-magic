@@ -107,8 +107,12 @@ export function TerminalPaymentDialog({
         idempotency_key: idemKeyRef.current,
       },
     });
-    if (err || (data as any)?.error) {
-      setState("failed"); setError((data as any)?.detail || (data as any)?.error || err?.message || "Onbekende fout");
+    if (err || (data as any)?.error || (data as any)?.success === false) {
+      const d: any = data || {};
+      const vivaMsg = d.message || d.detail || d.error || err?.message || "Onbekende fout";
+      const vivaCode = d.code ? ` (${d.code})` : "";
+      setState("failed");
+      setError(`${vivaMsg}${vivaCode}`);
       return;
     }
     const pid = (data as any).payment_id as string;
