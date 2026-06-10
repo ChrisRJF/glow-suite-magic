@@ -144,6 +144,14 @@ Deno.serve(async (req) => {
       .select()
       .single();
     if (payErr) return json({ error: "payment_create_failed", detail: payErr.message }, 500);
+    await admin.from("payment_status_history").insert({
+      payment_id: payment.id,
+      old_status: null,
+      new_status: "pending",
+      source: "manual",
+    }).then(({ error }) => {
+      if (error) console.error("[create-viva-terminal-payment] audit insert failed", { payment_id: payment.id, error: error.message });
+    });
 
     // Touch terminal usage
     await admin
@@ -181,13 +189,14 @@ Deno.serve(async (req) => {
         const env = vivaPosEnv();
         const sourceCode = vivaPosSourceCode();
         const url = `${env.api}/ecr/v1/transactions:sale`;
+        const merchantReference = payment.id;
         const requestBody: Record<string, unknown> = {
           sessionId,
           terminalId: terminal_id,
           cashRegisterId: `glowsuite-${userId.slice(0, 8)}`,
           amount: Math.round(amt),
           currencyCode: "978",
-          merchantReference: payment.id,
+          merchantReference,
           customerTrns: description.slice(0, 100),
           preauth: false,
           sourceTerminalId,
@@ -207,6 +216,12 @@ Deno.serve(async (req) => {
         try { data = JSON.parse(text); } catch { data = { raw: text }; }
         vivaResponseBody = data;
         console.log("[create-viva-terminal-payment] viva response", { ...logCtx, http_status: res.status, body: data });
+        console.log("[create-viva-terminal-payment] lifecycle", {
+          sessionId,
+          transactionId: data?.transactionId ?? data?.TransactionId ?? null,
+          paymentId: payment.id,
+          merchantReference,
+        });
 
         if (!res.ok) {
           providerErrorCode = String(data?.ErrorCode ?? data?.errorCode ?? data?.error ?? `http_${res.status}`);

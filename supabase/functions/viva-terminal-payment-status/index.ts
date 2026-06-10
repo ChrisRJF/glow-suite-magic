@@ -1,7 +1,7 @@
 // Poll the status of a Viva Cloud Terminal payment session.
 // POST /functions/v1/viva-terminal-payment-status  { payment_id }
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import { vivaEnv, getVivaAccessToken, isVivaConfigured } from "../_shared/viva.ts";
+import { vivaPosEnv, getVivaPosAccessToken, isVivaPosConfigured } from "../_shared/viva.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,6 +14,43 @@ function json(body: unknown, status = 200) {
 }
 
 const TERMINAL_STATES = new Set(["paid", "failed", "cancelled", "expired"]);
+
+function findStringValue(payload: any, keys: string[]): string | null {
+  if (!payload || typeof payload !== "object") return null;
+  const queue = [payload];
+  while (queue.length) {
+    const item = queue.shift();
+    if (!item || typeof item !== "object") continue;
+    for (const key of keys) {
+      const value = item[key];
+      if (value !== undefined && value !== null && String(value).trim()) return String(value);
+    }
+    for (const value of Object.values(item)) {
+      if (value && typeof value === "object") queue.push(value);
+    }
+  }
+  return null;
+}
+
+function classifyVivaPollResponse(providerData: any) {
+  const transactionId = findStringValue(providerData, ["transactionId", "TransactionId", "transactionID", "TransactionID"]);
+  const rawStatus = findStringValue(providerData, [
+    "statusId", "StatusId", "status", "Status", "state", "State",
+    "transactionStatus", "TransactionStatus", "paymentStatus", "PaymentStatus",
+    "responseEventId", "eventId", "EventId",
+  ]) || (providerData?.success !== undefined ? `success:${String(providerData.success)}` : null);
+  const statusIdRaw = String(providerData?.statusId ?? providerData?.StatusId ?? "").toUpperCase();
+  const success = providerData?.success ?? providerData?.Success;
+  const blob = JSON.stringify(providerData || {});
+  const looksCancelled = /\b(cancelled|canceled|cancel)\b/i.test(blob) || statusIdRaw === "X";
+  const looksExpired = /\b(expired|timeout|timed out)\b/i.test(blob);
+  const looksFailed = /\b(failed|declined|rejected|unsuccessful|not approved)\b/i.test(blob) || statusIdRaw === "E";
+  const looksPaid = !looksCancelled && !looksExpired && !looksFailed && (
+    statusIdRaw === "F" || /\b(approved|paid|completed|captured|transaction approved)\b/i.test(blob) || (success === true && !!transactionId)
+  );
+  const newStatus = looksPaid ? "paid" : looksCancelled ? "cancelled" : looksExpired ? "expired" : looksFailed ? "failed" : null;
+  return { transactionId, rawStatus, newStatus };
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -60,73 +97,118 @@ Deno.serve(async (req) => {
     let newStatus: string | null = null;
     let providerData: any = null;
     let providerError: string | null = null;
+    let rawStatus: string | null = null;
+    let txStr: string | null = null;
 
-    if (isVivaConfigured()) {
+    if (isVivaPosConfigured()) {
       try {
-        const token = await getVivaAccessToken();
-        const env = vivaEnv();
+        const { token, kind } = await getVivaPosAccessToken();
+        const env = vivaPosEnv();
         const url = `${env.api}/ecr/v1/sessions/${sessionId}?terminalId=${encodeURIComponent(terminalId)}`;
         const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
         const text = await res.text();
         try { providerData = JSON.parse(text); } catch { providerData = { raw: text }; }
-        console.log("[viva-terminal-payment-status] viva session response", JSON.stringify({
-          payment_id, session_id: sessionId, terminal_id: terminalId,
-          http_status: res.status, body: providerData,
+        const classified = classifyVivaPollResponse(providerData);
+        rawStatus = classified.rawStatus;
+        txStr = classified.transactionId;
+        console.log("[viva-terminal-payment-status] poll response", JSON.stringify({
+          payment_id,
+          sessionId,
+          transactionId: txStr,
+          raw_status: rawStatus,
+          raw_response: providerData,
+          http_status: res.status,
+          credential_kind: kind,
         }));
         if (res.status === 404) {
           // session not yet known to terminal — keep pending
         } else if (!res.ok) {
           providerError = `viva_status_http_${res.status}: ${text.slice(0, 300)}`;
         } else {
-          // Viva ECR session: success boolean + responseEventId/eventId/statusId
-          const success = providerData?.success;
-          const statusIdRaw = String(providerData?.statusId ?? providerData?.StatusId ?? "").toUpperCase();
-          const eventId = providerData?.eventId ?? providerData?.responseEventId;
-          const blob = JSON.stringify(providerData);
-          const looksPaid = success === true || statusIdRaw === "F"
-            || /\b(approved|paid|success|completed|captured)\b/i.test(blob);
-          const looksCancelled = /cancel/i.test(blob);
-          const looksExpired = /expir|timeout/i.test(blob);
-          if (looksPaid) newStatus = "paid";
-          else if (success === false) {
-            const code = String(providerData?.errorCode ?? eventId ?? "");
-            void code;
-            if (looksCancelled) newStatus = "cancelled";
-            else if (looksExpired) newStatus = "expired";
-            else newStatus = "failed";
-          }
+          newStatus = classified.newStatus;
         }
       } catch (e) {
         providerError = `viva_status_exception: ${(e as Error).message}`;
       }
     } else {
-      providerError = "viva_not_configured";
+      providerError = "viva_pos_not_configured";
     }
 
-    const vivaTransactionId = providerData?.transactionId ?? providerData?.TransactionId ?? null;
-    const txStr = vivaTransactionId ? String(vivaTransactionId) : null;
-
     if (newStatus && payment.status !== "paid") {
+      const nowIso = new Date().toISOString();
+      if (newStatus === "paid") {
+        console.log("[viva-terminal-payment-status] failure_point", JSON.stringify({
+          point: "B_polling_received_approved",
+          payment_id: payment.id,
+          sessionId,
+          transactionId: txStr,
+          raw_status: rawStatus,
+          raw_response: providerData,
+        }));
+      }
       const updates: Record<string, any> = {
         status: newStatus,
-        last_status_sync_at: new Date().toISOString(),
+        last_status_sync_at: nowIso,
         metadata: {
           ...meta,
           terminal_status: newStatus,
           provider_status_payload: providerData,
+          raw_status: rawStatus,
           viva_transaction_id: txStr || meta.viva_transaction_id || null,
-          last_status_sync_at: new Date().toISOString(),
+          last_status_sync_at: nowIso,
         },
       };
-      if (newStatus === "paid") updates.paid_at = new Date().toISOString();
+      if (newStatus === "paid") updates.paid_at = nowIso;
       if (newStatus === "failed" || newStatus === "cancelled" || newStatus === "expired") {
         updates.failure_reason = providerData?.message || providerData?.errorText || newStatus;
       }
-      const { error: updErr } = await admin.from("payments").update(updates).eq("id", payment.id).neq("status", "paid");
-      if (updErr) console.error("[viva-terminal-payment-status] update error", updErr);
+      const { data: updatedPayment, error: updErr } = await admin
+        .from("payments")
+        .update(updates)
+        .eq("id", payment.id)
+        .neq("status", "paid")
+        .select("id,status")
+        .maybeSingle();
+      if (updErr) {
+        console.error("[viva-terminal-payment-status] failure_point", JSON.stringify({
+          point: "E_database_update_failed",
+          payment_id: payment.id,
+          sessionId,
+          transactionId: txStr,
+          raw_status: rawStatus,
+          target_status: newStatus,
+          error: updErr.message,
+        }));
+      } else if (updatedPayment) {
+        const { error: histErr } = await admin.from("payment_status_history").insert({
+          payment_id: payment.id,
+          old_status: payment.status,
+          new_status: newStatus,
+          source: "poll",
+        });
+        if (histErr) console.error("[viva-terminal-payment-status] audit insert failed", histErr);
+        console.log("[viva-terminal-payment-status] failure_point", JSON.stringify({
+          point: newStatus === "paid" ? "poll_approved_persisted_paid" : "poll_terminal_status_persisted",
+          payment_id: payment.id,
+          sessionId,
+          transactionId: txStr,
+          raw_status: rawStatus,
+          from: payment.status,
+          to: newStatus,
+        }));
+      } else {
+        console.log("[viva-terminal-payment-status] failure_point", JSON.stringify({
+          point: "poll_update_noop_already_terminal",
+          payment_id: payment.id,
+          sessionId,
+          transactionId: txStr,
+          raw_status: rawStatus,
+          target_status: newStatus,
+        }));
+      }
 
-      // Sync appointment payment_status
-      if (payment.appointment_id) {
+      // Sync appointment payment_status only after the payment row update succeeds.
+      if (!updErr && updatedPayment && payment.appointment_id) {
         const apptUpd: Record<string, any> = {};
         if (newStatus === "paid") apptUpd.payment_status = "paid";
         else if (newStatus === "failed" || newStatus === "cancelled" || newStatus === "expired") apptUpd.payment_status = "unpaid";
@@ -136,6 +218,15 @@ Deno.serve(async (req) => {
       }
 
       console.log(`[viva-terminal-payment-status] ${payment.id} -> ${newStatus}`);
+    } else if (providerError) {
+      console.warn("[viva-terminal-payment-status] failure_point", JSON.stringify({
+        point: "A_viva_poll_error_no_approved_status",
+        payment_id: payment.id,
+        sessionId,
+        transactionId: txStr,
+        raw_status: rawStatus,
+        error: providerError,
+      }));
     } else if (txStr && txStr !== meta.viva_transaction_id) {
       // Even while pending, persist transactionId so viva-webhook can match it.
       await admin
@@ -146,6 +237,21 @@ Deno.serve(async (req) => {
         })
         .eq("id", payment.id)
         .neq("status", "paid");
+      console.log("[viva-terminal-payment-status] failure_point", JSON.stringify({
+        point: "A_viva_transaction_seen_but_not_approved_yet",
+        payment_id: payment.id,
+        sessionId,
+        transactionId: txStr,
+        raw_status: rawStatus,
+      }));
+    } else if (!newStatus) {
+      console.log("[viva-terminal-payment-status] failure_point", JSON.stringify({
+        point: "A_viva_never_returned_approved_yet",
+        payment_id: payment.id,
+        sessionId,
+        transactionId: txStr,
+        raw_status: rawStatus,
+      }));
     }
 
     return json({

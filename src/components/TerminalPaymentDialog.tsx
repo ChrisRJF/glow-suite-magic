@@ -112,11 +112,11 @@ export function TerminalPaymentDialog({
     return { status, raw: st };
   };
 
-  const handleTerminalStatus = (status: string) => {
+  const handleTerminalStatus = (status: string, paidPaymentId = paymentId) => {
     if (status === "paid") {
       clearTimers();
       setState("paid");
-      if (paymentId) onPaid?.(paymentId);
+      if (paidPaymentId) onPaid?.(paidPaymentId);
       toast.success("Betaling ontvangen");
       return true;
     }
@@ -133,7 +133,7 @@ export function TerminalPaymentDialog({
     setManualChecking(true);
     try {
       const { status } = await checkStatusOnce(paymentId);
-      if (!handleTerminalStatus(status)) {
+      if (!handleTerminalStatus(status, paymentId)) {
         toast.info("Nog geen bevestiging van Viva ontvangen.");
       }
     } catch (e: any) {
@@ -191,7 +191,7 @@ export function TerminalPaymentDialog({
         pollRef.current = window.setInterval(async () => {
           try {
             const { status } = await checkStatusOnce(pid);
-            handleTerminalStatus(status);
+            handleTerminalStatus(status, pid);
           } catch { /* keep trying */ }
         }, 5000);
         return;
@@ -199,7 +199,7 @@ export function TerminalPaymentDialog({
       try {
         const { status } = await checkStatusOnce(pid);
         consecutiveErrors = 0;
-        handleTerminalStatus(status);
+        handleTerminalStatus(status, pid);
       } catch {
         consecutiveErrors += 1;
         if (consecutiveErrors >= 3) setState((s) => (s === "paid" ? s : "reconnecting"));
