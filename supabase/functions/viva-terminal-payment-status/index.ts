@@ -46,7 +46,7 @@ function classifyVivaPollResponse(providerData: any) {
   const looksExpired = /\b(expired|timeout|timed out)\b/i.test(blob);
   const looksFailed = /\b(failed|declined|rejected|unsuccessful|not approved)\b/i.test(blob) || statusIdRaw === "E";
   const looksPaid = !looksCancelled && !looksExpired && !looksFailed && (
-    success === true || statusIdRaw === "F" || /\b(approved|paid|completed|captured|transaction approved)\b/i.test(blob)
+    statusIdRaw === "F" || /\b(approved|paid|completed|captured|transaction approved)\b/i.test(blob) || (success === true && !!transactionId)
   );
   const newStatus = looksPaid ? "paid" : looksCancelled ? "cancelled" : looksExpired ? "expired" : looksFailed ? "failed" : null;
   return { transactionId, rawStatus, newStatus };
