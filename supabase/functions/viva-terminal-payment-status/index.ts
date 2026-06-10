@@ -69,19 +69,30 @@ Deno.serve(async (req) => {
         const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
         const text = await res.text();
         try { providerData = JSON.parse(text); } catch { providerData = { raw: text }; }
+        console.log("[viva-terminal-payment-status] viva session response", JSON.stringify({
+          payment_id, session_id: sessionId, terminal_id: terminalId,
+          http_status: res.status, body: providerData,
+        }));
         if (res.status === 404) {
           // session not yet known to terminal — keep pending
         } else if (!res.ok) {
           providerError = `viva_status_http_${res.status}: ${text.slice(0, 300)}`;
         } else {
-          // Viva ECR session response: success boolean + responseEventId/eventId
+          // Viva ECR session: success boolean + responseEventId/eventId/statusId
           const success = providerData?.success;
+          const statusIdRaw = String(providerData?.statusId ?? providerData?.StatusId ?? "").toUpperCase();
           const eventId = providerData?.eventId ?? providerData?.responseEventId;
-          if (success === true) newStatus = "paid";
+          const blob = JSON.stringify(providerData);
+          const looksPaid = success === true || statusIdRaw === "F"
+            || /\b(approved|paid|success|completed|captured)\b/i.test(blob);
+          const looksCancelled = /cancel/i.test(blob);
+          const looksExpired = /expir|timeout/i.test(blob);
+          if (looksPaid) newStatus = "paid";
           else if (success === false) {
             const code = String(providerData?.errorCode ?? eventId ?? "");
-            if (/cancel/i.test(JSON.stringify(providerData))) newStatus = "cancelled";
-            else if (/expir|timeout/i.test(JSON.stringify(providerData))) newStatus = "expired";
+            void code;
+            if (looksCancelled) newStatus = "cancelled";
+            else if (looksExpired) newStatus = "expired";
             else newStatus = "failed";
           }
         }
