@@ -1,7 +1,7 @@
 // Poll the status of a Viva Cloud Terminal payment session.
 // POST /functions/v1/viva-terminal-payment-status  { payment_id }
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import { vivaEnv, getVivaAccessToken, isVivaConfigured } from "../_shared/viva.ts";
+import { vivaPosEnv, getVivaPosAccessToken, isVivaPosConfigured } from "../_shared/viva.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,6 +14,43 @@ function json(body: unknown, status = 200) {
 }
 
 const TERMINAL_STATES = new Set(["paid", "failed", "cancelled", "expired"]);
+
+function findStringValue(payload: any, keys: string[]): string | null {
+  if (!payload || typeof payload !== "object") return null;
+  const queue = [payload];
+  while (queue.length) {
+    const item = queue.shift();
+    if (!item || typeof item !== "object") continue;
+    for (const key of keys) {
+      const value = item[key];
+      if (value !== undefined && value !== null && String(value).trim()) return String(value);
+    }
+    for (const value of Object.values(item)) {
+      if (value && typeof value === "object") queue.push(value);
+    }
+  }
+  return null;
+}
+
+function classifyVivaPollResponse(providerData: any) {
+  const transactionId = findStringValue(providerData, ["transactionId", "TransactionId", "transactionID", "TransactionID"]);
+  const rawStatus = findStringValue(providerData, [
+    "statusId", "StatusId", "status", "Status", "state", "State",
+    "transactionStatus", "TransactionStatus", "paymentStatus", "PaymentStatus",
+    "responseEventId", "eventId", "EventId",
+  ]) || (providerData?.success !== undefined ? `success:${String(providerData.success)}` : null);
+  const statusIdRaw = String(providerData?.statusId ?? providerData?.StatusId ?? "").toUpperCase();
+  const success = providerData?.success ?? providerData?.Success;
+  const blob = JSON.stringify(providerData || {});
+  const looksCancelled = /\b(cancelled|canceled|cancel)\b/i.test(blob) || statusIdRaw === "X";
+  const looksExpired = /\b(expired|timeout|timed out)\b/i.test(blob);
+  const looksFailed = /\b(failed|declined|rejected|unsuccessful|not approved)\b/i.test(blob) || statusIdRaw === "E";
+  const looksPaid = !looksCancelled && !looksExpired && !looksFailed && (
+    success === true || statusIdRaw === "F" || /\b(approved|paid|completed|captured|transaction approved)\b/i.test(blob)
+  );
+  const newStatus = looksPaid ? "paid" : looksCancelled ? "cancelled" : looksExpired ? "expired" : looksFailed ? "failed" : null;
+  return { transactionId, rawStatus, newStatus };
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
