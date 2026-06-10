@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useDemoMode } from "@/hooks/useDemoMode";
 import { formatEuro } from "@/lib/data";
-import { Loader2, CheckCircle2, XCircle, CreditCard, RotateCcw, Wifi, Smartphone, AlertTriangle } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, CreditCard, RotateCcw, Wifi, Smartphone, AlertTriangle, Clock, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { useVivaPosReady } from "@/components/VivaPosCredentialsCard";
 
@@ -13,10 +13,11 @@ type Terminal = { id: string; terminal_id: string; terminal_name: string; status
 type TerminalState =
   | "idle"
   | "initiating"
-  | "waiting_customer"   // "Wachten op klant"
-  | "present_card"       // "Kaart aanbieden"
-  | "processing"         // "Betaling verwerken"
-  | "paid"
+  | "sent_to_terminal"     // "Naar terminal gestuurd"
+  | "waiting_customer"     // "Wacht op kaart"
+  | "processing"           // "Betaling verwerken"
+  | "paid"                 // "Betaling ontvangen"
+  | "long_running"         // "Duurt langer dan verwacht"
   | "failed"
   | "cancelled"
   | "expired"
@@ -25,10 +26,11 @@ type TerminalState =
 const STATE_LABELS: Record<TerminalState, string> = {
   idle: "Klaar",
   initiating: "Pinapparaat activeren…",
-  waiting_customer: "Wachten op klant",
-  present_card: "Kaart of telefoon aanbieden",
+  sent_to_terminal: "Naar terminal gestuurd",
+  waiting_customer: "Wacht op kaart",
   processing: "Betaling verwerken…",
-  paid: "Betaling gelukt",
+  paid: "Betaling ontvangen",
+  long_running: "Duurt langer dan verwacht",
   failed: "Betaling mislukt",
   cancelled: "Geannuleerd",
   expired: "Verlopen — probeer opnieuw",
@@ -59,14 +61,21 @@ export function TerminalPaymentDialog({
   const [selectedTerminal, setSelectedTerminal] = useState<string>("");
   const [state, setState] = useState<TerminalState>("idle");
   const [paymentId, setPaymentId] = useState<string | null>(null);
+  const [vivaTxId, setVivaTxId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tipPct, setTipPct] = useState<number>(0);
+  const [manualChecking, setManualChecking] = useState(false);
   const pollRef = useRef<number | null>(null);
   const tickRef = useRef<number | null>(null);
   const idemKeyRef = useRef<string>("");
+  const startedAtRef = useRef<number>(0);
 
   const tipCents = Math.round((amountCents * tipPct) / 100);
   const totalCents = amountCents + tipCents;
+
+  // Allow at least 90s polling (demo & live).
+  const POLL_INTERVAL_MS = 2_000;
+  const POLL_DURATION_MS = 90_000;
 
   const loadTerminals = async () => {
     const { data } = await (supabase
@@ -81,21 +90,63 @@ export function TerminalPaymentDialog({
     else if (list.length === 1) setSelectedTerminal(list[0].terminal_id);
   };
 
+  const clearTimers = () => {
+    if (pollRef.current) { window.clearInterval(pollRef.current); pollRef.current = null; }
+    if (tickRef.current) { window.clearInterval(tickRef.current); tickRef.current = null; }
+  };
+
   useEffect(() => {
     if (!open) return;
-    setState("idle"); setPaymentId(null); setError(null); setTipPct(0);
+    setState("idle"); setPaymentId(null); setVivaTxId(null); setError(null); setTipPct(0);
     idemKeyRef.current = (crypto as any).randomUUID?.() || `idem-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     loadTerminals();
-    return () => {
-      if (pollRef.current) window.clearInterval(pollRef.current);
-      if (tickRef.current) window.clearInterval(tickRef.current);
-    };
+    return () => clearTimers();
   }, [open]);
+
+  const checkStatusOnce = async (pid: string) => {
+    const { data: st, error: stErr } = await supabase.functions.invoke("viva-terminal-payment-status", { body: { payment_id: pid } });
+    if (stErr) throw stErr;
+    const status = (st as any)?.status;
+    const tx = (st as any)?.viva_transaction_id;
+    if (tx) setVivaTxId(String(tx));
+    return { status, raw: st };
+  };
+
+  const handleTerminalStatus = (status: string) => {
+    if (status === "paid") {
+      clearTimers();
+      setState("paid");
+      if (paymentId) onPaid?.(paymentId);
+      toast.success("Betaling ontvangen");
+      return true;
+    }
+    if (status === "failed" || status === "cancelled" || status === "expired") {
+      clearTimers();
+      setState(status as TerminalState);
+      return true;
+    }
+    return false;
+  };
+
+  const manualRefresh = async () => {
+    if (!paymentId || manualChecking) return;
+    setManualChecking(true);
+    try {
+      const { status } = await checkStatusOnce(paymentId);
+      if (!handleTerminalStatus(status)) {
+        toast.info("Nog geen bevestiging van Viva ontvangen.");
+      }
+    } catch (e: any) {
+      toast.error(`Status check mislukt: ${e?.message || "onbekende fout"}`);
+    } finally {
+      setManualChecking(false);
+    }
+  };
 
   const startPayment = async () => {
     if (state !== "idle") return; // anti-double-click
     if (!selectedTerminal) { toast.error("Selecteer een pinapparaat"); return; }
-    setState("initiating"); setError(null);
+    setState("initiating"); setError(null); setVivaTxId(null);
     const { data, error: err } = await supabase.functions.invoke("create-viva-terminal-payment", {
       body: {
         terminal_id: selectedTerminal,
@@ -118,61 +169,65 @@ export function TerminalPaymentDialog({
       return;
     }
     const pid = (data as any).payment_id as string;
-    setPaymentId(pid); setState("waiting_customer");
+    setPaymentId(pid); setState("sent_to_terminal");
+    startedAtRef.current = Date.now();
 
-    // Progressive UX: walk through human-friendly states
+    // Progressive UX states
     let tick = 0;
     tickRef.current = window.setInterval(() => {
       tick += 1;
-      if (tick === 2) setState((s) => (s === "waiting_customer" ? "present_card" : s));
-      if (tick === 6) setState((s) => (s === "present_card" ? "processing" : s));
+      if (tick === 2) setState((s) => (s === "sent_to_terminal" ? "waiting_customer" : s));
+      if (tick === 6) setState((s) => (s === "waiting_customer" ? "processing" : s));
     }, 2000);
 
-    const start = Date.now();
     let consecutiveErrors = 0;
     pollRef.current = window.setInterval(async () => {
-      if (Date.now() - start > 90_000) {
-        if (pollRef.current) window.clearInterval(pollRef.current);
-        if (tickRef.current) window.clearInterval(tickRef.current);
-        setState((s) => (s === "paid" ? s : "expired"));
+      if (Date.now() - startedAtRef.current > POLL_DURATION_MS) {
+        // Do NOT mark failed. Move to long_running and continue background polling.
+        if (tickRef.current) { window.clearInterval(tickRef.current); tickRef.current = null; }
+        setState((s) => (["paid","failed","cancelled","expired"].includes(s) ? s : "long_running"));
+        // Slow down polling
+        if (pollRef.current) { window.clearInterval(pollRef.current); pollRef.current = null; }
+        pollRef.current = window.setInterval(async () => {
+          try {
+            const { status } = await checkStatusOnce(pid);
+            handleTerminalStatus(status);
+          } catch { /* keep trying */ }
+        }, 5000);
         return;
       }
-      const { data: st, error: stErr } = await supabase.functions.invoke("viva-terminal-payment-status", { body: { payment_id: pid } });
-      if (stErr) {
+      try {
+        const { status } = await checkStatusOnce(pid);
+        consecutiveErrors = 0;
+        handleTerminalStatus(status);
+      } catch {
         consecutiveErrors += 1;
         if (consecutiveErrors >= 3) setState((s) => (s === "paid" ? s : "reconnecting"));
-        return;
       }
-      consecutiveErrors = 0;
-      const status = (st as any)?.status;
-      if (status === "paid") {
-        if (pollRef.current) window.clearInterval(pollRef.current);
-        if (tickRef.current) window.clearInterval(tickRef.current);
-        setState("paid"); onPaid?.(pid);
-        toast.success("Betaling gelukt");
-      } else if (status === "failed" || status === "cancelled" || status === "expired") {
-        if (pollRef.current) window.clearInterval(pollRef.current);
-        if (tickRef.current) window.clearInterval(tickRef.current);
-        setState(status as TerminalState);
-      }
-    }, 2500);
+    }, POLL_INTERVAL_MS);
   };
 
   const retry = async () => {
-    if (pollRef.current) window.clearInterval(pollRef.current);
-    if (tickRef.current) window.clearInterval(tickRef.current);
-    setState("idle"); setError(null); setPaymentId(null);
+    clearTimers();
+    setState("idle"); setError(null); setPaymentId(null); setVivaTxId(null);
     await loadTerminals();
   };
 
   const close = () => {
-    if (pollRef.current) window.clearInterval(pollRef.current);
-    if (tickRef.current) window.clearInterval(tickRef.current);
+    // Stop polling on close. Payment continues in backend; webhook will reconcile.
+    clearTimers();
     onOpenChange(false);
   };
 
-  const isLive = ["initiating", "waiting_customer", "present_card", "processing", "reconnecting"].includes(state);
+  const isLive = ["initiating", "sent_to_terminal", "waiting_customer", "processing", "reconnecting"].includes(state);
   const isFailedish = ["failed", "cancelled", "expired"].includes(state);
+  const isPendingConfirmation = state === "long_running";
+
+  const vivaTxUrl = vivaTxId
+    ? (demoMode
+      ? `https://demo.vivapayments.com/selfcareadmin/transactions?id=${encodeURIComponent(vivaTxId)}`
+      : `https://www.vivapayments.com/selfcareadmin/transactions?id=${encodeURIComponent(vivaTxId)}`)
+    : null;
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) close(); }}>
@@ -239,16 +294,27 @@ export function TerminalPaymentDialog({
               {state === "paid" ? <CheckCircle2 className="w-7 h-7 text-success shrink-0" /> :
                 isFailedish ? <XCircle className="w-7 h-7 text-destructive shrink-0" /> :
                 state === "reconnecting" ? <Wifi className="w-7 h-7 text-warning animate-pulse shrink-0" /> :
-                state === "present_card" ? <Smartphone className="w-7 h-7 text-primary animate-pulse shrink-0" /> :
+                state === "long_running" ? <Clock className="w-7 h-7 text-warning shrink-0" /> :
+                state === "waiting_customer" ? <Smartphone className="w-7 h-7 text-primary animate-pulse shrink-0" /> :
                 <Loader2 className="w-7 h-7 animate-spin text-primary shrink-0" />}
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold">{state === "failed" && error ? error : STATE_LABELS[state]}</p>
-                {state === "waiting_customer" && <p className="text-xs text-muted-foreground mt-0.5">Geef het pinapparaat aan de klant.</p>}
-                {state === "present_card" && <p className="text-xs text-muted-foreground mt-0.5">Klant kan tikken, swipen of pincode invoeren.</p>}
+                {state === "sent_to_terminal" && <p className="text-xs text-muted-foreground mt-0.5">Het pinapparaat ontvangt nu de transactie.</p>}
+                {state === "waiting_customer" && <p className="text-xs text-muted-foreground mt-0.5">Geef het pinapparaat aan de klant. Tikken, swipen of pincode invoeren.</p>}
                 {state === "processing" && <p className="text-xs text-muted-foreground mt-0.5">Even geduld — bank bevestigt de betaling.</p>}
                 {state === "reconnecting" && <p className="text-xs text-muted-foreground mt-0.5">We controleren of het pinapparaat nog online is.</p>}
                 {error && <p className="text-xs text-destructive mt-1">{error}</p>}
                 {paymentId && <p className="text-[10px] text-muted-foreground mt-1">Ref: {paymentId.slice(0, 8)}…</p>}
+              </div>
+            </div>
+          )}
+
+          {isPendingConfirmation && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 text-amber-800 p-3 flex items-start gap-2">
+              <Clock className="w-4 h-4 mt-0.5 shrink-0" />
+              <div className="text-xs leading-relaxed space-y-1">
+                <p className="font-semibold">Betaling wordt nog verwerkt</p>
+                <p>Betaling ontvangen op terminal. We wachten nog op bevestiging van Viva. Je kunt dit venster sluiten — we werken de status automatisch bij zodra Viva bevestigt.</p>
               </div>
             </div>
           )}
@@ -260,14 +326,53 @@ export function TerminalPaymentDialog({
               <Button onClick={startPayment} disabled={!selectedTerminal || terminals.length === 0 || posReady === false} className="w-full sm:w-auto">Start betaling</Button>
             </>
           )}
-          {isLive && <Button variant="ghost" onClick={close} className="w-full sm:w-auto">Sluiten</Button>}
+          {isLive && (
+            <>
+              {paymentId && (
+                <Button variant="ghost" onClick={manualRefresh} disabled={manualChecking} className="w-full sm:w-auto">
+                  {manualChecking ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
+                  Status opnieuw controleren
+                </Button>
+              )}
+              <Button variant="ghost" onClick={close} className="w-full sm:w-auto">Sluiten</Button>
+            </>
+          )}
+          {isPendingConfirmation && (
+            <>
+              <Button variant="ghost" onClick={manualRefresh} disabled={manualChecking} className="w-full sm:w-auto">
+                {manualChecking ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
+                Status opnieuw controleren
+              </Button>
+              {vivaTxUrl && (
+                <Button variant="ghost" asChild className="w-full sm:w-auto">
+                  <a href={vivaTxUrl} target="_blank" rel="noreferrer"><ExternalLink className="w-4 h-4" /> Bekijk transactie</a>
+                </Button>
+              )}
+              <Button onClick={close} className="w-full sm:w-auto">Sluiten</Button>
+            </>
+          )}
           {isFailedish && (
             <>
               <Button variant="ghost" onClick={close} className="w-full sm:w-auto">Sluiten</Button>
+              {paymentId && (
+                <Button variant="ghost" onClick={manualRefresh} disabled={manualChecking} className="w-full sm:w-auto">
+                  {manualChecking ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
+                  Status opnieuw controleren
+                </Button>
+              )}
               <Button onClick={retry} className="w-full sm:w-auto"><RotateCcw className="w-4 h-4" /> Opnieuw proberen</Button>
             </>
           )}
-          {state === "paid" && <Button onClick={close} className="w-full sm:w-auto">Klaar</Button>}
+          {state === "paid" && (
+            <>
+              {vivaTxUrl && (
+                <Button variant="ghost" asChild className="w-full sm:w-auto">
+                  <a href={vivaTxUrl} target="_blank" rel="noreferrer"><ExternalLink className="w-4 h-4" /> Bekijk transactie</a>
+                </Button>
+              )}
+              <Button onClick={close} className="w-full sm:w-auto">Klaar</Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
