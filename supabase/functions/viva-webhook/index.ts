@@ -225,6 +225,12 @@ Deno.serve(async (req) => {
   const transactionId = String(eventData?.TransactionId ?? eventData?.transactionId ?? "") || null;
   const orderCodeRaw = eventData?.OrderCode ?? eventData?.orderCode;
   const orderCode = orderCodeRaw != null ? String(orderCodeRaw) : null;
+  const merchantReference = String(
+    eventData?.MerchantReference ?? eventData?.merchantReference ??
+    eventData?.MerchantTrns ?? eventData?.merchantTrns ?? "",
+  ) || null;
+  const sessionIdEvt = String(eventData?.SessionId ?? eventData?.sessionId ?? "") || null;
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const statusId = String(eventData?.StatusId ?? eventData?.statusId ?? "") || null;
   const status = mapVivaStatus(statusId || "", eventTypeId || undefined);
   const eventTypeName = String(p?.EventTypeName || p?.eventTypeName || (eventTypeId ? `event_${eventTypeId}` : "unknown"));
@@ -352,6 +358,35 @@ Deno.serve(async (req) => {
         .select("*")
         .or(`mollie_payment_id.eq.${orderCode},checkout_reference.eq.${orderCode}`)
         .eq("provider", "viva")
+        .limit(1)
+        .maybeSingle();
+      payment = data;
+    }
+    // Terminal payments: merchantReference == payment.id (UUID). Also lookup by
+    // session_id stored in metadata so we never miss the final webhook.
+    if (!payment && merchantReference && UUID_RE.test(merchantReference)) {
+      const { data } = await supabase.from("payments").select("*").eq("id", merchantReference).eq("provider", "viva").maybeSingle();
+      payment = data;
+    }
+    if (!payment && orderCode && UUID_RE.test(orderCode)) {
+      const { data } = await supabase.from("payments").select("*").eq("id", orderCode).eq("provider", "viva").maybeSingle();
+      payment = data;
+    }
+    if (!payment && sessionIdEvt) {
+      const { data } = await supabase
+        .from("payments")
+        .select("*")
+        .or(`checkout_reference.eq.${sessionIdEvt}`)
+        .eq("provider", "viva")
+        .limit(1)
+        .maybeSingle();
+      payment = data;
+    }
+    if (!payment && sessionIdEvt) {
+      const { data } = await supabase
+        .from("payments")
+        .select("*")
+        .contains("metadata", { session_id: sessionIdEvt })
         .limit(1)
         .maybeSingle();
       payment = data;

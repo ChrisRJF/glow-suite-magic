@@ -249,6 +249,7 @@ Deno.serve(async (req) => {
     }
 
     // Persist provider reference / error in metadata
+    const initialTxId = vivaResponseBody?.transactionId ?? vivaResponseBody?.TransactionId ?? null;
     await admin
       .from("payments")
       .update({
@@ -261,6 +262,7 @@ Deno.serve(async (req) => {
           provider_error_message: providerErrorMessage,
           viva_http_status: vivaHttpStatus,
           viva_response: vivaResponseBody,
+          viva_transaction_id: initialTxId ? String(initialTxId) : (payment.metadata as any)?.viva_transaction_id || null,
           initiated_at: new Date().toISOString(),
         },
         ...(providerError ? { status: "failed", failure_reason: providerError } : {}),

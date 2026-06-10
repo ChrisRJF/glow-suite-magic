@@ -69,19 +69,30 @@ Deno.serve(async (req) => {
         const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
         const text = await res.text();
         try { providerData = JSON.parse(text); } catch { providerData = { raw: text }; }
+        console.log("[viva-terminal-payment-status] viva session response", JSON.stringify({
+          payment_id, session_id: sessionId, terminal_id: terminalId,
+          http_status: res.status, body: providerData,
+        }));
         if (res.status === 404) {
           // session not yet known to terminal — keep pending
         } else if (!res.ok) {
           providerError = `viva_status_http_${res.status}: ${text.slice(0, 300)}`;
         } else {
-          // Viva ECR session response: success boolean + responseEventId/eventId
+          // Viva ECR session: success boolean + responseEventId/eventId/statusId
           const success = providerData?.success;
+          const statusIdRaw = String(providerData?.statusId ?? providerData?.StatusId ?? "").toUpperCase();
           const eventId = providerData?.eventId ?? providerData?.responseEventId;
-          if (success === true) newStatus = "paid";
+          const blob = JSON.stringify(providerData);
+          const looksPaid = success === true || statusIdRaw === "F"
+            || /\b(approved|paid|success|completed|captured)\b/i.test(blob);
+          const looksCancelled = /cancel/i.test(blob);
+          const looksExpired = /expir|timeout/i.test(blob);
+          if (looksPaid) newStatus = "paid";
           else if (success === false) {
             const code = String(providerData?.errorCode ?? eventId ?? "");
-            if (/cancel/i.test(JSON.stringify(providerData))) newStatus = "cancelled";
-            else if (/expir|timeout/i.test(JSON.stringify(providerData))) newStatus = "expired";
+            void code;
+            if (looksCancelled) newStatus = "cancelled";
+            else if (looksExpired) newStatus = "expired";
             else newStatus = "failed";
           }
         }
@@ -92,10 +103,10 @@ Deno.serve(async (req) => {
       providerError = "viva_not_configured";
     }
 
+    const vivaTransactionId = providerData?.transactionId ?? providerData?.TransactionId ?? null;
+    const txStr = vivaTransactionId ? String(vivaTransactionId) : null;
+
     if (newStatus && payment.status !== "paid") {
-      // Capture Viva transactionId when present so the shared viva-webhook
-      // can match terminal payments by metadata.viva_transaction_id.
-      const vivaTransactionId = providerData?.transactionId ?? providerData?.TransactionId ?? null;
       const updates: Record<string, any> = {
         status: newStatus,
         last_status_sync_at: new Date().toISOString(),
@@ -103,7 +114,7 @@ Deno.serve(async (req) => {
           ...meta,
           terminal_status: newStatus,
           provider_status_payload: providerData,
-          viva_transaction_id: vivaTransactionId ? String(vivaTransactionId) : meta.viva_transaction_id || null,
+          viva_transaction_id: txStr || meta.viva_transaction_id || null,
           last_status_sync_at: new Date().toISOString(),
         },
       };
@@ -125,12 +136,23 @@ Deno.serve(async (req) => {
       }
 
       console.log(`[viva-terminal-payment-status] ${payment.id} -> ${newStatus}`);
+    } else if (txStr && txStr !== meta.viva_transaction_id) {
+      // Even while pending, persist transactionId so viva-webhook can match it.
+      await admin
+        .from("payments")
+        .update({
+          last_status_sync_at: new Date().toISOString(),
+          metadata: { ...meta, viva_transaction_id: txStr, last_status_sync_at: new Date().toISOString() },
+        })
+        .eq("id", payment.id)
+        .neq("status", "paid");
     }
 
     return json({
       payment_id,
       status: newStatus || payment.status,
       terminal_status: newStatus || meta.terminal_status || "pending",
+      viva_transaction_id: txStr || meta.viva_transaction_id || null,
       provider_error: providerError,
     });
   } catch (e) {
