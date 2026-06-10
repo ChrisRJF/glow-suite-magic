@@ -93,6 +93,9 @@ Deno.serve(async (req) => {
     }
 
     if (newStatus && payment.status !== "paid") {
+      // Capture Viva transactionId when present so the shared viva-webhook
+      // can match terminal payments by metadata.viva_transaction_id.
+      const vivaTransactionId = providerData?.transactionId ?? providerData?.TransactionId ?? null;
       const updates: Record<string, any> = {
         status: newStatus,
         last_status_sync_at: new Date().toISOString(),
@@ -100,6 +103,7 @@ Deno.serve(async (req) => {
           ...meta,
           terminal_status: newStatus,
           provider_status_payload: providerData,
+          viva_transaction_id: vivaTransactionId ? String(vivaTransactionId) : meta.viva_transaction_id || null,
           last_status_sync_at: new Date().toISOString(),
         },
       };
