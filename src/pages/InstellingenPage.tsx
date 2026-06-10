@@ -976,7 +976,7 @@ export default function InstellingenPage() {
 
         {/* Integrations - Enhanced with widget cards */}
         {activeTab === "integraties" && (
-          <div className="space-y-3">
+          <div className="space-y-3 w-full max-w-full min-w-0 overflow-x-hidden">
             <h3 className="text-sm font-semibold flex items-center gap-2"><Plug className="w-4 h-4 text-primary" /> Integraties</h3>
 
             {/* Payment Provider Selector */}
