@@ -16,6 +16,11 @@ export function vivaEnv() {
   return (Deno.env.get("VIVA_ENVIRONMENT") || "demo").toLowerCase() === "live" ? VIVA_LIVE : VIVA_DEMO;
 }
 
+export function vivaPosEnv() {
+  const env = (Deno.env.get("VIVA_POS_ENVIRONMENT") || Deno.env.get("VIVA_ENVIRONMENT") || "demo").toLowerCase();
+  return env === "live" ? VIVA_LIVE : VIVA_DEMO;
+}
+
 export function isVivaConfigured() {
   return Boolean(
     Deno.env.get("VIVA_CLIENT_ID") &&
@@ -24,12 +29,30 @@ export function isVivaConfigured() {
   );
 }
 
+// Returns which credential set is active for POS/ECR calls.
+// Prefers dedicated POS credentials when present; falls back to Smart Checkout.
+export function vivaPosCredentialKind(): "pos" | "smart_checkout" | "none" {
+  if (Deno.env.get("VIVA_POS_CLIENT_ID") && Deno.env.get("VIVA_POS_CLIENT_SECRET")) return "pos";
+  if (Deno.env.get("VIVA_CLIENT_ID") && Deno.env.get("VIVA_CLIENT_SECRET")) return "smart_checkout";
+  return "none";
+}
+
+export function vivaPosSourceCode(): string | null {
+  return Deno.env.get("VIVA_POS_SOURCE_CODE") || Deno.env.get("VIVA_SOURCE_CODE") || null;
+}
+
+export function isVivaPosConfigured() {
+  return vivaPosCredentialKind() !== "none";
+}
+
 export function vivaCheckoutUrl(orderCode: string) {
   return `${vivaEnv().checkout}?ref=${orderCode}`;
 }
 
 // Token cache lives only within one edge invocation; that is fine.
 let cachedToken: { value: string; expiresAt: number } | null = null;
+let cachedPosToken: { value: string; expiresAt: number } | null = null;
+
 
 export async function getVivaAccessToken(): Promise<string> {
   return getAccessToken();
@@ -58,6 +81,38 @@ async function getAccessToken(): Promise<string> {
     expiresAt: Date.now() + Math.max(60, Number(data.expires_in || 3600) - 120) * 1000,
   };
   return cachedToken.value;
+}
+
+// Fetch an OAuth2 token for POS/ECR endpoints. Falls back to Smart Checkout
+// credentials if dedicated POS credentials are not configured (legacy mode).
+export async function getVivaPosAccessToken(): Promise<{ token: string; kind: "pos" | "smart_checkout" }> {
+  const kind = vivaPosCredentialKind();
+  if (kind === "none") throw new Error("viva_pos_not_configured");
+  if (cachedPosToken && cachedPosToken.expiresAt > Date.now() + 60_000) {
+    return { token: cachedPosToken.value, kind };
+  }
+  const env = vivaPosEnv();
+  const clientId = kind === "pos" ? Deno.env.get("VIVA_POS_CLIENT_ID")! : Deno.env.get("VIVA_CLIENT_ID")!;
+  const clientSecret = kind === "pos" ? Deno.env.get("VIVA_POS_CLIENT_SECRET")! : Deno.env.get("VIVA_CLIENT_SECRET")!;
+  const basic = btoa(`${clientId}:${clientSecret}`);
+  const res = await fetch(`${env.account}/connect/token`, {
+    method: "POST",
+    headers: { Authorization: `Basic ${basic}`, "Content-Type": "application/x-www-form-urlencoded" },
+    body: "grant_type=client_credentials",
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data?.access_token) {
+    const err: any = new Error(`Viva POS token error (${res.status})`);
+    err.status = res.status;
+    err.body = data;
+    err.kind = kind;
+    throw err;
+  }
+  cachedPosToken = {
+    value: data.access_token,
+    expiresAt: Date.now() + Math.max(60, Number(data.expires_in || 3600) - 120) * 1000,
+  };
+  return { token: cachedPosToken.value, kind };
 }
 
 export type VivaPaymentSource = "public_booking" | "auto_revenue" | "membership" | "manual";

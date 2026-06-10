@@ -1,7 +1,7 @@
 // Initiate a sale on a Viva Cloud Terminal.
 // POST /functions/v1/create-viva-terminal-payment
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import { vivaEnv, getVivaAccessToken, isVivaConfigured } from "../_shared/viva.ts";
+import { vivaPosEnv, getVivaPosAccessToken, isVivaPosConfigured, vivaPosSourceCode, vivaPosCredentialKind } from "../_shared/viva.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -161,7 +161,8 @@ Deno.serve(async (req) => {
     let vivaHttpStatus: number | null = null;
     const sourceTerminalId = (terminal as any).source_terminal_id || terminal_id;
     const virtualId = (terminal as any).virtual_id || null;
-    const environment = is_demo ? "demo" : (Deno.env.get("VIVA_ENVIRONMENT") || "demo");
+    const environment = is_demo ? "demo" : (Deno.env.get("VIVA_POS_ENVIRONMENT") || Deno.env.get("VIVA_ENVIRONMENT") || "demo");
+    const credentialKind = vivaPosCredentialKind();
 
     const logCtx = {
       terminal_id,
@@ -169,17 +170,18 @@ Deno.serve(async (req) => {
       virtual_id: virtualId,
       session_id: sessionId,
       environment,
+      credential_kind: credentialKind,
       payment_id: payment.id,
     };
     console.log("[create-viva-terminal-payment] initiating", logCtx);
 
-    if (isVivaConfigured()) {
+    if (isVivaPosConfigured()) {
       try {
-        const token = await getVivaAccessToken();
-        const env = vivaEnv();
-        const sourceCode = Deno.env.get("VIVA_SOURCE_CODE")!;
+        const { token, kind } = await getVivaPosAccessToken();
+        const env = vivaPosEnv();
+        const sourceCode = vivaPosSourceCode();
         const url = `${env.api}/ecr/v1/transactions:sale`;
-        const requestBody = {
+        const requestBody: Record<string, unknown> = {
           sessionId,
           terminalId: terminal_id,
           cashRegisterId: `glowsuite-${userId.slice(0, 8)}`,
@@ -189,9 +191,9 @@ Deno.serve(async (req) => {
           customerTrns: description.slice(0, 100),
           preauth: false,
           sourceTerminalId,
-          sourceCode,
         };
-        console.log("[create-viva-terminal-payment] viva request", { url, body: requestBody });
+        if (sourceCode) requestBody.sourceCode = sourceCode;
+        console.log("[create-viva-terminal-payment] viva request", { url, credential_kind: kind, body: requestBody });
         const res = await fetch(url, {
           method: "POST",
           headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -209,25 +211,39 @@ Deno.serve(async (req) => {
           providerErrorMessage = String(
             data?.Message ?? data?.message ?? data?.error_description ?? data?.detail ?? (typeof text === "string" ? text.slice(0, 300) : `HTTP ${res.status}`),
           );
+          if (res.status === 401) {
+            providerErrorCode = "invalid_credentials";
+            providerErrorMessage = environment === "demo"
+              ? "GlowPay demo-inloggegevens zijn ongeldig. Controleer de Viva POS API credentials."
+              : "GlowPay inloggegevens zijn ongeldig. Controleer de Viva POS API credentials.";
+          }
           providerError = `viva_terminal_http_${res.status}: ${providerErrorCode} ${providerErrorMessage}`;
           terminalStatus = "failed_to_initiate";
           console.error("[create-viva-terminal-payment] viva error", { ...logCtx, http_status: res.status, code: providerErrorCode, message: providerErrorMessage, body: data });
         } else {
           providerReference = data?.sessionId || sessionId;
         }
-      } catch (e) {
-        providerErrorCode = "exception";
-        providerErrorMessage = (e as Error).message;
+      } catch (e: any) {
+        if (e?.status === 401 || /401/.test(String(e?.message || ""))) {
+          providerErrorCode = "invalid_credentials";
+          providerErrorMessage = environment === "demo"
+            ? "GlowPay demo-inloggegevens zijn ongeldig. Controleer de Viva POS API credentials."
+            : "GlowPay inloggegevens zijn ongeldig. Controleer de Viva POS API credentials.";
+          vivaHttpStatus = 401;
+        } else {
+          providerErrorCode = "exception";
+          providerErrorMessage = (e as Error).message;
+        }
         providerError = `viva_terminal_exception: ${providerErrorMessage}`;
         terminalStatus = "failed_to_initiate";
         console.error("[create-viva-terminal-payment] exception", { ...logCtx, error: providerErrorMessage });
       }
     } else {
       providerErrorCode = "viva_not_configured";
-      providerErrorMessage = "Viva credentials zijn niet geconfigureerd.";
-      providerError = "viva_not_configured";
+      providerErrorMessage = "Viva POS credentials zijn niet geconfigureerd.";
+      providerError = "viva_pos_not_configured";
       terminalStatus = "failed_to_initiate";
-      console.error("[create-viva-terminal-payment] viva_not_configured", logCtx);
+      console.error("[create-viva-terminal-payment] viva_pos_not_configured", logCtx);
     }
 
     // Persist provider reference / error in metadata
