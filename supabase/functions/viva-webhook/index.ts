@@ -401,7 +401,25 @@ Deno.serve(async (req) => {
       payment = data;
     }
 
+    console.log("[viva-webhook] lifecycle", JSON.stringify({
+      event_type: eventTypeName,
+      transactionId,
+      orderCode,
+      merchantReference,
+      sessionId: sessionIdEvt,
+      matched_payment_id: payment?.id || null,
+    }));
+
     if (!payment) {
+      console.warn("[viva-webhook] failure_point", JSON.stringify({
+        point: "D_webhook_matching_failed",
+        event_type: eventTypeName,
+        transactionId,
+        orderCode,
+        merchantReference,
+        sessionId: sessionIdEvt,
+        matched_payment_id: null,
+      }));
       // SaaS subscription checkout (GlowPay/Viva). Activate subscription if this
       // orderCode matches a pending_saas_signups row.
       if (orderCode) {
@@ -490,7 +508,7 @@ Deno.serve(async (req) => {
     }
 
     const nowIso = new Date().toISOString();
-    await supabase
+    const { error: paymentUpdateError } = await supabase
       .from("payments")
       .update({
         status: targetStatus,
@@ -502,6 +520,30 @@ Deno.serve(async (req) => {
         metadata: metaUpdates,
       })
       .eq("id", payment.id);
+    if (paymentUpdateError) {
+      console.error("[viva-webhook] failure_point", JSON.stringify({
+        point: "E_database_update_failed",
+        event_type: eventTypeName,
+        transactionId,
+        orderCode: resolvedOrderCode,
+        merchantReference,
+        sessionId: sessionIdEvt,
+        matched_payment_id: payment.id,
+        from: currentStatus,
+        to: targetStatus,
+        error: paymentUpdateError.message,
+      }));
+      if (ledgerId) await supabase.from("viva_webhook_events").update({ error: "payment_update_failed", processed: false }).eq("id", ledgerId);
+      return okText();
+    }
+
+    const { error: historyError } = await supabase.from("payment_status_history").insert({
+      payment_id: payment.id,
+      old_status: currentStatus,
+      new_status: targetStatus,
+      source: "webhook",
+    });
+    if (historyError) console.error("[viva-webhook] audit insert failed", historyError);
 
     // Structured audit logs (do not confirm bookings on failure; preserve payment row on refund).
     if (isFailed) {
