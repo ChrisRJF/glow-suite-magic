@@ -234,13 +234,38 @@ export function TerminalsCard() {
 
       <div className="space-y-2">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <input value={tname} onChange={(e) => { setTname(e.target.value); setFormError(null); }} placeholder="Naam *" className="text-[11px] h-8 rounded-md border border-border bg-background px-2 w-full min-w-0" />
-          <input value={tloc} onChange={(e) => setTloc(e.target.value)} placeholder="Locatie (optioneel)" className="text-[11px] h-8 rounded-md border border-border bg-background px-2 w-full min-w-0" />
-          <input value={tid} onChange={(e) => { setTid(e.target.value); setFormError(null); }} placeholder="Terminal ID *" className={`text-[11px] h-8 rounded-md border bg-background px-2 w-full min-w-0 ${existingDup ? "border-amber-500" : "border-border"}`} />
-          <input value={tsource} onChange={(e) => setTsource(e.target.value)} placeholder="Source Terminal ID" className="text-[11px] h-8 rounded-md border border-border bg-background px-2 w-full min-w-0" />
-          <input value={tvirtual} onChange={(e) => setTvirtual(e.target.value)} placeholder="Virtual ID" className="text-[11px] h-8 rounded-md border border-border bg-background px-2 w-full min-w-0" />
-          <input value={tserial} onChange={(e) => setTserial(e.target.value)} placeholder="Serienummer" className="text-[11px] h-8 rounded-md border border-border bg-background px-2 w-full min-w-0" />
+          <input value={tname} onChange={(e) => { setTname(e.target.value); setFormError(null); }} placeholder="Naam *" className="text-[11px] h-9 rounded-md border border-border bg-background px-2 w-full min-w-0" />
+          <input value={tloc} onChange={(e) => setTloc(e.target.value)} placeholder="Locatie (optioneel)" className="text-[11px] h-9 rounded-md border border-border bg-background px-2 w-full min-w-0" />
+          <input value={tid} onChange={(e) => { setTid(e.target.value); setFormError(null); }} placeholder="Terminal ID *" className={`text-[11px] h-9 rounded-md border bg-background px-2 w-full min-w-0 sm:col-span-2 ${existingDup ? "border-amber-500" : "border-border"}`} />
         </div>
+        <button
+          type="button"
+          onClick={() => setShowAdvanced(v => !v)}
+          className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
+        >
+          <ChevronDown className={`w-3 h-3 transition-transform ${showAdvanced ? "rotate-180" : ""}`} />
+          {showAdvanced ? "Verberg technische velden" : "Technische velden (optioneel)"}
+        </button>
+        {showAdvanced && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <input value={tsource} onChange={(e) => setTsource(e.target.value)} placeholder="Source Terminal ID" className="text-[11px] h-9 rounded-md border border-border bg-background px-2 w-full min-w-0" />
+            <input value={tvirtual} onChange={(e) => setTvirtual(e.target.value)} placeholder="Virtual ID" className="text-[11px] h-9 rounded-md border border-border bg-background px-2 w-full min-w-0" />
+            <input value={tserial} onChange={(e) => setTserial(e.target.value)} placeholder="Serienummer" className="text-[11px] h-9 rounded-md border border-border bg-background px-2 w-full min-w-0 sm:col-span-2" />
+          </div>
+        )}
+        <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
+          <input type="checkbox" checked={tdefault} onChange={(e) => setTdefault(e.target.checked)} className="h-3.5 w-3.5" />
+          <span className="break-words">Stel in als standaard pinapparaat voor {demoMode ? "demo" : "live"}</span>
+        </label>
+        {formError && (
+          <p className="text-[11px] text-destructive break-words">{formError}</p>
+        )}
+        {!formError && existingDup && cleanTid && (
+          <p className="text-[11px] text-amber-600 break-words">Deze terminal is al gekoppeld.</p>
+        )}
+        <Button type="button" size="sm" disabled={loading} onClick={add} className="w-full h-9 text-[11px]">
+          <Plus className="w-3 h-3 mr-1" /> Terminal toevoegen
+        </Button>
         <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
           <input type="checkbox" checked={tdefault} onChange={(e) => setTdefault(e.target.checked)} className="h-3.5 w-3.5" />
           <span className="break-words">Stel in als standaard pinapparaat voor {demoMode ? "demo" : "live"}</span>
