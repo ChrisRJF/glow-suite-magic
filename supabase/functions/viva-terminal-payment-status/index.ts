@@ -197,8 +197,8 @@ Deno.serve(async (req) => {
         }));
       }
 
-      // Sync appointment payment_status
-      if (payment.appointment_id) {
+      // Sync appointment payment_status only after the payment row update succeeds.
+      if (!updErr && updatedPayment && payment.appointment_id) {
         const apptUpd: Record<string, any> = {};
         if (newStatus === "paid") apptUpd.payment_status = "paid";
         else if (newStatus === "failed" || newStatus === "cancelled" || newStatus === "expired") apptUpd.payment_status = "unpaid";
