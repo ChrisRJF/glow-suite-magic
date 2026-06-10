@@ -976,7 +976,7 @@ export default function InstellingenPage() {
 
         {/* Integrations - Enhanced with widget cards */}
         {activeTab === "integraties" && (
-          <div className="space-y-3">
+          <div className="space-y-3 w-full max-w-full min-w-0 overflow-x-hidden">
             <h3 className="text-sm font-semibold flex items-center gap-2"><Plug className="w-4 h-4 text-primary" /> Integraties</h3>
 
             {/* Payment Provider Selector */}
@@ -1294,27 +1294,36 @@ export default function InstellingenPage() {
                 )}
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 w-full min-w-0">
               {integrations.map((intg, i) => (
-                <div key={i} className="glass-card p-4 flex flex-col gap-3">
-                  <div className="flex items-start gap-3">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${intg.enabled ? 'bg-primary/15' : 'bg-secondary/50'}`}>
-                      <intg.icon className={`w-5 h-5 ${intg.enabled ? 'text-primary' : 'text-muted-foreground'}`} />
+                <div key={i} className="glass-card p-3 sm:p-4 flex flex-col gap-1.5 sm:gap-3 min-w-0">
+                  <div className="flex items-start gap-2.5 sm:gap-3 min-w-0">
+                    <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${intg.enabled ? 'bg-primary/15' : 'bg-secondary/50'}`}>
+                      <intg.icon className={`w-4 h-4 sm:w-5 sm:h-5 ${intg.enabled ? 'text-primary' : 'text-muted-foreground'}`} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{intg.name}</p>
-                      <p className="text-[11px] text-muted-foreground">{intg.desc}</p>
+                      <p className="text-sm font-medium truncate">{intg.name}</p>
+                      <p className="text-[11px] text-muted-foreground line-clamp-2">{intg.desc}</p>
+                      <div className="mt-1 sm:hidden">
+                        {intg.enabled ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] text-success font-medium"><CheckCircle2 className="w-3 h-3" />Ingeschakeld</span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground"><XCircle className="w-3 h-3" />Uit</span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    {intg.enabled ? (
-                      <span className="flex items-center gap-1 text-[11px] text-success font-medium"><CheckCircle2 className="w-3.5 h-3.5" />Ingeschakeld</span>
-                    ) : (
-                      <span className="flex items-center gap-1 text-[11px] text-muted-foreground"><XCircle className="w-3.5 h-3.5" />Uitgeschakeld</span>
-                    )}
+                  <div className="flex items-center justify-between gap-2 min-w-0">
+                    <div className="hidden sm:block">
+                      {intg.enabled ? (
+                        <span className="flex items-center gap-1 text-[11px] text-success font-medium"><CheckCircle2 className="w-3.5 h-3.5" />Ingeschakeld</span>
+                      ) : (
+                        <span className="flex items-center gap-1 text-[11px] text-muted-foreground"><XCircle className="w-3.5 h-3.5" />Uitgeschakeld</span>
+                      )}
+                    </div>
                     {intg.toggle && (
-                      <Button variant={intg.enabled ? "outline" : "gradient"} size="sm" onClick={intg.toggle}>
-                        {intg.enabled ? "Uitschakelen" : "Inschakelen"}
+                      <Button variant={intg.enabled ? "outline" : "gradient"} size="sm" onClick={intg.toggle} className="ml-auto h-8 text-[11px] px-2.5">
+                        {intg.enabled ? "Uit" : "Aan"}
                       </Button>
                     )}
                   </div>

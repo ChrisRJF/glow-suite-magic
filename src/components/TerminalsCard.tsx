@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoMode } from "@/hooks/useDemoMode";
 import { toast } from "sonner";
-import { Power, Plus, Smartphone, Star, Trash2, Copy, Check } from "lucide-react";
+import { Power, Plus, Smartphone, Star, Trash2, Copy, Check, ChevronDown } from "lucide-react";
 import { WhyHint } from "@/components/WhyHint";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
@@ -77,6 +77,10 @@ export function TerminalsCard() {
     setTerminals((data as any) || []);
   };
   useEffect(() => { load(); }, [demoMode]);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
+  const toggleExpanded = (id: string) => setExpandedIds(p => ({ ...p, [id]: !p[id] }));
+
 
   const cleanTid = tid.replace(/\s+/g, "");
   const existingDup = terminals.find(t => t.terminal_id === cleanTid && t.is_demo === demoMode);
@@ -175,13 +179,29 @@ export function TerminalsCard() {
                 </p>
                 <div className="text-[10px] text-muted-foreground space-y-0.5 min-w-0">
                   <div className="min-w-0"><CopyableId label="ID:" value={t.terminal_id} /></div>
-                  {t.source_terminal_id && <div className="min-w-0"><CopyableId label="Source:" value={t.source_terminal_id} /></div>}
-                  {t.virtual_id && <div className="min-w-0"><CopyableId label="Virtual:" value={t.virtual_id} /></div>}
-                  {t.serial_number && <div className="truncate">S/N: {t.serial_number}</div>}
                   {t.location_name && <div className="truncate">{t.location_name}</div>}
                   <div className="truncate">
                     Laatst gebruikt: {t.last_used_at ? new Date(t.last_used_at).toLocaleString("nl-NL") : "nooit"}
                   </div>
+                  {(t.source_terminal_id || t.virtual_id || t.serial_number) && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => toggleExpanded(t.id)}
+                        className="inline-flex items-center gap-1 text-[10px] text-primary hover:underline mt-0.5"
+                      >
+                        <ChevronDown className={`w-3 h-3 transition-transform ${expandedIds[t.id] ? "rotate-180" : ""}`} />
+                        {expandedIds[t.id] ? "Verberg details" : "Toon technische details"}
+                      </button>
+                      {expandedIds[t.id] && (
+                        <div className="space-y-0.5 pt-1 min-w-0">
+                          {t.source_terminal_id && <div className="min-w-0"><CopyableId label="Source:" value={t.source_terminal_id} /></div>}
+                          {t.virtual_id && <div className="min-w-0"><CopyableId label="Virtual:" value={t.virtual_id} /></div>}
+                          {t.serial_number && <div className="truncate">S/N: {t.serial_number}</div>}
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
               <div className="flex flex-col items-end gap-1 shrink-0">
@@ -214,13 +234,25 @@ export function TerminalsCard() {
 
       <div className="space-y-2">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <input value={tname} onChange={(e) => { setTname(e.target.value); setFormError(null); }} placeholder="Naam *" className="text-[11px] h-8 rounded-md border border-border bg-background px-2 w-full min-w-0" />
-          <input value={tloc} onChange={(e) => setTloc(e.target.value)} placeholder="Locatie (optioneel)" className="text-[11px] h-8 rounded-md border border-border bg-background px-2 w-full min-w-0" />
-          <input value={tid} onChange={(e) => { setTid(e.target.value); setFormError(null); }} placeholder="Terminal ID *" className={`text-[11px] h-8 rounded-md border bg-background px-2 w-full min-w-0 ${existingDup ? "border-amber-500" : "border-border"}`} />
-          <input value={tsource} onChange={(e) => setTsource(e.target.value)} placeholder="Source Terminal ID" className="text-[11px] h-8 rounded-md border border-border bg-background px-2 w-full min-w-0" />
-          <input value={tvirtual} onChange={(e) => setTvirtual(e.target.value)} placeholder="Virtual ID" className="text-[11px] h-8 rounded-md border border-border bg-background px-2 w-full min-w-0" />
-          <input value={tserial} onChange={(e) => setTserial(e.target.value)} placeholder="Serienummer" className="text-[11px] h-8 rounded-md border border-border bg-background px-2 w-full min-w-0" />
+          <input value={tname} onChange={(e) => { setTname(e.target.value); setFormError(null); }} placeholder="Naam *" className="text-[11px] h-9 rounded-md border border-border bg-background px-2 w-full min-w-0" />
+          <input value={tloc} onChange={(e) => setTloc(e.target.value)} placeholder="Locatie (optioneel)" className="text-[11px] h-9 rounded-md border border-border bg-background px-2 w-full min-w-0" />
+          <input value={tid} onChange={(e) => { setTid(e.target.value); setFormError(null); }} placeholder="Terminal ID *" className={`text-[11px] h-9 rounded-md border bg-background px-2 w-full min-w-0 sm:col-span-2 ${existingDup ? "border-amber-500" : "border-border"}`} />
         </div>
+        <button
+          type="button"
+          onClick={() => setShowAdvanced(v => !v)}
+          className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
+        >
+          <ChevronDown className={`w-3 h-3 transition-transform ${showAdvanced ? "rotate-180" : ""}`} />
+          {showAdvanced ? "Verberg technische velden" : "Technische velden (optioneel)"}
+        </button>
+        {showAdvanced && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <input value={tsource} onChange={(e) => setTsource(e.target.value)} placeholder="Source Terminal ID" className="text-[11px] h-9 rounded-md border border-border bg-background px-2 w-full min-w-0" />
+            <input value={tvirtual} onChange={(e) => setTvirtual(e.target.value)} placeholder="Virtual ID" className="text-[11px] h-9 rounded-md border border-border bg-background px-2 w-full min-w-0" />
+            <input value={tserial} onChange={(e) => setTserial(e.target.value)} placeholder="Serienummer" className="text-[11px] h-9 rounded-md border border-border bg-background px-2 w-full min-w-0 sm:col-span-2" />
+          </div>
+        )}
         <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
           <input type="checkbox" checked={tdefault} onChange={(e) => setTdefault(e.target.checked)} className="h-3.5 w-3.5" />
           <span className="break-words">Stel in als standaard pinapparaat voor {demoMode ? "demo" : "live"}</span>
@@ -231,7 +263,7 @@ export function TerminalsCard() {
         {!formError && existingDup && cleanTid && (
           <p className="text-[11px] text-amber-600 break-words">Deze terminal is al gekoppeld.</p>
         )}
-        <Button type="button" size="sm" disabled={loading} onClick={add} className="w-full h-8 text-[11px]">
+        <Button type="button" size="sm" disabled={loading} onClick={add} className="w-full h-9 text-[11px]">
           <Plus className="w-3 h-3 mr-1" /> Terminal toevoegen
         </Button>
         <p className="text-[10px] text-muted-foreground break-words">Terminal ID en Source Terminal ID vind je in je Viva merchant portal onder POS / Cloud Terminals. Serienummer staat op de achterkant van het pinapparaat.</p>
