@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoMode } from "@/hooks/useDemoMode";
 import { toast } from "sonner";
-import { Power, Plus, Smartphone, Star, Trash2, Copy, Check } from "lucide-react";
+import { Power, Plus, Smartphone, Star, Trash2, Copy, Check, ChevronDown } from "lucide-react";
 import { WhyHint } from "@/components/WhyHint";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
