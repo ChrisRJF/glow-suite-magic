@@ -478,6 +478,17 @@ Deno.serve(async (req) => {
     const currentStatus = String(payment.status || "pending");
     const targetStatus = resolvedStatus === "refunded" ? "refunded" : resolvedStatus;
     if (!canTransition(currentStatus, targetStatus)) {
+      console.log("[viva-webhook] failure_point", JSON.stringify({
+        point: currentStatus === "paid" && targetStatus === "paid" ? "webhook_arrived_after_poll_paid" : "webhook_arrived_non_final_or_noop",
+        event_type: eventTypeName,
+        transactionId,
+        orderCode: resolvedOrderCode,
+        merchantReference,
+        sessionId: sessionIdEvt,
+        matched_payment_id: payment.id,
+        from: currentStatus,
+        to: targetStatus,
+      }));
       if (ledgerId) await supabase.from("viva_webhook_events").update({ processed: true, processed_at: new Date().toISOString(), error: `noop_${currentStatus}_${targetStatus}` }).eq("id", ledgerId);
       return okText();
     }
