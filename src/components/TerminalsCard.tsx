@@ -77,6 +77,10 @@ export function TerminalsCard() {
     setTerminals((data as any) || []);
   };
   useEffect(() => { load(); }, [demoMode]);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
+  const toggleExpanded = (id: string) => setExpandedIds(p => ({ ...p, [id]: !p[id] }));
+
 
   const cleanTid = tid.replace(/\s+/g, "");
   const existingDup = terminals.find(t => t.terminal_id === cleanTid && t.is_demo === demoMode);
