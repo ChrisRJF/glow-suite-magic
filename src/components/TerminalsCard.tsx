@@ -38,7 +38,7 @@ export function TerminalsCard() {
     setLoading(true);
     // If marking as default, clear other defaults first (within same demo/live scope)
     if (tdefault) {
-      await supabase.from("viva_terminals").update({ is_default: false }).eq("user_id", user.id).eq("is_demo", demoMode);
+      await (supabase.from("viva_terminals") as any).update({ is_default: false }).eq("user_id", user.id).eq("is_demo", demoMode);
     }
     const { error } = await supabase.from("viva_terminals").insert({
       user_id: user.id, is_demo: demoMode, terminal_id: tid.trim(), terminal_name: tname.trim(),
