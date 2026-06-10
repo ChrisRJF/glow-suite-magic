@@ -1970,6 +1970,44 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_status_history: {
+        Row: {
+          created_at: string
+          id: string
+          new_status: string
+          old_status: string | null
+          payment_id: string
+          source: string
+          timestamp: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          new_status: string
+          old_status?: string | null
+          payment_id: string
+          source: string
+          timestamp?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          new_status?: string
+          old_status?: string | null
+          payment_id?: string
+          source?: string
+          timestamp?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_status_history_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount: number
