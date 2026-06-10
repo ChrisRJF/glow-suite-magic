@@ -136,6 +136,16 @@ Deno.serve(async (req) => {
 
     if (newStatus && payment.status !== "paid") {
       const nowIso = new Date().toISOString();
+      if (newStatus === "paid") {
+        console.log("[viva-terminal-payment-status] failure_point", JSON.stringify({
+          point: "B_polling_received_approved",
+          payment_id: payment.id,
+          sessionId,
+          transactionId: txStr,
+          raw_status: rawStatus,
+          raw_response: providerData,
+        }));
+      }
       const updates: Record<string, any> = {
         status: newStatus,
         last_status_sync_at: nowIso,
