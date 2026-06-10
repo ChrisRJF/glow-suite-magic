@@ -155,6 +155,23 @@ Deno.serve(async (req) => {
     let providerReference: string | null = null;
     let terminalStatus = "initiated";
     let providerError: string | null = null;
+    let providerErrorCode = "unknown";
+    let providerErrorMessage = "";
+    let vivaResponseBody: any = null;
+    let vivaHttpStatus: number | null = null;
+    const sourceTerminalId = (terminal as any).source_terminal_id || terminal_id;
+    const virtualId = (terminal as any).virtual_id || null;
+    const environment = is_demo ? "demo" : (Deno.env.get("VIVA_ENVIRONMENT") || "demo");
+
+    const logCtx = {
+      terminal_id,
+      source_terminal_id: sourceTerminalId,
+      virtual_id: virtualId,
+      session_id: sessionId,
+      environment,
+      payment_id: payment.id,
+    };
+    console.log("[create-viva-terminal-payment] initiating", logCtx);
 
     if (isVivaConfigured()) {
       try {
@@ -162,38 +179,55 @@ Deno.serve(async (req) => {
         const env = vivaEnv();
         const sourceCode = Deno.env.get("VIVA_SOURCE_CODE")!;
         const url = `${env.api}/ecr/v1/transactions:sale`;
+        const requestBody = {
+          sessionId,
+          terminalId: terminal_id,
+          cashRegisterId: `glowsuite-${userId.slice(0, 8)}`,
+          amount: Math.round(amt),
+          currencyCode: "978",
+          merchantReference: payment.id,
+          customerTrns: description.slice(0, 100),
+          preauth: false,
+          sourceTerminalId,
+          sourceCode,
+        };
+        console.log("[create-viva-terminal-payment] viva request", { url, body: requestBody });
         const res = await fetch(url, {
           method: "POST",
           headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sessionId,
-            terminalId: terminal_id,
-            cashRegisterId: `glowsuite-${userId.slice(0, 8)}`,
-            amount: Math.round(amt),
-            currencyCode: "978",
-            merchantReference: payment.id,
-            customerTrns: description.slice(0, 100),
-            preauth: false,
-            sourceTerminalId: (terminal as any).source_terminal_id || terminal_id,
-            sourceCode,
-          }),
+          body: JSON.stringify(requestBody),
         });
+        vivaHttpStatus = res.status;
         const text = await res.text();
         let data: any = {};
         try { data = JSON.parse(text); } catch { data = { raw: text }; }
+        vivaResponseBody = data;
+        console.log("[create-viva-terminal-payment] viva response", { ...logCtx, http_status: res.status, body: data });
+
         if (!res.ok) {
-          providerError = `viva_terminal_http_${res.status}: ${text.slice(0, 300)}`;
+          providerErrorCode = String(data?.ErrorCode ?? data?.errorCode ?? data?.error ?? `http_${res.status}`);
+          providerErrorMessage = String(
+            data?.Message ?? data?.message ?? data?.error_description ?? data?.detail ?? (typeof text === "string" ? text.slice(0, 300) : `HTTP ${res.status}`),
+          );
+          providerError = `viva_terminal_http_${res.status}: ${providerErrorCode} ${providerErrorMessage}`;
           terminalStatus = "failed_to_initiate";
+          console.error("[create-viva-terminal-payment] viva error", { ...logCtx, http_status: res.status, code: providerErrorCode, message: providerErrorMessage, body: data });
         } else {
           providerReference = data?.sessionId || sessionId;
         }
       } catch (e) {
-        providerError = `viva_terminal_exception: ${(e as Error).message}`;
+        providerErrorCode = "exception";
+        providerErrorMessage = (e as Error).message;
+        providerError = `viva_terminal_exception: ${providerErrorMessage}`;
         terminalStatus = "failed_to_initiate";
+        console.error("[create-viva-terminal-payment] exception", { ...logCtx, error: providerErrorMessage });
       }
     } else {
+      providerErrorCode = "viva_not_configured";
+      providerErrorMessage = "Viva credentials zijn niet geconfigureerd.";
       providerError = "viva_not_configured";
       terminalStatus = "failed_to_initiate";
+      console.error("[create-viva-terminal-payment] viva_not_configured", logCtx);
     }
 
     // Persist provider reference / error in metadata
@@ -205,6 +239,10 @@ Deno.serve(async (req) => {
           terminal_status: terminalStatus,
           provider_reference: providerReference,
           provider_error: providerError,
+          provider_error_code: providerErrorCode,
+          provider_error_message: providerErrorMessage,
+          viva_http_status: vivaHttpStatus,
+          viva_response: vivaResponseBody,
           initiated_at: new Date().toISOString(),
         },
         ...(providerError ? { status: "failed", failure_reason: providerError } : {}),
@@ -212,7 +250,16 @@ Deno.serve(async (req) => {
       .eq("id", payment.id);
 
     if (providerError) {
-      return json({ error: "terminal_initiation_failed", detail: providerError, payment_id: payment.id }, 502);
+      return json({
+        success: false,
+        code: providerErrorCode,
+        message: providerErrorMessage || providerError,
+        viva_response: vivaResponseBody,
+        http_status: vivaHttpStatus,
+        payment_id: payment.id,
+        error: "terminal_initiation_failed",
+        detail: providerErrorMessage || providerError,
+      }, 502);
     }
 
     return json({
