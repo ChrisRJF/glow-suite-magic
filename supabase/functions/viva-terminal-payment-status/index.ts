@@ -103,10 +103,10 @@ Deno.serve(async (req) => {
       providerError = "viva_not_configured";
     }
 
+    const vivaTransactionId = providerData?.transactionId ?? providerData?.TransactionId ?? null;
+    const txStr = vivaTransactionId ? String(vivaTransactionId) : null;
+
     if (newStatus && payment.status !== "paid") {
-      // Capture Viva transactionId when present so the shared viva-webhook
-      // can match terminal payments by metadata.viva_transaction_id.
-      const vivaTransactionId = providerData?.transactionId ?? providerData?.TransactionId ?? null;
       const updates: Record<string, any> = {
         status: newStatus,
         last_status_sync_at: new Date().toISOString(),
@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
           ...meta,
           terminal_status: newStatus,
           provider_status_payload: providerData,
-          viva_transaction_id: vivaTransactionId ? String(vivaTransactionId) : meta.viva_transaction_id || null,
+          viva_transaction_id: txStr || meta.viva_transaction_id || null,
           last_status_sync_at: new Date().toISOString(),
         },
       };
@@ -136,12 +136,23 @@ Deno.serve(async (req) => {
       }
 
       console.log(`[viva-terminal-payment-status] ${payment.id} -> ${newStatus}`);
+    } else if (txStr && txStr !== meta.viva_transaction_id) {
+      // Even while pending, persist transactionId so viva-webhook can match it.
+      await admin
+        .from("payments")
+        .update({
+          last_status_sync_at: new Date().toISOString(),
+          metadata: { ...meta, viva_transaction_id: txStr, last_status_sync_at: new Date().toISOString() },
+        })
+        .eq("id", payment.id)
+        .neq("status", "paid");
     }
 
     return json({
       payment_id,
       status: newStatus || payment.status,
       terminal_status: newStatus || meta.terminal_status || "pending",
+      viva_transaction_id: txStr || meta.viva_transaction_id || null,
       provider_error: providerError,
     });
   } catch (e) {
