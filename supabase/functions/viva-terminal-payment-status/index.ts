@@ -208,6 +208,23 @@ Deno.serve(async (req) => {
       }
 
       console.log(`[viva-terminal-payment-status] ${payment.id} -> ${newStatus}`);
+    } else if (providerError) {
+      console.warn("[viva-terminal-payment-status] failure_point", JSON.stringify({
+        point: "A_viva_poll_error_no_approved_status",
+        payment_id: payment.id,
+        sessionId,
+        transactionId: txStr,
+        raw_status: rawStatus,
+        error: providerError,
+      }));
+    } else if (!newStatus) {
+      console.log("[viva-terminal-payment-status] failure_point", JSON.stringify({
+        point: "A_viva_never_returned_approved_yet",
+        payment_id: payment.id,
+        sessionId,
+        transactionId: txStr,
+        raw_status: rawStatus,
+      }));
     } else if (txStr && txStr !== meta.viva_transaction_id) {
       // Even while pending, persist transactionId so viva-webhook can match it.
       await admin
