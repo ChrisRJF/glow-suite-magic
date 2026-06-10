@@ -179,13 +179,29 @@ export function TerminalsCard() {
                 </p>
                 <div className="text-[10px] text-muted-foreground space-y-0.5 min-w-0">
                   <div className="min-w-0"><CopyableId label="ID:" value={t.terminal_id} /></div>
-                  {t.source_terminal_id && <div className="min-w-0"><CopyableId label="Source:" value={t.source_terminal_id} /></div>}
-                  {t.virtual_id && <div className="min-w-0"><CopyableId label="Virtual:" value={t.virtual_id} /></div>}
-                  {t.serial_number && <div className="truncate">S/N: {t.serial_number}</div>}
                   {t.location_name && <div className="truncate">{t.location_name}</div>}
                   <div className="truncate">
                     Laatst gebruikt: {t.last_used_at ? new Date(t.last_used_at).toLocaleString("nl-NL") : "nooit"}
                   </div>
+                  {(t.source_terminal_id || t.virtual_id || t.serial_number) && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => toggleExpanded(t.id)}
+                        className="inline-flex items-center gap-1 text-[10px] text-primary hover:underline mt-0.5"
+                      >
+                        <ChevronDown className={`w-3 h-3 transition-transform ${expandedIds[t.id] ? "rotate-180" : ""}`} />
+                        {expandedIds[t.id] ? "Verberg details" : "Toon technische details"}
+                      </button>
+                      {expandedIds[t.id] && (
+                        <div className="space-y-0.5 pt-1 min-w-0">
+                          {t.source_terminal_id && <div className="min-w-0"><CopyableId label="Source:" value={t.source_terminal_id} /></div>}
+                          {t.virtual_id && <div className="min-w-0"><CopyableId label="Virtual:" value={t.virtual_id} /></div>}
+                          {t.serial_number && <div className="truncate">S/N: {t.serial_number}</div>}
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
               <div className="flex flex-col items-end gap-1 shrink-0">
