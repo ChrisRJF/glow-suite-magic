@@ -208,6 +208,16 @@ export function TerminalPaymentDialog({
             </div>
           )}
 
+          {state === "idle" && posReady === false && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 text-amber-800 p-3 flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+              <p className="text-xs leading-relaxed">
+                Voer eerst Viva POS API credentials in voordat terminalbetalingen kunnen worden gebruikt.
+                Ga naar Instellingen → GlowPay → Viva POS API credentials.
+              </p>
+            </div>
+          )}
+
           {state === "idle" && (
             <div>
               <label className="text-xs text-muted-foreground">Pinapparaat</label>
