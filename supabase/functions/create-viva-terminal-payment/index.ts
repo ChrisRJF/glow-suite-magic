@@ -144,6 +144,14 @@ Deno.serve(async (req) => {
       .select()
       .single();
     if (payErr) return json({ error: "payment_create_failed", detail: payErr.message }, 500);
+    await admin.from("payment_status_history").insert({
+      payment_id: payment.id,
+      old_status: null,
+      new_status: "pending",
+      source: "manual",
+    }).then(({ error }) => {
+      if (error) console.error("[create-viva-terminal-payment] audit insert failed", { payment_id: payment.id, error: error.message });
+    });
 
     // Touch terminal usage
     await admin
