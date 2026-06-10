@@ -63,9 +63,8 @@ export function TerminalsCard() {
 
   const makeDefault = async (t: Terminal) => {
     if (!user) return;
-    // Clear other defaults in the same scope, then set this one
-    await supabase.from("viva_terminals").update({ is_default: false }).eq("user_id", user.id).eq("is_demo", t.is_demo);
-    const { error } = await supabase.from("viva_terminals").update({ is_default: true }).eq("id", t.id);
+    await (supabase.from("viva_terminals") as any).update({ is_default: false }).eq("user_id", user.id).eq("is_demo", t.is_demo);
+    const { error } = await (supabase.from("viva_terminals") as any).update({ is_default: true }).eq("id", t.id);
     if (error) toast.error(error.message); else { toast.success("Standaard pinapparaat ingesteld"); load(); }
   };
 
