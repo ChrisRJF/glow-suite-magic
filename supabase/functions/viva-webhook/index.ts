@@ -225,6 +225,12 @@ Deno.serve(async (req) => {
   const transactionId = String(eventData?.TransactionId ?? eventData?.transactionId ?? "") || null;
   const orderCodeRaw = eventData?.OrderCode ?? eventData?.orderCode;
   const orderCode = orderCodeRaw != null ? String(orderCodeRaw) : null;
+  const merchantReference = String(
+    eventData?.MerchantReference ?? eventData?.merchantReference ??
+    eventData?.MerchantTrns ?? eventData?.merchantTrns ?? "",
+  ) || null;
+  const sessionIdEvt = String(eventData?.SessionId ?? eventData?.sessionId ?? "") || null;
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const statusId = String(eventData?.StatusId ?? eventData?.statusId ?? "") || null;
   const status = mapVivaStatus(statusId || "", eventTypeId || undefined);
   const eventTypeName = String(p?.EventTypeName || p?.eventTypeName || (eventTypeId ? `event_${eventTypeId}` : "unknown"));
