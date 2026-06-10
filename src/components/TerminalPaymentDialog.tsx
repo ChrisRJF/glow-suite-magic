@@ -54,6 +54,7 @@ export function TerminalPaymentDialog({
   appointmentId = null, customerId = null, source = "manual", allowTip = false, onPaid,
 }: Props) {
   const { demoMode } = useDemoMode();
+  const posReady = useVivaPosReady();
   const [terminals, setTerminals] = useState<Terminal[]>([]);
   const [selectedTerminal, setSelectedTerminal] = useState<string>("");
   const [state, setState] = useState<TerminalState>("idle");
