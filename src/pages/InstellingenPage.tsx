@@ -22,6 +22,7 @@ import { OnboardingWizard } from "@/components/OnboardingWizard";
 import { useUserRole } from "@/hooks/useUserRole";
 import { hasPermission } from "@/lib/permissions";
 import { TerminalsCard } from "@/components/TerminalsCard";
+import { VivaPosCredentialsCard } from "@/components/VivaPosCredentialsCard";
 import { MerchantOnboardingCard } from "@/components/MerchantOnboardingCard";
 import { GlowPaySetupCard } from "@/components/GlowPaySetupCard";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
