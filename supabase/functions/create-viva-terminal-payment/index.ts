@@ -174,7 +174,7 @@ Deno.serve(async (req) => {
             merchantReference: payment.id,
             customerTrns: description.slice(0, 100),
             preauth: false,
-            sourceTerminalId: terminal_id,
+            sourceTerminalId: (terminal as any).source_terminal_id || terminal_id,
             sourceCode,
           }),
         });
