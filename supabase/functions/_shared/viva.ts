@@ -83,6 +83,38 @@ async function getAccessToken(): Promise<string> {
   return cachedToken.value;
 }
 
+// Fetch an OAuth2 token for POS/ECR endpoints. Falls back to Smart Checkout
+// credentials if dedicated POS credentials are not configured (legacy mode).
+export async function getVivaPosAccessToken(): Promise<{ token: string; kind: "pos" | "smart_checkout" }> {
+  const kind = vivaPosCredentialKind();
+  if (kind === "none") throw new Error("viva_pos_not_configured");
+  if (cachedPosToken && cachedPosToken.expiresAt > Date.now() + 60_000) {
+    return { token: cachedPosToken.value, kind };
+  }
+  const env = vivaPosEnv();
+  const clientId = kind === "pos" ? Deno.env.get("VIVA_POS_CLIENT_ID")! : Deno.env.get("VIVA_CLIENT_ID")!;
+  const clientSecret = kind === "pos" ? Deno.env.get("VIVA_POS_CLIENT_SECRET")! : Deno.env.get("VIVA_CLIENT_SECRET")!;
+  const basic = btoa(`${clientId}:${clientSecret}`);
+  const res = await fetch(`${env.account}/connect/token`, {
+    method: "POST",
+    headers: { Authorization: `Basic ${basic}`, "Content-Type": "application/x-www-form-urlencoded" },
+    body: "grant_type=client_credentials",
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data?.access_token) {
+    const err: any = new Error(`Viva POS token error (${res.status})`);
+    err.status = res.status;
+    err.body = data;
+    err.kind = kind;
+    throw err;
+  }
+  cachedPosToken = {
+    value: data.access_token,
+    expiresAt: Date.now() + Math.max(60, Number(data.expires_in || 3600) - 120) * 1000,
+  };
+  return { token: cachedPosToken.value, kind };
+}
+
 export type VivaPaymentSource = "public_booking" | "auto_revenue" | "membership" | "manual";
 export type VivaPaymentType = "deposit" | "full" | "subscription" | "other";
 
