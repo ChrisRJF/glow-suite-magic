@@ -67,10 +67,10 @@ export function TerminalPaymentDialog({
   const totalCents = amountCents + tipCents;
 
   const loadTerminals = async () => {
-    const { data } = await supabase
+    const { data } = await (supabase
       .from("viva_terminals")
       .select("id,terminal_id,terminal_name,status,location_name,is_default")
-      .eq("status", "active")
+      .eq("status", "active") as any)
       .order("is_default", { ascending: false });
     const list = ((data as any) || []) as Terminal[];
     setTerminals(list);
