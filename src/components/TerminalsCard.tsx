@@ -47,7 +47,7 @@ export function TerminalsCard() {
       virtual_id: tvirtual.trim() || null,
       serial_number: tserial.trim() || null,
       is_default: tdefault,
-    });
+    } as any);
     setLoading(false);
     if (error) { toast.error(error.message); return; }
     setTid(""); setTname(""); setTloc(""); setTsource(""); setTvirtual(""); setTserial(""); setTdefault(false);
