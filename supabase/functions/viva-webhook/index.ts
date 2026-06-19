@@ -164,21 +164,22 @@ async function handleSaasSubscriptionEvent(
 }
 
 
-function mapVivaStatus(statusId: string, eventTypeId?: number): "paid" | "failed" | "expired" | "cancelled" | "pending" | "refunded" {
+function mapVivaStatus(statusId: string, eventTypeId?: number): "paid" | "failed" | "expired" | "cancelled" | "pending" | "refunded" | "reversed" {
+  if (eventTypeId === 1797) return "reversed";
   if (eventTypeId === 1798 || eventTypeId === 1799) return "refunded";
   if (statusId === "F" || eventTypeId === 1796) return "paid";
-  if (eventTypeId === 1797 || statusId === "E") return "failed";
+  if (statusId === "E") return "failed";
   if (statusId === "X") return "cancelled";
   return "pending";
 }
 
 // Allowed payment status transitions (idempotent state machine).
-const TERMINAL = new Set(["paid", "refunded", "partially_refunded"]);
+const TERMINAL = new Set(["paid", "refunded", "partially_refunded", "reversed"]);
 function canTransition(from: string, to: string): boolean {
   if (from === to) return false; // no-op
-  if (from === "pending") return ["paid", "failed", "cancelled", "expired"].includes(to);
-  if (from === "paid") return ["refunded", "partially_refunded"].includes(to);
-  // Never demote a paid/refunded payment back to failed
+  if (from === "pending") return ["paid", "failed", "cancelled", "expired", "reversed"].includes(to);
+  if (from === "paid") return ["refunded", "partially_refunded", "reversed"].includes(to);
+  // Never demote a paid/refunded/reversed payment
   return false;
 }
 
