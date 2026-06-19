@@ -605,6 +605,33 @@ Deno.serve(async (req) => {
         transaction_id: transactionId, refunded_at: nowIso, source: eventSource,
       }));
     }
+    if (isReversedTarget) {
+      console.log("viva_reversal_processed", JSON.stringify({
+        payment_id: payment.id, user_id: payment.user_id, order_code: resolvedOrderCode,
+        reversal_transaction_id: transactionId, parent_id: parentId, systemic, source: eventSource,
+      }));
+      // In-app merchant alert (idempotent on payment_id + reversal tx via type+payload).
+      try {
+        await supabase.from("admin_notifications").insert({
+          user_id: payment.user_id,
+          type: "viva_terminal_reversal",
+          severity: "warning",
+          title: "Betaling teruggedraaid",
+          body: "Een terminalbetaling leek geslaagd, maar is automatisch teruggedraaid door Viva. Laat de klant opnieuw betalen.",
+          payload: {
+            payment_id: payment.id,
+            order_code: resolvedOrderCode,
+            reversal_transaction_id: transactionId,
+            parent_transaction_id: parentId,
+            systemic,
+            amount: payment.amount,
+          },
+          link: "/glowpay",
+        });
+      } catch (notifErr) {
+        console.error("[viva-webhook] reversal notification insert failed", notifErr);
+      }
+    }
     console.log("viva_status_updated", JSON.stringify({
       payment_id: payment.id, from: currentStatus, to: targetStatus,
       event_type_id: eventTypeId, event_type: eventTypeName, source: eventSource,
