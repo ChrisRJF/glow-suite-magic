@@ -405,6 +405,16 @@ Deno.serve(async (req) => {
         .maybeSingle();
       payment = data;
     }
+    // Reversal events reference the original transaction via ParentId.
+    if (!payment && parentId) {
+      const { data } = await supabase
+        .from("payments")
+        .select("*")
+        .contains("metadata", { viva_transaction_id: parentId })
+        .limit(1)
+        .maybeSingle();
+      payment = data;
+    }
 
     console.log("[viva-webhook] lifecycle", JSON.stringify({
       event_type: eventTypeName,
