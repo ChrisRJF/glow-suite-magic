@@ -224,6 +224,9 @@ Deno.serve(async (req) => {
   const eventTypeId = Number(p?.EventTypeId ?? p?.eventTypeId ?? 0) || null;
   const eventId = p?.EventId != null ? String(p.EventId) : (p?.eventId != null ? String(p.eventId) : null);
   const transactionId = String(eventData?.TransactionId ?? eventData?.transactionId ?? "") || null;
+  const parentId = String(eventData?.ParentId ?? eventData?.parentId ?? "") || null;
+  const systemic = Boolean(eventData?.Systemic ?? eventData?.systemic ?? false);
+  const eventAmount = Number(eventData?.Amount ?? eventData?.amount ?? 0);
   const orderCodeRaw = eventData?.OrderCode ?? eventData?.orderCode;
   const orderCode = orderCodeRaw != null ? String(orderCodeRaw) : null;
   const merchantReference = String(
@@ -235,6 +238,7 @@ Deno.serve(async (req) => {
   const statusId = String(eventData?.StatusId ?? eventData?.statusId ?? "") || null;
   const status = mapVivaStatus(statusId || "", eventTypeId || undefined);
   const eventTypeName = String(p?.EventTypeName || p?.eventTypeName || (eventTypeId ? `event_${eventTypeId}` : "unknown"));
+  const isReversal = eventTypeId === 1797;
   const eventSource: "webhook" | "redirect_fallback" | "reconciliation" =
     p?._source === "redirect_fallback" ? "redirect_fallback"
     : p?._source === "reconciliation" ? "reconciliation"
