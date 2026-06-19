@@ -616,16 +616,20 @@ Deno.serve(async (req) => {
 
     if (appointmentId && !isRefund) {
       const amountPaid = isPaid ? Number(payment.amount || 0) : 0;
-      const apptStatus = isAutoRevenue && isPaid ? "gepland"
+      const apptStatus = isReversedTarget ? "pending_confirmation"
+        : isAutoRevenue && isPaid ? "gepland"
         : isAutoRevenue && isFailed ? "geannuleerd"
         : isPaid ? "confirmed"
         : "pending_confirmation";
-      const apptPaymentStatus = isPaid ? "paid" : isFailed ? "payment_failed" : "pending";
+      const apptPaymentStatus = isReversedTarget ? "payment_failed"
+        : isPaid ? "paid"
+        : isFailed ? "payment_failed"
+        : "pending";
 
       const updatePayload: Record<string, unknown> = {
         payment_status: apptPaymentStatus,
         status: apptStatus,
-        amount_paid: amountPaid,
+        amount_paid: isReversedTarget ? 0 : amountPaid,
       };
       if (isAutoRevenue && isPaid) updatePayload.payment_expires_at = null;
 
