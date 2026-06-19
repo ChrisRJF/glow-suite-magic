@@ -164,21 +164,22 @@ async function handleSaasSubscriptionEvent(
 }
 
 
-function mapVivaStatus(statusId: string, eventTypeId?: number): "paid" | "failed" | "expired" | "cancelled" | "pending" | "refunded" {
+function mapVivaStatus(statusId: string, eventTypeId?: number): "paid" | "failed" | "expired" | "cancelled" | "pending" | "refunded" | "reversed" {
+  if (eventTypeId === 1797) return "reversed";
   if (eventTypeId === 1798 || eventTypeId === 1799) return "refunded";
   if (statusId === "F" || eventTypeId === 1796) return "paid";
-  if (eventTypeId === 1797 || statusId === "E") return "failed";
+  if (statusId === "E") return "failed";
   if (statusId === "X") return "cancelled";
   return "pending";
 }
 
 // Allowed payment status transitions (idempotent state machine).
-const TERMINAL = new Set(["paid", "refunded", "partially_refunded"]);
+const TERMINAL = new Set(["paid", "refunded", "partially_refunded", "reversed"]);
 function canTransition(from: string, to: string): boolean {
   if (from === to) return false; // no-op
-  if (from === "pending") return ["paid", "failed", "cancelled", "expired"].includes(to);
-  if (from === "paid") return ["refunded", "partially_refunded"].includes(to);
-  // Never demote a paid/refunded payment back to failed
+  if (from === "pending") return ["paid", "failed", "cancelled", "expired", "reversed"].includes(to);
+  if (from === "paid") return ["refunded", "partially_refunded", "reversed"].includes(to);
+  // Never demote a paid/refunded/reversed payment
   return false;
 }
 
@@ -223,6 +224,9 @@ Deno.serve(async (req) => {
   const eventTypeId = Number(p?.EventTypeId ?? p?.eventTypeId ?? 0) || null;
   const eventId = p?.EventId != null ? String(p.EventId) : (p?.eventId != null ? String(p.eventId) : null);
   const transactionId = String(eventData?.TransactionId ?? eventData?.transactionId ?? "") || null;
+  const parentId = String(eventData?.ParentId ?? eventData?.parentId ?? "") || null;
+  const systemic = Boolean(eventData?.Systemic ?? eventData?.systemic ?? false);
+  const eventAmount = Number(eventData?.Amount ?? eventData?.amount ?? 0);
   const orderCodeRaw = eventData?.OrderCode ?? eventData?.orderCode;
   const orderCode = orderCodeRaw != null ? String(orderCodeRaw) : null;
   const merchantReference = String(
@@ -234,6 +238,7 @@ Deno.serve(async (req) => {
   const statusId = String(eventData?.StatusId ?? eventData?.statusId ?? "") || null;
   const status = mapVivaStatus(statusId || "", eventTypeId || undefined);
   const eventTypeName = String(p?.EventTypeName || p?.eventTypeName || (eventTypeId ? `event_${eventTypeId}` : "unknown"));
+  const isReversal = eventTypeId === 1797;
   const eventSource: "webhook" | "redirect_fallback" | "reconciliation" =
     p?._source === "redirect_fallback" ? "redirect_fallback"
     : p?._source === "reconciliation" ? "reconciliation"
@@ -400,6 +405,16 @@ Deno.serve(async (req) => {
         .maybeSingle();
       payment = data;
     }
+    // Reversal events reference the original transaction via ParentId.
+    if (!payment && parentId) {
+      const { data } = await supabase
+        .from("payments")
+        .select("*")
+        .contains("metadata", { viva_transaction_id: parentId })
+        .limit(1)
+        .maybeSingle();
+      payment = data;
+    }
 
     console.log("[viva-webhook] lifecycle", JSON.stringify({
       event_type: eventTypeName,
@@ -476,6 +491,15 @@ Deno.serve(async (req) => {
 
     // Idempotent state machine guard.
     const currentStatus = String(payment.status || "pending");
+    const existingMetaPre = (payment.metadata as any) || {};
+
+    // Reversal idempotency: same reversal transaction must not be applied twice.
+    if (isReversal && transactionId && existingMetaPre.reversal_transaction_id === transactionId) {
+      console.log("[viva-webhook] reversal already applied, skipping", { payment_id: payment.id, reversal_tx: transactionId });
+      if (ledgerId) await supabase.from("viva_webhook_events").update({ processed: true, processed_at: new Date().toISOString(), error: "reversal_already_applied" }).eq("id", ledgerId);
+      return okText();
+    }
+
     const targetStatus = resolvedStatus === "refunded" ? "refunded" : resolvedStatus;
     if (!canTransition(currentStatus, targetStatus)) {
       console.log("[viva-webhook] failure_point", JSON.stringify({
@@ -496,18 +520,30 @@ Deno.serve(async (req) => {
     const isPaid = targetStatus === "paid";
     const isFailed = ["failed", "expired", "cancelled"].includes(targetStatus);
     const isRefund = targetStatus === "refunded";
+    const isReversedTarget = targetStatus === "reversed";
 
     // Build merged metadata. Fees stored once (only when first paid).
-    const existingMeta = (payment.metadata as any) || {};
+    const existingMeta = existingMetaPre;
     const feeAlreadyStored = existingMeta.platform_fee_cents != null || existingMeta.glowpay_margin_cents != null;
     const metaUpdates: Record<string, unknown> = {
       ...existingMeta,
       viva_order_code: resolvedOrderCode,
-      viva_transaction_id: transactionId || existingMeta.viva_transaction_id || null,
+      // Preserve original viva_transaction_id on reversal; store reversal id separately.
+      viva_transaction_id: isReversedTarget
+        ? (existingMeta.viva_transaction_id || parentId || null)
+        : (transactionId || existingMeta.viva_transaction_id || null),
       viva_status_id: statusId || existingMeta.viva_status_id || null,
       viva_event_type_id: eventTypeId || existingMeta.viva_event_type_id || null,
       viva_source_code: existingMeta.viva_source_code || Deno.env.get("VIVA_SOURCE_CODE") || null,
     };
+    if (isReversedTarget) {
+      metaUpdates.reversal_transaction_id = transactionId || null;
+      metaUpdates.reversal_parent_id = parentId || existingMeta.viva_transaction_id || null;
+      metaUpdates.reversal_systemic = systemic;
+      metaUpdates.reversal_amount_cents = Math.round(eventAmount * 100);
+      metaUpdates.reversal_received_at = new Date().toISOString();
+      metaUpdates.reversal_reason = systemic ? "systemic_reversal" : "manual_reversal";
+    }
     if (isPaid && !feeAlreadyStored) {
       // Persist the GlowPay platform margin once per paid payment.
       // Source of truth: supabase/functions/_shared/glowpayMargin.ts
@@ -569,6 +605,33 @@ Deno.serve(async (req) => {
         transaction_id: transactionId, refunded_at: nowIso, source: eventSource,
       }));
     }
+    if (isReversedTarget) {
+      console.log("viva_reversal_processed", JSON.stringify({
+        payment_id: payment.id, user_id: payment.user_id, order_code: resolvedOrderCode,
+        reversal_transaction_id: transactionId, parent_id: parentId, systemic, source: eventSource,
+      }));
+      // In-app merchant alert (idempotent on payment_id + reversal tx via type+payload).
+      try {
+        await supabase.from("admin_notifications").insert({
+          user_id: payment.user_id,
+          type: "viva_terminal_reversal",
+          severity: "warning",
+          title: "Betaling teruggedraaid",
+          body: "Een terminalbetaling leek geslaagd, maar is automatisch teruggedraaid door Viva. Laat de klant opnieuw betalen.",
+          payload: {
+            payment_id: payment.id,
+            order_code: resolvedOrderCode,
+            reversal_transaction_id: transactionId,
+            parent_transaction_id: parentId,
+            systemic,
+            amount: payment.amount,
+          },
+          link: "/glowpay",
+        });
+      } catch (notifErr) {
+        console.error("[viva-webhook] reversal notification insert failed", notifErr);
+      }
+    }
     console.log("viva_status_updated", JSON.stringify({
       payment_id: payment.id, from: currentStatus, to: targetStatus,
       event_type_id: eventTypeId, event_type: eventTypeName, source: eventSource,
@@ -580,16 +643,20 @@ Deno.serve(async (req) => {
 
     if (appointmentId && !isRefund) {
       const amountPaid = isPaid ? Number(payment.amount || 0) : 0;
-      const apptStatus = isAutoRevenue && isPaid ? "gepland"
+      const apptStatus = isReversedTarget ? "pending_confirmation"
+        : isAutoRevenue && isPaid ? "gepland"
         : isAutoRevenue && isFailed ? "geannuleerd"
         : isPaid ? "confirmed"
         : "pending_confirmation";
-      const apptPaymentStatus = isPaid ? "paid" : isFailed ? "payment_failed" : "pending";
+      const apptPaymentStatus = isReversedTarget ? "payment_failed"
+        : isPaid ? "paid"
+        : isFailed ? "payment_failed"
+        : "pending";
 
       const updatePayload: Record<string, unknown> = {
         payment_status: apptPaymentStatus,
         status: apptStatus,
-        amount_paid: amountPaid,
+        amount_paid: isReversedTarget ? 0 : amountPaid,
       };
       if (isAutoRevenue && isPaid) updatePayload.payment_expires_at = null;
 
