@@ -491,6 +491,15 @@ Deno.serve(async (req) => {
 
     // Idempotent state machine guard.
     const currentStatus = String(payment.status || "pending");
+    const existingMetaPre = (payment.metadata as any) || {};
+
+    // Reversal idempotency: same reversal transaction must not be applied twice.
+    if (isReversal && transactionId && existingMetaPre.reversal_transaction_id === transactionId) {
+      console.log("[viva-webhook] reversal already applied, skipping", { payment_id: payment.id, reversal_tx: transactionId });
+      if (ledgerId) await supabase.from("viva_webhook_events").update({ processed: true, processed_at: new Date().toISOString(), error: "reversal_already_applied" }).eq("id", ledgerId);
+      return okText();
+    }
+
     const targetStatus = resolvedStatus === "refunded" ? "refunded" : resolvedStatus;
     if (!canTransition(currentStatus, targetStatus)) {
       console.log("[viva-webhook] failure_point", JSON.stringify({
@@ -511,18 +520,30 @@ Deno.serve(async (req) => {
     const isPaid = targetStatus === "paid";
     const isFailed = ["failed", "expired", "cancelled"].includes(targetStatus);
     const isRefund = targetStatus === "refunded";
+    const isReversedTarget = targetStatus === "reversed";
 
     // Build merged metadata. Fees stored once (only when first paid).
-    const existingMeta = (payment.metadata as any) || {};
+    const existingMeta = existingMetaPre;
     const feeAlreadyStored = existingMeta.platform_fee_cents != null || existingMeta.glowpay_margin_cents != null;
     const metaUpdates: Record<string, unknown> = {
       ...existingMeta,
       viva_order_code: resolvedOrderCode,
-      viva_transaction_id: transactionId || existingMeta.viva_transaction_id || null,
+      // Preserve original viva_transaction_id on reversal; store reversal id separately.
+      viva_transaction_id: isReversedTarget
+        ? (existingMeta.viva_transaction_id || parentId || null)
+        : (transactionId || existingMeta.viva_transaction_id || null),
       viva_status_id: statusId || existingMeta.viva_status_id || null,
       viva_event_type_id: eventTypeId || existingMeta.viva_event_type_id || null,
       viva_source_code: existingMeta.viva_source_code || Deno.env.get("VIVA_SOURCE_CODE") || null,
     };
+    if (isReversedTarget) {
+      metaUpdates.reversal_transaction_id = transactionId || null;
+      metaUpdates.reversal_parent_id = parentId || existingMeta.viva_transaction_id || null;
+      metaUpdates.reversal_systemic = systemic;
+      metaUpdates.reversal_amount_cents = Math.round(eventAmount * 100);
+      metaUpdates.reversal_received_at = new Date().toISOString();
+      metaUpdates.reversal_reason = systemic ? "systemic_reversal" : "manual_reversal";
+    }
     if (isPaid && !feeAlreadyStored) {
       // Persist the GlowPay platform margin once per paid payment.
       // Source of truth: supabase/functions/_shared/glowpayMargin.ts
