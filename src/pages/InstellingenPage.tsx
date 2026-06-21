@@ -1049,6 +1049,11 @@ export default function InstellingenPage() {
                   {/* Viva POS API credentials (terminal payments only) */}
                   <VivaPosCredentialsCard />
 
+                  {/* Smart Checkout (online payments) status */}
+                  <VivaSmartCheckoutStatusCard />
+
+
+
                   {/* Pinapparaten */}
                   <TerminalsCard />
 
