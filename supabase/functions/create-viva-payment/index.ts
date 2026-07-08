@@ -145,6 +145,32 @@ Deno.serve(async (req) => {
       return json({ error: "Viva is nog niet gekoppeld.", requiresSetup: true }, 400);
     }
 
+    const rawSourceCode = (Deno.env.get("VIVA_SOURCE_CODE") || "").trim();
+    if (rawSourceCode === "1234") {
+      console.warn(JSON.stringify({
+        fn: "create-viva-payment",
+        stage: "placeholder_source_code_blocked",
+        message: "VIVA_SOURCE_CODE is placeholder '1234' — order creation blocked before hitting Viva.",
+      }));
+      return json({
+        error: "VIVA_SOURCE_CODE is placeholder '1234'. Zet deze op 'Default' of je echte Viva Payment Source code, of laat leeg zodat Viva automatisch 'Default' gebruikt.",
+        requiresSetup: true,
+        code: "viva_source_code_placeholder",
+      }, 400);
+    }
+
+    console.log(JSON.stringify({
+      fn: "create-viva-payment",
+      stage: "request_context",
+      user_id: user.id,
+      source: input.source,
+      payment_type: input.payment_type,
+      amount_cents: input.amount_cents,
+      demoMode: false,
+      has_customer: Boolean(input.customer?.email),
+      source_code_env: rawSourceCode || null,
+    }));
+
     const origin = req.headers.get("origin") || "https://glowsuite.nl";
     const redirectUrl =
       input.redirect_url ||
@@ -169,10 +195,23 @@ Deno.serve(async (req) => {
         source: input.source as VivaPaymentSource,
         paymentType: input.payment_type as VivaPaymentType,
       });
-    } catch (e) {
-      console.error("Viva order create failed", e);
-      return json({ error: "Viva-betaling kon niet worden gestart." }, 502);
+    } catch (e: any) {
+      console.error(JSON.stringify({
+        fn: "create-viva-payment",
+        stage: "viva_order_failed",
+        error: String(e?.message || e),
+        viva_status: e?.status ?? null,
+        viva_body: e?.body ?? null,
+        source_code_used: e?.sourceCodeUsed ?? null,
+      }));
+      return json({
+        error: "Viva-betaling kon niet worden gestart.",
+        viva_status: e?.status ?? null,
+        viva_error: e?.body ?? null,
+        source_code_used: e?.sourceCodeUsed ?? null,
+      }, 502);
     }
+
 
     const checkoutUrl = vivaCheckoutUrl(order.orderCode);
 
