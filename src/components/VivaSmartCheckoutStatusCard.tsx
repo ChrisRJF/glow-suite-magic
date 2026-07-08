@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { CheckCircle2, XCircle, AlertTriangle, Loader2, ShoppingCart, RefreshCw } from "lucide-react";
+import { CheckCircle2, XCircle, AlertTriangle, Loader2, ShoppingCart, RefreshCw, CreditCard } from "lucide-react";
+import { toast } from "sonner";
 
 type HealthResult = {
   success: boolean;
@@ -22,7 +23,37 @@ type HealthResult = {
 export function VivaSmartCheckoutStatusCard() {
   const [loading, setLoading] = useState(true);
   const [testing, setTesting] = useState(false);
+  const [paying, setPaying] = useState(false);
   const [result, setResult] = useState<HealthResult | null>(null);
+
+  const startTestPayment = async () => {
+    setPaying(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-viva-payment", {
+        body: {
+          amount_cents: 50,
+          payment_type: "other",
+          source: "manual",
+          description: "Smart Checkout testbetaling €0,50",
+        },
+      });
+      if (error) throw error;
+      const url = (data as any)?.checkout_url;
+      const vivaErr = (data as any)?.viva_error;
+      if (!url) {
+        toast.error("Kon geen checkout starten", {
+          description: vivaErr ? JSON.stringify(vivaErr).slice(0, 240) : (data as any)?.error || "Onbekende fout",
+        });
+        return;
+      }
+      toast.success("Testbetaling gestart", { description: "Nieuw tabblad geopend voor Viva checkout." });
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (e: any) {
+      toast.error("Testbetaling mislukt", { description: e?.message || String(e) });
+    } finally {
+      setPaying(false);
+    }
+  };
 
   const runCheck = async (showSpinner = true) => {
     if (showSpinner) setTesting(true);
@@ -116,6 +147,15 @@ export function VivaSmartCheckoutStatusCard() {
         >
           {testing ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 mr-1.5" />}
           Test Smart Checkout
+        </Button>
+        <Button
+          size="sm"
+          className="w-full sm:w-auto"
+          onClick={startTestPayment}
+          disabled={paying}
+        >
+          {paying ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <CreditCard className="w-3.5 h-3.5 mr-1.5" />}
+          Start testbetaling €0,50
         </Button>
       </div>
     </div>
