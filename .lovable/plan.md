@@ -1,34 +1,20 @@
-## Set VIVA_SOURCE_CODE to "Default" and verify end-to-end
+## End-to-end audit of €39 Smart Checkout test payment
 
-### 1. Update secret
-Use `set_secret` for `VIVA_SOURCE_CODE = "Default"`. This is a non-secret value provided inline; `set_secret` overwrites is not available (only `update_secret` does), so fallback path: use `update_secret` to open the secure form with `Default` as placeholder. All other secrets untouched.
+Read-only investigation across edge function logs and database. No code changes.
 
-### 2. Redeploy affected functions
-Redeploy so the new env value is picked up immediately:
-- `create-viva-payment`
-- `create-auto-revenue-payment`
-- `create-payment`
-- `saas-checkout-public-viva`
-- `saas-subscribe-viva`
-- `viva-smart-checkout-health-check` (reads the source_code for reporting)
+### Steps
+1. **Identify the payment window.** Query recent rows in `payments`, `subscriptions`, `viva_webhook_events`, and `viva_webhook_debug_logs` (last 30 min) to find the €39 record and its Viva `order_code`/`transaction_id`.
+2. **create-viva-payment logs.** Fetch `create-viva-payment` edge function logs; extract `request_context`, `createVivaOrder request` (URL, sourceCode, payload), `createVivaOrder response` (HTTP status + body), returned `orderCode`, and any `viva_order_failed` entries.
+3. **saas-checkout-public-viva / saas-subscribe-viva logs.** Since €39 = Starter subscription price, check both SaaS Viva checkout functions for the invocation and returned order code.
+4. **viva-webhook logs.** Fetch `viva-webhook` (and related webhook processor) logs to confirm receipt of the Viva notification, matched order code, and DB updates.
+5. **Database state.**
+   - `payments` row: `status`, `amount`, `viva_order_code`, `viva_transaction_id`, `paid_at`, `updated_at`.
+   - `subscriptions` row for the user: `status`, `plan_slug`, `current_period_end`, `viva_*` fields, `updated_at`.
+   - `viva_webhook_events`: matching event with `order_code`, `event_type`, `processed_at`.
+   - `viva_webhook_debug_logs`: raw payload + processing outcome.
+   - `viva_dead_letter_queue`: any failed entries.
+6. **Redirect handling.** Look for any post-payment callback function logs (`viva-payment-callback`, `viva-payment-reconcile`, or client-side redirect target) invoked around the same window.
+7. **Errors/warnings.** Scan all Viva-related edge function logs for `level: error/warning` in the window.
 
-### 3. Run Smart Checkout health-check
-Invoke `viva-smart-checkout-health-check` as the logged-in admin and report `success`, `http_status`, `environment`, `source_code`, and `message`.
-
-### 4. Trigger one live test payment
-Since `create-viva-payment` requires an authenticated Lovable Cloud user AND the salon's `viva_status = 'active'`, I cannot silently trigger it from the tool call chain without risking a real Viva order under wrong context. Two options:
-
-- **Preferred:** you click through a test online payment in the app (public booking → deposit, or Kassa → GlowPay). After the click, I fetch `create-viva-payment` edge logs.
-- **Alternative:** I invoke `create-viva-payment` directly via the edge-function curl (using your preview session token) with a small €0.30 test amount, `source: "manual"`, and no appointment/customer link so nothing gets written to your booking data. This will fail if the salon is not yet marked active — in that case you get a clear activation-gate error and we know to switch to option 1.
-
-Default: try the alternative first (fast feedback, no user click needed); if it hits the activation gate, ask you to do a click-through.
-
-### 5. Report logs
-Fetch `create-viva-payment` edge function logs and paste back the structured entries:
-- `stage: "request_context"` (source, payment_type, amount_cents, source_code_env)
-- `createVivaOrder stage: "request"` (url, sourceCode, full payload)
-- `createVivaOrder stage: "response"` (http_status, viva_body)
-- Either the returned `orderCode` (success) OR the `stage: "viva_order_failed"` entry with `viva_status` and `viva_body`.
-
-### Out of scope
-- No code changes. Only secret + deploy + observe.
+### Deliverable
+Chronological timeline with timestamps for each step (create → Viva → webhook → DB update → subscription activation → redirect), a per-question checkmark answer to items 1-10, the full sanitized Viva request/response, and any anomalies.
