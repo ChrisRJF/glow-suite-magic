@@ -23,7 +23,37 @@ type HealthResult = {
 export function VivaSmartCheckoutStatusCard() {
   const [loading, setLoading] = useState(true);
   const [testing, setTesting] = useState(false);
+  const [paying, setPaying] = useState(false);
   const [result, setResult] = useState<HealthResult | null>(null);
+
+  const startTestPayment = async () => {
+    setPaying(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-viva-payment", {
+        body: {
+          amount_cents: 50,
+          payment_type: "other",
+          source: "manual",
+          description: "Smart Checkout testbetaling €0,50",
+        },
+      });
+      if (error) throw error;
+      const url = (data as any)?.checkout_url;
+      const vivaErr = (data as any)?.viva_error;
+      if (!url) {
+        toast.error("Kon geen checkout starten", {
+          description: vivaErr ? JSON.stringify(vivaErr).slice(0, 240) : (data as any)?.error || "Onbekende fout",
+        });
+        return;
+      }
+      toast.success("Testbetaling gestart", { description: "Nieuw tabblad geopend voor Viva checkout." });
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (e: any) {
+      toast.error("Testbetaling mislukt", { description: e?.message || String(e) });
+    } finally {
+      setPaying(false);
+    }
+  };
 
   const runCheck = async (showSpinner = true) => {
     if (showSpinner) setTesting(true);
