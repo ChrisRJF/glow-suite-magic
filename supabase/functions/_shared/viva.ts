@@ -22,10 +22,10 @@ export function vivaPosEnv() {
 }
 
 export function isVivaConfigured() {
+  // sourceCode is optional per Viva docs — if omitted, Viva uses "Default".
   return Boolean(
     Deno.env.get("VIVA_CLIENT_ID") &&
-    Deno.env.get("VIVA_CLIENT_SECRET") &&
-    Deno.env.get("VIVA_SOURCE_CODE"),
+    Deno.env.get("VIVA_CLIENT_SECRET"),
   );
 }
 
