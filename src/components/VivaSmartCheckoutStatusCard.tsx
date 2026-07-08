@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { CheckCircle2, XCircle, AlertTriangle, Loader2, ShoppingCart, RefreshCw } from "lucide-react";
+import { CheckCircle2, XCircle, AlertTriangle, Loader2, ShoppingCart, RefreshCw, CreditCard } from "lucide-react";
+import { toast } from "sonner";
 
 type HealthResult = {
   success: boolean;
