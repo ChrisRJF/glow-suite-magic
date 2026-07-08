@@ -1,49 +1,34 @@
-## Diagnose + fix Viva Smart Checkout `sourceCode`
+## Set VIVA_SOURCE_CODE to "Default" and verify end-to-end
 
-### Findings from Viva official docs
-Source: `https://developer.viva.com/apis-for-payments/payment-api/#tag/Payments` — `POST /checkout/v2/orders`.
+### 1. Update secret
+Use `set_secret` for `VIVA_SOURCE_CODE = "Default"`. This is a non-secret value provided inline; `set_secret` overwrites is not available (only `update_secret` does), so fallback path: use `update_secret` to open the secure form with `Default` as placeholder. All other secrets untouched.
 
-- `sourceCode` is **optional**. Docs literal quote: *"sourceCode is case-sensitive. If left unspecified, `Default` source code is used."*
-- Sample payload in the docs uses `"sourceCode": "Default"`.
-- Sources are merchant-defined via the Self-Care portal (or `POST /api/sources`). Codes can be alphanumeric strings — **not required to be numeric**. Your account's only active source is literally named `Default`, which matches the Viva default.
-- There is no public "list sources" GET endpoint documented; sources are only visible in Self-Care or when creating one via `POST /api/sources`.
-- Value `1234` is not a magic Viva default — if no source with code `1234` exists on the merchant account, Viva returns HTTP 400 with an error naming the invalid source.
+### 2. Redeploy affected functions
+Redeploy so the new env value is picked up immediately:
+- `create-viva-payment`
+- `create-auto-revenue-payment`
+- `create-payment`
+- `saas-checkout-public-viva`
+- `saas-subscribe-viva`
+- `viva-smart-checkout-health-check` (reads the source_code for reporting)
 
-Conclusion: the current secret value `1234` is almost certainly the reason order creation is rejected. Correct value for this account is `Default` (or omit the field to let Viva pick `Default` automatically).
+### 3. Run Smart Checkout health-check
+Invoke `viva-smart-checkout-health-check` as the logged-in admin and report `success`, `http_status`, `environment`, `source_code`, and `message`.
 
-### 1. Add verbose logging to `createVivaOrder` (`supabase/functions/_shared/viva.ts`)
-- Before the fetch, emit a structured `console.log` with:
-  - `fn: "createVivaOrder"`, `stage: "request"`
-  - `url` (`${env.api}/checkout/v2/orders`), `method: "POST"`
-  - `sourceCode` (value only), `environment`
-  - `payload` (full, minus Authorization header — payload contains no secrets)
-- If `sourceCode === "1234"`: extra `console.warn` line: `"Placeholder sourceCode wordt gebruikt."` with `placeholder_source_code: true`.
-- After the fetch, log:
-  - `fn: "createVivaOrder"`, `stage: "response"`, `http_status`, `viva_body` (full parsed body or raw text on parse fail).
-- On error path, throw an `Error` decorated with `.status` and `.body` (mirrors the pattern in `getVivaPosAccessToken`) so callers can surface it.
+### 4. Trigger one live test payment
+Since `create-viva-payment` requires an authenticated Lovable Cloud user AND the salon's `viva_status = 'active'`, I cannot silently trigger it from the tool call chain without risking a real Viva order under wrong context. Two options:
 
-### 2. Surface the full Viva error to `create-viva-payment`
-- Replace the current `console.error("Viva order create failed", e)` with a structured log that includes `e.status` and `e.body`.
-- In the 502 JSON response, include `viva_status` and `viva_error` (raw parsed body from Viva). This is only reached in non-demo mode and only contains Viva-side error text (no secrets). The Smart Checkout status card / booking UI already shows the returned error; this makes the exact Viva message visible in the browser toast and in the edge function logs.
-- Also log a `stage: "request_context"` line at the top of the try block with `{ user_id, source, payment_type, amount_cents, demoMode:false, has_customer: Boolean(input.customer?.email) }`.
+- **Preferred:** you click through a test online payment in the app (public booking → deposit, or Kassa → GlowPay). After the click, I fetch `create-viva-payment` edge logs.
+- **Alternative:** I invoke `create-viva-payment` directly via the edge-function curl (using your preview session token) with a small €0.30 test amount, `source: "manual"`, and no appointment/customer link so nothing gets written to your booking data. This will fail if the salon is not yet marked active — in that case you get a clear activation-gate error and we know to switch to option 1.
 
-### 3. Do NOT auto-fallback silently
-Per user rule "Maak GEEN aannames": do not silently replace `1234` with anything. Instead, produce a clear 400 before hitting Viva when `VIVA_SOURCE_CODE === "1234"`:
-- `{ error: "VIVA_SOURCE_CODE is placeholder '1234' — set it to 'Default' or your real Viva Payment Source code, or leave it empty to let Viva pick 'Default' automatically.", requiresSetup: true }`
-- Log a matching warn line.
+Default: try the alternative first (fast feedback, no user click needed); if it hits the activation gate, ask you to do a click-through.
 
-### 4. Allow empty `VIVA_SOURCE_CODE` to fall through to Viva default
-- Update `createVivaOrder` to omit `sourceCode` from the payload when the env value is empty/undefined. Per docs, Viva will use `Default` automatically. This makes the app robust for accounts that never customized their source.
-- Update `isVivaConfigured()` in `_shared/viva.ts`: keep requiring `VIVA_CLIENT_ID` and `VIVA_CLIENT_SECRET`, but make `VIVA_SOURCE_CODE` optional (previously required). Health-check card already treats it as informational only, so no card change needed beyond that.
-
-### 5. Deploy + verify
-1. Deploy `create-viva-payment` and any function importing `_shared/viva.ts` that needs the new logging: `create-viva-payment`, `create-auto-revenue-payment`, `create-payment`, `saas-checkout-public-viva`, `saas-subscribe-viva`.
-2. Trigger one real booking test-payment through the public booking flow (or via the Kassa / GlowPay checkout). The user does the click; I fetch the edge function logs for `create-viva-payment` afterwards and paste back:
-   - the full request payload (with `sourceCode` value visible)
-   - the full Viva HTTP status + response body
-3. If the response body confirms `sourceCode` rejection, update `VIVA_SOURCE_CODE` secret to `Default` via `update_secret` and re-test. If it still fails, the logged Viva error will name the exact offending parameter and we adjust from there.
+### 5. Report logs
+Fetch `create-viva-payment` edge function logs and paste back the structured entries:
+- `stage: "request_context"` (source, payment_type, amount_cents, source_code_env)
+- `createVivaOrder stage: "request"` (url, sourceCode, full payload)
+- `createVivaOrder stage: "response"` (http_status, viva_body)
+- Either the returned `orderCode` (success) OR the `stage: "viva_order_failed"` entry with `viva_status` and `viva_body`.
 
 ### Out of scope
-- No changes to POS/terminal flow, webhooks, Mollie, or database schemas.
-- No new UI. Existing Smart Checkout status card is unaffected.
-- No hardcoded value substitution — env-driven only.
+- No code changes. Only secret + deploy + observe.
