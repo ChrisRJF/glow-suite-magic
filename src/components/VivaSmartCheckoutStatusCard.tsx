@@ -148,6 +148,15 @@ export function VivaSmartCheckoutStatusCard() {
           {testing ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 mr-1.5" />}
           Test Smart Checkout
         </Button>
+        <Button
+          size="sm"
+          className="w-full sm:w-auto"
+          onClick={startTestPayment}
+          disabled={paying}
+        >
+          {paying ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <CreditCard className="w-3.5 h-3.5 mr-1.5" />}
+          Start testbetaling €0,50
+        </Button>
       </div>
     </div>
   );
