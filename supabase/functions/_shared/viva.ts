@@ -144,12 +144,13 @@ export interface CreateVivaOrderResult {
 // name — Viva will silently ignore unknown keys or reject the order.
 export async function createVivaOrder(args: CreateVivaOrderArgs): Promise<CreateVivaOrderResult> {
   const env = vivaEnv();
+  const environment = (Deno.env.get("VIVA_ENVIRONMENT") || "demo").toLowerCase();
   const token = await getAccessToken();
-  const sourceCode = Deno.env.get("VIVA_SOURCE_CODE")!;
+  const rawSourceCode = Deno.env.get("VIVA_SOURCE_CODE") || "";
+  const sourceCode = rawSourceCode.trim();
 
   const payload: Record<string, unknown> = {
     amount: Math.round(args.amountCents),
-    sourceCode,
     customerTrns: (args.customerTrns || args.description).slice(0, 100),
     merchantTrns: (args.merchantTrns || args.description).slice(0, 100),
     requestLang: "nl-NL",
@@ -163,6 +164,10 @@ export async function createVivaOrder(args: CreateVivaOrderArgs): Promise<Create
     disableCash: true,
     disableWallet: false,
   };
+  // Per Viva docs: sourceCode is optional; when omitted Viva uses "Default".
+  if (sourceCode) {
+    payload.sourceCode = sourceCode;
+  }
   if (args.customerEmail || args.customerFullName || args.customerPhone) {
     payload.customer = {
       email: args.customerEmail || undefined,
@@ -175,7 +180,28 @@ export async function createVivaOrder(args: CreateVivaOrderArgs): Promise<Create
   if (args.successUrl) payload.successUrl = args.successUrl;
   if (args.failureUrl) payload.failureUrl = args.failureUrl;
 
-  const res = await fetch(`${env.api}/checkout/v2/orders`, {
+  const url = `${env.api}/checkout/v2/orders`;
+  if (sourceCode === "1234") {
+    console.warn(JSON.stringify({
+      fn: "createVivaOrder",
+      stage: "placeholder_source_code",
+      message: "Placeholder sourceCode wordt gebruikt.",
+      sourceCode,
+      placeholder_source_code: true,
+    }));
+  }
+  console.log(JSON.stringify({
+    fn: "createVivaOrder",
+    stage: "request",
+    url,
+    method: "POST",
+    environment,
+    sourceCode: sourceCode || null,
+    source_code_omitted: !sourceCode,
+    payload,
+  }));
+
+  const res = await fetch(url, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -183,9 +209,24 @@ export async function createVivaOrder(args: CreateVivaOrderArgs): Promise<Create
     },
     body: JSON.stringify(payload),
   });
-  const data = await res.json().catch(() => ({}));
+  const rawText = await res.text();
+  let data: any = {};
+  try { data = rawText ? JSON.parse(rawText) : {}; } catch { data = { raw: rawText }; }
+
+  console.log(JSON.stringify({
+    fn: "createVivaOrder",
+    stage: "response",
+    http_status: res.status,
+    ok: res.ok,
+    viva_body: data,
+  }));
+
   if (!res.ok || data?.orderCode == null) {
-    throw new Error(`Viva order error (${res.status}): ${JSON.stringify(data)}`);
+    const err: any = new Error(`Viva order error (${res.status}): ${JSON.stringify(data)}`);
+    err.status = res.status;
+    err.body = data;
+    err.sourceCodeUsed = sourceCode || null;
+    throw err;
   }
   // CRITICAL: orderCode comes back as number; convert to string for storage.
   return { orderCode: String(data.orderCode) };
