@@ -1,46 +1,35 @@
-## Smart Checkout credentials masked check
+## Update Smart Checkout OAuth credentials and verify
 
-Add an admin-only edge function `viva-smart-checkout-credentials-check` that safely exposes masked info about the Smart Checkout OAuth credentials, without ever revealing full values.
+### 1. Update secrets
+Call `update_secret` for `VIVA_CLIENT_ID` and `VIVA_CLIENT_SECRET`. This opens a secure form where you paste the values yourself — safer than accepting them inline. Leave `VIVA_ENVIRONMENT`, `VIVA_SOURCE_CODE`, and all `VIVA_POS_*` secrets untouched.
 
-### Endpoint
-`supabase/functions/viva-smart-checkout-credentials-check/index.ts`
+Values to paste in the form:
+- `VIVA_CLIENT_ID` = `cwb07bc9sb4lc3gc7wps54vflm4qax6hvzslu8osur8e9.apps.vivapayments.com`
+- `VIVA_CLIENT_SECRET` = `Aa362Nm29r3U2Rm36kj9zJGPj739gD`
 
-### Auth
-- Requires `Authorization: Bearer <user JWT>`
-- Only allowed for `eigenaar` or `admin` roles (via `has_role` RPC), same pattern as `viva-source-code-check`.
+### 2. Redeploy affected edge functions
+Redeploy the functions that read these secrets so the new env vars are picked up immediately:
+- `viva-smart-checkout-health-check`
+- `viva-smart-checkout-credentials-check`
 
-### Response (JSON)
-```json
-{
-  "VIVA_ENVIRONMENT": "demo",
-  "account_endpoint": "https://demo-accounts.vivapayments.com/connect/token",
-  "grant_type": "client_credentials",
-  "source_code_sent_in_oauth": false,
-  "confirmation": "source_code is not sent in OAuth request",
-  "VIVA_CLIENT_ID": {
-    "present": true,
-    "length": 36,
-    "first6": "abcdef",
-    "last4": "wxyz"
-  },
-  "VIVA_CLIENT_SECRET": {
-    "present": true,
-    "length": 44,
-    "first4": "abcd",
-    "last4": "wxyz"
-  },
-  "VIVA_SOURCE_CODE": "1234"
-}
-```
+(Other Viva functions will pick up new env on their next cold start automatically.)
 
-Rules for masking:
-- If value is missing: `{ present: false, length: 0 }`.
-- If value is too short to safely reveal the requested prefix+suffix without overlap (e.g. client_id < 12 chars, client_secret < 10 chars), return `first*`/`last*` as `null` and add `"too_short": true`.
-- `VIVA_SOURCE_CODE` is shown in full (it is a 4-digit merchant source code, not a secret, and the user already saw it fully in the earlier source-code check).
+### 3. Run health check
+Invoke `viva-smart-checkout-health-check` as the logged-in admin and report:
+- `success`
+- `credential_valid`
+- `http_status`
+- `environment`
+- `account_host` (OAuth endpoint = `${account_host}/connect/token`)
+- `message`
+- `viva_error` body if any
 
-### No changes elsewhere
-- Do NOT modify `viva-smart-checkout-health-check`, `_shared/viva.ts`, POS/terminal code, or any payment flow.
-- Do NOT add a UI card. This is a one-off diagnostic invoked via the edge function tool.
+### 4. Confirm UI status
+Report whether the "Smart Checkout status" card in Settings → GlowPay should now show the green "verbonden" badge (based on the health-check result).
 
-### After implementation
-Invoke the function once as the logged-in admin via the edge-function curl tool and paste the masked JSON back so you can compare the `first6` / `last4` of `VIVA_CLIENT_ID` and `first4` / `last4` of `VIVA_CLIENT_SECRET` against the Smart Checkout credentials shown in the Viva Demo Self-Care portal.
+### 5. Online payment smoke test (read-only observation)
+No new payment will be triggered by me (that would create a real Viva order). Instead, I will confirm end-to-end readiness by checking that `create-viva-payment` uses the same shared `getVivaAccessToken()` helper and that the health-check just proved token issuance works. If you want an actual test payment created, say so and I will invoke `create-viva-payment` with a small test amount.
+
+### Out of scope
+- No changes to POS/terminal logic, webhook handlers, payment flow code, or database.
+- No changes to `VIVA_SOURCE_CODE` (still `1234` — separate follow-up if that needs updating).
