@@ -143,6 +143,17 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
     })();
   }, [user, open]);
 
+  // Preview mode: load saved salon logo (if any) so the header reflects the real brand,
+  // but never overwrite unsaved user input.
+  useEffect(() => {
+    if (!user || !open || !previewMode || data.logoUrl) return;
+    (async () => {
+      const { data: s } = await supabase.from("settings").select("salon_logo_url").eq("user_id", user.id).maybeSingle();
+      const url = (s as any)?.salon_logo_url;
+      if (url) setData(d => ({ ...d, logoUrl: url }));
+    })();
+  }, [user, open, previewMode]);
+
   const setStep = (s: number) => setData(d => ({ ...d, step: s }));
   const step = data.step;
   const pct = ((step + 1) / TOTAL) * 100;
