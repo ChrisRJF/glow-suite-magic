@@ -1,20 +1,49 @@
-## End-to-end audit of €39 Smart Checkout test payment
 
-Read-only investigation across edge function logs and database. No code changes.
+# Onboarding UX Optimalisatie (geen redesign)
 
-### Steps
-1. **Identify the payment window.** Query recent rows in `payments`, `subscriptions`, `viva_webhook_events`, and `viva_webhook_debug_logs` (last 30 min) to find the €39 record and its Viva `order_code`/`transaction_id`.
-2. **create-viva-payment logs.** Fetch `create-viva-payment` edge function logs; extract `request_context`, `createVivaOrder request` (URL, sourceCode, payload), `createVivaOrder response` (HTTP status + body), returned `orderCode`, and any `viva_order_failed` entries.
-3. **saas-checkout-public-viva / saas-subscribe-viva logs.** Since €39 = Starter subscription price, check both SaaS Viva checkout functions for the invocation and returned order code.
-4. **viva-webhook logs.** Fetch `viva-webhook` (and related webhook processor) logs to confirm receipt of the Viva notification, matched order code, and DB updates.
-5. **Database state.**
-   - `payments` row: `status`, `amount`, `viva_order_code`, `viva_transaction_id`, `paid_at`, `updated_at`.
-   - `subscriptions` row for the user: `status`, `plan_slug`, `current_period_end`, `viva_*` fields, `updated_at`.
-   - `viva_webhook_events`: matching event with `order_code`, `event_type`, `processed_at`.
-   - `viva_webhook_debug_logs`: raw payload + processing outcome.
-   - `viva_dead_letter_queue`: any failed entries.
-6. **Redirect handling.** Look for any post-payment callback function logs (`viva-payment-callback`, `viva-payment-reconcile`, or client-side redirect target) invoked around the same window.
-7. **Errors/warnings.** Scan all Viva-related edge function logs for `level: error/warning` in the window.
+Doel: `src/components/OnboardingWizard.tsx` herstructureren van de huidige 5 stappen (Salon, Diensten, Team, Online, Betalen) naar een rustige 7-staps flow die aanvoelt alsof GlowSuite alles zelf regelt. Alle bestaande componenten (Dialog, Progress, Button, Input, Label, Card-stijlen, iconen, kleuren, spacing) blijven identiek. Alleen volgorde, copy, defaults en micro-interacties veranderen.
 
-### Deliverable
-Chronological timeline with timestamps for each step (create → Viva → webhook → DB update → subscription activation → redirect), a per-question checkmark answer to items 1-10, the full sanitized Viva request/response, and any anomalies.
+## Nieuwe stappen (7)
+
+1. **Welkom** — bestaande layout, drastisch kortere copy, checklist met ✅ Agenda / Online betalingen / Pinautomaat / Slimme automatiseringen. CTA: "Start installatie".
+2. **Salon** — eerst salontype-keuze (Kapper, Barbershop, Nagelstudio, Beautysalon, Kliniek, Overig) via bestaande card-stijl (grid met icon+label, hergebruik pattern uit huidige feature-grid op WelcomeScreen). Na keuze subtiele confirmatie-regel. Daarna salonnaam-input en optionele logo-upload (bestaand). Telefoon/adres verplaatsen naar "later in instellingen" (verwijderen uit wizard om cognitieve last te verlagen).
+3. **GlowPay** — informatief scherm, geen configuratie. Toont ondersteunde methoden (iDEAL, Bancontact, Creditcard, Apple Pay, Google Pay) via bestaande PaymentMethodLogo-componenten. Bij demo modus (via `useDemoMode`) toont demo-notice.
+4. **Terminal** — statusscherm met bestaande TerminalsCard-lookup. Bij geen terminal: geruststellende copy + secundaire actie "Bekijk ondersteunde terminals" (link naar `/instellingen`).
+5. **Testbetaling / Systeemcheck** — vervangen door automatische health-check die parallel roept: `viva-status`, `viva-smart-checkout-health-check`, en simpele DB-ping (huidige supabase.auth check). Toont 4 rijen met spinner→check: Viva verbinding / Online betalingen / Database / Webhook. Geen echte betaling meer nodig (Viva credentials valideren via bestaande health-check function).
+6. **Automatiseringen** — bestaande switches (huidige stap ontbreekt; nieuwe simpele lijst met 3 toggles: afspraakherinneringen, no-show preventie, review-verzoeken) allemaal AAN by default, met copy "Deze instellingen zijn aanbevolen en kunnen later altijd worden aangepast." Slaat op in `settings` tabel via bestaande fields (of no-op als velden ontbreken — check tijdens implementatie).
+7. **Voltooid** — bestaande DoneScreen, emotionelere copy met 🎉, checklist ✅ Agenda / Klanten / Online betalingen / Automatiseringen / Dashboard. Primary CTA "Ga naar Dashboard", secondary "Bekijk eerste stappen" (→ `/support` of guided tour trigger).
+
+## Verwijderd uit huidige wizard
+
+- **Diensten-stap** (stap 1 nu): verwijderen. Salontype bepaalt straks default services die automatisch geseed worden via nieuwe helper `seedDefaultServicesForType(type)` — hergebruikt patroon van `DEMO_SERVICES`. Gebruiker hoeft niets in te vullen ("GlowSuite configureert automatisch").
+- **Team-stap** (stap 2 nu): verwijderen uit onboarding — verplaatsen naar "later" (link in Voltooid-scherm). Eigenaar wordt automatisch als enige medewerker aangemaakt.
+- **Online-stap** met copy booking link: opgaat in Voltooid-scherm (link blijft daar aanwezig zoals nu).
+
+## Progress-indicator
+
+Kop toont: `Stap X van 7 · nog ongeveer N minuten` (schatting: 3 min totaal, ~25 sec per resterende stap). Percentage-cijfer blijft, alleen extra tijdsindicatie toegevoegd.
+
+## "Later afmaken"
+
+Blijft. Onder de knop nieuwe micro-copy toevoegen (in dialog header of tooltip): "Je voortgang wordt automatisch opgeslagen."
+
+## Copywriting
+
+Nederlands, kort, kalm. Zonder em-dashes (project-regel). Herhalend gebruik van "GlowSuite configureert automatisch…" op stappen 2, 3, 4 en 7 voor consistente AI-feeling.
+
+## Technische details
+
+- Bestand: alleen `src/components/OnboardingWizard.tsx` bewerken.
+- Nieuwe types: `SalonType = "kapper" | "barbershop" | "nagelstudio" | "beautysalon" | "kliniek" | "overig"` in `Progress.salon`.
+- `totalSteps = 7`, `STEPS`-array uitbreiden met nieuwe id/label/icon per stap (hergebruik lucide iconen die al geïmporteerd zijn: Store, Sparkles, CreditCard, Zap/Rocket, Check, PartyPopper; toevoegen: ShieldCheck voor health-check).
+- Health-check-stap: `Promise.allSettled` op edge functions; per rij UI-state `idle | checking | ok | fail`. Failing rows tonen "Later opnieuw proberen" maar blokkeren niet.
+- Default automations opslaan in `settings` (velden: `auto_reminders_enabled`, `auto_noshow_enabled`, `auto_review_enabled` — checken of ze bestaan; anders localStorage-fallback tijdens implementatie).
+- Salontype opslaan in `settings.salon_type` (best-effort update; niet blokkerend als kolom niet bestaat).
+- Auto-seed services: nieuwe const `SERVICES_BY_TYPE` mapping, wordt na stap 2 op achtergrond geïnsert via bestaande `servicesCrud.insert`. Fout tolerant (geen toast bij falen).
+- Bestaande `localStorage`-progress-sleutel bumpen naar `glowsuite_onboarding_v3_${user.id}` om oude half-afgemaakte states niet in nieuwe flow te injecteren.
+
+## Wat expliciet NIET verandert
+
+- Geen wijzigingen aan `index.css`, `tailwind.config.ts`, kleurtokens, gradients, DialogContent-classes, Button-varianten of iconografie-stijl.
+- Geen andere pagina's of componenten bewerkt.
+- `OnboardingGate.tsx` blijft ongewijzigd.
