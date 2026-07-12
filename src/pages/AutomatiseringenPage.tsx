@@ -139,7 +139,7 @@ export default function AutomatiseringenPage() {
   const [waSettings, setWaSettings] = useState<WaSettings>(null);
   const [tplActive, setTplActive] = useState<Partial<Record<WhatsAppTemplateType, boolean>>>({});
   const [lastSent, setLastSent] = useState<Partial<Record<string, string>>>({});
-  const [lastRun, setLastRun] = useState<{ started_at: string; sent: number } | null>(null);
+  const [lastRun, setLastRun] = useState<{ started_at: string; sent: number; checked?: number; failed?: number; meta?: any } | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
 
