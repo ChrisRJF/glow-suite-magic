@@ -227,6 +227,13 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
   const back = () => setStep(Math.max(0, step - 1));
 
   const finish = () => {
+    if (previewMode) {
+      // Preview: never mark done, never mutate production keys. Just close cleanly.
+      try { if (storageKey) localStorage.removeItem(storageKey); } catch {}
+      onComplete?.();
+      onOpenChange(false);
+      return;
+    }
     if (user) {
       localStorage.setItem(`glowsuite_onboarding_${user.id}`, "done");
       localStorage.removeItem(storageKey);
@@ -242,7 +249,7 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
   };
 
   const skipAll = () => {
-    if (user) localStorage.setItem(`glowsuite_onboarding_${user.id}`, "skipped");
+    if (!previewMode && user) localStorage.setItem(`glowsuite_onboarding_${user.id}`, "skipped");
     onOpenChange(false);
   };
 
