@@ -160,6 +160,8 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
 
   const saveSalon = async () => {
     if (!user) return;
+    // Preview mode: never touch DB, never seed services, never overwrite settings/logo/salon-type.
+    if (previewMode) return;
     const name = data.salonName.trim() || "Mijn Salon";
     await supabase.from("profiles").update({ salon_name: name }).eq("user_id", user.id);
     const { data: s } = await supabase.from("settings").select("id").eq("user_id", user.id).eq("is_demo", false).maybeSingle();
@@ -170,26 +172,32 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
         salon_type: data.salonType || null,
       }).eq("id", s.id);
     }
-    // Auto-seed default services silently
+    // Auto-seed default services only if the salon has no services yet (avoid duplicates on re-run).
     if (data.salonType) {
-      const seeds = SERVICES_BY_TYPE[data.salonType as SalonType] || [];
-      for (const svc of seeds) {
-        try {
-          await servicesCrud.insert({
-            name: svc.name,
-            price: svc.price,
-            duration_minutes: svc.duration_minutes,
-            color: svc.color,
-            is_active: true,
-            is_online_bookable: true,
-          });
-        } catch {}
+      const { count } = await supabase
+        .from("services")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id);
+      if (!count || count === 0) {
+        const seeds = SERVICES_BY_TYPE[data.salonType as SalonType] || [];
+        for (const svc of seeds) {
+          try {
+            await servicesCrud.insert({
+              name: svc.name,
+              price: svc.price,
+              duration_minutes: svc.duration_minutes,
+              color: svc.color,
+              is_active: true,
+              is_online_bookable: true,
+            });
+          } catch {}
+        }
       }
     }
   };
 
   const saveAutomations = () => {
-    if (!user) return;
+    if (!user || previewMode) return;
     try {
       localStorage.setItem(`glowsuite_automations_${user.id}`, JSON.stringify({
         reminders: data.autoReminders,
