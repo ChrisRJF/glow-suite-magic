@@ -220,8 +220,13 @@ export function OnboardingWizard({ open, onOpenChange, onComplete }: Props) {
       localStorage.removeItem(storageKey);
     }
     onComplete?.();
+    // Show post-onboarding welcome card instead of dumping user on empty dashboard
+    setData(d => ({ ...d, postWelcome: true }));
+  };
+
+  const goTo = (path: string) => {
     onOpenChange(false);
-    navigate("/");
+    setTimeout(() => navigate(path), 50);
   };
 
   const skipAll = () => {
@@ -230,51 +235,64 @@ export function OnboardingWizard({ open, onOpenChange, onComplete }: Props) {
   };
 
   const canProceed = step !== 1 || Boolean(data.salonType);
-  const primaryLabel = step === 0 ? "Start installatie" : step === TOTAL - 1 ? "Ga naar Dashboard" : "Volgende";
+  const primaryLabel =
+    step === 0 ? "Begin setup"
+    : step === TOTAL - 1 ? "Start met GlowSuite"
+    : "Volgende";
+
+  const showChrome = !data.postWelcome;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-full sm:max-w-2xl h-[100dvh] sm:h-auto sm:max-h-[92vh] p-0 gap-0 overflow-hidden border-0 sm:border rounded-none sm:rounded-2xl flex flex-col">
         {/* Header */}
-        <div className="px-5 sm:px-8 pt-5 sm:pt-6 pb-3 border-b border-border/50 bg-gradient-to-br from-primary/[0.04] to-transparent">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-primary-foreground" />
+        {showChrome && (
+          <div className="px-5 sm:px-8 pt-5 sm:pt-6 pb-3 border-b border-border/50 bg-gradient-to-br from-primary/[0.04] to-transparent">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center">
+                  <Sparkles className="w-4 h-4 text-primary-foreground" />
+                </div>
+                <span className="text-sm font-semibold">GlowSuite</span>
               </div>
-              <span className="text-sm font-semibold">GlowSuite</span>
+              {step > 0 && step < TOTAL - 1 && (
+                <div className="flex flex-col items-end">
+                  <button onClick={skipAll} className="text-xs text-muted-foreground hover:text-foreground">
+                    Later afmaken
+                  </button>
+                  <span className="text-[10px] text-muted-foreground/70">Voortgang wordt bewaard</span>
+                </div>
+              )}
             </div>
-            {step > 0 && step < TOTAL - 1 && (
-              <div className="flex flex-col items-end">
-                <button onClick={skipAll} className="text-xs text-muted-foreground hover:text-foreground">
-                  Later afmaken
-                </button>
-                <span className="text-[10px] text-muted-foreground/70">Voortgang wordt bewaard</span>
-              </div>
-            )}
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-medium text-muted-foreground">
+                Stap {step + 1} van {TOTAL} • Nog ongeveer {minutesLeft} min
+              </p>
+              <p className="text-xs font-semibold text-primary">{Math.round(pct)}%</p>
+            </div>
+            <Progress value={pct} className="h-1.5" />
           </div>
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-medium text-muted-foreground">
-              Stap {step + 1} van {TOTAL} · nog ongeveer {minutesLeft} min
-            </p>
-            <p className="text-xs font-semibold text-primary">{Math.round(pct)}%</p>
-          </div>
-          <Progress value={pct} className="h-1.5" />
-        </div>
+        )}
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-5 sm:px-8 py-6 sm:py-8">
-          {step === 0 && <WelcomeStep />}
-          {step === 1 && <SalonStep data={data} setData={setData} onLogo={onLogoUpload} />}
-          {step === 2 && <GlowPayStep demo={demoMode} />}
-          {step === 3 && <TerminalStep />}
-          {step === 4 && <SystemCheckStep />}
-          {step === 5 && <AutomationsStep data={data} setData={setData} />}
-          {step === 6 && <DoneStep onDashboard={finish} onFirstSteps={() => { onOpenChange(false); navigate("/support"); }} />}
+          {data.postWelcome ? (
+            <PostWelcomeStep onNavigate={goTo} />
+          ) : (
+            <>
+              {step === 0 && <WelcomeStep />}
+              {step === 1 && <SalonStep data={data} setData={setData} onLogo={onLogoUpload} />}
+              {step === 2 && <GlowPayStep demo={demoMode} />}
+              {step === 3 && <TerminalStep />}
+              {step === 4 && <SystemCheckStep />}
+              {step === 5 && <AutomationsStep data={data} setData={setData} />}
+              {step === 6 && <DoneStep />}
+            </>
+          )}
         </div>
 
         {/* Footer */}
-        {step < TOTAL - 1 && (
+        {showChrome && (
           <div className="px-5 sm:px-8 py-4 border-t border-border/50 bg-background flex items-center justify-between gap-3">
             <Button variant="ghost" size="sm" onClick={back} disabled={saving || step === 0}>
               <ArrowLeft className="w-4 h-4" /> Terug
@@ -289,6 +307,7 @@ export function OnboardingWizard({ open, onOpenChange, onComplete }: Props) {
     </Dialog>
   );
 }
+
 
 // ============ STEPS ============
 
