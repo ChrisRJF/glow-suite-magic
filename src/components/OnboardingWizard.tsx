@@ -485,30 +485,80 @@ function GlowPayStep({ demo }: { demo: boolean }) {
 
 function TerminalStep() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { demoMode } = useDemoMode();
+  const [hasTerminal, setHasTerminal] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!user) { setHasTerminal(false); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { count } = await (supabase as any)
+          .from("viva_terminals")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("is_demo", demoMode);
+        if (!cancelled) setHasTerminal((count || 0) > 0);
+      } catch { if (!cancelled) setHasTerminal(false); }
+    })();
+    return () => { cancelled = true; };
+  }, [user, demoMode]);
+
+  const goManage = () => { onClose(); navigate("/instellingen?tab=glowpay#terminals"); };
+  const onClose = () => { /* wizard closes via navigate side-effect handled by parent nav */ };
+
+  if (hasTerminal) {
+    return (
+      <div className="space-y-5 max-w-lg mx-auto">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Koppel je pinautomaat</h2>
+          <p className="text-sm text-muted-foreground mt-1">Je terminal is al gekoppeld.</p>
+        </div>
+        <div className="p-5 rounded-2xl border border-success/30 bg-success/5">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center">
+              <Check className="w-5 h-5 text-success" />
+            </div>
+            <div>
+              <p className="font-semibold">Terminal actief</p>
+              <p className="text-xs text-muted-foreground">Je kunt direct pinbetalingen ontvangen.</p>
+            </div>
+          </div>
+        </div>
+        <Button variant="outline" size="sm" className="w-full" onClick={() => navigate("/instellingen?tab=glowpay#terminals")}>
+          Terminal beheren
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-5 max-w-lg mx-auto">
       <div>
         <h2 className="text-2xl font-bold tracking-tight">Koppel je pinautomaat</h2>
-        <p className="text-sm text-muted-foreground mt-1">Optioneel voor betalingen aan de balie.</p>
+        <p className="text-sm text-muted-foreground mt-1">Heb je al een Sunmi-terminal?</p>
       </div>
       <div className="p-5 rounded-2xl border border-border bg-secondary/30">
-        <div className="flex items-center gap-3 mb-3">
+        <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
             <Smartphone className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <p className="font-semibold">Geen probleem</p>
-            <p className="text-xs text-muted-foreground">Je kunt dit later altijd koppelen.</p>
+            <p className="font-semibold">Sunmi & Viva Smart Checkout</p>
+            <p className="text-xs text-muted-foreground">Koppelen doe je in één minuut.</p>
           </div>
         </div>
-        <p className="text-sm text-muted-foreground">
-          GlowSuite werkt naadloos met Sunmi-terminals en Viva Smart Checkout. Koppelen doe je in één minuut via Instellingen.
-        </p>
       </div>
-      <Button variant="outline" size="sm" className="w-full" onClick={() => { navigate("/instellingen"); }}>
-        Bekijk ondersteunde terminals
-      </Button>
-      <p className="text-[11px] text-muted-foreground text-center">Je kunt deze stap gewoon overslaan.</p>
+      <div className="space-y-2">
+        <Button variant="gradient" size="sm" className="w-full" onClick={() => navigate("/instellingen?tab=glowpay#terminals")}>
+          Ik heb al een terminal
+        </Button>
+        <Button variant="outline" size="sm" className="w-full" onClick={() => navigate("/instellingen?tab=glowpay#terminals")}>
+          Ik heb nog geen terminal
+        </Button>
+      </div>
+      <p className="text-[11px] text-muted-foreground text-center">Ik stel dit later in.</p>
     </div>
   );
 }
