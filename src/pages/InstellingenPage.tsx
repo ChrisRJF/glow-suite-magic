@@ -105,6 +105,16 @@ export default function InstellingenPage() {
   const [depositNoshow, setDepositNoshow] = useState(true);
   const [autoRevenuePaymentMode, setAutoRevenuePaymentMode] = useState<"none" | "deposit" | "full">("deposit");
   const [resetLoading, setResetLoading] = useState(false);
+  const [onboardingPreviewOpen, setOnboardingPreviewOpen] = useState(false);
+  const openOnboardingPreview = () => {
+    if (user) {
+      try {
+        localStorage.removeItem(`glowsuite_onboarding_${user.id}`);
+        localStorage.removeItem(`glowsuite_onboarding_v3_${user.id}`);
+      } catch {}
+    }
+    setOnboardingPreviewOpen(true);
+  };
   const [openingHours, setOpeningHours] = useState<OpeningHours>(defaultHours);
   const [bufferMinutes, setBufferMinutes] = useState(15);
   const [maxBookings, setMaxBookings] = useState(1);
