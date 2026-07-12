@@ -236,6 +236,7 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
     }
     if (user) {
       localStorage.setItem(`glowsuite_onboarding_${user.id}`, "done");
+      localStorage.setItem(`glowsuite_onboarding_v4_${user.id}`, "done");
       localStorage.removeItem(storageKey);
     }
     onComplete?.();
@@ -249,7 +250,10 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
   };
 
   const skipAll = () => {
-    if (!previewMode && user) localStorage.setItem(`glowsuite_onboarding_${user.id}`, "skipped");
+    if (!previewMode && user) {
+      localStorage.setItem(`glowsuite_onboarding_${user.id}`, "skipped");
+      localStorage.setItem(`glowsuite_onboarding_v4_${user.id}`, "skipped");
+    }
     onOpenChange(false);
   };
 
