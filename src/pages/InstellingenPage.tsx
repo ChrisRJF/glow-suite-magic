@@ -1544,6 +1544,21 @@ function MessagingSettingsCard() {
 
 function SnelleSetupCard() {
   const [open, setOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const { user } = useAuth();
+  const { isOwner, roles } = useUserRole();
+  const canReview = isOwner || roles.includes("admin" as any) || roles.includes("manager" as any);
+
+  const openReview = () => {
+    if (user) {
+      try {
+        localStorage.removeItem(`glowsuite_onboarding_${user.id}`);
+        localStorage.removeItem(`glowsuite_onboarding_v3_${user.id}`);
+      } catch {}
+    }
+    setPreviewOpen(true);
+  };
+
   return (
     <div className="glass-card p-6">
       <div className="flex items-start gap-4">
@@ -1560,10 +1575,21 @@ function SnelleSetupCard() {
             <Button size="sm" variant="outline" onClick={() => window.dispatchEvent(new CustomEvent("glowsuite:start-tour"))}>
               <PlayCircle className="w-3.5 h-3.5" /> Bekijk rondleiding
             </Button>
+            {canReview && (
+              <Button size="sm" variant="outline" onClick={openReview}>
+                <RotateCcw className="w-3.5 h-3.5" /> Onboarding opnieuw bekijken
+              </Button>
+            )}
           </div>
+          {canReview && (
+            <p className="text-[11px] text-muted-foreground mt-2">
+              Bekijk de introductie opnieuw zonder je huidige instellingen te wijzigen.
+            </p>
+          )}
         </div>
       </div>
       <OnboardingWizard open={open} onOpenChange={setOpen} />
+      <OnboardingWizard open={previewOpen} onOpenChange={setPreviewOpen} previewMode />
     </div>
   );
 }
