@@ -273,6 +273,11 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
                   <Sparkles className="w-4 h-4 text-primary-foreground" />
                 </div>
                 <span className="text-sm font-semibold">GlowSuite</span>
+                {previewMode && (
+                  <span className="px-2 py-0.5 rounded-md bg-muted text-muted-foreground text-[10px] font-medium">
+                    Voorbeeldmodus
+                  </span>
+                )}
               </div>
               {step > 0 && step < TOTAL - 1 && (
                 <div className="flex flex-col items-end">
