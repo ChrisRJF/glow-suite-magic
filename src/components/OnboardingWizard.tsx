@@ -338,7 +338,7 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
               {step === 0 && <WelcomeStep />}
               {step === 1 && <SalonStep data={data} setData={setData} onLogo={onLogoUpload} />}
               {step === 2 && <GlowPayStep demo={demoMode} />}
-              {step === 3 && <TerminalStep />}
+              {step === 3 && <TerminalStep previewMode={previewMode} />}
               {step === 4 && <SystemCheckStep />}
               {step === 5 && <AutomationsStep data={data} setData={setData} />}
               {step === 6 && <DoneStep logoUrl={data.logoUrl} salonName={data.salonName} />}
@@ -504,50 +504,100 @@ function GlowPayStep({ demo }: { demo: boolean }) {
   );
 }
 
-function TerminalStep() {
+function friendlyTerminalError(err: any): string {
+  const msg = String(err?.message || err || "").toLowerCase();
+  const code = String(err?.code || "");
+  if (code === "23505" || msg.includes("duplicate key") || msg.includes("unique constraint")) {
+    return "Deze terminal is al gekoppeld.";
+  }
+  return "De terminal kon niet worden opgeslagen. Probeer het opnieuw.";
+}
+
+function TerminalStep({ previewMode = false }: { previewMode?: boolean }) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { demoMode } = useDemoMode();
-  const [hasTerminal, setHasTerminal] = useState<boolean | null>(null);
+  const [existing, setExisting] = useState<any | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [mode, setMode] = useState<"choice" | "have" | "none" | "skipped" | "success">("choice");
+
+  // Form fields for "have terminal"
+  const [tname, setTname] = useState("");
+  const [tid, setTid] = useState("");
+  const [tsource, setTsource] = useState("");
+  const [tvirtual, setTvirtual] = useState("");
+  const [tserial, setTserial] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!user) { setHasTerminal(false); return; }
+    if (!user) { setLoaded(true); return; }
     let cancelled = false;
     (async () => {
       try {
-        const { count } = await (supabase as any)
+        const { data } = await (supabase as any)
           .from("viva_terminals")
-          .select("id", { count: "exact", head: true })
+          .select("id, terminal_name, terminal_id, is_default")
           .eq("user_id", user.id)
-          .eq("is_demo", demoMode);
-        if (!cancelled) setHasTerminal((count || 0) > 0);
-      } catch { if (!cancelled) setHasTerminal(false); }
+          .eq("is_demo", demoMode)
+          .order("is_default", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (!cancelled) {
+          if (data) { setExisting(data); setMode("success"); }
+          setLoaded(true);
+        }
+      } catch { if (!cancelled) setLoaded(true); }
     })();
     return () => { cancelled = true; };
   }, [user, demoMode]);
 
+  const save = async () => {
+    setFormError(null);
+    const name = tname.trim();
+    const id = tid.replace(/\s+/g, "");
+    if (!id) { setFormError("Vul een Terminal ID in."); return; }
+    if (!name) { setFormError("Geef de terminal een naam."); return; }
 
-  if (hasTerminal) {
+    if (previewMode) {
+      toast.success("Voorbeeld: terminal zou worden gekoppeld");
+      setMode("success");
+      return;
+    }
+    if (!user) return;
+    setSaving(true);
+    try {
+      const { data: dup } = await (supabase as any)
+        .from("viva_terminals")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("is_demo", demoMode)
+        .eq("terminal_id", id)
+        .maybeSingle();
+      if (dup) { setFormError("Deze terminal is al gekoppeld."); return; }
+
+      const { data: inserted, error } = await (supabase.from("viva_terminals") as any).insert({
+        user_id: user.id, is_demo: demoMode, terminal_id: id, terminal_name: name,
+        source_terminal_id: tsource.trim() || null,
+        virtual_id: tvirtual.trim() || null,
+        serial_number: tserial.trim() || null,
+        status: "active", is_default: true,
+      }).select("id, terminal_name, terminal_id").maybeSingle();
+      if (error) { setFormError(friendlyTerminalError(error)); return; }
+      setExisting(inserted);
+      setMode("success");
+      toast.success("Terminal gekoppeld");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const goManage = () => navigate("/instellingen?tab=glowpay#terminals");
+
+  if (!loaded) {
     return (
-      <div className="space-y-5 max-w-lg mx-auto">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Koppel je pinautomaat</h2>
-          <p className="text-sm text-muted-foreground mt-1">Je terminal is al gekoppeld.</p>
-        </div>
-        <div className="p-5 rounded-2xl border border-success/30 bg-success/5">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center">
-              <Check className="w-5 h-5 text-success" />
-            </div>
-            <div>
-              <p className="font-semibold">Terminal actief</p>
-              <p className="text-xs text-muted-foreground">Je kunt direct pinbetalingen ontvangen.</p>
-            </div>
-          </div>
-        </div>
-        <Button variant="outline" size="sm" className="w-full" onClick={() => navigate("/instellingen?tab=glowpay#terminals")}>
-          Terminal beheren
-        </Button>
+      <div className="max-w-lg mx-auto py-8 flex items-center justify-center text-muted-foreground text-sm">
+        <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Laden…
       </div>
     );
   }
@@ -556,28 +606,147 @@ function TerminalStep() {
     <div className="space-y-5 max-w-lg mx-auto">
       <div>
         <h2 className="text-2xl font-bold tracking-tight">Koppel je pinautomaat</h2>
-        <p className="text-sm text-muted-foreground mt-1">Heb je al een Sunmi-terminal?</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          {mode === "success"
+            ? "Je terminal is klaar voor gebruik."
+            : mode === "skipped"
+            ? "Je kunt dit later instellen. We slaan deze stap over."
+            : "Heb je al een Sunmi-terminal?"}
+        </p>
       </div>
-      <div className="p-5 rounded-2xl border border-border bg-secondary/30">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Smartphone className="w-5 h-5 text-primary" />
+
+      {mode === "success" && (
+        <>
+          <div className="p-5 rounded-2xl border border-success/30 bg-success/5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center">
+                <Check className="w-5 h-5 text-success" />
+              </div>
+              <div className="min-w-0">
+                <p className="font-semibold">Terminal gekoppeld</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {existing?.terminal_name || "Terminal actief"}
+                  {existing?.terminal_id ? ` · ${existing.terminal_id}` : ""}
+                </p>
+              </div>
+            </div>
           </div>
-          <div>
-            <p className="font-semibold">Sunmi & Viva Smart Checkout</p>
-            <p className="text-xs text-muted-foreground">Koppelen doe je in één minuut.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <Button variant="outline" size="sm" onClick={goManage}>
+              Terminal beheren
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => { setExisting(null); setMode("have"); }}>
+              Andere terminal koppelen
+            </Button>
+          </div>
+        </>
+      )}
+
+      {mode === "skipped" && (
+        <div className="p-5 rounded-2xl border border-border bg-secondary/30 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
+            <Smartphone className="w-5 h-5 text-muted-foreground" />
+          </div>
+          <div className="min-w-0">
+            <p className="font-semibold text-sm">Later instellen</p>
+            <p className="text-xs text-muted-foreground">Je kunt dit altijd doen via Instellingen › GlowPay.</p>
           </div>
         </div>
-      </div>
-      <div className="space-y-2">
-        <Button variant="gradient" size="sm" className="w-full" onClick={() => navigate("/instellingen?tab=glowpay#terminals")}>
-          Ik heb al een terminal
-        </Button>
-        <Button variant="outline" size="sm" className="w-full" onClick={() => navigate("/instellingen?tab=glowpay#terminals")}>
-          Ik heb nog geen terminal
-        </Button>
-      </div>
-      <p className="text-[11px] text-muted-foreground text-center">Ik stel dit later in.</p>
+      )}
+
+      {mode === "choice" && (
+        <>
+          <div className="p-5 rounded-2xl border border-border bg-secondary/30">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Smartphone className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <p className="font-semibold">Sunmi & Viva Smart Checkout</p>
+                <p className="text-xs text-muted-foreground">Koppelen doe je in één minuut.</p>
+              </div>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Button variant="gradient" size="sm" className="w-full" onClick={() => setMode("have")}>
+              Ik heb al een terminal
+            </Button>
+            <Button variant="outline" size="sm" className="w-full" onClick={() => setMode("none")}>
+              Ik heb nog geen terminal
+            </Button>
+          </div>
+          <button
+            type="button"
+            onClick={() => setMode("skipped")}
+            className="text-[11px] text-muted-foreground hover:text-foreground w-full text-center"
+          >
+            Ik stel dit later in.
+          </button>
+        </>
+      )}
+
+      {mode === "have" && (
+        <div className="space-y-3 p-4 rounded-2xl border border-border bg-background">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold">Terminalgegevens</p>
+            <button type="button" onClick={() => { setFormError(null); setMode("choice"); }} className="text-xs text-muted-foreground hover:text-foreground">
+              Terug
+            </button>
+          </div>
+          <div className="space-y-2.5">
+            <div>
+              <Label className="text-xs">Naam van de terminal</Label>
+              <Input value={tname} onChange={e => setTname(e.target.value)} placeholder="Balie voor" className="mt-1" />
+            </div>
+            <div>
+              <Label className="text-xs">Terminal ID</Label>
+              <Input value={tid} onChange={e => setTid(e.target.value)} placeholder="16000000" className="mt-1 font-mono" />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs">Source Terminal ID</Label>
+                <Input value={tsource} onChange={e => setTsource(e.target.value)} placeholder="optioneel" className="mt-1 font-mono" />
+              </div>
+              <div>
+                <Label className="text-xs">Virtual ID</Label>
+                <Input value={tvirtual} onChange={e => setTvirtual(e.target.value)} placeholder="optioneel" className="mt-1 font-mono" />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">Serienummer</Label>
+              <Input value={tserial} onChange={e => setTserial(e.target.value)} placeholder="optioneel" className="mt-1 font-mono" />
+            </div>
+          </div>
+          {formError && (
+            <p className="text-xs text-destructive">{formError}</p>
+          )}
+          {previewMode && (
+            <p className="text-[11px] text-muted-foreground">Voorbeeldmodus: wijzigingen worden niet opgeslagen.</p>
+          )}
+          <Button variant="gradient" size="sm" className="w-full" onClick={save} disabled={saving}>
+            {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            {saving ? "Opslaan…" : "Terminal koppelen"}
+          </Button>
+        </div>
+      )}
+
+      {mode === "none" && (
+        <div className="space-y-2">
+          <Button variant="outline" size="sm" className="w-full" onClick={goManage}>
+            Bekijk ondersteunde terminals
+          </Button>
+          <Button variant="ghost" size="sm" className="w-full" onClick={() => setMode("skipped")}>
+            Ga verder zonder terminal
+          </Button>
+          <button
+            type="button"
+            onClick={() => setMode("choice")}
+            className="text-[11px] text-muted-foreground hover:text-foreground w-full text-center pt-1"
+          >
+            Terug
+          </button>
+        </div>
+      )}
     </div>
   );
 }
