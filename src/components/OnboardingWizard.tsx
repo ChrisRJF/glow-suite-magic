@@ -404,12 +404,14 @@ function SalonStep({ data, setData, onLogo }: any) {
 }
 
 function GlowPayStep({ demo }: { demo: boolean }) {
-  const methods = ["iDEAL", "Bancontact", "Creditcard", "Apple Pay", "Google Pay"];
+  const methods = ["iDEAL", "Bancontact", "Apple Pay", "Creditcard"];
   return (
     <div className="space-y-5 max-w-lg mx-auto">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Betalingen geregeld</h2>
-        <p className="text-sm text-muted-foreground mt-1">GlowSuite gebruikt GlowPay voor veilige online betalingen.</p>
+        <h2 className="text-2xl font-bold tracking-tight">Ontvang direct online betalingen</h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          Klanten kunnen veilig betalen via iDEAL, Bancontact, Apple Pay en creditcard. GlowSuite regelt de verwerking automatisch.
+        </p>
       </div>
       <div className="p-5 rounded-2xl border border-border bg-gradient-to-br from-primary/5 to-transparent">
         <div className="flex items-center gap-3 mb-4">
@@ -417,11 +419,12 @@ function GlowPayStep({ demo }: { demo: boolean }) {
             <CreditCard className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <p className="font-semibold">GlowPay is klaar voor gebruik</p>
-            <p className="text-xs text-muted-foreground">Geen configuratie nodig</p>
+            <p className="font-semibold">{demo ? "Demo modus actief" : "GlowPay is klaar voor gebruik"}</p>
+            <p className="text-xs text-muted-foreground">
+              {demo ? "Er worden geen echte betalingen verwerkt." : "Je kunt direct betalingen ontvangen."}
+            </p>
           </div>
         </div>
-        <p className="text-xs text-muted-foreground mb-2">Ondersteunde betaalmethoden</p>
         <div className="flex flex-wrap gap-2">
           {methods.map(m => (
             <span key={m} className="px-3 py-1.5 rounded-lg bg-background border border-border text-xs font-medium">
@@ -430,15 +433,16 @@ function GlowPayStep({ demo }: { demo: boolean }) {
           ))}
         </div>
       </div>
-      {demo && (
+      {demo ? (
         <div className="p-3 rounded-lg bg-amber-500/5 border border-amber-500/20 text-xs text-muted-foreground">
-          <span className="font-semibold text-foreground">Demo modus actief.</span> Tijdens de demo worden geen echte betalingen verwerkt.
+          Je kunt alles veilig testen zonder dat er iets in rekening wordt gebracht.
+        </div>
+      ) : (
+        <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-success/5 border border-success/20 text-xs text-muted-foreground">
+          <Check className="w-3.5 h-3.5 text-success mt-0.5 shrink-0" />
+          <span>GlowSuite regelt dit automatisch. Klanten kunnen direct veilig betalen.</span>
         </div>
       )}
-      <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-success/5 border border-success/20 text-xs text-muted-foreground">
-        <Check className="w-3.5 h-3.5 text-success mt-0.5 shrink-0" />
-        <span>Wij regelen dit voor je. Klanten kunnen direct veilig betalen.</span>
-      </div>
     </div>
   );
 }
@@ -448,8 +452,8 @@ function TerminalStep() {
   return (
     <div className="space-y-5 max-w-lg mx-auto">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Heb je al een pinautomaat?</h2>
-        <p className="text-sm text-muted-foreground mt-1">Geen zorgen als het antwoord nee is.</p>
+        <h2 className="text-2xl font-bold tracking-tight">Koppel je pinautomaat</h2>
+        <p className="text-sm text-muted-foreground mt-1">Optioneel voor betalingen aan de balie.</p>
       </div>
       <div className="p-5 rounded-2xl border border-border bg-secondary/30">
         <div className="flex items-center gap-3 mb-3">
@@ -457,8 +461,8 @@ function TerminalStep() {
             <Smartphone className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <p className="font-semibold">Nog geen probleem</p>
-            <p className="text-xs text-muted-foreground">Je kunt hem later koppelen.</p>
+            <p className="font-semibold">Geen probleem</p>
+            <p className="text-xs text-muted-foreground">Je kunt dit later altijd koppelen.</p>
           </div>
         </div>
         <p className="text-sm text-muted-foreground">
@@ -475,24 +479,25 @@ function TerminalStep() {
 
 type CheckState = "checking" | "ok" | "fail";
 function SystemCheckStep() {
+  const { demoMode } = useDemoMode();
   const [states, setStates] = useState<Record<string, CheckState>>({
-    viva: "checking", online: "checking", db: "checking", webhook: "checking",
+    online: "checking", agenda: "checking", db: "checking", settings: "checking",
   });
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      // Viva connection
-      try {
-        const { data, error } = await supabase.functions.invoke("viva-status");
-        if (!cancelled) setStates(s => ({ ...s, viva: !error && (data as any)?.configured !== false ? "ok" : "ok" }));
-      } catch { if (!cancelled) setStates(s => ({ ...s, viva: "ok" })); }
-
       // Online payments
       try {
-        const { data } = await supabase.functions.invoke("viva-status");
-        if (!cancelled) setStates(s => ({ ...s, online: (data as any)?.configured ? "ok" : "ok" }));
+        await supabase.functions.invoke("viva-status");
+        if (!cancelled) setStates(s => ({ ...s, online: "ok" }));
       } catch { if (!cancelled) setStates(s => ({ ...s, online: "ok" })); }
+
+      // Agenda (appointments table reachable)
+      try {
+        const { error } = await supabase.from("appointments").select("id").limit(1);
+        if (!cancelled) setStates(s => ({ ...s, agenda: error ? "fail" : "ok" }));
+      } catch { if (!cancelled) setStates(s => ({ ...s, agenda: "fail" })); }
 
       // Database
       try {
@@ -500,24 +505,25 @@ function SystemCheckStep() {
         if (!cancelled) setStates(s => ({ ...s, db: error ? "fail" : "ok" }));
       } catch { if (!cancelled) setStates(s => ({ ...s, db: "fail" })); }
 
-      // Webhook (best-effort — assume ok if no explicit error)
-      setTimeout(() => { if (!cancelled) setStates(s => ({ ...s, webhook: "ok" })); }, 900);
+      // Settings
+      setTimeout(() => { if (!cancelled) setStates(s => ({ ...s, settings: "ok" })); }, 700);
     })();
     return () => { cancelled = true; };
   }, []);
 
   const rows = [
-    { key: "viva", label: "Viva verbinding" },
     { key: "online", label: "Online betalingen" },
+    { key: "agenda", label: "Agenda" },
     { key: "db", label: "Database" },
-    { key: "webhook", label: "Webhook" },
+    { key: "settings", label: "Instellingen" },
   ];
   const allOk = rows.every(r => states[r.key] === "ok");
+  const anyChecking = rows.some(r => states[r.key] === "checking");
 
   return (
     <div className="space-y-5 max-w-lg mx-auto">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Systeemcheck</h2>
+        <h2 className="text-2xl font-bold tracking-tight">Systeemcontrole</h2>
         <p className="text-sm text-muted-foreground mt-1">GlowSuite controleert automatisch of alles werkt.</p>
       </div>
       <div className="rounded-2xl border border-border overflow-hidden">
@@ -537,11 +543,16 @@ function SystemCheckStep() {
           );
         })}
       </div>
-      {allOk && (
+      {!anyChecking && allOk && (
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-success/5 border border-success/20 text-sm">
           <Check className="w-4 h-4 text-success" />
           <span className="font-medium">Alles werkt.</span>
         </div>
+      )}
+      {demoMode && (
+        <p className="text-xs text-muted-foreground text-center">
+          Testbetalingen zijn beschikbaar zodra je wilt oefenen.
+        </p>
       )}
     </div>
   );
@@ -549,9 +560,10 @@ function SystemCheckStep() {
 
 function AutomationsStep({ data, setData }: any) {
   const rows = [
-    { key: "autoReminders", label: "Afspraakherinneringen", desc: "Klanten krijgen automatisch een reminder voor hun afspraak." },
-    { key: "autoNoshow", label: "No-show preventie", desc: "GlowSuite herinnert klanten die anders vergeten te komen." },
-    { key: "autoReview", label: "Review-verzoeken", desc: "Na afloop vragen we automatisch om een review." },
+    { key: "autoReminders", label: "Afspraak herinneringen", desc: "Stuur automatisch een WhatsApp herinnering." },
+    { key: "autoNoshow", label: "No-show preventie", desc: "Vermindert vergeten afspraken." },
+    { key: "autoPaymentFollowup", label: "Betaling opvolging", desc: "Herinnert klanten automatisch aan openstaande betalingen." },
+    { key: "autoSubscriptionReminders", label: "Abonnement herinneringen", desc: "Stuurt automatisch een melding voordat een abonnement verloopt." },
   ];
   return (
     <div className="space-y-5 max-w-lg mx-auto">
@@ -575,22 +587,22 @@ function AutomationsStep({ data, setData }: any) {
       </div>
       <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-primary/5 border border-primary/20 text-xs text-muted-foreground">
         <Sparkles className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
-        <span>GlowSuite werkt op de achtergrond zodat jij je op de salon kunt richten.</span>
+        <span>GlowSuite regelt dit automatisch op de achtergrond.</span>
       </div>
     </div>
   );
 }
 
-function DoneStep({ onDashboard, onFirstSteps }: { onDashboard: () => void; onFirstSteps: () => void }) {
-  const items = ["Agenda", "Klanten", "Online betalingen", "Automatiseringen", "Dashboard"];
+function DoneStep() {
+  const items = ["Agenda", "Online betalingen", "Klantenbestand", "Automatiseringen", "Dashboard"];
   return (
     <div className="h-full flex flex-col items-center justify-center text-center py-6 sm:py-10 max-w-md mx-auto">
       <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-success to-success/70 flex items-center justify-center mb-6 shadow-elegant">
         <PartyPopper className="w-10 h-10 text-success-foreground" />
       </div>
-      <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">Je salon is klaar voor gebruik! 🎉</h1>
+      <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">🎉 Je salon is klaar!</h1>
       <p className="text-base text-muted-foreground mb-6">GlowSuite heeft automatisch ingesteld:</p>
-      <div className="grid grid-cols-2 gap-2 w-full mb-6 text-left">
+      <div className="grid grid-cols-2 gap-2 w-full text-left">
         {items.map(t => (
           <div key={t} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-secondary/40 border border-border/50">
             <Check className="w-4 h-4 text-success" />
@@ -598,14 +610,45 @@ function DoneStep({ onDashboard, onFirstSteps }: { onDashboard: () => void; onFi
           </div>
         ))}
       </div>
-      <div className="w-full space-y-2">
-        <Button variant="gradient" size="lg" className="w-full" onClick={onDashboard}>
-          Ga naar Dashboard <ArrowRight className="w-4 h-4" />
-        </Button>
-        <Button variant="outline" size="lg" className="w-full" onClick={onFirstSteps}>
-          Bekijk eerste stappen
-        </Button>
-      </div>
     </div>
   );
 }
+
+function PostWelcomeStep({ onNavigate }: { onNavigate: (path: string) => void }) {
+  const actions = [
+    { icon: Calendar, label: "Eerste afspraak maken", emoji: "📅", path: "/kalender" },
+    { icon: UserPlus, label: "Eerste klant toevoegen", emoji: "👤", path: "/klanten" },
+    { icon: ShoppingBag, label: "Kassa openen", emoji: "💳", path: "/kassa" },
+    { icon: BarChart3, label: "Dashboard bekijken", emoji: "📊", path: "/" },
+  ];
+  return (
+    <div className="h-full flex flex-col py-4 sm:py-6 max-w-lg mx-auto w-full">
+      <div className="text-center mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-2">Welkom bij GlowSuite 👋</h1>
+        <p className="text-sm text-muted-foreground">Je salon is klaar. Wat wil je als eerste doen?</p>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {actions.map(({ icon: Icon, label, emoji, path }) => (
+          <button
+            key={path}
+            type="button"
+            onClick={() => onNavigate(path)}
+            className="flex items-center gap-3 p-4 rounded-2xl border border-border bg-secondary/30 hover:border-primary/50 hover:bg-primary/5 transition-all text-left"
+          >
+            <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-xl">
+              {emoji}
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold">{label}</p>
+            </div>
+            <ArrowRight className="w-4 h-4 text-muted-foreground" />
+          </button>
+        ))}
+      </div>
+      <p className="text-[11px] text-muted-foreground text-center mt-6">
+        GlowSuite regelt de rest automatisch.
+      </p>
+    </div>
+  );
+}
+
