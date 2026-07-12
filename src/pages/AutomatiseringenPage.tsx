@@ -139,7 +139,7 @@ export default function AutomatiseringenPage() {
   const [waSettings, setWaSettings] = useState<WaSettings>(null);
   const [tplActive, setTplActive] = useState<Partial<Record<WhatsAppTemplateType, boolean>>>({});
   const [lastSent, setLastSent] = useState<Partial<Record<string, string>>>({});
-  const [lastRun, setLastRun] = useState<{ started_at: string; sent: number } | null>(null);
+  const [lastRun, setLastRun] = useState<{ started_at: string; sent: number; checked?: number; failed?: number; meta?: any } | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -165,7 +165,7 @@ export default function AutomatiseringenPage() {
         .limit(50),
       supabase
         .from("whatsapp_scheduler_runs")
-        .select("started_at, sent")
+        .select("started_at, sent, checked, failed, meta")
         .order("started_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
@@ -298,6 +298,36 @@ export default function AutomatiseringenPage() {
           label="Scheduler laatste run"
           value={lastRun?.started_at ? formatRelative(lastRun.started_at) : "—"}
           icon={CalendarCheck}
+        />
+      </div>
+
+      {/* Scheduler status: next run + last error + processed count */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 mb-4">
+        <SummaryTile
+          label="Volgende run"
+          value={(() => {
+            // Reminders run every 15 min via pg_cron
+            const base = lastRun?.started_at ? new Date(lastRun.started_at) : new Date();
+            const next = new Date(base.getTime() + 15 * 60 * 1000);
+            const diffMin = Math.max(0, Math.round((next.getTime() - Date.now()) / 60000));
+            return diffMin === 0 ? "binnen 1 min" : `over ± ${diffMin} min`;
+          })()}
+          icon={Clock}
+        />
+        <SummaryTile
+          label="Reminders verwerkt"
+          value={lastRun ? `${lastRun.sent ?? 0} verstuurd${lastRun.checked ? ` / ${lastRun.checked} bekeken` : ""}` : "—"}
+          icon={CheckCircle2}
+        />
+        <SummaryTile
+          label="Laatste fout"
+          value={(() => {
+            const errs = Array.isArray(lastRun?.meta?.errors) ? lastRun!.meta.errors : [];
+            if (lastRun?.failed && errs.length) return String(errs[errs.length - 1]).slice(0, 60);
+            if (lastRun?.failed) return `${lastRun.failed} fout${lastRun.failed > 1 ? "en" : ""}`;
+            return "geen";
+          })()}
+          icon={Bell}
         />
       </div>
 

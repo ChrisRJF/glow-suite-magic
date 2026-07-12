@@ -277,28 +277,96 @@ Deno.serve(async (req) => {
       }
     }
 
-    const { data: dueRuns } = await admin.from("automation_runs").select("id, user_id, automation_rule_id, channel, recipient, idempotency_key, payload").eq("status", "scheduled").lte("scheduled_for", new Date().toISOString()).limit(100);
-    for (const run of dueRuns || []) {
-      if (run.channel === "email" && run.recipient) {
-        const payload = run.payload || {};
-        await sendWhiteLabelEmail(admin, {
-          user_id: run.user_id,
-          salon_slug: payload.salon_slug,
-          salon_name: payload.salon_name,
-          recipient_email: run.recipient,
-          recipient_name: payload.customer_name,
-          template_key: payload.template_key || "appointment_reminder",
-          idempotency_key: `automation-${run.id}-${run.idempotency_key}`,
-          template_data: payload,
-          language: payload.language || undefined,
-        });
+    // Pick up both freshly-scheduled runs and retryable runs whose backoff has elapsed.
+    const nowIso = new Date().toISOString();
+    const [dueScheduledRes, dueRetryRes] = await Promise.all([
+      admin.from("automation_runs")
+        .select("id, user_id, automation_rule_id, channel, recipient, idempotency_key, payload, retry_count")
+        .eq("status", "scheduled").lte("scheduled_for", nowIso).limit(100),
+      admin.from("automation_runs")
+        .select("id, user_id, automation_rule_id, channel, recipient, idempotency_key, payload, retry_count")
+        .eq("status", "retry").lte("next_retry_at", nowIso).limit(100),
+    ]);
+    const dueRuns = [...(dueScheduledRes.data || []), ...(dueRetryRes.data || [])];
+
+    const RETRY_BACKOFF_MIN = [1, 5, 15]; // minutes; max 3 attempts total
+    let sent = 0; let retried = 0; let failed = 0;
+
+    async function markFailure(run: any, message: string) {
+      const nextAttempt = (run.retry_count || 0) + 1;
+      const backoff = RETRY_BACKOFF_MIN[nextAttempt - 1];
+      const nowDate = new Date();
+      if (backoff !== undefined) {
+        await admin.from("automation_runs").update({
+          status: "retry",
+          retry_count: nextAttempt,
+          next_retry_at: new Date(nowDate.getTime() + backoff * 60 * 1000).toISOString(),
+          last_error_at: nowDate.toISOString(),
+          error_message: message.slice(0, 500),
+        }).eq("id", run.id);
+        retried += 1;
+        await admin.from("automation_logs").insert({ user_id: run.user_id, automation_rule_id: run.automation_rule_id, automation_run_id: run.id, event_type: "retry_scheduled", status: "retry", message: `Poging ${nextAttempt} mislukt, opnieuw over ${backoff} min`, metadata: { attempt: nextAttempt, backoff_min: backoff, error: message.slice(0, 300) }, is_demo: false });
+      } else {
+        await admin.from("automation_runs").update({
+          status: "failed",
+          retry_count: nextAttempt,
+          processed_at: nowDate.toISOString(),
+          last_error_at: nowDate.toISOString(),
+          error_message: message.slice(0, 500),
+        }).eq("id", run.id);
+        failed += 1;
+        await admin.from("automation_logs").insert({ user_id: run.user_id, automation_rule_id: run.automation_rule_id, automation_run_id: run.id, event_type: "delivery_failed", status: "failed", message: `Bericht kon na ${nextAttempt} pogingen niet worden verstuurd`, metadata: { attempts: nextAttempt, error: message.slice(0, 300) }, is_demo: false });
       }
-      await admin.from("automation_runs").update({ status: "sent", processed_at: new Date().toISOString() }).eq("id", run.id);
-      await admin.from("automation_rules").update({ last_triggered_at: new Date().toISOString() }).eq("id", run.automation_rule_id);
-      await admin.from("automation_logs").insert({ user_id: run.user_id, automation_rule_id: run.automation_rule_id, automation_run_id: run.id, event_type: "message_sent", status: "sent", message: "Bericht verwerkt door automation engine", is_demo: false });
     }
 
-    return json({ success: true, scheduled, skipped, duplicates, ai_skipped: aiSkipped, processed: dueRuns?.length || 0 });
+    for (const run of dueRuns) {
+      try {
+        if (run.channel === "email" && run.recipient) {
+          const payload = run.payload || {};
+          const { error } = await admin.functions.invoke("send-white-label-email", {
+            body: {
+              user_id: run.user_id,
+              salon_slug: payload.salon_slug,
+              salon_name: payload.salon_name,
+              recipient_email: run.recipient,
+              recipient_name: payload.customer_name,
+              template_key: payload.template_key || "appointment_reminder",
+              idempotency_key: `automation-${run.id}-${run.idempotency_key}`,
+              template_data: payload,
+              language: payload.language || undefined,
+            },
+          });
+          if (error) throw new Error(error.message || "email invoke failed");
+        } else if (run.channel === "whatsapp" && run.recipient) {
+          const payload = run.payload || {};
+          const { data: waResp, error: waErr } = await admin.functions.invoke("whatsapp-send", {
+            body: {
+              user_id: run.user_id,
+              to: run.recipient,
+              message: payload.message || "",
+              customer_id: null,
+              appointment_id: payload.appointment_id || null,
+              kind: "automation",
+              meta: { automation_run_id: run.id, idempotency_key: run.idempotency_key },
+            },
+          });
+          if (waErr) throw new Error(waErr.message || "whatsapp invoke failed");
+          if (waResp && (waResp as any).success === false) throw new Error((waResp as any).error || "whatsapp send failed");
+        } else if (run.channel === "sms") {
+          await admin.from("automation_runs").update({ status: "skipped", processed_at: new Date().toISOString(), error_message: "SMS niet ondersteund" }).eq("id", run.id);
+          continue;
+        }
+
+        await admin.from("automation_runs").update({ status: "sent", processed_at: new Date().toISOString(), error_message: null }).eq("id", run.id);
+        await admin.from("automation_rules").update({ last_triggered_at: new Date().toISOString() }).eq("id", run.automation_rule_id);
+        await admin.from("automation_logs").insert({ user_id: run.user_id, automation_rule_id: run.automation_rule_id, automation_run_id: run.id, event_type: "message_sent", status: "sent", message: "Bericht verwerkt door automation engine", is_demo: false });
+        sent += 1;
+      } catch (err) {
+        await markFailure(run, (err as Error).message || "onbekende fout");
+      }
+    }
+
+    return json({ success: true, scheduled, skipped, duplicates, ai_skipped: aiSkipped, processed: dueRuns.length, sent, retried, failed });
   } catch (error) {
     return json({ error: (error as Error).message || "Automation scheduler failed" }, 500);
   }

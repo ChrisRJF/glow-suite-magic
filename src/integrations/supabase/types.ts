@@ -482,11 +482,14 @@ export type Database = {
           id: string
           idempotency_key: string
           is_demo: boolean
+          last_error_at: string | null
           membership_id: string | null
+          next_retry_at: string | null
           payload: Json
           payment_id: string | null
           processed_at: string | null
           recipient: string | null
+          retry_count: number
           revenue_attributed: number
           scheduled_for: string
           status: string
@@ -503,11 +506,14 @@ export type Database = {
           id?: string
           idempotency_key: string
           is_demo?: boolean
+          last_error_at?: string | null
           membership_id?: string | null
+          next_retry_at?: string | null
           payload?: Json
           payment_id?: string | null
           processed_at?: string | null
           recipient?: string | null
+          retry_count?: number
           revenue_attributed?: number
           scheduled_for?: string
           status?: string
@@ -524,11 +530,14 @@ export type Database = {
           id?: string
           idempotency_key?: string
           is_demo?: boolean
+          last_error_at?: string | null
           membership_id?: string | null
+          next_retry_at?: string | null
           payload?: Json
           payment_id?: string | null
           processed_at?: string | null
           recipient?: string | null
+          retry_count?: number
           revenue_attributed?: number
           scheduled_for?: string
           status?: string
