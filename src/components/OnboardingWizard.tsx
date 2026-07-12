@@ -304,7 +304,7 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
                     <span className="px-2 py-0.5 rounded-md bg-muted text-muted-foreground text-[10px] font-medium">
                       Voorbeeld
                     </span>
-                    <span className="hidden sm:inline text-[10px] text-muted-foreground/80">
+                    <span className="text-[10px] text-muted-foreground/80">
                       Wijzigingen worden niet opgeslagen.
                     </span>
                   </span>
