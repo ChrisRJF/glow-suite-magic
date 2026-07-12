@@ -370,9 +370,11 @@ function WelcomeStep() {
   const items = ["Agenda", "Online betalingen", "Pinautomaat", "Slimme automatiseringen"];
   return (
     <div className="h-full flex flex-col items-center justify-center text-center py-6 sm:py-10 max-w-md mx-auto">
-      <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center mb-6 shadow-elegant">
-        <Rocket className="w-10 h-10 text-primary-foreground" />
-      </div>
+      <img
+        src={glowsuiteLogo}
+        alt="GlowSuite"
+        className="w-20 h-20 rounded-3xl object-contain mb-6 shadow-elegant bg-background"
+      />
       <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">Welkom bij GlowSuite</h1>
       <p className="text-base text-muted-foreground mb-6">
         Binnen ongeveer 2 minuten is jouw salon klaar voor gebruik. GlowSuite configureert automatisch de belangrijkste instellingen.
