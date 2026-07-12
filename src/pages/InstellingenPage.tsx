@@ -1477,6 +1477,11 @@ export default function InstellingenPage() {
                     {resetLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RotateCcw className="w-4 h-4 mr-2" />}
                     {resetLoading ? "Laden..." : "Demo opnieuw laden"}
                   </Button>
+                  {isBackendAdmin && (
+                    <Button variant="ghost" size="sm" className="w-full" onClick={openOnboardingPreview}>
+                      <Sparkles className="w-4 h-4 mr-2" /> Bekijk onboarding
+                    </Button>
+                  )}
                   <p className="text-[11px] text-muted-foreground/60 text-center">Reset alleen geïsoleerde demo data, nooit live data</p>
                 </>
               ) : (
