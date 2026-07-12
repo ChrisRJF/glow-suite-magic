@@ -356,7 +356,7 @@ function WelcomeStep() {
       </div>
       <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">Welkom bij GlowSuite</h1>
       <p className="text-base text-muted-foreground mb-6">
-        Binnen enkele minuten is jouw salon volledig klaar voor gebruik. GlowSuite configureert automatisch de belangrijkste instellingen.
+        Binnen ongeveer 2 minuten is jouw salon klaar voor gebruik. GlowSuite configureert automatisch de belangrijkste instellingen.
       </p>
       <div className="grid grid-cols-2 gap-2 w-full mb-2 text-left">
         {items.map(t => (
