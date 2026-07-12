@@ -322,7 +322,7 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
               {step === 3 && <TerminalStep />}
               {step === 4 && <SystemCheckStep />}
               {step === 5 && <AutomationsStep data={data} setData={setData} />}
-              {step === 6 && <DoneStep />}
+              {step === 6 && <DoneStep logoUrl={data.logoUrl} salonName={data.salonName} />}
             </>
           )}
         </div>
