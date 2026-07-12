@@ -73,7 +73,9 @@ type Data = {
   logoUrl: string;
   autoReminders: boolean;
   autoNoshow: boolean;
-  autoReview: boolean;
+  autoPaymentFollowup: boolean;
+  autoSubscriptionReminders: boolean;
+  postWelcome: boolean;
 };
 
 const EMPTY: Data = {
@@ -83,8 +85,11 @@ const EMPTY: Data = {
   logoUrl: "",
   autoReminders: true,
   autoNoshow: true,
-  autoReview: true,
+  autoPaymentFollowup: true,
+  autoSubscriptionReminders: true,
+  postWelcome: false,
 };
+
 
 // 7 steps including welcome & done
 const STEPS = [
