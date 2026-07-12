@@ -107,13 +107,15 @@ const STEPS = [
 ];
 const TOTAL = STEPS.length;
 
-export function OnboardingWizard({ open, onOpenChange, onComplete }: Props) {
+export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode = false }: Props) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const servicesCrud = useCrud("services");
   const { demoMode } = useDemoMode();
 
-  const storageKey = user ? `glowsuite_onboarding_v3_${user.id}` : "";
+  const storageKey = user
+    ? (previewMode ? `glowsuite_onboarding_v3_preview_${user.id}` : `glowsuite_onboarding_v3_${user.id}`)
+    : "";
   const [data, setData] = useState<Data>(EMPTY);
   const [saving, setSaving] = useState(false);
 
