@@ -338,7 +338,7 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
               {step === 0 && <WelcomeStep />}
               {step === 1 && <SalonStep data={data} setData={setData} onLogo={onLogoUpload} />}
               {step === 2 && <GlowPayStep demo={demoMode} />}
-              {step === 3 && <TerminalStep />}
+              {step === 3 && <TerminalStep previewMode={previewMode} />}
               {step === 4 && <SystemCheckStep />}
               {step === 5 && <AutomationsStep data={data} setData={setData} />}
               {step === 6 && <DoneStep logoUrl={data.logoUrl} salonName={data.salonName} />}
