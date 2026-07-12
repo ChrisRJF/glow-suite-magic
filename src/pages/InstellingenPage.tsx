@@ -1511,6 +1511,7 @@ export default function InstellingenPage() {
         destructive
         onConfirm={handleDemoReset}
       />
+      <OnboardingWizard open={onboardingPreviewOpen} onOpenChange={setOnboardingPreviewOpen} previewMode />
     </AppLayout>
   );
 }
