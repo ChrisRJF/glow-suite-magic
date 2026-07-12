@@ -15,8 +15,10 @@ import {
   Sparkles, Check, ArrowRight, ArrowLeft, Store, Scissors,
   CreditCard, Rocket, Upload, PartyPopper, ShieldCheck, Zap,
   Smartphone, Loader2, Heart, Stethoscope, Hand, Gem,
+  Calendar, UserPlus, ShoppingBag, BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
 
 interface Props {
   open: boolean;
