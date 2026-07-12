@@ -273,10 +273,18 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
           <div className="px-5 sm:px-8 pt-5 sm:pt-6 pb-3 border-b border-border/50 bg-gradient-to-br from-primary/[0.04] to-transparent">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center">
-                  <Sparkles className="w-4 h-4 text-primary-foreground" />
-                </div>
-                <span className="text-sm font-semibold">GlowSuite</span>
+                {data.logoUrl ? (
+                  <img
+                    src={data.logoUrl}
+                    alt={data.salonName || "Salonlogo"}
+                    className="w-7 h-7 rounded-lg object-cover border border-border/50 bg-background"
+                  />
+                ) : (
+                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center">
+                    <Sparkles className="w-4 h-4 text-primary-foreground" />
+                  </div>
+                )}
+                <span className="text-sm font-semibold">{data.logoUrl && data.salonName ? data.salonName : "GlowSuite"}</span>
                 {previewMode && (
                   <span className="px-2 py-0.5 rounded-md bg-muted text-muted-foreground text-[10px] font-medium">
                     Voorbeeldmodus
@@ -314,7 +322,7 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
               {step === 3 && <TerminalStep />}
               {step === 4 && <SystemCheckStep />}
               {step === 5 && <AutomationsStep data={data} setData={setData} />}
-              {step === 6 && <DoneStep />}
+              {step === 6 && <DoneStep logoUrl={data.logoUrl} salonName={data.salonName} />}
             </>
           )}
         </div>
@@ -348,7 +356,7 @@ function WelcomeStep() {
       </div>
       <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">Welkom bij GlowSuite</h1>
       <p className="text-base text-muted-foreground mb-6">
-        Binnen enkele minuten is jouw salon volledig klaar voor gebruik. GlowSuite configureert automatisch de belangrijkste instellingen.
+        Binnen ongeveer 2 minuten is jouw salon klaar voor gebruik. GlowSuite configureert automatisch de belangrijkste instellingen.
       </p>
       <div className="grid grid-cols-2 gap-2 w-full mb-2 text-left">
         {items.map(t => (
@@ -477,30 +485,78 @@ function GlowPayStep({ demo }: { demo: boolean }) {
 
 function TerminalStep() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { demoMode } = useDemoMode();
+  const [hasTerminal, setHasTerminal] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!user) { setHasTerminal(false); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { count } = await (supabase as any)
+          .from("viva_terminals")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("is_demo", demoMode);
+        if (!cancelled) setHasTerminal((count || 0) > 0);
+      } catch { if (!cancelled) setHasTerminal(false); }
+    })();
+    return () => { cancelled = true; };
+  }, [user, demoMode]);
+
+
+  if (hasTerminal) {
+    return (
+      <div className="space-y-5 max-w-lg mx-auto">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Koppel je pinautomaat</h2>
+          <p className="text-sm text-muted-foreground mt-1">Je terminal is al gekoppeld.</p>
+        </div>
+        <div className="p-5 rounded-2xl border border-success/30 bg-success/5">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center">
+              <Check className="w-5 h-5 text-success" />
+            </div>
+            <div>
+              <p className="font-semibold">Terminal actief</p>
+              <p className="text-xs text-muted-foreground">Je kunt direct pinbetalingen ontvangen.</p>
+            </div>
+          </div>
+        </div>
+        <Button variant="outline" size="sm" className="w-full" onClick={() => navigate("/instellingen?tab=glowpay#terminals")}>
+          Terminal beheren
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-5 max-w-lg mx-auto">
       <div>
         <h2 className="text-2xl font-bold tracking-tight">Koppel je pinautomaat</h2>
-        <p className="text-sm text-muted-foreground mt-1">Optioneel voor betalingen aan de balie.</p>
+        <p className="text-sm text-muted-foreground mt-1">Heb je al een Sunmi-terminal?</p>
       </div>
       <div className="p-5 rounded-2xl border border-border bg-secondary/30">
-        <div className="flex items-center gap-3 mb-3">
+        <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
             <Smartphone className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <p className="font-semibold">Geen probleem</p>
-            <p className="text-xs text-muted-foreground">Je kunt dit later altijd koppelen.</p>
+            <p className="font-semibold">Sunmi & Viva Smart Checkout</p>
+            <p className="text-xs text-muted-foreground">Koppelen doe je in één minuut.</p>
           </div>
         </div>
-        <p className="text-sm text-muted-foreground">
-          GlowSuite werkt naadloos met Sunmi-terminals en Viva Smart Checkout. Koppelen doe je in één minuut via Instellingen.
-        </p>
       </div>
-      <Button variant="outline" size="sm" className="w-full" onClick={() => { navigate("/instellingen"); }}>
-        Bekijk ondersteunde terminals
-      </Button>
-      <p className="text-[11px] text-muted-foreground text-center">Je kunt deze stap gewoon overslaan.</p>
+      <div className="space-y-2">
+        <Button variant="gradient" size="sm" className="w-full" onClick={() => navigate("/instellingen?tab=glowpay#terminals")}>
+          Ik heb al een terminal
+        </Button>
+        <Button variant="outline" size="sm" className="w-full" onClick={() => navigate("/instellingen?tab=glowpay#terminals")}>
+          Ik heb nog geen terminal
+        </Button>
+      </div>
+      <p className="text-[11px] text-muted-foreground text-center">Ik stel dit later in.</p>
     </div>
   );
 }
@@ -621,13 +677,21 @@ function AutomationsStep({ data, setData }: any) {
   );
 }
 
-function DoneStep() {
+function DoneStep({ logoUrl, salonName }: { logoUrl?: string; salonName?: string }) {
   const items = ["Agenda", "Online betalingen", "Klantenbestand", "Automatiseringen", "Dashboard"];
   return (
     <div className="h-full flex flex-col items-center justify-center text-center py-6 sm:py-10 max-w-md mx-auto">
-      <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-success to-success/70 flex items-center justify-center mb-6 shadow-elegant">
-        <PartyPopper className="w-10 h-10 text-success-foreground" />
-      </div>
+      {logoUrl ? (
+        <img
+          src={logoUrl}
+          alt={salonName || "Salonlogo"}
+          className="w-20 h-20 rounded-3xl object-cover mb-6 shadow-elegant border border-border/50 bg-background"
+        />
+      ) : (
+        <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-success to-success/70 flex items-center justify-center mb-6 shadow-elegant">
+          <PartyPopper className="w-10 h-10 text-success-foreground" />
+        </div>
+      )}
       <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">🎉 Je salon is klaar!</h1>
       <p className="text-base text-muted-foreground mb-6">GlowSuite heeft automatisch ingesteld:</p>
       <div className="grid grid-cols-2 gap-2 w-full text-left">
