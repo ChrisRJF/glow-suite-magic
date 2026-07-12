@@ -24,6 +24,8 @@ interface Props {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   onComplete?: () => void;
+  /** Preview/review mode: no DB writes, no completion flags, no seeding. Safe to reopen without corrupting production state. */
+  previewMode?: boolean;
 }
 
 type SalonType = "kapper" | "barbershop" | "nagelstudio" | "beautysalon" | "kliniek" | "overig";
