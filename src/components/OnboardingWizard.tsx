@@ -18,6 +18,7 @@ import {
   Calendar, UserPlus, ShoppingBag, BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import glowsuiteLogo from "@/assets/glowsuite-logo.png";
 
 
 interface Props {
