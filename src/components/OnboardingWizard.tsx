@@ -679,13 +679,21 @@ function AutomationsStep({ data, setData }: any) {
   );
 }
 
-function DoneStep() {
+function DoneStep({ logoUrl, salonName }: { logoUrl?: string; salonName?: string }) {
   const items = ["Agenda", "Online betalingen", "Klantenbestand", "Automatiseringen", "Dashboard"];
   return (
     <div className="h-full flex flex-col items-center justify-center text-center py-6 sm:py-10 max-w-md mx-auto">
-      <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-success to-success/70 flex items-center justify-center mb-6 shadow-elegant">
-        <PartyPopper className="w-10 h-10 text-success-foreground" />
-      </div>
+      {logoUrl ? (
+        <img
+          src={logoUrl}
+          alt={salonName || "Salonlogo"}
+          className="w-20 h-20 rounded-3xl object-cover mb-6 shadow-elegant border border-border/50 bg-background"
+        />
+      ) : (
+        <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-success to-success/70 flex items-center justify-center mb-6 shadow-elegant">
+          <PartyPopper className="w-10 h-10 text-success-foreground" />
+        </div>
+      )}
       <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">🎉 Je salon is klaar!</h1>
       <p className="text-base text-muted-foreground mb-6">GlowSuite heeft automatisch ingesteld:</p>
       <div className="grid grid-cols-2 gap-2 w-full text-left">
