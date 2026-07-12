@@ -18,6 +18,7 @@ import {
   Calendar, UserPlus, ShoppingBag, BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import glowsuiteLogo from "@/assets/glowsuite-logo.png";
 
 
 interface Props {
@@ -141,6 +142,17 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
       }
     })();
   }, [user, open]);
+
+  // Preview mode: load saved salon logo (if any) so the header reflects the real brand,
+  // but never overwrite unsaved user input.
+  useEffect(() => {
+    if (!user || !open || !previewMode || data.logoUrl) return;
+    (async () => {
+      const { data: s } = await supabase.from("settings").select("salon_logo_url").eq("user_id", user.id).maybeSingle();
+      const url = (s as any)?.salon_logo_url;
+      if (url) setData(d => ({ ...d, logoUrl: url }));
+    })();
+  }, [user, open, previewMode]);
 
   const setStep = (s: number) => setData(d => ({ ...d, step: s }));
   const step = data.step;
@@ -280,14 +292,21 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
                     className="w-7 h-7 rounded-lg object-cover border border-border/50 bg-background"
                   />
                 ) : (
-                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center">
-                    <Sparkles className="w-4 h-4 text-primary-foreground" />
-                  </div>
+                  <img
+                    src={glowsuiteLogo}
+                    alt="GlowSuite"
+                    className="w-7 h-7 rounded-lg object-contain bg-background"
+                  />
                 )}
                 <span className="text-sm font-semibold">{data.logoUrl && data.salonName ? data.salonName : "GlowSuite"}</span>
                 {previewMode && (
-                  <span className="px-2 py-0.5 rounded-md bg-muted text-muted-foreground text-[10px] font-medium">
-                    Voorbeeldmodus
+                  <span className="inline-flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded-md bg-muted text-muted-foreground text-[10px] font-medium">
+                      Voorbeeld
+                    </span>
+                    <span className="text-[10px] text-muted-foreground/80">
+                      Wijzigingen worden niet opgeslagen.
+                    </span>
                   </span>
                 )}
               </div>
@@ -351,9 +370,11 @@ function WelcomeStep() {
   const items = ["Agenda", "Online betalingen", "Pinautomaat", "Slimme automatiseringen"];
   return (
     <div className="h-full flex flex-col items-center justify-center text-center py-6 sm:py-10 max-w-md mx-auto">
-      <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center mb-6 shadow-elegant">
-        <Rocket className="w-10 h-10 text-primary-foreground" />
-      </div>
+      <img
+        src={glowsuiteLogo}
+        alt="GlowSuite"
+        className="w-20 h-20 rounded-3xl object-contain mb-6 shadow-elegant bg-background"
+      />
       <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">Welkom bij GlowSuite</h1>
       <p className="text-base text-muted-foreground mb-6">
         Binnen ongeveer 2 minuten is jouw salon klaar voor gebruik. GlowSuite configureert automatisch de belangrijkste instellingen.
@@ -688,9 +709,11 @@ function DoneStep({ logoUrl, salonName }: { logoUrl?: string; salonName?: string
           className="w-20 h-20 rounded-3xl object-cover mb-6 shadow-elegant border border-border/50 bg-background"
         />
       ) : (
-        <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-success to-success/70 flex items-center justify-center mb-6 shadow-elegant">
-          <PartyPopper className="w-10 h-10 text-success-foreground" />
-        </div>
+        <img
+          src={glowsuiteLogo}
+          alt="GlowSuite"
+          className="w-20 h-20 rounded-3xl object-contain mb-6 shadow-elegant bg-background"
+        />
       )}
       <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">🎉 Je salon is klaar!</h1>
       <p className="text-base text-muted-foreground mb-6">GlowSuite heeft automatisch ingesteld:</p>
