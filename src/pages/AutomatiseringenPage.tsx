@@ -165,7 +165,7 @@ export default function AutomatiseringenPage() {
         .limit(50),
       supabase
         .from("whatsapp_scheduler_runs")
-        .select("started_at, sent")
+        .select("started_at, sent, checked, failed, meta")
         .order("started_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
