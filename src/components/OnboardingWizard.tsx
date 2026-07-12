@@ -24,6 +24,8 @@ interface Props {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   onComplete?: () => void;
+  /** Preview/review mode: no DB writes, no completion flags, no seeding. Safe to reopen without corrupting production state. */
+  previewMode?: boolean;
 }
 
 type SalonType = "kapper" | "barbershop" | "nagelstudio" | "beautysalon" | "kliniek" | "overig";
@@ -105,13 +107,15 @@ const STEPS = [
 ];
 const TOTAL = STEPS.length;
 
-export function OnboardingWizard({ open, onOpenChange, onComplete }: Props) {
+export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode = false }: Props) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const servicesCrud = useCrud("services");
   const { demoMode } = useDemoMode();
 
-  const storageKey = user ? `glowsuite_onboarding_v3_${user.id}` : "";
+  const storageKey = user
+    ? (previewMode ? `glowsuite_onboarding_v3_preview_${user.id}` : `glowsuite_onboarding_v3_${user.id}`)
+    : "";
   const [data, setData] = useState<Data>(EMPTY);
   const [saving, setSaving] = useState(false);
 
@@ -156,6 +160,8 @@ export function OnboardingWizard({ open, onOpenChange, onComplete }: Props) {
 
   const saveSalon = async () => {
     if (!user) return;
+    // Preview mode: never touch DB, never seed services, never overwrite settings/logo/salon-type.
+    if (previewMode) return;
     const name = data.salonName.trim() || "Mijn Salon";
     await supabase.from("profiles").update({ salon_name: name }).eq("user_id", user.id);
     const { data: s } = await supabase.from("settings").select("id").eq("user_id", user.id).eq("is_demo", false).maybeSingle();
@@ -166,26 +172,32 @@ export function OnboardingWizard({ open, onOpenChange, onComplete }: Props) {
         salon_type: data.salonType || null,
       }).eq("id", s.id);
     }
-    // Auto-seed default services silently
+    // Auto-seed default services only if the salon has no services yet (avoid duplicates on re-run).
     if (data.salonType) {
-      const seeds = SERVICES_BY_TYPE[data.salonType as SalonType] || [];
-      for (const svc of seeds) {
-        try {
-          await servicesCrud.insert({
-            name: svc.name,
-            price: svc.price,
-            duration_minutes: svc.duration_minutes,
-            color: svc.color,
-            is_active: true,
-            is_online_bookable: true,
-          });
-        } catch {}
+      const { count } = await supabase
+        .from("services")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id);
+      if (!count || count === 0) {
+        const seeds = SERVICES_BY_TYPE[data.salonType as SalonType] || [];
+        for (const svc of seeds) {
+          try {
+            await servicesCrud.insert({
+              name: svc.name,
+              price: svc.price,
+              duration_minutes: svc.duration_minutes,
+              color: svc.color,
+              is_active: true,
+              is_online_bookable: true,
+            });
+          } catch {}
+        }
       }
     }
   };
 
   const saveAutomations = () => {
-    if (!user) return;
+    if (!user || previewMode) return;
     try {
       localStorage.setItem(`glowsuite_automations_${user.id}`, JSON.stringify({
         reminders: data.autoReminders,
@@ -215,6 +227,13 @@ export function OnboardingWizard({ open, onOpenChange, onComplete }: Props) {
   const back = () => setStep(Math.max(0, step - 1));
 
   const finish = () => {
+    if (previewMode) {
+      // Preview: never mark done, never mutate production keys. Just close cleanly.
+      try { if (storageKey) localStorage.removeItem(storageKey); } catch {}
+      onComplete?.();
+      onOpenChange(false);
+      return;
+    }
     if (user) {
       localStorage.setItem(`glowsuite_onboarding_${user.id}`, "done");
       localStorage.removeItem(storageKey);
@@ -230,7 +249,7 @@ export function OnboardingWizard({ open, onOpenChange, onComplete }: Props) {
   };
 
   const skipAll = () => {
-    if (user) localStorage.setItem(`glowsuite_onboarding_${user.id}`, "skipped");
+    if (!previewMode && user) localStorage.setItem(`glowsuite_onboarding_${user.id}`, "skipped");
     onOpenChange(false);
   };
 
@@ -254,6 +273,11 @@ export function OnboardingWizard({ open, onOpenChange, onComplete }: Props) {
                   <Sparkles className="w-4 h-4 text-primary-foreground" />
                 </div>
                 <span className="text-sm font-semibold">GlowSuite</span>
+                {previewMode && (
+                  <span className="px-2 py-0.5 rounded-md bg-muted text-muted-foreground text-[10px] font-medium">
+                    Voorbeeldmodus
+                  </span>
+                )}
               </div>
               {step > 0 && step < TOTAL - 1 && (
                 <div className="flex flex-col items-end">

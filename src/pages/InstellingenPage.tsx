@@ -105,6 +105,16 @@ export default function InstellingenPage() {
   const [depositNoshow, setDepositNoshow] = useState(true);
   const [autoRevenuePaymentMode, setAutoRevenuePaymentMode] = useState<"none" | "deposit" | "full">("deposit");
   const [resetLoading, setResetLoading] = useState(false);
+  const [onboardingPreviewOpen, setOnboardingPreviewOpen] = useState(false);
+  const openOnboardingPreview = () => {
+    if (user) {
+      try {
+        localStorage.removeItem(`glowsuite_onboarding_${user.id}`);
+        localStorage.removeItem(`glowsuite_onboarding_v3_${user.id}`);
+      } catch {}
+    }
+    setOnboardingPreviewOpen(true);
+  };
   const [openingHours, setOpeningHours] = useState<OpeningHours>(defaultHours);
   const [bufferMinutes, setBufferMinutes] = useState(15);
   const [maxBookings, setMaxBookings] = useState(1);
@@ -1467,6 +1477,11 @@ export default function InstellingenPage() {
                     {resetLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RotateCcw className="w-4 h-4 mr-2" />}
                     {resetLoading ? "Laden..." : "Demo opnieuw laden"}
                   </Button>
+                  {isBackendAdmin && (
+                    <Button variant="ghost" size="sm" className="w-full" onClick={openOnboardingPreview}>
+                      <Sparkles className="w-4 h-4 mr-2" /> Bekijk onboarding
+                    </Button>
+                  )}
                   <p className="text-[11px] text-muted-foreground/60 text-center">Reset alleen geïsoleerde demo data, nooit live data</p>
                 </>
               ) : (
@@ -1496,6 +1511,7 @@ export default function InstellingenPage() {
         destructive
         onConfirm={handleDemoReset}
       />
+      <OnboardingWizard open={onboardingPreviewOpen} onOpenChange={setOnboardingPreviewOpen} previewMode />
     </AppLayout>
   );
 }
@@ -1544,6 +1560,21 @@ function MessagingSettingsCard() {
 
 function SnelleSetupCard() {
   const [open, setOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const { user } = useAuth();
+  const { isOwner, roles } = useUserRole();
+  const canReview = isOwner || roles.includes("admin" as any) || roles.includes("manager" as any);
+
+  const openReview = () => {
+    if (user) {
+      try {
+        localStorage.removeItem(`glowsuite_onboarding_${user.id}`);
+        localStorage.removeItem(`glowsuite_onboarding_v3_${user.id}`);
+      } catch {}
+    }
+    setPreviewOpen(true);
+  };
+
   return (
     <div className="glass-card p-6">
       <div className="flex items-start gap-4">
@@ -1560,10 +1591,21 @@ function SnelleSetupCard() {
             <Button size="sm" variant="outline" onClick={() => window.dispatchEvent(new CustomEvent("glowsuite:start-tour"))}>
               <PlayCircle className="w-3.5 h-3.5" /> Bekijk rondleiding
             </Button>
+            {canReview && (
+              <Button size="sm" variant="outline" onClick={openReview}>
+                <RotateCcw className="w-3.5 h-3.5" /> Onboarding opnieuw bekijken
+              </Button>
+            )}
           </div>
+          {canReview && (
+            <p className="text-[11px] text-muted-foreground mt-2">
+              Bekijk de introductie opnieuw zonder je huidige instellingen te wijzigen.
+            </p>
+          )}
         </div>
       </div>
       <OnboardingWizard open={open} onOpenChange={setOpen} />
+      <OnboardingWizard open={previewOpen} onOpenChange={setPreviewOpen} previewMode />
     </div>
   );
 }
