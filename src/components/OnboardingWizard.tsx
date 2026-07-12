@@ -318,11 +318,10 @@ function WelcomeStep() {
       <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center mb-6 shadow-elegant">
         <Rocket className="w-10 h-10 text-primary-foreground" />
       </div>
-      <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">Welkom bij GlowSuite 👋</h1>
+      <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">Welkom bij GlowSuite</h1>
       <p className="text-base text-muted-foreground mb-6">
-        Binnen ongeveer 3 minuten is jouw salon klaar.
+        Binnen enkele minuten is jouw salon volledig klaar voor gebruik. GlowSuite configureert automatisch de belangrijkste instellingen.
       </p>
-      <p className="text-sm text-muted-foreground mb-3">GlowSuite stelt automatisch in:</p>
       <div className="grid grid-cols-2 gap-2 w-full mb-2 text-left">
         {items.map(t => (
           <div key={t} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-secondary/40 border border-border/50">
@@ -334,6 +333,7 @@ function WelcomeStep() {
     </div>
   );
 }
+
 
 function SalonStep({ data, setData, onLogo }: any) {
   const chosen = data.salonType as SalonType | "";
