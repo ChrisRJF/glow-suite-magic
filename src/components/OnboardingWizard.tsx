@@ -188,8 +188,10 @@ export function OnboardingWizard({ open, onOpenChange, onComplete }: Props) {
       localStorage.setItem(`glowsuite_automations_${user.id}`, JSON.stringify({
         reminders: data.autoReminders,
         noshow: data.autoNoshow,
-        review: data.autoReview,
+        paymentFollowup: data.autoPaymentFollowup,
+        subscriptionReminders: data.autoSubscriptionReminders,
       }));
+
     } catch {}
   };
 
