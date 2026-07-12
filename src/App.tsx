@@ -95,7 +95,7 @@ const App = () => (
           <BrowserRouter>
             <LeadAutomationRunner />
             <OnboardingGate />
-            <GlowPayActivationGate />
+            
             <GuidedTour />
             <CheckoutIntentHandler />
             <SubscriptionConfirmHandler />
