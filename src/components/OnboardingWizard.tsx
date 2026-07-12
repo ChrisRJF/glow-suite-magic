@@ -505,8 +505,6 @@ function TerminalStep() {
     return () => { cancelled = true; };
   }, [user, demoMode]);
 
-  const goManage = () => { onClose(); navigate("/instellingen?tab=glowpay#terminals"); };
-  const onClose = () => { /* wizard closes via navigate side-effect handled by parent nav */ };
 
   if (hasTerminal) {
     return (
