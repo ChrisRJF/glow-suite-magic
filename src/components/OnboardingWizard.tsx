@@ -273,10 +273,18 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
           <div className="px-5 sm:px-8 pt-5 sm:pt-6 pb-3 border-b border-border/50 bg-gradient-to-br from-primary/[0.04] to-transparent">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center">
-                  <Sparkles className="w-4 h-4 text-primary-foreground" />
-                </div>
-                <span className="text-sm font-semibold">GlowSuite</span>
+                {data.logoUrl ? (
+                  <img
+                    src={data.logoUrl}
+                    alt={data.salonName || "Salonlogo"}
+                    className="w-7 h-7 rounded-lg object-cover border border-border/50 bg-background"
+                  />
+                ) : (
+                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center">
+                    <Sparkles className="w-4 h-4 text-primary-foreground" />
+                  </div>
+                )}
+                <span className="text-sm font-semibold">{data.logoUrl && data.salonName ? data.salonName : "GlowSuite"}</span>
                 {previewMode && (
                   <span className="px-2 py-0.5 rounded-md bg-muted text-muted-foreground text-[10px] font-medium">
                     Voorbeeldmodus
