@@ -365,12 +365,11 @@ function SalonStep({ data, setData, onLogo }: any) {
         })}
       </div>
 
-      {chosen && (
-        <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-success/5 border border-success/20 text-xs text-muted-foreground">
-          <Check className="w-3.5 h-3.5 text-success mt-0.5 shrink-0" />
-          <span>GlowSuite configureert automatisch de juiste instellingen voor jouw type salon.</span>
-        </div>
-      )}
+      <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-primary/5 border border-primary/20 text-xs text-muted-foreground">
+        <Sparkles className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
+        <span>GlowSuite maakt automatisch de juiste standaarddiensten aan.</span>
+      </div>
+
 
       <div className="space-y-4 pt-2">
         <div>
