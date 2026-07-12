@@ -709,9 +709,11 @@ function DoneStep({ logoUrl, salonName }: { logoUrl?: string; salonName?: string
           className="w-20 h-20 rounded-3xl object-cover mb-6 shadow-elegant border border-border/50 bg-background"
         />
       ) : (
-        <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-success to-success/70 flex items-center justify-center mb-6 shadow-elegant">
-          <PartyPopper className="w-10 h-10 text-success-foreground" />
-        </div>
+        <img
+          src={glowsuiteLogo}
+          alt="GlowSuite"
+          className="w-20 h-20 rounded-3xl object-contain mb-6 shadow-elegant bg-background"
+        />
       )}
       <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">🎉 Je salon is klaar!</h1>
       <p className="text-base text-muted-foreground mb-6">GlowSuite heeft automatisch ingesteld:</p>
