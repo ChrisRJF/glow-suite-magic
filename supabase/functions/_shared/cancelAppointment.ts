@@ -131,6 +131,18 @@ export async function cancelAppointmentCanonical(
     sideEffects.automation_runs_cancelled = runs?.length ?? 0;
   } catch (_) { /* non-fatal */ }
 
+  // 5b) Dead-letter any WhatsApp reminder retries in-flight for this appointment
+  //     so the canonical retry pass never sends a stale reminder after cancel.
+  try {
+    await supabase
+      .from("whatsapp_logs")
+      .update({ dead_letter: true, next_retry_at: null, error: "appointment_cancelled" })
+      .eq("appointment_id", appt.id)
+      .eq("status", "failed")
+      .eq("dead_letter", false)
+      .not("reminder_type", "is", null);
+  } catch (_) { /* non-fatal */ }
+
   // 6) Cancel outstanding payment requests (never touch paid rows — refund policy
   //    is handled through the existing refund flow, not hardcoded here).
   try {
