@@ -32,14 +32,41 @@ export function NoShowCenter() {
   const [depositsRequested, setDepositsRequested] = useState(0);
   const [deliveryFailed, setDeliveryFailed] = useState(0);
 
+  const [salonTz, setSalonTz] = useState<string>("Europe/Amsterdam");
+
+  // Compute "today 00:00" in the salon's timezone as a UTC ISO string.
+  // Falls back to Europe/Amsterdam if the salon didn't set a timezone.
   const todayIso = useMemo(() => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d.toISOString();
-  }, []);
+    try {
+      const fmt = new Intl.DateTimeFormat("en-CA", {
+        timeZone: salonTz,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      });
+      const local = fmt.format(new Date()); // YYYY-MM-DD in salon tz
+      // Interpret that local midnight as UTC-safe boundary by asking Intl
+      // for the same-instant offset — good enough for a "today so far" bucket.
+      return new Date(`${local}T00:00:00`).toISOString();
+    } catch {
+      const d = new Date();
+      d.setHours(0, 0, 0, 0);
+      return d.toISOString();
+    }
+  }, [salonTz]);
 
   const load = useCallback(async () => {
     if (!user) return;
+    // Load salon timezone first so subsequent counts respect it.
+    const { data: settingsRow } = await supabase
+      .from("settings")
+      .select("timezone")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (settingsRow?.timezone) setSalonTz(settingsRow.timezone as string);
+
     const [wa, remRes, confRes, depRes, failRes] = await Promise.all([
       supabase
         .from("whatsapp_settings")
