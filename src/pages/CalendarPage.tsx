@@ -30,6 +30,7 @@ import { MoveAppointmentSheet, type MoveTarget } from "@/components/MoveAppointm
 import { SmartReflowDialog, type ReflowAppointment } from "@/components/SmartReflowDialog";
 import { findConflict, snapToFine, timeToMinutes, minutesToTime } from "@/lib/agendaMove";
 import { useNavigate as useRouterNavigate } from "react-router-dom";
+import { cancelAppointment } from "@/lib/cancelAppointment";
 
 
 type View = 'day' | 'columns' | 'week';
@@ -621,10 +622,24 @@ export default function CalendarPage() {
   };
 
   const handleStatusChange = async (id: string, status: string) => {
-    const result = await update(id, { status });
-    if (!result) return;
-    await refetch();
-    toast.success(`Status gewijzigd naar ${status}`);
+    // Route all cancellations through the canonical cancellation service so
+    // customer history, reminders, payments, notifications and audit logs are
+    // updated exactly once, atomically. Never write status='geannuleerd'
+    // directly to appointments from the client.
+    if (status === "geannuleerd") {
+      const res = await cancelAppointment(id, "salon_agenda");
+      if (!res.ok) {
+        toast.error("Annuleren mislukt");
+        return;
+      }
+      await refetch();
+      toast.success(res.alreadyCancelled ? "Afspraak was al geannuleerd" : "Afspraak geannuleerd");
+    } else {
+      const result = await update(id, { status });
+      if (!result) return;
+      await refetch();
+      toast.success(`Status gewijzigd naar ${status}`);
+    }
 
     // If a slot becomes free (cancel/no-show), suggest waitlist matches
     if (status === "geannuleerd" || status === "no-show") {

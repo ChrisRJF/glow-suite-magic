@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { z } from "https://esm.sh/zod@3.23.8";
+import { cancelAppointmentCanonical } from "../_shared/cancelAppointment.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -83,52 +84,95 @@ Deno.serve(async (req) => {
 
   const desired = parsed.data.response === "confirm" ? "confirmed" : "declined";
 
-  // Idempotent: if already same, just return current state
+  // Idempotent: if already in the desired state, return current state
   if (appt.confirmation_status === desired) {
     return json(200, { appointment: publicAppt, already: true });
   }
 
+  const nowIso = new Date().toISOString();
+
+  if (desired === "declined") {
+    // Delegate to the canonical cancellation service so ALL side-effects
+    // (customer history, cleanup, waitlist signal, notification, audit,
+    //  reminder + payment cleanup) run through one code path.
+    const result = await cancelAppointmentCanonical(supabase, {
+      appointmentId: appt.id,
+      source: "public_confirmation",
+      bookingToken: parsed.data.token,
+      reason: "Klant zei af via publieke bevestigingslink",
+    });
+    if (!result.ok) return json(500, { error: "cancel_failed" });
+
+    // Always stamp the confirmation response fields for the public flow.
+    await supabase
+      .from("appointments")
+      .update({
+        confirmation_status: "declined",
+        confirmation_responded_at: nowIso,
+        updated_at: nowIso,
+      })
+      .eq("id", appt.id);
+
+    try {
+      await supabase.from("automation_logs").insert({
+        user_id: appt.user_id,
+        event_type: "appointment_declined",
+        status: "success",
+        customer_id: appt.customer_id,
+        is_demo: appt.is_demo,
+        message: "Klant zei afspraak af via publieke link",
+        metadata: {
+          source: "appointment-confirm",
+          appointment_id: appt.id,
+          channel: "public_link",
+          response: "declined",
+          canonical: true,
+          side_effects: result.side_effects,
+          already_cancelled: result.alreadyCancelled ?? false,
+        },
+      });
+    } catch (_) { /* non-fatal */ }
+
+    return json(200, {
+      appointment: { ...publicAppt, confirmation_status: "declined", confirmation_responded_at: nowIso, status: "geannuleerd" },
+    });
+  }
+
+  // Confirm path unchanged: only touch confirmation fields (do not resurrect
+  // a cancelled appointment).
   const update: Record<string, unknown> = {
-    confirmation_status: desired,
-    confirmation_responded_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    confirmation_status: "confirmed",
+    confirmation_responded_at: nowIso,
+    updated_at: nowIso,
   };
-  if (desired === "confirmed" && appt.status !== "cancelled") {
+  if (appt.status !== "cancelled" && appt.status !== "geannuleerd") {
     update.status = "confirmed";
-  } else if (desired === "declined") {
-    update.status = "cancelled";
   }
 
   const { error: updateErr } = await supabase
     .from("appointments")
     .update(update)
     .eq("id", appt.id);
-
   if (updateErr) return json(500, { error: "update_failed" });
 
-  // Log to automation_logs (best-effort)
   try {
     await supabase.from("automation_logs").insert({
       user_id: appt.user_id,
-      event_type: desired === "confirmed" ? "appointment_confirmed" : "appointment_declined",
+      event_type: "appointment_confirmed",
       status: "success",
       customer_id: appt.customer_id,
       is_demo: appt.is_demo,
-      message: desired === "confirmed"
-        ? "Klant bevestigde afspraak via publieke link"
-        : "Klant zei afspraak af via publieke link",
+      message: "Klant bevestigde afspraak via publieke link",
       metadata: {
         source: "appointment-confirm",
         appointment_id: appt.id,
         channel: "public_link",
-        response: desired,
+        response: "confirmed",
       },
     });
-  } catch (_) {
-    // non-fatal
-  }
+  } catch (_) { /* non-fatal */ }
 
   return json(200, {
-    appointment: { ...publicAppt, confirmation_status: desired, confirmation_responded_at: update.confirmation_responded_at as string },
+    appointment: { ...publicAppt, confirmation_status: "confirmed", confirmation_responded_at: nowIso },
   });
 });
