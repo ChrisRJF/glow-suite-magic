@@ -174,7 +174,7 @@ Deno.serve(async (req) => {
 
       const { data: appts, error: aErr } = await admin
         .from("appointments")
-        .select("id, customer_id, appointment_date, start_time, status, user_id")
+        .select("id, customer_id, appointment_date, start_time, status, user_id, booking_token, confirmation_status")
         .eq("user_id", s.user_id)
         .gte("appointment_date", startOfDay)
         .lte("appointment_date", endOfDay)
@@ -203,24 +203,31 @@ Deno.serve(async (req) => {
         stats.checked++;
         if (!appt.customer_id) { stats.skipped++; continue; }
 
-        // Dedup
-        const { data: existingLog } = await admin
-          .from("whatsapp_logs")
-          .select("id")
-          .eq("appointment_id", appt.id)
-          .eq("kind", "reminder")
-          .eq("status", "sent")
-          .limit(1)
-          .maybeSingle();
-        if (existingLog) { stats.skipped++; continue; }
+        // Canonical cross-scheduler dedup: same appointment + reminder type,
+        // whether the WA scheduler or automation-scheduler already sent it.
+        if (await reminderAlreadySent(admin, appt.id, "reminder")) {
+          stats.skipped++;
+          continue;
+        }
 
         const { data: customer } = await admin
           .from("customers")
-          .select("id, name, phone, whatsapp_opt_in, preferred_language")
+          .select("id, name, phone, email, whatsapp_opt_in, preferred_language")
           .eq("id", appt.customer_id)
           .maybeSingle();
-        if (!customer || !customer.phone || customer.whatsapp_opt_in === false) {
+        if (!customer) { stats.skipped++; continue; }
+
+        // Canonical channel selection: WhatsApp preferred, email fallback.
+        const salonEmailEnabled = Boolean((s as any).email_enabled ?? true);
+        const chan = selectChannel({
+          customer,
+          waEnabled: true, // we're already inside the whatsapp scheduler for this salon
+          emailEnabled: salonEmailEnabled,
+        });
+        if (chan.channel !== "whatsapp") {
+          // Email fallback is owned by automation-scheduler; log and skip here.
           stats.skipped++;
+          stats.windows.push({ user_id: s.user_id, appt_id: appt.id, skipped_reason: chan.reason });
           continue;
         }
 
