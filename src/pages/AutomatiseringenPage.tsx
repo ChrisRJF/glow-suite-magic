@@ -251,6 +251,8 @@ export default function AutomatiseringenPage() {
       title="Automatiseringen"
       subtitle="Slimme WhatsApp-automatiseringen die voor je werken"
     >
+      <NoShowCenter />
+
       {/* Master state banner */}
       {!loading && !waSettings?.enabled && (
         <Card className="mb-4 border-amber-200 bg-amber-50/50 dark:bg-amber-950/20">
