@@ -104,6 +104,80 @@ export async function reminderAlreadySent(
 }
 
 /**
+ * Cross-channel canonical send claim. Inserts a row in
+ * `reminder_dispatch_claims` (unique on appointment_id + reminder_type).
+ * Returns true only for the caller that wins the race — every other caller
+ * (any scheduler, any channel) must skip. This is the database-level lock
+ * proving one reminder per appointment per type, no matter the channel.
+ */
+export async function claimReminderDispatch(
+  admin: SupabaseClient,
+  appointmentId: string,
+  type: ReminderType,
+  channel: ReminderChannel,
+): Promise<boolean> {
+  const { data, error } = await admin.rpc("claim_reminder_dispatch", {
+    _appointment_id: appointmentId,
+    _reminder_type: type,
+    _channel: channel,
+  });
+  if (error) {
+    console.error("claim_reminder_dispatch rpc failed", error.message);
+    return false;
+  }
+  return Boolean(data);
+}
+
+/**
+ * Lease-based scheduler lock. Uses the `try_acquire_scheduler_lock` RPC —
+ * a TTL-based row in `scheduler_locks`. Two overlapping cron runs can never
+ * both process the same reminders because only one wins the lease.
+ */
+export async function acquireSchedulerLock(
+  admin: SupabaseClient,
+  lockName: string,
+  ttlSeconds = 300,
+  holder?: string,
+): Promise<boolean> {
+  const { data, error } = await admin.rpc("try_acquire_scheduler_lock", {
+    _name: lockName,
+    _ttl_seconds: ttlSeconds,
+    _holder: holder ?? null,
+  });
+  if (error) {
+    console.error("try_acquire_scheduler_lock rpc failed", error.message);
+    return false;
+  }
+  return Boolean(data);
+}
+
+export async function releaseSchedulerLock(admin: SupabaseClient, lockName: string): Promise<void> {
+  await admin.rpc("release_scheduler_lock", { _name: lockName });
+}
+
+/**
+ * Mask a phone number for logging: keep country code + last 2 digits, redact
+ * the rest. E.g. "+31612345678" → "+31•••••••78". Do not log raw numbers.
+ */
+export function maskPhone(input: string | null | undefined): string {
+  if (!input) return "";
+  const s = String(input).replace(/^whatsapp:/, "");
+  if (s.length <= 4) return "***";
+  const head = s.startsWith("+") ? s.slice(0, 3) : s.slice(0, 2);
+  const tail = s.slice(-2);
+  return `${head}${"•".repeat(Math.max(3, s.length - head.length - tail.length))}${tail}`;
+}
+
+export function maskEmail(input: string | null | undefined): string {
+  if (!input) return "";
+  const [local, domain] = String(input).split("@");
+  if (!domain) return "***";
+  const head = local.slice(0, 1);
+  return `${head}${"•".repeat(Math.max(2, local.length - 1))}@${domain}`;
+}
+
+
+/**
  * Append the confirmation call-to-action to a rendered reminder body if the
  * reminder type supports Ja/Nee and a booking token exists. Keeps copy short
  * and in the customer's language.
