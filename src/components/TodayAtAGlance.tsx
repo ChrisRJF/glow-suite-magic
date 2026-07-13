@@ -69,8 +69,7 @@ export function TodayAtAGlance() {
           new Date(a.appointment_date).getTime(),
       )[0];
       const daysSince = last ? (now - new Date(last.appointment_date).getTime()) / DAY : Infinity;
-      const noShows = Number(c.no_show_count || 0);
-      if (noShows >= 2) noShowRisk++;
+      if (calculateNoShowRisk(c).isElevated) noShowRisk++;
       if (daysSince > 60 && visits.length >= 1) churnRisk++;
       if (daysSince > 25 && daysSince < 50 && visits.length >= 1) followUp++;
     }
