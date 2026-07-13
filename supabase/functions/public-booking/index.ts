@@ -352,8 +352,8 @@ Deno.serve(async (req) => {
     }
 
     // ---- SERVER-SIDE DEPOSIT DECISION (single source of truth) ----
-    // Ignore whatever the browser sent in `data.payment.required` / `data.payment.amount`.
-    // Only `data.payment.method` is honored as a display hint.
+    // Ignore whatever the browser sent in `serverPayment.required` / `serverPayment.amount`.
+    // Only `serverPayment.method` is honored as a display hint.
     const totalPriceEuros = bookingRows.reduce((sum, row) => sum + Number(row.service.price || 0), 0);
     const decision = decideDeposit({
       settings: ctx.settings,
@@ -430,7 +430,7 @@ Deno.serve(async (req) => {
     let paymentStatus = primaryAppointment?.payment_status || "unpaid";
     let paymentInitError: string | null = null;
 
-    if (data.payment.required && primaryAppointment) {
+    if (serverPayment.required && primaryAppointment) {
       const providerSetting = ((ctx.settings as any).payment_provider as string) || "mollie";
       const fallbackEnabled = Boolean((ctx.settings as any).payment_provider_fallback_enabled);
       let provider = providerSetting;
@@ -449,9 +449,9 @@ Deno.serve(async (req) => {
             customer_id: customerId,
             mollie_payment_id: fakeOrderCode,
             checkout_reference: fakeOrderCode,
-            amount: data.payment.amount,
+            amount: serverPayment.amount,
             currency: "EUR",
-            payment_type: data.payment.type,
+            payment_type: serverPayment.type,
             status: "paid",
             method: "viva",
             is_demo: true,
@@ -464,7 +464,7 @@ Deno.serve(async (req) => {
               customer_id: customerId,
               salon_id: salonSlugForMeta,
               booking_token: primaryAppointment.booking_token,
-              payment_type: data.payment.type,
+              payment_type: serverPayment.type,
               simulated: true,
             },
           });
@@ -481,15 +481,15 @@ Deno.serve(async (req) => {
             const origin = req.headers.get("origin") || "https://glowsuite.nl";
             const returnUrl = `${origin}/boeken/${salonSlugForMeta}?status=payment-return&booking=${primaryAppointment.booking_token}`;
             const order = await createVivaOrder({
-              amountCents: Math.round(Number(data.payment.amount) * 100),
-              description: `GlowSuite ${data.payment.type === "deposit" ? "aanbetaling" : "betaling"}`,
+              amountCents: Math.round(Number(serverPayment.amount) * 100),
+              description: `GlowSuite ${serverPayment.type === "deposit" ? "aanbetaling" : "betaling"}`,
               customerEmail: email,
               customerFullName: data.customer.name,
               customerPhone: data.customer.phone,
               successUrl: returnUrl,
               failureUrl: returnUrl,
               source: "public_booking",
-              paymentType: data.payment.type === "deposit" ? "deposit" : "full",
+              paymentType: serverPayment.type === "deposit" ? "deposit" : "full",
             });
             checkoutUrl = vivaCheckoutUrl(order.orderCode);
             paymentStatus = "pending";
@@ -499,9 +499,9 @@ Deno.serve(async (req) => {
               customer_id: customerId,
               mollie_payment_id: order.orderCode,
               checkout_reference: order.orderCode,
-              amount: data.payment.amount,
+              amount: serverPayment.amount,
               currency: "EUR",
-              payment_type: data.payment.type,
+              payment_type: serverPayment.type,
               status: "pending",
               method: "viva",
               is_demo: false,
@@ -514,7 +514,7 @@ Deno.serve(async (req) => {
                 customer_id: customerId,
                 salon_id: salonSlugForMeta,
                 booking_token: primaryAppointment.booking_token,
-                payment_type: data.payment.type,
+                payment_type: serverPayment.type,
                 checkout_url: checkoutUrl,
               },
             });
@@ -535,9 +535,9 @@ Deno.serve(async (req) => {
         const payment = await createMolliePayment({
           req,
           supabase,
-          amount: data.payment.amount,
-          paymentType: data.payment.type,
-          method: data.payment.method,
+          amount: serverPayment.amount,
+          paymentType: serverPayment.type,
+          method: serverPayment.method,
           appointmentId: primaryAppointment.id,
           customerId,
           salonId: salonSlugForMeta,
@@ -557,12 +557,12 @@ Deno.serve(async (req) => {
             appointment_id: primaryAppointment.id,
             customer_id: customerId,
             mollie_payment_id: payment.mollieId,
-            amount: data.payment.amount,
+            amount: serverPayment.amount,
             currency: "EUR",
-            payment_type: data.payment.type,
+            payment_type: serverPayment.type,
             status: paymentStatus,
-            method: data.payment.method,
-            mollie_method: data.payment.method,
+            method: serverPayment.method,
+            mollie_method: serverPayment.method,
             is_demo: isDemo,
             provider: Boolean(ctx.settings.is_demo || ctx.settings.demo_mode) ? "demo" : "mollie",
             checkout_reference: primaryAppointment.booking_reference,
@@ -571,7 +571,7 @@ Deno.serve(async (req) => {
               customer_id: customerId,
               salon_id: salonSlugForMeta,
               booking_token: primaryAppointment.booking_token,
-              payment_type: data.payment.type,
+              payment_type: serverPayment.type,
             },
           });
         }
@@ -603,7 +603,7 @@ Deno.serve(async (req) => {
           time: data.time,
           employee: primaryAppointment.employee_id,
           reference: primaryAppointment.booking_reference,
-          total_amount: data.payment.required ? data.payment.amount : Number(mainService.price || 0),
+          total_amount: serverPayment.required ? serverPayment.amount : Number(mainService.price || 0),
           calendar_url: calendarUrl,
         },
       });
@@ -617,7 +617,7 @@ Deno.serve(async (req) => {
           .eq("user_id", ctx.settings.user_id)
           .maybeSingle();
 
-        const shouldSendNow = !data.payment.required || paymentStatus === "paid";
+        const shouldSendNow = !serverPayment.required || paymentStatus === "paid";
 
         if (shouldSendNow && waSettings?.enabled && waSettings?.send_booking_confirmation && data.customer.phone) {
           // Load template
