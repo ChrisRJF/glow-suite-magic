@@ -314,8 +314,7 @@ Deno.serve(async (req) => {
           waEnabled: true, // we're already inside the whatsapp scheduler for this salon
           emailEnabled: salonEmailEnabled,
         });
-        if (chan.channel !== "whatsapp") {
-          // Email fallback is owned by automation-scheduler; log and skip here.
+        if (chan.channel === null) {
           stats.skipped++;
           stats.windows.push({ user_id: s.user_id, appt_id: appt.id, skipped_reason: chan.reason });
           continue;
@@ -323,7 +322,7 @@ Deno.serve(async (req) => {
 
         // Cross-channel canonical claim — DB-level guarantee that only one
         // sender (WA or email, any scheduler) ever wins this reminder.
-        const claimed = await claimReminderDispatch(admin, appt.id, "reminder", "whatsapp");
+        const claimed = await claimReminderDispatch(admin, appt.id, "reminder", chan.channel);
         if (!claimed) {
           stats.skipped++;
           stats.windows.push({ user_id: s.user_id, appt_id: appt.id, skipped_reason: "already_claimed" });
