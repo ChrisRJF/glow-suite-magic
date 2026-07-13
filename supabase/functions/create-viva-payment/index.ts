@@ -140,7 +140,7 @@ Deno.serve(async (req) => {
       offer_id: input.offer_id ?? null,
       membership_id: input.membership_id ?? null,
       payment_type: input.payment_type,
-      total_amount_cents: input.amount_cents,
+      total_amount_cents: amountCents,
     };
 
     if (demoMode) {
@@ -206,7 +206,7 @@ Deno.serve(async (req) => {
       user_id: user.id,
       source: input.source,
       payment_type: input.payment_type,
-      amount_cents: input.amount_cents,
+      amount_cents: amountCents,
       demoMode: false,
       has_customer: Boolean(input.customer?.email),
       source_code_env: rawSourceCode || null,
@@ -222,7 +222,7 @@ Deno.serve(async (req) => {
     let order;
     try {
       order = await createVivaOrder({
-        amountCents: input.amount_cents,
+        amountCents: amountCents,
         description: input.description ||
           (input.payment_type === "deposit" ? "GlowSuite Aanbetaling" :
            input.payment_type === "subscription" ? "GlowSuite Abonnement" : "GlowSuite Betaling"),
