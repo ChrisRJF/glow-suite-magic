@@ -260,15 +260,19 @@ Deno.serve(async (req) => {
         const templateContent = (tpl?.is_active === false ? null : tpl?.content)
           || getDefaultMessageTemplate("booking_reminder", waLang, "whatsapp");
 
-        const message = renderMessage(templateContent, {
+        const confirmationLink = buildConfirmationLink(appt.booking_token as string | null);
+
+        let message = renderMessage(templateContent, {
           customer_name: customer.name || "",
           salon_name: salonName,
           appointment_date: dateStr,
           appointment_time: timeStr,
           services: "",
-          reschedule_link: "",
+          reschedule_link: confirmationLink || "",
           review_link: "",
         });
+        // Canonical: append confirmation CTA when the template omitted it.
+        message = appendConfirmationBlock(message, confirmationLink, "reminder", waLang);
 
         try {
           const fnUrl = `${SUPABASE_URL}/functions/v1/whatsapp-send`;
@@ -285,10 +289,14 @@ Deno.serve(async (req) => {
               customer_id: customer.id,
               appointment_id: appt.id,
               kind: "reminder",
+              reminder_type: "reminder" as ReminderType,
+              booking_token: appt.booking_token,
+              confirmation_link: confirmationLink,
               meta: {
                 local_appointment: localApptStr,
                 scheduler_window: `${windowInfo.window_local_start} → ${windowInfo.window_local_end}`,
                 tz,
+                canonical_key: `reminder:reminder:${appt.id}`,
               },
             }),
           });
