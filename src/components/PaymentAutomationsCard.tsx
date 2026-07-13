@@ -15,7 +15,6 @@ type AutomationKey =
   | "failed_payment_followup"
   | "membership_renewal_failed"
   | "refund_retention"
-  | "noshow_prevention"
   | "unpaid_invoice"
   | "membership_renewal_reminder";
 
@@ -23,7 +22,6 @@ const DEFS: Array<{ key: AutomationKey; title: string; description: string; icon
   { key: "failed_payment_followup", title: "Betaling mislukt — vriendelijke opvolging", description: "Stuurt automatisch een nieuw betaallink-bericht via WhatsApp/e-mail wanneer een betaling niet doorging.", icon: AlertCircle },
   { key: "membership_renewal_failed", title: "Abonnement-incasso mislukt", description: "Lid krijgt direct een herstellink en wordt 24u later nogmaals geprobeerd.", icon: RotateCcw },
   { key: "refund_retention", title: "Refund retentiebericht", description: "Korte excuses + 10% korting voor de volgende afspraak nadat een terugbetaling is verstuurd.", icon: Heart },
-  { key: "noshow_prevention", title: "No-show preventie", description: "Bevestigingsbericht 24u vooraf met heldere annuleringspolicy en \"ik kom\"-knop.", icon: Calendar },
   { key: "unpaid_invoice", title: "Open factuur reminder", description: "Vriendelijke herinnering 3 dagen na de afspraak als er nog niet is afgerekend.", icon: Receipt },
   { key: "membership_renewal_reminder", title: "Verlengingsherinnering abonnement", description: "Lid krijgt 5 dagen voor de volgende incasso een korte heads-up.", icon: BellRing },
 ];
@@ -32,7 +30,6 @@ const DEFAULTS: Record<AutomationKey, boolean> = {
   failed_payment_followup: true,
   membership_renewal_failed: true,
   refund_retention: false,
-  noshow_prevention: true,
   unpaid_invoice: false,
   membership_renewal_reminder: true,
 };
