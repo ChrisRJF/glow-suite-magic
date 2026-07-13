@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { maskPhone } from "../_shared/reminderEngine.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -95,7 +96,7 @@ Deno.serve(async (req) => {
         booking_token,
         confirmation_link,
       });
-      console.log("whatsapp-send simulated (demo)", { user_id, kind, to });
+      console.log("whatsapp-send simulated (demo)", { user_id, kind, to: maskPhone(to) });
       return new Response(
         JSON.stringify({ success: true, demo: true, simulated: true, status: "demo" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -152,8 +153,8 @@ Deno.serve(async (req) => {
 
     console.log("whatsapp-send result", {
       user_id,
-      to: waTo,
-      from: fromNumber,
+      to: maskPhone(waTo),
+      from: maskPhone(fromNumber),
       kind,
       http: twResp.status,
       twilio_status: twStatus,

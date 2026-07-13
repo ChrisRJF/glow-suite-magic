@@ -23,6 +23,11 @@ function json(status: number, body: unknown) {
   });
 }
 
+function clientIp(req: Request): string {
+  const xf = req.headers.get("x-forwarded-for") || "";
+  return xf.split(",")[0].trim() || req.headers.get("cf-connecting-ip") || "unknown";
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json(405, { error: "method_not_allowed" });
@@ -41,6 +46,19 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
+
+  // Rate limit: 20 hits / 5 min per token, 60 hits / 5 min per IP. Blocks
+  // brute-force enumeration without touching normal customers who click once.
+  const ip = clientIp(req);
+  const tokenBucket = `appt-confirm:token:${parsed.data.token}`;
+  const ipBucket = `appt-confirm:ip:${ip}`;
+  const [tokenOk, ipOk] = await Promise.all([
+    supabase.rpc("check_public_rate_limit", { _bucket: tokenBucket, _max: 20, _window_seconds: 300 }),
+    supabase.rpc("check_public_rate_limit", { _bucket: ipBucket, _max: 60, _window_seconds: 300 }),
+  ]);
+  if (tokenOk.data === false || ipOk.data === false) {
+    return json(429, { error: "rate_limited" });
+  }
 
   const { data: appt, error: fetchErr } = await supabase
     .from("appointments")

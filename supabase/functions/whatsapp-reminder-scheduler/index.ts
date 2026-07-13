@@ -2,11 +2,15 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { loadAIModes, canAutoRun, effectiveMode, type AICategory } from "../_shared/aiModes.ts";
 import { getDefaultMessageTemplate, normalizeMessageLang, renderMessage, intlLocale } from "../_shared/messageTranslations.ts";
 import {
+  acquireSchedulerLock,
   appendConfirmationBlock,
   buildConfirmationLink,
+  claimReminderDispatch,
   MAX_ATTEMPTS,
+  maskPhone,
   recordFailureAndMaybeRetry,
   reminderAlreadySent,
+  releaseSchedulerLock,
   selectChannel,
   type ReminderType,
 } from "../_shared/reminderEngine.ts";
@@ -104,6 +108,21 @@ Deno.serve(async (req) => {
     .select("id")
     .maybeSingle();
   const runId = runRow?.id || null;
+
+  // -------- SCHEDULER OVERLAP LOCK -------- (lease-based; TTL 4 minutes)
+  // Prevents two overlapping cron ticks from processing the same reminders.
+  const lockAcquired = await acquireSchedulerLock(admin, "whatsapp-reminder-scheduler", 240, runId ?? "unknown");
+  if (!lockAcquired) {
+    if (runId) {
+      await admin.from("whatsapp_scheduler_runs").update({
+        finished_at: new Date().toISOString(),
+        meta: { skipped: "another run holds the lease" },
+      }).eq("id", runId);
+    }
+    return new Response(JSON.stringify({ success: true, skipped: "lock_busy" }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 
   try {
     // -------- RETRY PASS -------- (canonical 1/5/15 min backoff, max 3 attempts)
@@ -299,6 +318,15 @@ Deno.serve(async (req) => {
           // Email fallback is owned by automation-scheduler; log and skip here.
           stats.skipped++;
           stats.windows.push({ user_id: s.user_id, appt_id: appt.id, skipped_reason: chan.reason });
+          continue;
+        }
+
+        // Cross-channel canonical claim — DB-level guarantee that only one
+        // sender (WA or email, any scheduler) ever wins this reminder.
+        const claimed = await claimReminderDispatch(admin, appt.id, "reminder", "whatsapp");
+        if (!claimed) {
+          stats.skipped++;
+          stats.windows.push({ user_id: s.user_id, appt_id: appt.id, skipped_reason: "already_claimed" });
           continue;
         }
 
@@ -765,5 +793,7 @@ Deno.serve(async (req) => {
       JSON.stringify({ success: false, error: err instanceof Error ? err.message : "unknown", ...stats }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
+  } finally {
+    await releaseSchedulerLock(admin, "whatsapp-reminder-scheduler");
   }
 });
