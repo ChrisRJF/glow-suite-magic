@@ -7,6 +7,7 @@ import {
   useCustomerMemberships,
 } from "@/hooks/useSupabaseData";
 import { usePayments } from "@/hooks/usePayments";
+import { calculateNoShowRisk } from "@/lib/noShowRisk";
 import type { Tables } from "@/integrations/supabase/types";
 
 export type AITag =
