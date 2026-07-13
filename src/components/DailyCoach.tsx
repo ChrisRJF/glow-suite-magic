@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useCustomers, useAppointments, useServices, useLeads, useCustomerMemberships } from "@/hooks/useSupabaseData";
 import { usePayments } from "@/hooks/usePayments";
 import { formatEuro } from "@/lib/data";
+import { calculateNoShowRisk } from "@/lib/noShowRisk";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Phone, Send, Calendar, AlertTriangle, TrendingDown, Zap, ArrowRight, Target, CreditCard, BadgeCheck } from "lucide-react";
 
