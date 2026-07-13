@@ -7,6 +7,7 @@ import { useAutoRevenueRunner } from "@/hooks/useAutoRevenueRunner";
 import { useCustomers, useAppointments } from "@/hooks/useSupabaseData";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEuro } from "@/lib/data";
+import { calculateNoShowRisk } from "@/lib/noShowRisk";
 import { useNavigate } from "react-router-dom";
 
 /**
