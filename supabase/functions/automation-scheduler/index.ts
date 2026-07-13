@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { loadAIModes, canAutoRun, effectiveMode, triggerToCategory } from "../_shared/aiModes.ts";
+import { acquireSchedulerLock, claimReminderDispatch, maskPhone, maskEmail, releaseSchedulerLock } from "../_shared/reminderEngine.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
