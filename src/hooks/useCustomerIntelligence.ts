@@ -7,6 +7,7 @@ import {
   useCustomerMemberships,
 } from "@/hooks/useSupabaseData";
 import { usePayments } from "@/hooks/usePayments";
+import { calculateNoShowRisk } from "@/lib/noShowRisk";
 import type { Tables } from "@/integrations/supabase/types";
 
 export type AITag =
@@ -176,10 +177,8 @@ function computeOne(args: {
     ? (memb.status as any)
     : "none";
 
-  // scores
-  const noShowCount = customer.no_show_count || 0;
-  const cancelCount = customer.cancellation_count || 0;
-  const noShowRisk = clamp(noShowCount * 30 + cancelCount * 15);
+  // scores — single source of truth
+  const noShowRisk = calculateNoShowRisk(customer).score;
   const attendanceScore = clamp(100 - noShowRisk);
 
   // churn: more than 1.5x avg cycle, or no visit > 120d

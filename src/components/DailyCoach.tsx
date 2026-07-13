@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useCustomers, useAppointments, useServices, useLeads, useCustomerMemberships } from "@/hooks/useSupabaseData";
 import { usePayments } from "@/hooks/usePayments";
 import { formatEuro } from "@/lib/data";
+import { calculateNoShowRisk } from "@/lib/noShowRisk";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Phone, Send, Calendar, AlertTriangle, TrendingDown, Zap, ArrowRight, Target, CreditCard, BadgeCheck } from "lucide-react";
 
@@ -88,7 +89,7 @@ export function DailyCoach() {
     // 3. No-show risico morgen
     const riskTomorrow = tomorrows.filter(a => {
       const c = customers.find(x => x.id === a.customer_id);
-      return c && ((c.no_show_count || 0) > 0 || (c.cancellation_count || 0) > 1);
+      return c && calculateNoShowRisk(c).isElevated;
     });
     if (riskTomorrow.length >= 1) {
       list.push({

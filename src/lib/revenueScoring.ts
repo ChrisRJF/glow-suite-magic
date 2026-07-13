@@ -4,6 +4,7 @@
  * Pure functions — no DB writes. Callers decide whether to execute
  * (live mode) or simulate (demo mode) the resulting decisions.
  */
+import { calculateNoShowRisk } from "./noShowRisk";
 
 export type AutopilotAction =
   | "waitlist_offer"
@@ -23,6 +24,7 @@ export interface CustomerSignal {
   name?: string | null;
   total_spent?: number | null;
   no_show_count?: number | null;
+  cancellation_count?: number | null;
   /** ISO date of last appointment, if any. */
   lastVisitAt?: Date | null;
 }
@@ -133,7 +135,7 @@ export function rankCustomers(
         ? Math.max(0, (now.getTime() - c.lastVisitAt.getTime()) / 86_400_000)
         : 365;
       const spendScore = Math.min(1, (Number(c.total_spent) || 0) / 500);
-      const riskPenalty = Math.min(1, (Number(c.no_show_count) || 0) * 0.2);
+      const riskPenalty = calculateNoShowRisk(c).penalty;
       // Prefer recent (<60d), high spend, low risk.
       const recencyScore = Math.max(0, 1 - recencyDays / 90);
       const rank = recencyScore * 0.4 + spendScore * 0.5 - riskPenalty * 0.3;
