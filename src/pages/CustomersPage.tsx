@@ -13,6 +13,7 @@ import { CustomerAIProfile } from "@/components/CustomerAIProfile";
 import type { Tables } from "@/integrations/supabase/types";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useCustomerIntelligence } from "@/hooks/useCustomerIntelligence";
+import { calculateNoShowRisk } from "@/lib/noShowRisk";
 
 export default function CustomersPage() {
   const { data: customers, loading, refetch } = useCustomers();
