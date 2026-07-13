@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCustomers, useAppointments, useServices, useCampaigns, useLeads, usePaymentRefunds } from "@/hooks/useSupabaseData";
 import { usePayments } from "@/hooks/usePayments";
+import { calculateNoShowRisk } from "@/lib/noShowRisk";
 import { formatEuro } from "@/lib/data";
 import { buildReports, rangeForPreset, trendClass, trendLabel } from "@/lib/reporting";
 import {
@@ -80,7 +81,7 @@ export default function DashboardPage() {
   const noShowRiskTomorrow = appointments.filter((a) => {
     if (!a.appointment_date?.startsWith(tomorrowStr) || a.status === "geannuleerd") return false;
     const c = customers.find((x) => x.id === a.customer_id);
-    return c && ((c.no_show_count || 0) > 0 || (c.cancellation_count || 0) > 1);
+    return c ? calculateNoShowRisk(c).isElevated : false;
   }).length;
 
   const aiRevenue = useMemo(() => {

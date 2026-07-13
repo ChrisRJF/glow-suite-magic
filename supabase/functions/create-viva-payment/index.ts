@@ -74,7 +74,48 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     const demoMode = input.is_demo === true || Boolean(settings?.is_demo || settings?.demo_mode);
-    const amountEuros = Number((input.amount_cents / 100).toFixed(2));
+    let amountCents = input.amount_cents;
+
+    // ---- SERVER-SIDE ENFORCEMENT: verify amount + prevent duplicates for appointment-linked payments ----
+    if (input.appointment_id) {
+      const { data: appt } = await admin
+        .from("appointments")
+        .select("id, user_id, payment_required, deposit_amount, payment_status")
+        .eq("id", input.appointment_id)
+        .maybeSingle();
+      if (!appt) return json({ error: "Afspraak niet gevonden." }, 404);
+      // Cross-tenant guard: caller must own the appointment
+      if (appt.user_id !== user.id) return json({ error: "Niet geautoriseerd voor deze afspraak." }, 403);
+
+      // If the appointment requires a deposit, the requested amount cannot be lower.
+      if (appt.payment_required) {
+        const requiredCents = Math.round(Number(appt.deposit_amount || 0) * 100);
+        if (requiredCents > 0 && amountCents < requiredCents) {
+          console.warn("[create-viva-payment] amount_cents below required deposit — overriding", {
+            appointment_id: input.appointment_id,
+            requested: amountCents,
+            required: requiredCents,
+          });
+          amountCents = requiredCents;
+        }
+      }
+
+      // Idempotency: block a second active/paid payment link for the same appointment.
+      const { data: existingPayments } = await admin
+        .from("payments")
+        .select("id, status")
+        .eq("appointment_id", input.appointment_id)
+        .in("status", ["pending", "open", "paid"]);
+      if (existingPayments && existingPayments.length > 0) {
+        return json({
+          error: "Er is al een actieve betaallink voor deze afspraak.",
+          code: "duplicate_active_payment",
+          existing_payment_id: existingPayments[0].id,
+        }, 409);
+      }
+    }
+
+    const amountEuros = Number((amountCents / 100).toFixed(2));
 
     // Activation gate: only "active" salons may create LIVE Viva orders.
     if (!demoMode) {
@@ -99,7 +140,7 @@ Deno.serve(async (req) => {
       offer_id: input.offer_id ?? null,
       membership_id: input.membership_id ?? null,
       payment_type: input.payment_type,
-      total_amount_cents: input.amount_cents,
+      total_amount_cents: amountCents,
     };
 
     if (demoMode) {
@@ -165,7 +206,7 @@ Deno.serve(async (req) => {
       user_id: user.id,
       source: input.source,
       payment_type: input.payment_type,
-      amount_cents: input.amount_cents,
+      amount_cents: amountCents,
       demoMode: false,
       has_customer: Boolean(input.customer?.email),
       source_code_env: rawSourceCode || null,
@@ -181,7 +222,7 @@ Deno.serve(async (req) => {
     let order;
     try {
       order = await createVivaOrder({
-        amountCents: input.amount_cents,
+        amountCents: amountCents,
         description: input.description ||
           (input.payment_type === "deposit" ? "GlowSuite Aanbetaling" :
            input.payment_type === "subscription" ? "GlowSuite Abonnement" : "GlowSuite Betaling"),

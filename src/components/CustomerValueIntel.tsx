@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { formatEuro } from "@/lib/data";
 import { Send, Calendar, Sparkles, TrendingUp, AlertCircle } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
+import { calculateNoShowRisk } from "@/lib/noShowRisk";
 
 interface Props {
   customer: Tables<"customers">;
@@ -42,7 +43,7 @@ export function CustomerValueIntel({ customer, appointments, services }: Props) 
 
     // Risk + recommendation
     const isVip = customer.is_vip || (totalSpent > 500 && visits >= 5);
-    const isRisk = (customer.no_show_count || 0) > 0 || (customer.cancellation_count || 0) > 2;
+    const isRisk = calculateNoShowRisk(customer).isElevated;
     const churnRisk = avgCycle > 0 && daysSinceLast > avgCycle * 1.5;
     const rebookReady = avgCycle > 0 && daysSinceLast > avgCycle * 0.8 && daysSinceLast < avgCycle * 1.5;
 

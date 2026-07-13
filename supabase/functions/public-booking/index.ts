@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { z } from "https://esm.sh/zod@3.23.8";
 import { createVivaOrder, vivaCheckoutUrl, isVivaConfigured } from "../_shared/viva.ts";
 import { getDefaultMessageTemplate, normalizeMessageLang, renderMessage, intlLocale } from "../_shared/messageTranslations.ts";
+import { decideDeposit } from "../_shared/depositDecision.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -316,7 +317,7 @@ Deno.serve(async (req) => {
     const email = data.customer.email.toLowerCase();
     const { data: existingCustomer } = await supabase
       .from("customers")
-      .select("id")
+      .select("id, is_vip, no_show_count, cancellation_count, total_visits")
       .eq("user_id", ctx.settings.user_id)
       .ilike("email", email)
       .maybeSingle();
@@ -350,9 +351,39 @@ Deno.serve(async (req) => {
         .eq("user_id", ctx.settings.user_id);
     }
 
+    // ---- SERVER-SIDE DEPOSIT DECISION (single source of truth) ----
+    // Ignore whatever the browser sent in `serverPayment.required` / `serverPayment.amount`.
+    // Only `serverPayment.method` is honored as a display hint.
+    const totalPriceEuros = bookingRows.reduce((sum, row) => sum + Number(row.service.price || 0), 0);
+    const decision = decideDeposit({
+      settings: ctx.settings,
+      customer: existingCustomer || null,
+      isNewCustomer: !existingCustomer,
+      servicePriceEuros: totalPriceEuros,
+    });
+    const serverPayment = {
+      required: decision.required,
+      amount: decision.amount_euros,
+      type: decision.type === "full" ? ("full" as const) : ("deposit" as const),
+      method: data.payment?.method || "ideal",
+    };
+    console.log("[public-booking] deposit decision", {
+      salon_id: ctx.settings.user_id,
+      customer_id: customerId,
+      new_customer: !existingCustomer,
+      total_price: totalPriceEuros,
+      risk_score: decision.risk_score,
+      risk_level: decision.risk_level,
+      required: decision.required,
+      amount: decision.amount_euros,
+      reason: decision.reason,
+    });
+
     const appointmentsToInsert = bookingRows.map((row, index) => {
       const start = combineDateTime(data.date, row.time);
       const end = new Date(start.getTime() + row.service.duration_minutes * 60000);
+      const notesParts = [data.notes, index > 0 ? `Groepsboeking voor ${row.name}` : "Online boeking"];
+      if (decision.required) notesParts.push(`[deposit:${decision.reason} · risk=${decision.risk_level}/${decision.risk_score}]`);
       return {
         user_id: ctx.settings.user_id,
         is_demo: Boolean(ctx.settings.is_demo || ctx.settings.demo_mode),
@@ -363,14 +394,14 @@ Deno.serve(async (req) => {
         end_time: addMinutesToTime(row.time, row.service.duration_minutes),
         employee_id: row.employee,
         price: Number(row.service.price || 0),
-        notes: [data.notes, index > 0 ? `Groepsboeking voor ${row.name}` : "Online boeking"].filter(Boolean).join(" · "),
-        status: data.payment.required ? "pending_confirmation" : "confirmed",
-        payment_status: data.payment.required ? "pending" : "unpaid",
-        payment_required: data.payment.required,
-        deposit_amount: data.payment.required ? data.payment.amount : 0,
+        notes: notesParts.filter(Boolean).join(" · "),
+        status: serverPayment.required ? "pending_confirmation" : "confirmed",
+        payment_status: serverPayment.required ? "pending" : "unpaid",
+        payment_required: serverPayment.required,
+        deposit_amount: serverPayment.required ? serverPayment.amount : 0,
         source: "online_booking",
         booking_group_id: bookingRows.length > 1 ? groupId : null,
-        payment_type: data.payment.type,
+        payment_type: serverPayment.type,
         accepted_glowsuite_terms: Boolean(data.customer.accepted_glowsuite_terms),
         accepted_salon_terms: Boolean(data.customer.accepted_salon_terms),
         accepted_terms_at: data.customer.accepted_terms_at ?? ((data.customer.accepted_glowsuite_terms && data.customer.accepted_salon_terms) ? new Date().toISOString() : null),
@@ -399,7 +430,7 @@ Deno.serve(async (req) => {
     let paymentStatus = primaryAppointment?.payment_status || "unpaid";
     let paymentInitError: string | null = null;
 
-    if (data.payment.required && primaryAppointment) {
+    if (serverPayment.required && primaryAppointment) {
       const providerSetting = ((ctx.settings as any).payment_provider as string) || "mollie";
       const fallbackEnabled = Boolean((ctx.settings as any).payment_provider_fallback_enabled);
       let provider = providerSetting;
@@ -418,9 +449,9 @@ Deno.serve(async (req) => {
             customer_id: customerId,
             mollie_payment_id: fakeOrderCode,
             checkout_reference: fakeOrderCode,
-            amount: data.payment.amount,
+            amount: serverPayment.amount,
             currency: "EUR",
-            payment_type: data.payment.type,
+            payment_type: serverPayment.type,
             status: "paid",
             method: "viva",
             is_demo: true,
@@ -433,7 +464,7 @@ Deno.serve(async (req) => {
               customer_id: customerId,
               salon_id: salonSlugForMeta,
               booking_token: primaryAppointment.booking_token,
-              payment_type: data.payment.type,
+              payment_type: serverPayment.type,
               simulated: true,
             },
           });
@@ -450,15 +481,15 @@ Deno.serve(async (req) => {
             const origin = req.headers.get("origin") || "https://glowsuite.nl";
             const returnUrl = `${origin}/boeken/${salonSlugForMeta}?status=payment-return&booking=${primaryAppointment.booking_token}`;
             const order = await createVivaOrder({
-              amountCents: Math.round(Number(data.payment.amount) * 100),
-              description: `GlowSuite ${data.payment.type === "deposit" ? "aanbetaling" : "betaling"}`,
+              amountCents: Math.round(Number(serverPayment.amount) * 100),
+              description: `GlowSuite ${serverPayment.type === "deposit" ? "aanbetaling" : "betaling"}`,
               customerEmail: email,
               customerFullName: data.customer.name,
               customerPhone: data.customer.phone,
               successUrl: returnUrl,
               failureUrl: returnUrl,
               source: "public_booking",
-              paymentType: data.payment.type === "deposit" ? "deposit" : "full",
+              paymentType: serverPayment.type === "deposit" ? "deposit" : "full",
             });
             checkoutUrl = vivaCheckoutUrl(order.orderCode);
             paymentStatus = "pending";
@@ -468,9 +499,9 @@ Deno.serve(async (req) => {
               customer_id: customerId,
               mollie_payment_id: order.orderCode,
               checkout_reference: order.orderCode,
-              amount: data.payment.amount,
+              amount: serverPayment.amount,
               currency: "EUR",
-              payment_type: data.payment.type,
+              payment_type: serverPayment.type,
               status: "pending",
               method: "viva",
               is_demo: false,
@@ -483,7 +514,7 @@ Deno.serve(async (req) => {
                 customer_id: customerId,
                 salon_id: salonSlugForMeta,
                 booking_token: primaryAppointment.booking_token,
-                payment_type: data.payment.type,
+                payment_type: serverPayment.type,
                 checkout_url: checkoutUrl,
               },
             });
@@ -504,9 +535,9 @@ Deno.serve(async (req) => {
         const payment = await createMolliePayment({
           req,
           supabase,
-          amount: data.payment.amount,
-          paymentType: data.payment.type,
-          method: data.payment.method,
+          amount: serverPayment.amount,
+          paymentType: serverPayment.type,
+          method: serverPayment.method,
           appointmentId: primaryAppointment.id,
           customerId,
           salonId: salonSlugForMeta,
@@ -526,12 +557,12 @@ Deno.serve(async (req) => {
             appointment_id: primaryAppointment.id,
             customer_id: customerId,
             mollie_payment_id: payment.mollieId,
-            amount: data.payment.amount,
+            amount: serverPayment.amount,
             currency: "EUR",
-            payment_type: data.payment.type,
+            payment_type: serverPayment.type,
             status: paymentStatus,
-            method: data.payment.method,
-            mollie_method: data.payment.method,
+            method: serverPayment.method,
+            mollie_method: serverPayment.method,
             is_demo: isDemo,
             provider: Boolean(ctx.settings.is_demo || ctx.settings.demo_mode) ? "demo" : "mollie",
             checkout_reference: primaryAppointment.booking_reference,
@@ -540,7 +571,7 @@ Deno.serve(async (req) => {
               customer_id: customerId,
               salon_id: salonSlugForMeta,
               booking_token: primaryAppointment.booking_token,
-              payment_type: data.payment.type,
+              payment_type: serverPayment.type,
             },
           });
         }
@@ -572,7 +603,7 @@ Deno.serve(async (req) => {
           time: data.time,
           employee: primaryAppointment.employee_id,
           reference: primaryAppointment.booking_reference,
-          total_amount: data.payment.required ? data.payment.amount : Number(mainService.price || 0),
+          total_amount: serverPayment.required ? serverPayment.amount : Number(mainService.price || 0),
           calendar_url: calendarUrl,
         },
       });
@@ -586,7 +617,7 @@ Deno.serve(async (req) => {
           .eq("user_id", ctx.settings.user_id)
           .maybeSingle();
 
-        const shouldSendNow = !data.payment.required || paymentStatus === "paid";
+        const shouldSendNow = !serverPayment.required || paymentStatus === "paid";
 
         if (shouldSendNow && waSettings?.enabled && waSettings?.send_booking_confirmation && data.customer.phone) {
           // Load template
