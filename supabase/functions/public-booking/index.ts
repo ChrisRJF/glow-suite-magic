@@ -621,56 +621,72 @@ Deno.serve(async (req) => {
         const shouldSendNow = !serverPayment.required || paymentStatus === "paid";
 
         if (shouldSendNow && waSettings?.enabled && waSettings?.send_booking_confirmation && data.customer.phone) {
-          // Load template
-          const { data: tpl } = await supabase
-            .from("whatsapp_templates")
-            .select("content, is_active")
-            .eq("user_id", ctx.settings.user_id)
-            .eq("template_type", "booking_confirmation")
-            .maybeSingle();
+          // Canonical claim — one booking_confirmation per appointment across
+          // channels. If the payment webhook has already dispatched one, this
+          // no-ops safely.
+          const claimed = await claimReminderDispatch(
+            supabase as any,
+            primaryAppointment.id,
+            "booking_confirmation",
+            "whatsapp",
+          );
+          if (!claimed) {
+            console.log("booking_confirmation already_claimed", primaryAppointment.id);
+          } else {
+            // Load template
+            const { data: tpl } = await supabase
+              .from("whatsapp_templates")
+              .select("content, is_active")
+              .eq("user_id", ctx.settings.user_id)
+              .eq("template_type", "booking_confirmation")
+              .maybeSingle();
 
-          const waLang = normalizeMessageLang(preferredLanguage || (ctx.settings as any).language || "nl");
-          const templateContent = (tpl?.is_active === false ? null : tpl?.content)
-            || getDefaultMessageTemplate("booking_confirmation", waLang, "whatsapp");
+            const waLang = normalizeMessageLang(preferredLanguage || (ctx.settings as any).language || "nl");
+            const templateContent = (tpl?.is_active === false ? null : tpl?.content)
+              || getDefaultMessageTemplate("booking_confirmation", waLang, "whatsapp");
 
-          const dateStr = new Date(data.date).toLocaleDateString(intlLocale(waLang), { day: "numeric", month: "long", year: "numeric" });
-          const servicesList = bookingRows.map((r) => `• ${r.service.name}`).join("\n");
-          const origin = req.headers.get("origin") || "https://glowsuite.nl";
-          const rescheduleLink = primaryAppointment.booking_token
-            ? `${origin}/afspraak/${primaryAppointment.booking_token}`
-            : `${origin}/afspraak`;
-          if (!primaryAppointment.booking_token) {
-            console.warn("WhatsApp: missing booking_token for reschedule link", primaryAppointment.id);
+            const dateStr = new Date(data.date).toLocaleDateString(intlLocale(waLang), { day: "numeric", month: "long", year: "numeric" });
+            const servicesList = bookingRows.map((r) => `• ${r.service.name}`).join("\n");
+            const confirmationLink = buildConfirmationLink(primaryAppointment.booking_token);
+            const rescheduleLink = confirmationLink
+              || `${req.headers.get("origin") || "https://glowsuite.nl"}/afspraak`;
+            if (!primaryAppointment.booking_token) {
+              console.warn("WhatsApp: missing booking_token for reschedule link", primaryAppointment.id);
+            }
+
+            let waMessage = renderMessage(templateContent, {
+              customer_name: data.customer.name,
+              salon_name: ctx.settings.salon_name || "ons salon",
+              appointment_date: dateStr,
+              appointment_time: data.time,
+              services: servicesList,
+              reschedule_link: rescheduleLink,
+              review_link: "",
+              booking_link: rescheduleLink,
+            });
+            waMessage = appendConfirmationBlock(waMessage, confirmationLink, "booking_confirmation", waLang);
+
+            const fnUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/whatsapp-send`;
+            fetch(fnUrl, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+              },
+              body: JSON.stringify({
+                user_id: ctx.settings.user_id,
+                to: data.customer.phone,
+                message: waMessage,
+                customer_id: customerId,
+                appointment_id: primaryAppointment.id,
+                kind: "confirmation",
+                reminder_type: "booking_confirmation",
+                booking_token: primaryAppointment.booking_token,
+                confirmation_link: confirmationLink,
+                meta: { trigger: "booking_created", payment_status: paymentStatus, canonical_key: `reminder:booking_confirmation:${primaryAppointment.id}` },
+              }),
+            }).catch((e) => console.error("WhatsApp send failed", e));
           }
-
-          const waMessage = renderMessage(templateContent, {
-            customer_name: data.customer.name,
-            salon_name: ctx.settings.salon_name || "ons salon",
-            appointment_date: dateStr,
-            appointment_time: data.time,
-            services: servicesList,
-            reschedule_link: rescheduleLink,
-            review_link: "",
-            booking_link: rescheduleLink,
-          });
-
-          const fnUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/whatsapp-send`;
-          fetch(fnUrl, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-            },
-            body: JSON.stringify({
-              user_id: ctx.settings.user_id,
-              to: data.customer.phone,
-              message: waMessage,
-              customer_id: customerId,
-              appointment_id: primaryAppointment.id,
-              kind: "confirmation",
-              meta: { trigger: "booking_created", payment_status: paymentStatus },
-            }),
-          }).catch((e) => console.error("WhatsApp send failed", e));
         }
       } catch (waErr) {
         console.error("WhatsApp dispatch error (non-blocking)", waErr);
