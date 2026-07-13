@@ -203,8 +203,10 @@ export async function cancelAppointmentCanonical(
     sideEffects.audit_logged = true;
   } catch (_) { /* non-fatal */ }
 
-  // 9) Waitlist candidates — surface count only; the existing waitlist UI drives
-  //    the actual invitation flow, we do not build a parallel matcher here.
+  // 9) Waitlist — reuse the existing waitlist flow: when there are matching
+  //    candidates, drop an actionable notification so the salon can invite via
+  //    the existing WachtlijstPage. We do NOT build a parallel invitation
+  //    service; the surface already exists in the app.
   try {
     let q = supabase
       .from("waitlist_entries")
@@ -214,6 +216,25 @@ export async function cancelAppointmentCanonical(
     if (appt.service_id) q = q.eq("service_id", appt.service_id);
     const { count } = await q;
     sideEffects.waitlist_candidates = count ?? 0;
+    if ((count ?? 0) > 0) {
+      try {
+        await supabase.from("admin_notifications").insert({
+          user_id: appt.user_id,
+          type: "waitlist_slot_available",
+          severity: "info",
+          title: "Wachtlijst kans",
+          body: `Er is een plek vrijgekomen en ${count} klant(en) staan op de wachtlijst voor deze dienst.`,
+          link: "/wachtlijst",
+          payload: {
+            appointment_id: appt.id,
+            service_id: appt.service_id,
+            appointment_date: appt.appointment_date,
+            start_time: appt.start_time,
+            candidates: count,
+          },
+        });
+      } catch (_) { /* non-fatal */ }
+    }
   } catch (_) { /* non-fatal */ }
 
   return { ok: true, appointmentId: appt.id, side_effects: sideEffects };
