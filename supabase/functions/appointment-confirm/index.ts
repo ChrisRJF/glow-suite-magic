@@ -110,15 +110,17 @@ Deno.serve(async (req) => {
   try {
     await supabase.from("automation_logs").insert({
       user_id: appt.user_id,
-      channel: "public_link",
       event_type: desired === "confirmed" ? "appointment_confirmed" : "appointment_declined",
       status: "success",
-      appointment_id: appt.id,
       customer_id: appt.customer_id,
       is_demo: appt.is_demo,
+      message: desired === "confirmed"
+        ? "Klant bevestigde afspraak via publieke link"
+        : "Klant zei afspraak af via publieke link",
       metadata: {
         source: "appointment-confirm",
-        token: parsed.data.token,
+        appointment_id: appt.id,
+        channel: "public_link",
         response: desired,
       },
     });
