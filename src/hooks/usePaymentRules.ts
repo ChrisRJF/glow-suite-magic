@@ -50,8 +50,8 @@ export function usePaymentRules(settings: PaymentSettings | null) {
         return { required: true, type: "full", amount: servicePrice, reason: `Volledige betaling vereist (boven €${s.full_prepay_threshold})` };
       }
 
-      // No-show risk
-      if (s.deposit_noshow_risk && customer && ((customer.no_show_count || 0) > 0 || (customer.cancellation_count || 0) >= 2)) {
+      // No-show risk — shared engine
+      if (s.deposit_noshow_risk && customer && calculateNoShowRisk(customer).isElevated) {
         const depositAmount = Math.round(servicePrice * (s.deposit_percentage || 50) / 100 * 100) / 100;
         return { required: true, type: "deposit", amount: depositAmount, reason: "Aanbetaling vereist (no-show risico)" };
       }
