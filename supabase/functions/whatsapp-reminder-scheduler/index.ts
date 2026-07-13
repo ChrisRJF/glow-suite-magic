@@ -109,6 +109,21 @@ Deno.serve(async (req) => {
     .maybeSingle();
   const runId = runRow?.id || null;
 
+  // -------- SCHEDULER OVERLAP LOCK -------- (lease-based; TTL 4 minutes)
+  // Prevents two overlapping cron ticks from processing the same reminders.
+  const lockAcquired = await acquireSchedulerLock(admin, "whatsapp-reminder-scheduler", 240, runId ?? "unknown");
+  if (!lockAcquired) {
+    if (runId) {
+      await admin.from("whatsapp_scheduler_runs").update({
+        finished_at: new Date().toISOString(),
+        meta: { skipped: "another run holds the lease" },
+      }).eq("id", runId);
+    }
+    return new Response(JSON.stringify({ success: true, skipped: "lock_busy" }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   try {
     // -------- RETRY PASS -------- (canonical 1/5/15 min backoff, max 3 attempts)
     // Runs before the send passes so we recover transient Twilio failures
