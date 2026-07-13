@@ -91,6 +91,9 @@ Deno.serve(async (req) => {
         error: null,
         kind,
         meta: { ...meta, demo: true, simulated: true },
+        reminder_type,
+        booking_token,
+        confirmation_link,
       });
       console.log("whatsapp-send simulated (demo)", { user_id, kind, to });
       return new Response(
