@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCustomers, useAppointments, useServices, useCampaigns, useLeads, usePaymentRefunds } from "@/hooks/useSupabaseData";
 import { usePayments } from "@/hooks/usePayments";
+import { calculateNoShowRisk } from "@/lib/noShowRisk";
 import { formatEuro } from "@/lib/data";
 import { buildReports, rangeForPreset, trendClass, trendLabel } from "@/lib/reporting";
 import {
