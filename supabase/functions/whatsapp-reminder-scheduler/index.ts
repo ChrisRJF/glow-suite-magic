@@ -264,7 +264,7 @@ Deno.serve(async (req) => {
 
       const { data: appts, error: aErr } = await admin
         .from("appointments")
-        .select("id, customer_id, appointment_date, start_time, status, user_id, booking_token, confirmation_status")
+        .select("id, customer_id, appointment_date, start_time, status, user_id, booking_token, confirmation_status, service_id")
         .eq("user_id", s.user_id)
         .gte("appointment_date", startOfDay)
         .lte("appointment_date", endOfDay)
