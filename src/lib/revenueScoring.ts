@@ -24,6 +24,7 @@ export interface CustomerSignal {
   name?: string | null;
   total_spent?: number | null;
   no_show_count?: number | null;
+  cancellation_count?: number | null;
   /** ISO date of last appointment, if any. */
   lastVisitAt?: Date | null;
 }
