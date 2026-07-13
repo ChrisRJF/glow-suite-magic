@@ -135,38 +135,15 @@ export function NoShowCenter() {
     setBusy(true);
     setEnabled(next);
     try {
-      const patch = {
-        send_reminders: next,
-        send_no_show_followup: next,
-        send_booking_confirmation: next,
-      };
-      const { data: existing } = await supabase
-        .from("whatsapp_settings")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (existing) {
-        await supabase.from("whatsapp_settings").update(patch).eq("user_id", user.id);
-      } else {
-        await supabase.from("whatsapp_settings").insert({ user_id: user.id, ...patch });
-      }
-      // Zorg dat de bijhorende templates actief staan
-      for (const t of ["reminder", "no_show", "booking_confirmation"] as const) {
-        const { data: tpl } = await supabase
-          .from("whatsapp_templates")
-          .update({ is_active: next })
-          .eq("user_id", user.id)
-          .eq("template_type", t)
-          .select("id");
-        if (!tpl || tpl.length === 0) {
-          await supabase.from("whatsapp_templates").insert({
-            user_id: user.id,
-            template_type: t,
-            is_active: next,
-            content: DEFAULT_WHATSAPP_TEMPLATES[t],
-          });
-        }
-      }
+      // Atomic RPC — one transaction upserts whatsapp_settings + all three
+      // templates (reminder / no_show / booking_confirmation). No half-states.
+      const { error } = await supabase.rpc("set_noshow_prevention", {
+        _enabled: next,
+        _reminder_template: DEFAULT_WHATSAPP_TEMPLATES.reminder,
+        _no_show_template: DEFAULT_WHATSAPP_TEMPLATES.no_show,
+        _booking_confirmation_template: DEFAULT_WHATSAPP_TEMPLATES.booking_confirmation,
+      });
+      if (error) throw error;
       toast.success(next ? "No-show preventie staat aan" : "No-show preventie staat uit");
     } catch (e: any) {
       toast.error(e?.message || "Kon niet opslaan");
