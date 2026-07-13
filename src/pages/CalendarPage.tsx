@@ -30,6 +30,7 @@ import { MoveAppointmentSheet, type MoveTarget } from "@/components/MoveAppointm
 import { SmartReflowDialog, type ReflowAppointment } from "@/components/SmartReflowDialog";
 import { findConflict, snapToFine, timeToMinutes, minutesToTime } from "@/lib/agendaMove";
 import { useNavigate as useRouterNavigate } from "react-router-dom";
+import { cancelAppointment } from "@/lib/cancelAppointment";
 
 
 type View = 'day' | 'columns' | 'week';
