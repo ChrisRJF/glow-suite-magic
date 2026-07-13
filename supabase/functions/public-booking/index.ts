@@ -317,7 +317,7 @@ Deno.serve(async (req) => {
     const email = data.customer.email.toLowerCase();
     const { data: existingCustomer } = await supabase
       .from("customers")
-      .select("id")
+      .select("id, is_vip, no_show_count, cancellation_count, total_visits")
       .eq("user_id", ctx.settings.user_id)
       .ilike("email", email)
       .maybeSingle();
@@ -351,9 +351,39 @@ Deno.serve(async (req) => {
         .eq("user_id", ctx.settings.user_id);
     }
 
+    // ---- SERVER-SIDE DEPOSIT DECISION (single source of truth) ----
+    // Ignore whatever the browser sent in `data.payment.required` / `data.payment.amount`.
+    // Only `data.payment.method` is honored as a display hint.
+    const totalPriceEuros = bookingRows.reduce((sum, row) => sum + Number(row.service.price || 0), 0);
+    const decision = decideDeposit({
+      settings: ctx.settings,
+      customer: existingCustomer || null,
+      isNewCustomer: !existingCustomer,
+      servicePriceEuros: totalPriceEuros,
+    });
+    const serverPayment = {
+      required: decision.required,
+      amount: decision.amount_euros,
+      type: decision.type === "full" ? ("full" as const) : ("deposit" as const),
+      method: data.payment?.method || "ideal",
+    };
+    console.log("[public-booking] deposit decision", {
+      salon_id: ctx.settings.user_id,
+      customer_id: customerId,
+      new_customer: !existingCustomer,
+      total_price: totalPriceEuros,
+      risk_score: decision.risk_score,
+      risk_level: decision.risk_level,
+      required: decision.required,
+      amount: decision.amount_euros,
+      reason: decision.reason,
+    });
+
     const appointmentsToInsert = bookingRows.map((row, index) => {
       const start = combineDateTime(data.date, row.time);
       const end = new Date(start.getTime() + row.service.duration_minutes * 60000);
+      const notesParts = [data.notes, index > 0 ? `Groepsboeking voor ${row.name}` : "Online boeking"];
+      if (decision.required) notesParts.push(`[deposit:${decision.reason} · risk=${decision.risk_level}/${decision.risk_score}]`);
       return {
         user_id: ctx.settings.user_id,
         is_demo: Boolean(ctx.settings.is_demo || ctx.settings.demo_mode),
@@ -364,14 +394,14 @@ Deno.serve(async (req) => {
         end_time: addMinutesToTime(row.time, row.service.duration_minutes),
         employee_id: row.employee,
         price: Number(row.service.price || 0),
-        notes: [data.notes, index > 0 ? `Groepsboeking voor ${row.name}` : "Online boeking"].filter(Boolean).join(" · "),
-        status: data.payment.required ? "pending_confirmation" : "confirmed",
-        payment_status: data.payment.required ? "pending" : "unpaid",
-        payment_required: data.payment.required,
-        deposit_amount: data.payment.required ? data.payment.amount : 0,
+        notes: notesParts.filter(Boolean).join(" · "),
+        status: serverPayment.required ? "pending_confirmation" : "confirmed",
+        payment_status: serverPayment.required ? "pending" : "unpaid",
+        payment_required: serverPayment.required,
+        deposit_amount: serverPayment.required ? serverPayment.amount : 0,
         source: "online_booking",
         booking_group_id: bookingRows.length > 1 ? groupId : null,
-        payment_type: data.payment.type,
+        payment_type: serverPayment.type,
         accepted_glowsuite_terms: Boolean(data.customer.accepted_glowsuite_terms),
         accepted_salon_terms: Boolean(data.customer.accepted_salon_terms),
         accepted_terms_at: data.customer.accepted_terms_at ?? ((data.customer.accepted_glowsuite_terms && data.customer.accepted_salon_terms) ? new Date().toISOString() : null),
