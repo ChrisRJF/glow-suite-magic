@@ -1,6 +1,15 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { loadAIModes, canAutoRun, effectiveMode, type AICategory } from "../_shared/aiModes.ts";
 import { getDefaultMessageTemplate, normalizeMessageLang, renderMessage, intlLocale } from "../_shared/messageTranslations.ts";
+import {
+  appendConfirmationBlock,
+  buildConfirmationLink,
+  MAX_ATTEMPTS,
+  recordFailureAndMaybeRetry,
+  reminderAlreadySent,
+  selectChannel,
+  type ReminderType,
+} from "../_shared/reminderEngine.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
