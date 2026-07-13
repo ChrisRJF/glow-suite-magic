@@ -784,5 +784,7 @@ Deno.serve(async (req) => {
       JSON.stringify({ success: false, error: err instanceof Error ? err.message : "unknown", ...stats }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
+  } finally {
+    await releaseSchedulerLock(admin, "whatsapp-reminder-scheduler");
   }
 });
