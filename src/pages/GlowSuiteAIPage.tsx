@@ -19,6 +19,7 @@ import {
 } from "@/hooks/useSupabaseData";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEuro } from "@/lib/data";
+import { calculateNoShowRisk } from "@/lib/noShowRisk";
 import { AIModesCard } from "@/components/AIModesCard";
 import { TodayBriefing } from "@/components/TodayBriefing";
 
