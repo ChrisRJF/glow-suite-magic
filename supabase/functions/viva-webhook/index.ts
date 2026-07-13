@@ -7,6 +7,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getVivaTransaction } from "../_shared/viva.ts";
 import { diagnosticCorsHeaders, okText, parseVivaPayload, writeWebhookDebugLog } from "../_shared/vivaDiagnostics.ts";
 import { GLOWPAY_MARGIN_CENTS } from "../_shared/glowpayMargin.ts";
+import { appendConfirmationBlock, buildConfirmationLink, claimReminderDispatch } from "../_shared/reminderEngine.ts";
 
 const corsHeaders = diagnosticCorsHeaders;
 
@@ -724,31 +725,53 @@ Deno.serve(async (req) => {
             .eq("user_id", payment.user_id)
             .maybeSingle();
           if (waSettings?.enabled && waSettings?.send_booking_confirmation) {
-            const fnUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/whatsapp-send`;
-            fetch(fnUrl, {
-              method: "POST",
-              headers: { "Content-Type": "application/json", "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
-              body: JSON.stringify({
-                user_id: payment.user_id,
-                to: customer.phone,
-                message: (() => {
-                  const lang = ((customer as any)?.preferred_language || "nl").toLowerCase().split("-")[0];
-                  const MSGS: Record<string, { paid: string; auto: string }> = {
-                    nl: { paid: "Bedankt voor je betaling — je afspraak is bevestigd.", auto: "Je afspraak staat vast! 🙌 Tot dan." },
-                    en: { paid: "Thanks for your payment — your appointment is confirmed.", auto: "Your appointment is locked in! 🙌 See you then." },
-                    de: { paid: "Danke für Ihre Zahlung — Ihr Termin ist bestätigt.", auto: "Ihr Termin steht fest! 🙌 Bis bald." },
-                    fr: { paid: "Merci pour votre paiement — votre rendez-vous est confirmé.", auto: "Votre rendez-vous est confirmé ! 🙌 À bientôt." },
-                    es: { paid: "Gracias por tu pago — tu cita está confirmada.", auto: "¡Tu cita está confirmada! 🙌 Hasta pronto." },
-                  };
-                  const m = MSGS[lang] || MSGS.nl;
-                  return isAutoRevenue ? m.auto : m.paid;
-                })(),
-                customer_id: payment.customer_id,
-                appointment_id: appointmentId,
-                kind: "confirmation",
-                meta: { trigger: "viva_payment_paid" },
-              }),
-            }).catch((e) => console.error("WhatsApp send (viva webhook) failed", e));
+            const claimed = await claimReminderDispatch(
+              supabase as any,
+              appointmentId,
+              "booking_confirmation",
+              "whatsapp",
+            );
+            if (!claimed) {
+              console.log("booking_confirmation already_claimed (viva)", appointmentId);
+            } else {
+              // Resolve booking_token + language for the confirmation link
+              const { data: appt } = await supabase
+                .from("appointments")
+                .select("id, booking_token")
+                .eq("id", appointmentId)
+                .maybeSingle();
+              const bookingToken = (appt as any)?.booking_token || null;
+              const confirmationLink = buildConfirmationLink(bookingToken);
+              const lang = ((customer as any)?.preferred_language || "nl").toString().toLowerCase().split("-")[0];
+              const MSGS: Record<string, { paid: string; auto: string }> = {
+                nl: { paid: "Bedankt voor je betaling — je afspraak is bevestigd.", auto: "Je afspraak staat vast! 🙌 Tot dan." },
+                en: { paid: "Thanks for your payment — your appointment is confirmed.", auto: "Your appointment is locked in! 🙌 See you then." },
+                de: { paid: "Danke für Ihre Zahlung — Ihr Termin ist bestätigt.", auto: "Ihr Termin steht fest! 🙌 Bis bald." },
+                fr: { paid: "Merci pour votre paiement — votre rendez-vous est confirmé.", auto: "Votre rendez-vous est confirmé ! 🙌 À bientôt." },
+                es: { paid: "Gracias por tu pago — tu cita está confirmada.", auto: "¡Tu cita está confirmada! 🙌 Hasta pronto." },
+              };
+              const m = MSGS[lang] || MSGS.nl;
+              let waMessage = isAutoRevenue ? m.auto : m.paid;
+              waMessage = appendConfirmationBlock(waMessage, confirmationLink, "booking_confirmation", lang);
+
+              const fnUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/whatsapp-send`;
+              fetch(fnUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+                body: JSON.stringify({
+                  user_id: payment.user_id,
+                  to: customer.phone,
+                  message: waMessage,
+                  customer_id: payment.customer_id,
+                  appointment_id: appointmentId,
+                  kind: "confirmation",
+                  reminder_type: "booking_confirmation",
+                  booking_token: bookingToken,
+                  confirmation_link: confirmationLink,
+                  meta: { trigger: "viva_payment_paid", canonical_key: `reminder:booking_confirmation:${appointmentId}` },
+                }),
+              }).catch((e) => console.error("WhatsApp send (viva webhook) failed", e));
+            }
           }
         } catch (waErr) {
           console.error("WhatsApp dispatch (viva webhook) error", waErr);

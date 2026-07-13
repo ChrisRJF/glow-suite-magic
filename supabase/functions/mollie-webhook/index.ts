@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getDefaultMessageTemplate, normalizeMessageLang, renderMessage, intlLocale, resolveCustomerLanguage } from "../_shared/messageTranslations.ts";
+import { appendConfirmationBlock, buildConfirmationLink, claimReminderDispatch } from "../_shared/reminderEngine.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -177,7 +178,9 @@ Deno.serve(async (req) => {
         });
       }
 
-      // WhatsApp booking confirmation after successful payment (deduped via unique index)
+      // WhatsApp booking confirmation after successful payment.
+      // Canonical claim ensures we never send a duplicate if public-booking
+      // already dispatched one for the same appointment.
       if (appointmentId && customer?.phone) {
         try {
           const { data: waSettings } = await supabase
@@ -187,65 +190,80 @@ Deno.serve(async (req) => {
             .maybeSingle();
 
           if (waSettings?.enabled && waSettings?.send_booking_confirmation) {
-            const { data: appt } = await supabase
-              .from("appointments")
-              .select("id, appointment_date, start_time, booking_token, service_id")
-              .eq("id", appointmentId)
-              .maybeSingle();
-            if (appt) {
-              const { data: service } = appt.service_id
-                ? await supabase.from("services").select("name").eq("id", appt.service_id).maybeSingle()
-                : { data: null };
-              const { data: tpl } = await supabase
-                .from("whatsapp_templates")
-                .select("content, is_active")
-                .eq("user_id", payment.user_id)
-                .eq("template_type", "booking_confirmation")
+            const claimed = await claimReminderDispatch(
+              supabase as any,
+              appointmentId,
+              "booking_confirmation",
+              "whatsapp",
+            );
+            if (!claimed) {
+              console.log("booking_confirmation already_claimed (mollie)", appointmentId);
+            } else {
+              const { data: appt } = await supabase
+                .from("appointments")
+                .select("id, appointment_date, start_time, booking_token, service_id")
+                .eq("id", appointmentId)
                 .maybeSingle();
+              if (appt) {
+                const { data: service } = appt.service_id
+                  ? await supabase.from("services").select("name").eq("id", appt.service_id).maybeSingle()
+                  : { data: null };
+                const { data: tpl } = await supabase
+                  .from("whatsapp_templates")
+                  .select("content, is_active")
+                  .eq("user_id", payment.user_id)
+                  .eq("template_type", "booking_confirmation")
+                  .maybeSingle();
 
-              const waLang = normalizeMessageLang((customer as any)?.preferred_language || "nl");
-              const templateContent = (tpl?.is_active === false ? null : tpl?.content)
-                || getDefaultMessageTemplate("booking_confirmation", waLang, "whatsapp");
+                const waLang = normalizeMessageLang((customer as any)?.preferred_language || "nl");
+                const templateContent = (tpl?.is_active === false ? null : tpl?.content)
+                  || getDefaultMessageTemplate("booking_confirmation", waLang, "whatsapp");
 
-              const apptInstant = new Date(appt.appointment_date as string);
-              const dateStr = apptInstant.toLocaleDateString(intlLocale(waLang), { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Amsterdam" });
-              const timeStr = String(appt.start_time || "").substring(0, 5);
-              const rescheduleLink = appt.booking_token
-                ? `https://glowsuite.nl/afspraak/${appt.booking_token}`
-                : `https://glowsuite.nl/afspraak`;
-              if (!appt.booking_token) console.warn("WhatsApp: missing booking_token", appt.id);
+                const apptInstant = new Date(appt.appointment_date as string);
+                const dateStr = apptInstant.toLocaleDateString(intlLocale(waLang), { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Amsterdam" });
+                const timeStr = String(appt.start_time || "").substring(0, 5);
+                const confirmationLink = buildConfirmationLink(appt.booking_token as string | null);
+                const rescheduleLink = confirmationLink || "https://glowsuite.nl/afspraak";
+                if (!appt.booking_token) console.warn("WhatsApp: missing booking_token", appt.id);
 
-              const waMessage = isAutoRevenue
-                ? renderMessage(getDefaultMessageTemplate("payment_received", waLang, "whatsapp"), {
-                    customer_name: customer.name || "",
-                    salon_name: settings?.salon_name || "ons salon",
-                    amount: `€${Number(payment.amount || 0).toFixed(2)}`,
-                  })
-                : renderMessage(templateContent, {
-                    customer_name: customer.name || "",
-                    salon_name: settings?.salon_name || "ons salon",
-                    appointment_date: dateStr,
-                    appointment_time: timeStr,
-                    services: service?.name ? `• ${service.name}` : "",
-                    reschedule_link: rescheduleLink,
-                    review_link: "",
-                    booking_link: rescheduleLink,
-                  });
+                let waMessage = isAutoRevenue
+                  ? renderMessage(getDefaultMessageTemplate("payment_received", waLang, "whatsapp"), {
+                      customer_name: customer.name || "",
+                      salon_name: settings?.salon_name || "ons salon",
+                      amount: `€${Number(payment.amount || 0).toFixed(2)}`,
+                    })
+                  : renderMessage(templateContent, {
+                      customer_name: customer.name || "",
+                      salon_name: settings?.salon_name || "ons salon",
+                      appointment_date: dateStr,
+                      appointment_time: timeStr,
+                      services: service?.name ? `• ${service.name}` : "",
+                      reschedule_link: rescheduleLink,
+                      review_link: "",
+                      booking_link: rescheduleLink,
+                    });
+                if (!isAutoRevenue) {
+                  waMessage = appendConfirmationBlock(waMessage, confirmationLink, "booking_confirmation", waLang);
+                }
 
-              const fnUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/whatsapp-send`;
-              fetch(fnUrl, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
-                body: JSON.stringify({
-                  user_id: payment.user_id,
-                  to: customer.phone,
-                  message: waMessage,
-                  customer_id: payment.customer_id,
-                  appointment_id: appointmentId,
-                  kind: "confirmation",
-                  meta: { trigger: "payment_paid" },
-                }),
-              }).catch((e) => console.error("WhatsApp send (mollie webhook) failed", e));
+                const fnUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/whatsapp-send`;
+                fetch(fnUrl, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+                  body: JSON.stringify({
+                    user_id: payment.user_id,
+                    to: customer.phone,
+                    message: waMessage,
+                    customer_id: payment.customer_id,
+                    appointment_id: appointmentId,
+                    kind: "confirmation",
+                    reminder_type: "booking_confirmation",
+                    booking_token: appt.booking_token,
+                    confirmation_link: confirmationLink,
+                    meta: { trigger: "payment_paid", canonical_key: `reminder:booking_confirmation:${appointmentId}` },
+                  }),
+                }).catch((e) => console.error("WhatsApp send (mollie webhook) failed", e));
+              }
             }
           }
         } catch (waErr) {

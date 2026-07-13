@@ -31,6 +31,7 @@ export function NoShowCenter() {
   const [confirmed, setConfirmed] = useState(0);
   const [depositsRequested, setDepositsRequested] = useState(0);
   const [deliveryFailed, setDeliveryFailed] = useState(0);
+  const [activeRetries, setActiveRetries] = useState(0);
 
   const [salonTz, setSalonTz] = useState<string>("Europe/Amsterdam");
 
@@ -67,7 +68,7 @@ export function NoShowCenter() {
       .maybeSingle();
     if (settingsRow?.timezone) setSalonTz(settingsRow.timezone as string);
 
-    const [wa, remRes, confRes, depRes, failRes] = await Promise.all([
+    const [wa, remRes, confRes, depRes, failRes, retryRes] = await Promise.all([
       supabase
         .from("whatsapp_settings")
         .select("send_reminders, send_no_show_followup, send_booking_confirmation")
@@ -99,6 +100,13 @@ export function NoShowCenter() {
         .eq("user_id", user.id)
         .eq("dead_letter", true)
         .gte("created_at", todayIso),
+      supabase
+        .from("whatsapp_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("status", "failed")
+        .eq("dead_letter", false)
+        .not("next_retry_at", "is", null),
     ]);
     const w: any = wa.data || {};
     setEnabled(!!(w.send_reminders && w.send_no_show_followup && w.send_booking_confirmation));
@@ -106,6 +114,7 @@ export function NoShowCenter() {
     setConfirmed(confRes.count || 0);
     setDepositsRequested(depRes.count || 0);
     setDeliveryFailed(failRes.count || 0);
+    setActiveRetries(retryRes.count || 0);
   }, [user, todayIso]);
 
   useEffect(() => {
@@ -159,6 +168,9 @@ export function NoShowCenter() {
     { label: "Bevestigd", value: confirmed, icon: CheckCircle2, dot: "bg-emerald-500" },
     { label: "Hoog risico", value: highRisk, icon: AlertTriangle, dot: "bg-amber-500" },
     { label: "Aanbetaling gevraagd", value: depositsRequested, icon: Wallet, dot: "bg-violet-500" },
+    ...(activeRetries > 0
+      ? [{ label: "Nieuwe poging gepland", value: activeRetries, icon: BellRing, dot: "bg-sky-500" }]
+      : []),
     ...(deliveryFailed > 0
       ? [{ label: "Niet afgeleverd", value: deliveryFailed, icon: AlertTriangle, dot: "bg-rose-500" }]
       : []),

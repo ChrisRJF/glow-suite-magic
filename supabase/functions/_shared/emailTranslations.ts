@@ -83,6 +83,9 @@ interface TplStrings {
     cta_manage: string;
     cta_route: string;
     cta_calendar: string;
+    cta_confirm: string;
+    cta_decline: string;
+    confirm_intro: string;
     note_title: string;
     note_default_tip: string;
     note_reschedule: string;
@@ -176,6 +179,9 @@ const NL: TplStrings = {
     cta_manage: "Afspraak beheren",
     cta_route: "Route bekijken",
     cta_calendar: "Toevoegen aan kalender",
+    cta_confirm: "Ja, ik kom",
+    cta_decline: "Nee, ik kan niet komen",
+    confirm_intro: "Laat je ons weten of je komt?",
     note_title: "Voor je afspraak",
     note_default_tip: "Kom liefst een paar minuten op tijd.",
     note_reschedule: "Ben je verhinderd? Beheer je afspraak op tijd.",
@@ -268,6 +274,9 @@ const EN: TplStrings = {
     cta_manage: "Manage appointment",
     cta_route: "View directions",
     cta_calendar: "Add to calendar",
+    cta_confirm: "Yes, I'll be there",
+    cta_decline: "No, I can't come",
+    confirm_intro: "Can you let us know if you'll make it?",
     note_title: "Before your appointment",
     note_default_tip: "Please arrive a few minutes early.",
     note_reschedule: "Can't make it? Manage your appointment in time.",
@@ -360,6 +369,9 @@ const DE: TplStrings = {
     cta_manage: "Termin verwalten",
     cta_route: "Route anzeigen",
     cta_calendar: "Zum Kalender hinzufügen",
+    cta_confirm: "Ja, ich komme",
+    cta_decline: "Nein, ich kann nicht",
+    confirm_intro: "Können Sie uns Bescheid geben, ob Sie kommen?",
     note_title: "Vor Ihrem Termin",
     note_default_tip: "Bitte kommen Sie ein paar Minuten früher.",
     note_reschedule: "Sie können nicht kommen? Verwalten Sie Ihren Termin rechtzeitig.",
@@ -452,6 +464,9 @@ const FR: TplStrings = {
     cta_manage: "Gérer le rendez-vous",
     cta_route: "Voir l'itinéraire",
     cta_calendar: "Ajouter au calendrier",
+    cta_confirm: "Oui, je viens",
+    cta_decline: "Non, je ne peux pas",
+    confirm_intro: "Pouvez-vous confirmer votre présence ?",
     note_title: "Avant votre rendez-vous",
     note_default_tip: "Merci d'arriver quelques minutes en avance.",
     note_reschedule: "Empêché·e ? Gérez votre rendez-vous à temps.",
@@ -544,6 +559,9 @@ const ES: TplStrings = {
     cta_manage: "Gestionar cita",
     cta_route: "Ver ruta",
     cta_calendar: "Añadir al calendario",
+    cta_confirm: "Sí, allí estaré",
+    cta_decline: "No, no puedo",
+    confirm_intro: "¿Puedes confirmarnos si vienes?",
     note_title: "Antes de tu cita",
     note_default_tip: "Llega unos minutos antes, por favor.",
     note_reschedule: "¿No puedes venir? Gestiona tu cita a tiempo.",
