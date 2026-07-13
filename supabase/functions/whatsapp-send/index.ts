@@ -57,6 +57,9 @@ Deno.serve(async (req) => {
       kind = "manual",
       test = false,
       meta = {},
+      reminder_type = null,
+      booking_token = null,
+      confirmation_link = null,
     } = body;
 
     if (!user_id || !to || !message) {
