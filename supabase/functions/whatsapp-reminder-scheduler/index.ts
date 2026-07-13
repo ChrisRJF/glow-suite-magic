@@ -106,6 +106,77 @@ Deno.serve(async (req) => {
   const runId = runRow?.id || null;
 
   try {
+    // -------- RETRY PASS -------- (canonical 1/5/15 min backoff, max 3 attempts)
+    // Runs before the send passes so we recover transient Twilio failures
+    // before the next fresh scheduling tick.
+    const nowIso = new Date().toISOString();
+    const { data: retryRows } = await admin
+      .from("whatsapp_logs")
+      .select("id, user_id, to_number, message, customer_id, appointment_id, kind, reminder_type, booking_token, confirmation_link, retry_count, meta")
+      .eq("status", "failed")
+      .eq("dead_letter", false)
+      .not("reminder_type", "is", null)
+      .not("next_retry_at", "is", null)
+      .lte("next_retry_at", nowIso)
+      .lt("retry_count", MAX_ATTEMPTS)
+      .limit(50);
+
+    for (const row of retryRows || []) {
+      try {
+        // If the appointment has been cancelled/rescheduled in the meantime,
+        // dead-letter without further attempts — never send a stale reminder.
+        if (row.appointment_id) {
+          const { data: appt } = await admin
+            .from("appointments")
+            .select("status, confirmation_status")
+            .eq("id", row.appointment_id)
+            .maybeSingle();
+          if (!appt || appt.status === "geannuleerd" || appt.confirmation_status === "declined") {
+            await admin.from("whatsapp_logs").update({
+              dead_letter: true,
+              error: "appointment_no_longer_valid",
+              next_retry_at: null,
+            }).eq("id", row.id);
+            continue;
+          }
+        }
+
+        const toPlain = String(row.to_number || "").replace(/^whatsapp:/, "");
+        const resp = await fetch(`${SUPABASE_URL}/functions/v1/whatsapp-send`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${SERVICE_KEY}` },
+          body: JSON.stringify({
+            user_id: row.user_id,
+            to: toPlain,
+            message: row.message,
+            customer_id: row.customer_id,
+            appointment_id: row.appointment_id,
+            kind: row.kind,
+            reminder_type: row.reminder_type,
+            booking_token: row.booking_token,
+            confirmation_link: row.confirmation_link,
+            meta: { ...(row.meta as any || {}), retry_of: row.id, attempt: (row.retry_count || 0) + 1 },
+          }),
+        });
+        const data = await resp.json();
+        if (resp.ok && (data.success || data.deduped)) {
+          // Mark the original failed row as resolved so it won't be picked again.
+          await admin.from("whatsapp_logs").update({
+            next_retry_at: null,
+            error: null,
+            status: data.deduped ? "sent" : "sent",
+          }).eq("id", row.id);
+          stats.sent++;
+        } else {
+          const outcome = await recordFailureAndMaybeRetry(admin, row as any, data?.error || `http_${resp.status}`);
+          if (outcome.status === "dead_letter") stats.failed++;
+        }
+      } catch (e) {
+        const outcome = await recordFailureAndMaybeRetry(admin, row as any, e instanceof Error ? e.message : "unknown");
+        if (outcome.status === "dead_letter") stats.failed++;
+      }
+    }
+
     const { data: settingsList, error: sErr } = await admin
       .from("whatsapp_settings")
       .select("user_id, enabled, send_reminders, send_review_request, send_no_show_followup, send_revenue_boost, revenue_boost_after_days, revenue_boost_max_per_month, reminder_hours_before")
