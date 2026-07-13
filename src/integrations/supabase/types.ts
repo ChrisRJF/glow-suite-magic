@@ -129,6 +129,8 @@ export type Database = {
           booking_group_id: string | null
           booking_reference: string | null
           booking_token: string | null
+          confirmation_responded_at: string | null
+          confirmation_status: string
           created_at: string
           customer_id: string | null
           deposit_amount: number | null
@@ -158,6 +160,8 @@ export type Database = {
           booking_group_id?: string | null
           booking_reference?: string | null
           booking_token?: string | null
+          confirmation_responded_at?: string | null
+          confirmation_status?: string
           created_at?: string
           customer_id?: string | null
           deposit_amount?: number | null
@@ -187,6 +191,8 @@ export type Database = {
           booking_group_id?: string | null
           booking_reference?: string | null
           booking_token?: string | null
+          confirmation_responded_at?: string | null
+          confirmation_status?: string
           created_at?: string
           customer_id?: string | null
           deposit_amount?: number | null
