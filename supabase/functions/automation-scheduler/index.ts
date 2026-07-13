@@ -227,6 +227,12 @@ Deno.serve(async (req) => {
 
   try {
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+    // Lease-based lock to prevent overlapping scheduler runs.
+    const lockOk = await acquireSchedulerLock(admin, "automation-scheduler", 240);
+    if (!lockOk) return json({ success: true, skipped: "lock_busy" });
+
+    try {
     const { data: rules, error } = await admin.from("automation_rules").select("*").eq("is_active", true).limit(200);
     if (error) throw error;
 
