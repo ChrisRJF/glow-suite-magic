@@ -1,6 +1,15 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { loadAIModes, canAutoRun, effectiveMode, type AICategory } from "../_shared/aiModes.ts";
 import { getDefaultMessageTemplate, normalizeMessageLang, renderMessage, intlLocale } from "../_shared/messageTranslations.ts";
+import {
+  appendConfirmationBlock,
+  buildConfirmationLink,
+  MAX_ATTEMPTS,
+  recordFailureAndMaybeRetry,
+  reminderAlreadySent,
+  selectChannel,
+  type ReminderType,
+} from "../_shared/reminderEngine.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -97,6 +106,77 @@ Deno.serve(async (req) => {
   const runId = runRow?.id || null;
 
   try {
+    // -------- RETRY PASS -------- (canonical 1/5/15 min backoff, max 3 attempts)
+    // Runs before the send passes so we recover transient Twilio failures
+    // before the next fresh scheduling tick.
+    const nowIso = new Date().toISOString();
+    const { data: retryRows } = await admin
+      .from("whatsapp_logs")
+      .select("id, user_id, to_number, message, customer_id, appointment_id, kind, reminder_type, booking_token, confirmation_link, retry_count, meta")
+      .eq("status", "failed")
+      .eq("dead_letter", false)
+      .not("reminder_type", "is", null)
+      .not("next_retry_at", "is", null)
+      .lte("next_retry_at", nowIso)
+      .lt("retry_count", MAX_ATTEMPTS)
+      .limit(50);
+
+    for (const row of retryRows || []) {
+      try {
+        // If the appointment has been cancelled/rescheduled in the meantime,
+        // dead-letter without further attempts — never send a stale reminder.
+        if (row.appointment_id) {
+          const { data: appt } = await admin
+            .from("appointments")
+            .select("status, confirmation_status")
+            .eq("id", row.appointment_id)
+            .maybeSingle();
+          if (!appt || appt.status === "geannuleerd" || appt.confirmation_status === "declined") {
+            await admin.from("whatsapp_logs").update({
+              dead_letter: true,
+              error: "appointment_no_longer_valid",
+              next_retry_at: null,
+            }).eq("id", row.id);
+            continue;
+          }
+        }
+
+        const toPlain = String(row.to_number || "").replace(/^whatsapp:/, "");
+        const resp = await fetch(`${SUPABASE_URL}/functions/v1/whatsapp-send`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${SERVICE_KEY}` },
+          body: JSON.stringify({
+            user_id: row.user_id,
+            to: toPlain,
+            message: row.message,
+            customer_id: row.customer_id,
+            appointment_id: row.appointment_id,
+            kind: row.kind,
+            reminder_type: row.reminder_type,
+            booking_token: row.booking_token,
+            confirmation_link: row.confirmation_link,
+            meta: { ...(row.meta as any || {}), retry_of: row.id, attempt: (row.retry_count || 0) + 1 },
+          }),
+        });
+        const data = await resp.json();
+        if (resp.ok && (data.success || data.deduped)) {
+          // Mark the original failed row as resolved so it won't be picked again.
+          await admin.from("whatsapp_logs").update({
+            next_retry_at: null,
+            error: null,
+            status: data.deduped ? "sent" : "sent",
+          }).eq("id", row.id);
+          stats.sent++;
+        } else {
+          const outcome = await recordFailureAndMaybeRetry(admin, row as any, data?.error || `http_${resp.status}`);
+          if (outcome.status === "dead_letter") stats.failed++;
+        }
+      } catch (e) {
+        const outcome = await recordFailureAndMaybeRetry(admin, row as any, e instanceof Error ? e.message : "unknown");
+        if (outcome.status === "dead_letter") stats.failed++;
+      }
+    }
+
     const { data: settingsList, error: sErr } = await admin
       .from("whatsapp_settings")
       .select("user_id, enabled, send_reminders, send_review_request, send_no_show_followup, send_revenue_boost, revenue_boost_after_days, revenue_boost_max_per_month, reminder_hours_before")
@@ -165,7 +245,7 @@ Deno.serve(async (req) => {
 
       const { data: appts, error: aErr } = await admin
         .from("appointments")
-        .select("id, customer_id, appointment_date, start_time, status, user_id")
+        .select("id, customer_id, appointment_date, start_time, status, user_id, booking_token, confirmation_status")
         .eq("user_id", s.user_id)
         .gte("appointment_date", startOfDay)
         .lte("appointment_date", endOfDay)
@@ -194,24 +274,31 @@ Deno.serve(async (req) => {
         stats.checked++;
         if (!appt.customer_id) { stats.skipped++; continue; }
 
-        // Dedup
-        const { data: existingLog } = await admin
-          .from("whatsapp_logs")
-          .select("id")
-          .eq("appointment_id", appt.id)
-          .eq("kind", "reminder")
-          .eq("status", "sent")
-          .limit(1)
-          .maybeSingle();
-        if (existingLog) { stats.skipped++; continue; }
+        // Canonical cross-scheduler dedup: same appointment + reminder type,
+        // whether the WA scheduler or automation-scheduler already sent it.
+        if (await reminderAlreadySent(admin, appt.id, "reminder")) {
+          stats.skipped++;
+          continue;
+        }
 
         const { data: customer } = await admin
           .from("customers")
-          .select("id, name, phone, whatsapp_opt_in, preferred_language")
+          .select("id, name, phone, email, whatsapp_opt_in, preferred_language")
           .eq("id", appt.customer_id)
           .maybeSingle();
-        if (!customer || !customer.phone || customer.whatsapp_opt_in === false) {
+        if (!customer) { stats.skipped++; continue; }
+
+        // Canonical channel selection: WhatsApp preferred, email fallback.
+        const salonEmailEnabled = Boolean((s as any).email_enabled ?? true);
+        const chan = selectChannel({
+          customer,
+          waEnabled: true, // we're already inside the whatsapp scheduler for this salon
+          emailEnabled: salonEmailEnabled,
+        });
+        if (chan.channel !== "whatsapp") {
+          // Email fallback is owned by automation-scheduler; log and skip here.
           stats.skipped++;
+          stats.windows.push({ user_id: s.user_id, appt_id: appt.id, skipped_reason: chan.reason });
           continue;
         }
 
@@ -244,15 +331,19 @@ Deno.serve(async (req) => {
         const templateContent = (tpl?.is_active === false ? null : tpl?.content)
           || getDefaultMessageTemplate("booking_reminder", waLang, "whatsapp");
 
-        const message = renderMessage(templateContent, {
+        const confirmationLink = buildConfirmationLink(appt.booking_token as string | null);
+
+        let message = renderMessage(templateContent, {
           customer_name: customer.name || "",
           salon_name: salonName,
           appointment_date: dateStr,
           appointment_time: timeStr,
           services: "",
-          reschedule_link: "",
+          reschedule_link: confirmationLink || "",
           review_link: "",
         });
+        // Canonical: append confirmation CTA when the template omitted it.
+        message = appendConfirmationBlock(message, confirmationLink, "reminder", waLang);
 
         try {
           const fnUrl = `${SUPABASE_URL}/functions/v1/whatsapp-send`;
@@ -269,10 +360,14 @@ Deno.serve(async (req) => {
               customer_id: customer.id,
               appointment_id: appt.id,
               kind: "reminder",
+              reminder_type: "reminder" as ReminderType,
+              booking_token: appt.booking_token,
+              confirmation_link: confirmationLink,
               meta: {
                 local_appointment: localApptStr,
                 scheduler_window: `${windowInfo.window_local_start} → ${windowInfo.window_local_end}`,
                 tz,
+                canonical_key: `reminder:reminder:${appt.id}`,
               },
             }),
           });

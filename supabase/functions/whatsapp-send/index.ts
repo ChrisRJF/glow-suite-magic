@@ -57,6 +57,9 @@ Deno.serve(async (req) => {
       kind = "manual",
       test = false,
       meta = {},
+      reminder_type = null,
+      booking_token = null,
+      confirmation_link = null,
     } = body;
 
     if (!user_id || !to || !message) {
@@ -88,6 +91,9 @@ Deno.serve(async (req) => {
         error: null,
         kind,
         meta: { ...meta, demo: true, simulated: true },
+        reminder_type,
+        booking_token,
+        confirmation_link,
       });
       console.log("whatsapp-send simulated (demo)", { user_id, kind, to });
       return new Response(
@@ -177,6 +183,11 @@ Deno.serve(async (req) => {
       error: ok ? null : safeError(twData),
       kind,
       meta: logMeta,
+      reminder_type,
+      booking_token,
+      confirmation_link,
+      retry_count: 0,
+      next_retry_at: ok ? null : new Date(Date.now() + 60 * 1000).toISOString(),
     });
 
     // Race-safe dedup

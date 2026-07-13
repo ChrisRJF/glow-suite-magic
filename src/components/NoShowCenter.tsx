@@ -30,6 +30,7 @@ export function NoShowCenter() {
   const [remindersSent, setRemindersSent] = useState(0);
   const [confirmed, setConfirmed] = useState(0);
   const [depositsRequested, setDepositsRequested] = useState(0);
+  const [deliveryFailed, setDeliveryFailed] = useState(0);
 
   const todayIso = useMemo(() => {
     const d = new Date();
@@ -39,7 +40,7 @@ export function NoShowCenter() {
 
   const load = useCallback(async () => {
     if (!user) return;
-    const [wa, remRes, confRes, depRes] = await Promise.all([
+    const [wa, remRes, confRes, depRes, failRes] = await Promise.all([
       supabase
         .from("whatsapp_settings")
         .select("send_reminders, send_no_show_followup, send_booking_confirmation")
@@ -65,12 +66,19 @@ export function NoShowCenter() {
         .eq("payment_required", true)
         .in("payment_status", ["pending", "open", "requested"])
         .gte("created_at", todayIso),
+      supabase
+        .from("whatsapp_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("dead_letter", true)
+        .gte("created_at", todayIso),
     ]);
     const w: any = wa.data || {};
     setEnabled(!!(w.send_reminders && w.send_no_show_followup && w.send_booking_confirmation));
     setRemindersSent(remRes.count || 0);
     setConfirmed(confRes.count || 0);
     setDepositsRequested(depRes.count || 0);
+    setDeliveryFailed(failRes.count || 0);
   }, [user, todayIso]);
 
   useEffect(() => {
@@ -147,6 +155,9 @@ export function NoShowCenter() {
     { label: "Bevestigd", value: confirmed, icon: CheckCircle2, dot: "bg-emerald-500" },
     { label: "Hoog risico", value: highRisk, icon: AlertTriangle, dot: "bg-amber-500" },
     { label: "Aanbetaling gevraagd", value: depositsRequested, icon: Wallet, dot: "bg-violet-500" },
+    ...(deliveryFailed > 0
+      ? [{ label: "Niet afgeleverd", value: deliveryFailed, icon: AlertTriangle, dot: "bg-rose-500" }]
+      : []),
   ];
 
   return (

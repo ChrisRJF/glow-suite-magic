@@ -3611,13 +3611,19 @@ export type Database = {
       whatsapp_logs: {
         Row: {
           appointment_id: string | null
+          booking_token: string | null
+          confirmation_link: string | null
           created_at: string
           customer_id: string | null
+          dead_letter: boolean
           error: string | null
           id: string
           kind: string
           message: string
           meta: Json
+          next_retry_at: string | null
+          reminder_type: string | null
+          retry_count: number
           status: string
           to_number: string
           twilio_sid: string | null
@@ -3625,13 +3631,19 @@ export type Database = {
         }
         Insert: {
           appointment_id?: string | null
+          booking_token?: string | null
+          confirmation_link?: string | null
           created_at?: string
           customer_id?: string | null
+          dead_letter?: boolean
           error?: string | null
           id?: string
           kind?: string
           message: string
           meta?: Json
+          next_retry_at?: string | null
+          reminder_type?: string | null
+          retry_count?: number
           status?: string
           to_number: string
           twilio_sid?: string | null
@@ -3639,13 +3651,19 @@ export type Database = {
         }
         Update: {
           appointment_id?: string | null
+          booking_token?: string | null
+          confirmation_link?: string | null
           created_at?: string
           customer_id?: string | null
+          dead_letter?: boolean
           error?: string | null
           id?: string
           kind?: string
           message?: string
           meta?: Json
+          next_retry_at?: string | null
+          reminder_type?: string | null
+          retry_count?: number
           status?: string
           to_number?: string
           twilio_sid?: string | null
