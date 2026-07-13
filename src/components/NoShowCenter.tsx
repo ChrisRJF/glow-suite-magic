@@ -31,6 +31,7 @@ export function NoShowCenter() {
   const [confirmed, setConfirmed] = useState(0);
   const [depositsRequested, setDepositsRequested] = useState(0);
   const [deliveryFailed, setDeliveryFailed] = useState(0);
+  const [activeRetries, setActiveRetries] = useState(0);
 
   const [salonTz, setSalonTz] = useState<string>("Europe/Amsterdam");
 
