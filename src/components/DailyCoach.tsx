@@ -89,7 +89,7 @@ export function DailyCoach() {
     // 3. No-show risico morgen
     const riskTomorrow = tomorrows.filter(a => {
       const c = customers.find(x => x.id === a.customer_id);
-      return c && ((c.no_show_count || 0) > 0 || (c.cancellation_count || 0) > 1);
+      return c && calculateNoShowRisk(c).isElevated;
     });
     if (riskTomorrow.length >= 1) {
       list.push({
