@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getDefaultMessageTemplate, normalizeMessageLang, renderMessage, intlLocale, resolveCustomerLanguage } from "../_shared/messageTranslations.ts";
+import { appendConfirmationBlock, buildConfirmationLink, claimReminderDispatch } from "../_shared/reminderEngine.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
