@@ -2251,6 +2251,24 @@ export type Database = {
         }
         Relationships: []
       }
+      public_rate_limits: {
+        Row: {
+          bucket_key: string
+          hit_count: number
+          window_ends_at: string
+        }
+        Insert: {
+          bucket_key: string
+          hit_count?: number
+          window_ends_at: string
+        }
+        Update: {
+          bucket_key?: string
+          hit_count?: number
+          window_ends_at?: string
+        }
+        Relationships: []
+      }
       rebook_actions: {
         Row: {
           created_at: string
@@ -2532,6 +2550,27 @@ export type Database = {
         }
         Relationships: []
       }
+      reminder_dispatch_claims: {
+        Row: {
+          appointment_id: string
+          channel: string
+          claimed_at: string
+          reminder_type: string
+        }
+        Insert: {
+          appointment_id: string
+          channel: string
+          claimed_at?: string
+          reminder_type: string
+        }
+        Update: {
+          appointment_id?: string
+          channel?: string
+          claimed_at?: string
+          reminder_type?: string
+        }
+        Relationships: []
+      }
       review_prompts: {
         Row: {
           created_at: string
@@ -2562,6 +2601,27 @@ export type Database = {
           shown_at?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      scheduler_locks: {
+        Row: {
+          acquired_at: string
+          expires_at: string
+          holder: string | null
+          lock_name: string
+        }
+        Insert: {
+          acquired_at?: string
+          expires_at: string
+          holder?: string | null
+          lock_name: string
+        }
+        Update: {
+          acquired_at?: string
+          expires_at?: string
+          holder?: string | null
+          lock_name?: string
         }
         Relationships: []
       }
@@ -3904,6 +3964,18 @@ export type Database = {
       can_manage_operations: { Args: { _user_id: string }; Returns: boolean }
       can_manage_users: { Args: { _user_id: string }; Returns: boolean }
       can_view_finance: { Args: { _user_id: string }; Returns: boolean }
+      check_public_rate_limit: {
+        Args: { _bucket: string; _max: number; _window_seconds: number }
+        Returns: boolean
+      }
+      claim_reminder_dispatch: {
+        Args: {
+          _appointment_id: string
+          _channel: string
+          _reminder_type: string
+        }
+        Returns: boolean
+      }
       current_account_is_demo: { Args: never; Returns: boolean }
       ensure_referral_code: { Args: { _user_id: string }; Returns: string }
       has_any_role: {
@@ -3930,9 +4002,23 @@ export type Database = {
         Args: { _order_id: string }
         Returns: boolean
       }
+      release_scheduler_lock: { Args: { _name: string }; Returns: undefined }
       reset_due_membership_credits: {
         Args: { _user_id: string }
         Returns: number
+      }
+      set_noshow_prevention: {
+        Args: {
+          _booking_confirmation_template: string
+          _enabled: boolean
+          _no_show_template: string
+          _reminder_template: string
+        }
+        Returns: undefined
+      }
+      try_acquire_scheduler_lock: {
+        Args: { _holder?: string; _name: string; _ttl_seconds?: number }
+        Returns: boolean
       }
       user_row_matches_active_mode: {
         Args: { _row_is_demo: boolean; _row_user_id: string }
