@@ -4,6 +4,7 @@
  * Pure functions — no DB writes. Callers decide whether to execute
  * (live mode) or simulate (demo mode) the resulting decisions.
  */
+import { calculateNoShowRisk } from "./noShowRisk";
 
 export type AutopilotAction =
   | "waitlist_offer"
