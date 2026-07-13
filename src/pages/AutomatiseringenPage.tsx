@@ -83,19 +83,7 @@ const AUTOMATIONS: AutoDef[] = [
     status: "live",
     icon: Sparkles,
   },
-  {
-    key: "no_show",
-    title: "No-show follow-up",
-    description: "Bericht naar klanten die niet zijn verschenen, om opnieuw in te plannen.",
-    trigger: "Status afspraak: no-show (binnen 24 uur)",
-    action: "WhatsApp follow-up versturen",
-    templateLabel: "No-show",
-    templateType: "no_show",
-    settingsFlag: "send_no_show_followup",
-    logKind: "no_show",
-    status: "live",
-    icon: UserX,
-  },
+  // No-show follow-up leeft nu in NoShowCenter (één centrale hub).
   {
     key: "revenue_boost",
     title: "Revenue Boost",
