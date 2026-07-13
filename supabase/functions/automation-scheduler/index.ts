@@ -328,8 +328,26 @@ Deno.serve(async (req) => {
 
     for (const run of dueRuns) {
       try {
+        const payload = (run.payload || {}) as any;
+        // Cross-channel canonical claim for reminder-type sends: any run tied
+        // to a real appointment whose payload is an appointment reminder must
+        // race for the shared claim so WA + email can't both fire.
+        const reminderType = payload.reminder_hours_before || payload.reminder_schedule_label
+          ? "reminder"
+          : null;
+        if (reminderType && payload.appointment_id) {
+          const won = await claimReminderDispatch(admin, payload.appointment_id, reminderType, run.channel === "email" ? "email" : "whatsapp");
+          if (!won) {
+            await admin.from("automation_runs").update({
+              status: "skipped",
+              processed_at: new Date().toISOString(),
+              error_message: "reminder_already_claimed",
+            }).eq("id", run.id);
+            continue;
+          }
+        }
+
         if (run.channel === "email" && run.recipient) {
-          const payload = run.payload || {};
           const { error } = await admin.functions.invoke("send-white-label-email", {
             body: {
               user_id: run.user_id,
@@ -345,7 +363,6 @@ Deno.serve(async (req) => {
           });
           if (error) throw new Error(error.message || "email invoke failed");
         } else if (run.channel === "whatsapp" && run.recipient) {
-          const payload = run.payload || {};
           const { data: waResp, error: waErr } = await admin.functions.invoke("whatsapp-send", {
             body: {
               user_id: run.user_id,
@@ -374,6 +391,9 @@ Deno.serve(async (req) => {
     }
 
     return json({ success: true, scheduled, skipped, duplicates, ai_skipped: aiSkipped, processed: dueRuns.length, sent, retried, failed });
+    } finally {
+      await releaseSchedulerLock(admin, "automation-scheduler");
+    }
   } catch (error) {
     return json({ error: (error as Error).message || "Automation scheduler failed" }, 500);
   }
