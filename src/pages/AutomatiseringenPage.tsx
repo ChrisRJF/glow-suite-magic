@@ -17,7 +17,6 @@ import {
   Gift,
   MessageCircle,
   Sparkles,
-  UserX,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
