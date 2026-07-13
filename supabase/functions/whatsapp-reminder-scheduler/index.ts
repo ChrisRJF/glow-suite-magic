@@ -321,6 +321,15 @@ Deno.serve(async (req) => {
           continue;
         }
 
+        // Cross-channel canonical claim — DB-level guarantee that only one
+        // sender (WA or email, any scheduler) ever wins this reminder.
+        const claimed = await claimReminderDispatch(admin, appt.id, "reminder", "whatsapp");
+        if (!claimed) {
+          stats.skipped++;
+          stats.windows.push({ user_id: s.user_id, appt_id: appt.id, skipped_reason: "already_claimed" });
+          continue;
+        }
+
         const { data: profile } = await admin
           .from("profiles")
           .select("salon_name")
