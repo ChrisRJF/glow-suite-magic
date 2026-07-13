@@ -83,6 +83,9 @@ interface TplStrings {
     cta_manage: string;
     cta_route: string;
     cta_calendar: string;
+    cta_confirm: string;
+    cta_decline: string;
+    confirm_intro: string;
     note_title: string;
     note_default_tip: string;
     note_reschedule: string;
