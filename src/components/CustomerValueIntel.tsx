@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { formatEuro } from "@/lib/data";
 import { Send, Calendar, Sparkles, TrendingUp, AlertCircle } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
+import { calculateNoShowRisk } from "@/lib/noShowRisk";
 
 interface Props {
   customer: Tables<"customers">;
