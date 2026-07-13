@@ -183,6 +183,11 @@ Deno.serve(async (req) => {
       error: ok ? null : safeError(twData),
       kind,
       meta: logMeta,
+      reminder_type,
+      booking_token,
+      confirmation_link,
+      retry_count: 0,
+      next_retry_at: ok ? null : new Date(Date.now() + 60 * 1000).toISOString(),
     });
 
     // Race-safe dedup
