@@ -168,6 +168,9 @@ export function NoShowCenter() {
     { label: "Bevestigd", value: confirmed, icon: CheckCircle2, dot: "bg-emerald-500" },
     { label: "Hoog risico", value: highRisk, icon: AlertTriangle, dot: "bg-amber-500" },
     { label: "Aanbetaling gevraagd", value: depositsRequested, icon: Wallet, dot: "bg-violet-500" },
+    ...(activeRetries > 0
+      ? [{ label: "Nieuwe poging gepland", value: activeRetries, icon: BellRing, dot: "bg-sky-500" }]
+      : []),
     ...(deliveryFailed > 0
       ? [{ label: "Niet afgeleverd", value: deliveryFailed, icon: AlertTriangle, dot: "bg-rose-500" }]
       : []),
