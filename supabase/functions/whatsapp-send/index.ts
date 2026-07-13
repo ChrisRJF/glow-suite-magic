@@ -153,8 +153,8 @@ Deno.serve(async (req) => {
 
     console.log("whatsapp-send result", {
       user_id,
-      to: waTo,
-      from: fromNumber,
+      to: maskPhone(waTo),
+      from: maskPhone(fromNumber),
       kind,
       http: twResp.status,
       twilio_status: twStatus,
