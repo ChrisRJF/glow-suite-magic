@@ -39,7 +39,7 @@ export default function CustomersPage() {
       const daysSinceLast = lastAppt ? Math.floor((Date.now() - new Date(lastAppt.appointment_date).getTime()) / 86400000) : 999;
       const avgSpend = custAppts.length > 0 ? custAppts.reduce((s, a) => s + (Number(a.price) || 0), 0) / custAppts.length : 0;
       const isVip = c.is_vip || ((Number(c.total_spent) || 0) > 500 && custAppts.length >= 5);
-      const isRisk = (c.no_show_count || 0) > 0 || (c.cancellation_count || 0) > 2;
+      const isRisk = calculateNoShowRisk(c).isElevated;
       const isNew = custAppts.length <= 2;
       const label = isVip ? "VIP" : isRisk ? "Risico" : isNew ? "Nieuw" : "Regulier";
       return { ...c, custAppts, lastAppt, daysSinceLast, avgSpend, label, isVip, isRisk, isNew };
