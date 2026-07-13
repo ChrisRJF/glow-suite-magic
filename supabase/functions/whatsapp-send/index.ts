@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
         booking_token,
         confirmation_link,
       });
-      console.log("whatsapp-send simulated (demo)", { user_id, kind, to });
+      console.log("whatsapp-send simulated (demo)", { user_id, kind, to: maskPhone(to) });
       return new Response(
         JSON.stringify({ success: true, demo: true, simulated: true, status: "demo" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
