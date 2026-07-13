@@ -243,10 +243,10 @@ export default function GlowSuiteAIPage() {
       )[0];
       const daysSince = last ? (now - new Date(last.appointment_date).getTime()) / DAY : Infinity;
       const spent = Number(c.total_spent || 0);
-      const noShows = Number(c.no_show_count || 0);
+      const risk = calculateNoShowRisk(c);
       if (spent >= 300) vips++;
       if (visits.length >= 6) frequent++;
-      if (noShows >= 2) noShowRisk++;
+      if (risk.isHigh) noShowRisk++;
       if (daysSince > 60 && visits.length >= 1) {
         churnRisk++;
         if (daysSince !== Infinity && daysSince > maxDaysSinceChurn) maxDaysSinceChurn = daysSince;
