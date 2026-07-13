@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { calculateNoShowRisk } from "@/lib/noShowRisk";
 
 interface PaymentSettings {
   deposit_new_client?: boolean;
