@@ -398,12 +398,12 @@ export default function GlowSuiteAIPage() {
         ? Math.round((Date.now() - new Date(last.appointment_date).getTime()) / (1000 * 60 * 60 * 24))
         : null;
       const spent = Number(c.total_spent || 0);
-      const noShows = Number(c.no_show_count || 0);
+      const risk = calculateNoShowRisk(c);
       const badges: { label: string; tone: string }[] = [];
       if (spent >= 500) badges.push({ label: "VIP", tone: "bg-primary/15 text-primary border-primary/30" });
       if (visits.length >= 6) badges.push({ label: "Frequent", tone: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30 dark:text-emerald-400" });
       if (daysSince !== null && daysSince > 60) badges.push({ label: "Dreigt af te haken", tone: "bg-amber-500/10 text-amber-600 border-amber-500/30 dark:text-amber-400" });
-      if (noShows >= 2) badges.push({ label: "No-show risico", tone: "bg-rose-500/10 text-rose-600 border-rose-500/30 dark:text-rose-400" });
+      if (risk.isHigh) badges.push({ label: "No-show risico", tone: "bg-rose-500/10 text-rose-600 border-rose-500/30 dark:text-rose-400" });
       return {
         id: c.id,
         name: c.name,
