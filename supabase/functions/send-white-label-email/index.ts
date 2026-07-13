@@ -197,12 +197,29 @@ function template(key: TemplateKey, data: Record<string, unknown>, salonName: st
       [sh.row_location, data.location || data.address],
     ]);
     const calendarLink = calendarUrl ? `<a href="${escapeHtml(calendarUrl)}" style="display:block;background:#ffffff;color:${secondary};text-decoration:none;border:1px solid #E9DFF7;border-radius:14px;padding:13px 18px;font-size:14px;font-weight:750;text-align:center;margin:0 0 16px;">${escapeHtml(t.cta_calendar)}</a>` : "";
-    const body = rows + calendarLink + noteBlock(t.note_title, [data.preparation_tip || t.note_default_tip, t.note_reschedule, data.aftercare_note]);
+    // Explicit Ja / Nee confirmation buttons — only shown when we have a
+    // confirmation link (built from the appointment booking token). Falls back
+    // to the standard "Manage" CTA when the link is missing.
+    const confirmUrl = String(data.confirm_url || "").trim();
+    const declineUrl = String(data.decline_url || "").trim();
+    const hasConfirmFlow = /^https?:\/\//i.test(confirmUrl) && /^https?:\/\//i.test(declineUrl);
+    const confirmBlock = hasConfirmFlow
+      ? `<div style="margin:18px 0 10px;"><p style="margin:0 0 10px;color:#111827;font-size:14px;font-weight:700;text-align:center;">${escapeHtml(t.confirm_intro)}</p><a href="${escapeHtml(confirmUrl)}" style="display:block;background:${accent};color:#ffffff;text-decoration:none;border-radius:14px;padding:15px 18px;font-size:15px;font-weight:800;text-align:center;margin:0 0 10px;">${escapeHtml(t.cta_confirm)}</a><a href="${escapeHtml(declineUrl)}" style="display:block;background:#ffffff;color:#111827;text-decoration:none;border:1px solid #E5E7EB;border-radius:14px;padding:13px 18px;font-size:14px;font-weight:700;text-align:center;margin:0;">${escapeHtml(t.cta_decline)}</a></div>`
+      : "";
+    const body = rows + calendarLink + confirmBlock + noteBlock(t.note_title, [data.preparation_tip || t.note_default_tip, t.note_reschedule, data.aftercare_note]);
+    // If we have the confirm flow, keep "Beheer je afspraak" as the secondary
+    // CTA (a smaller link). Otherwise it stays as the primary action.
+    const primaryAction = hasConfirmFlow
+      ? undefined
+      : { label: t.cta_manage, url: manageUrl };
+    const secondaryAction = hasConfirmFlow
+      ? { label: t.cta_manage, url: manageUrl }
+      : { label: t.cta_route, url: contactUrl };
     return {
       subject: t.subject(salonName, dateShort || ""),
       preview: intro,
-      html: shell({ ...base, title, intro, body, primaryAction: { label: t.cta_manage, url: manageUrl }, secondaryAction: { label: t.cta_route, url: contactUrl } }),
-      text: `${title}\n${intro}\n${formatDateLong(data.appointment_date || data.date, lang)} ${String(data.time || data.start_time || "")}`,
+      html: shell({ ...base, title, intro, body, primaryAction, secondaryAction }),
+      text: `${title}\n${intro}\n${formatDateLong(data.appointment_date || data.date, lang)} ${String(data.time || data.start_time || "")}${hasConfirmFlow ? `\n\n${t.confirm_intro}\n${t.cta_confirm}: ${confirmUrl}\n${t.cta_decline}: ${declineUrl}` : ""}`,
     };
   }
 
