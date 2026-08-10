@@ -478,7 +478,19 @@ Deno.serve(async (req) => {
       }
       if (ledgerId) {
         await supabase.from("viva_webhook_events")
-          .update({ error: "payment_not_found", processed: false })
+          .update({ error: "payment_not_found", processed: false, user_id: merchantOwnerUserId })
+          .eq("id", ledgerId);
+      }
+      return okText();
+    }
+
+    // Cross-merchant guard: if the event names a merchant, the matched payment
+    // must belong to that merchant's salon. Never attribute across tenants.
+    if (merchantOwnerUserId && payment.user_id !== merchantOwnerUserId) {
+      console.warn("[viva-webhook] cross_merchant_mismatch — event dropped");
+      if (ledgerId) {
+        await supabase.from("viva_webhook_events")
+          .update({ error: "cross_merchant_mismatch", processed: false, suspicious: true, suspicious_reason: "cross_merchant_mismatch" })
           .eq("id", ledgerId);
       }
       return okText();
@@ -490,8 +502,10 @@ Deno.serve(async (req) => {
         user_id: payment.user_id,
         is_demo: !!payment.is_demo,
         payment_id: payment.id,
+        viva_merchant_id: eventMerchantId || payment.viva_merchant_id || null,
       }).eq("id", ledgerId);
     }
+
 
     if (payment.is_demo) {
       if (ledgerId) await supabase.from("viva_webhook_events").update({ processed: true, processed_at: new Date().toISOString() }).eq("id", ledgerId);
