@@ -364,18 +364,37 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // ---- MERCHANT RESOLUTION (ISV) ----
+    // 1. Event carries MerchantId -> map via glowpay_connected_merchants.
+    // 2. Local payment/order/transaction mapping -> payment.user_id.
+    // 3. ParentId / OrderCode / transaction ID fallbacks (below).
+    // An event is never attributed to more than one salon.
+    let merchantOwnerUserId: string | null = null;
+    if (eventMerchantId) {
+      const { data: mRows } = await supabase
+        .from("glowpay_connected_merchants")
+        .select("id, user_id")
+        .eq("viva_merchant_id", eventMerchantId)
+        .limit(2);
+      if (mRows && mRows.length === 1) merchantOwnerUserId = mRows[0].user_id;
+      else if (mRows && mRows.length > 1) {
+        console.warn("[viva-webhook] ambiguous merchant mapping — refusing to attribute");
+      }
+    }
+
     // Locate payment by orderCode or stored transactionId.
     let payment: any = null;
     if (orderCode) {
-      const { data } = await supabase
+      let q = supabase
         .from("payments")
         .select("*")
         .or(`mollie_payment_id.eq.${orderCode},checkout_reference.eq.${orderCode}`)
-        .eq("provider", "viva")
-        .limit(1)
-        .maybeSingle();
+        .eq("provider", "viva");
+      if (merchantOwnerUserId) q = q.eq("user_id", merchantOwnerUserId);
+      const { data } = await q.limit(1).maybeSingle();
       payment = data;
     }
+
     // Terminal payments: merchantReference == payment.id (UUID). Also lookup by
     // session_id stored in metadata so we never miss the final webhook.
     if (!payment && merchantReference && UUID_RE.test(merchantReference)) {
