@@ -2,6 +2,8 @@
 // POST /functions/v1/create-viva-terminal-payment
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { vivaPosEnv, getVivaPosAccessToken, isVivaPosConfigured, vivaPosSourceCode, vivaPosCredentialKind } from "../_shared/viva.ts";
+import { requireMerchantContext, isvWarn, maskId } from "../_shared/vivaIsv.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
