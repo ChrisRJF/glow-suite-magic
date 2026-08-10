@@ -748,6 +748,94 @@ Deno.serve(async (req) => {
 
     }
 
+    // -------- AUTO REBOOK DEAD-LETTER FALLBACK --------
+    // WhatsApp gave up after all retries. Try exactly ONE canonical email
+    // fallback (never a second full retry cycle), otherwise notify the salon
+    // in plain language. Idempotency lives in meta.dl_handled + the email
+    // idempotency key, so two channels can never both deliver.
+    try {
+      const { data: dlRows } = await admin
+        .from("whatsapp_logs")
+        .select("id, user_id, customer_id, meta")
+        .eq("reminder_type", "auto_rebook")
+        .eq("dead_letter", true)
+        .eq("status", "failed")
+        .is("meta->>dl_handled", null)
+        .limit(30);
+
+      for (const row of dlRows || []) {
+        const meta = (row.meta as any) || {};
+        const markHandled = async (how: string) =>
+          admin.from("whatsapp_logs")
+            .update({ meta: { ...meta, dl_handled: how, dl_handled_at: new Date().toISOString() } })
+            .eq("id", row.id);
+
+        if (!row.customer_id) { await markHandled("no_customer"); continue; }
+
+        const guard = await canStillSendRebook(admin, row.user_id, row.customer_id);
+        if (!guard.allowed) { await markHandled(`suppressed:${guard.reason}`); continue; }
+
+        const [{ data: cust }, { data: pref }, { data: cfg }, { data: prof }] = await Promise.all([
+          admin.from("customers").select("id, name, email, preferred_language").eq("id", row.customer_id).maybeSingle(),
+          admin.from("customer_message_preferences").select("email_opt_out").eq("user_id", row.user_id).eq("customer_id", row.customer_id).maybeSingle(),
+          admin.from("settings").select("email_enabled, public_slug").eq("user_id", row.user_id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+          admin.from("profiles").select("salon_name").eq("user_id", row.user_id).maybeSingle(),
+        ]);
+
+        const emailOk = Boolean(cust?.email) && !pref?.email_opt_out && Boolean(cfg?.email_enabled ?? true);
+        let delivered = false;
+        if (emailOk) {
+          try {
+            const res = await admin.functions.invoke("send-white-label-email", {
+              body: {
+                user_id: row.user_id,
+                salon_name: prof?.salon_name || "ons salon",
+                salon_slug: cfg?.public_slug || undefined,
+                recipient_email: cust.email,
+                recipient_name: cust.name || "",
+                template_key: "auto_rebook",
+                idempotency_key: `auto-rebook-${meta.rebook_action_id || row.id}`,
+                language: normalizeMessageLang(cust.preferred_language || "nl"),
+                template_data: {
+                  customer_name: cust.name || "",
+                  salon_name: prof?.salon_name || "ons salon",
+                  rebook_url: meta.booking_link || "",
+                  booking_url: meta.booking_link || "",
+                },
+              },
+            });
+            delivered = !res.error;
+          } catch (_) { delivered = false; }
+        }
+
+        if (delivered) {
+          if (meta.rebook_action_id) {
+            await admin.from("rebook_actions").update({
+              status: "verzonden", channel: "email", sent_at: new Date().toISOString(),
+            }).eq("id", meta.rebook_action_id).is("booked_at", null);
+          }
+          await markHandled("email_fallback");
+        } else {
+          await admin.from("admin_notifications").insert({
+            user_id: row.user_id,
+            type: "auto_rebook_undeliverable",
+            severity: "warning",
+            title: "Een Auto Rebook-bericht kon niet worden verstuurd.",
+            body: "We hebben deze klant niet kunnen bereiken via WhatsApp of e-mail. Neem eventueel zelf contact op.",
+            payload: { customer_id: row.customer_id, log_id: row.id },
+            link: "/herboekingen",
+          });
+          if (meta.rebook_action_id) {
+            await admin.from("rebook_actions").update({ status: "mislukt" })
+              .eq("id", meta.rebook_action_id).is("booked_at", null);
+          }
+          await markHandled("merchant_notified");
+        }
+      }
+    } catch (e) {
+      stats.errors.push(`auto_rebook dead_letter: ${e instanceof Error ? e.message : "unknown"}`);
+    }
+
     // -------- AUTO REBOOK SWEEP -------- (klant_retention)
     // Fair, resumable round-robin across salons with keyset-paginated
     // customer batches. No salon or customer is silently truncated.
