@@ -11,6 +11,15 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 const REF_STORAGE_KEY = "gs_ref_code";
 
+/** Same-origin relative path preserved across sign-in (used by the OAuth consent flow). */
+function safeNextPath(): string | null {
+  if (typeof window === "undefined") return null;
+  const raw = new URLSearchParams(window.location.search).get("next");
+  if (!raw) return null;
+  if (!raw.startsWith("/") || raw.startsWith("//")) return null;
+  return raw;
+}
+
 export default function LoginPage() {
   useLanguagePersistence();
   const { t } = useTranslation();
@@ -45,12 +54,15 @@ export default function LoginPage() {
       const params = new URLSearchParams(window.location.search);
       const plan = params.get("plan") || undefined;
       const wantsCheckout = params.get("checkout") === "1";
+      const nextPath = safeNextPath();
       if (isSignUp) {
         trackEvent("signup_started", { plan, ref_code: refCode });
         const { error } = await supabase.auth.signUp({
           email, password,
           options: {
-            emailRedirectTo: `${window.location.origin}/${wantsCheckout && plan ? `?checkout=1&plan=${plan}` : ""}`,
+            emailRedirectTo: nextPath
+              ? `${window.location.origin}${nextPath}`
+              : `${window.location.origin}/${wantsCheckout && plan ? `?checkout=1&plan=${plan}` : ""}`,
             data: {
               ...(plan ? { plan } : {}),
               ...(salonName.trim() ? { salon_name: salonName.trim() } : {}),
@@ -76,6 +88,10 @@ export default function LoginPage() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast.success(t("auth.toasts.welcomeBack"));
+        if (nextPath) {
+          window.location.href = nextPath;
+          return;
+        }
         if (wantsCheckout && plan) {
           window.location.href = `/?checkout=1&plan=${plan}`;
           return;
