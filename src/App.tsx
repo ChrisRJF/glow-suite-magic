@@ -53,6 +53,7 @@ import PublicActionPage from "./pages/PublicActionPage";
 import LandingPage from "./pages/LandingPage";
 import PricingPage from "./pages/PricingPage";
 import MijnAbonnementPage from "./pages/MijnAbonnementPage";
+import OAuthConsentPage from "./pages/OAuthConsentPage";
 import { useLeadAutomation } from "@/hooks/useLeadAutomation";
 import { OnboardingGate } from "@/components/OnboardingGate";
 
@@ -104,6 +105,7 @@ const App = () => (
             <Routes>
               <Route path="/login" element={<AuthRoute><LoginPage /></AuthRoute>} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
+              <Route path="/.lovable/oauth/consent" element={<OAuthConsentPage />} />
               <Route path="/integrations/mollie/callback" element={<MollieCallbackPage />} />
               <Route path="/payment/success" element={<PaymentSuccessPage />} />
               <Route path="/payment/failed" element={<PaymentFailedPage />} />
