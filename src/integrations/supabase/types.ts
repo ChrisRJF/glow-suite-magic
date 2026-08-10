@@ -4047,21 +4047,13 @@ export type Database = {
       }
     }
     Functions: {
-      auto_rebook_candidates:
-        | {
-            Args: { _max_customers?: number }
-            Returns: {
-              appointments: Json
-              customer_id: string
-            }[]
-          }
-        | {
-            Args: { _max_customers?: number; _offset?: number }
-            Returns: {
-              appointments: Json
-              customer_id: string
-            }[]
-          }
+      auto_rebook_candidates: {
+        Args: { _max_customers?: number; _offset?: number }
+        Returns: {
+          appointments: Json
+          customer_id: string
+        }[]
+      }
       bootstrap_current_user: { Args: never; Returns: Json }
       can_manage_operations: { Args: { _user_id: string }; Returns: boolean }
       can_manage_users: { Args: { _user_id: string }; Returns: boolean }
