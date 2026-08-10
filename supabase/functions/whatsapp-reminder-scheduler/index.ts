@@ -167,7 +167,12 @@ Deno.serve(async (req) => {
         // possible new booking BEFORE every retry. A blocked retry is
         // suppressed, never counted as a delivery failure.
         if (row.reminder_type === "auto_rebook" && row.customer_id) {
-          const guard = await canStillSendRebook(admin, row.user_id, row.customer_id);
+          const guard = await canStillSendRebook(
+            admin,
+            row.user_id,
+            row.customer_id,
+            (row.meta as any)?.rebook_action_id || null,
+          );
           if (!guard.allowed) {
             await admin.from("whatsapp_logs").update({
               dead_letter: true,
@@ -772,7 +777,7 @@ Deno.serve(async (req) => {
 
         if (!row.customer_id) { await markHandled("no_customer"); continue; }
 
-        const guard = await canStillSendRebook(admin, row.user_id, row.customer_id);
+        const guard = await canStillSendRebook(admin, row.user_id, row.customer_id, meta.rebook_action_id || null);
         if (!guard.allowed) { await markHandled(`suppressed:${guard.reason}`); continue; }
 
         const [{ data: cust }, { data: pref }, { data: cfg }, { data: prof }] = await Promise.all([
