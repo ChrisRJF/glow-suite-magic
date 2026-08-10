@@ -140,6 +140,27 @@ Deno.serve(async (req) => {
       manual: true,
     };
 
+    // Audit trail for manual sends. No PII: only ids and decision metadata.
+    const auditManualSend = async (channel: string) => {
+      await admin.from("audit_logs").insert({
+        user_id: userId,
+        actor_user_id: userId,
+        action: "auto_rebook_manual_send",
+        target_type: "rebook_action",
+        target_id: claimRow.id,
+        is_demo: false,
+        details: {
+          channel,
+          customer_id,
+          interval_source: decision.interval_source,
+          interval_days: decision.recommended_interval_days,
+          days_overdue: decision.days_overdue,
+          reason: decision.reason,
+          forced: Boolean(force) && !decision.should_rebook,
+        },
+      });
+    };
+
     if (chan.channel === "whatsapp") {
       const resp = await fetch(`${SUPABASE_URL}/functions/v1/whatsapp-send`, {
         method: "POST",
@@ -160,6 +181,7 @@ Deno.serve(async (req) => {
         return json(502, { error: "send_failed" });
       }
       await admin.from("rebook_actions").update({ status: "verzonden", channel: "whatsapp", sent_at: new Date().toISOString() }).eq("id", claimRow.id);
+      await auditManualSend("whatsapp");
       return json(200, { success: true, channel: "whatsapp", booking_link: bookingLink });
     }
 
@@ -188,6 +210,7 @@ Deno.serve(async (req) => {
       return json(502, { error: "send_failed" });
     }
     await admin.from("rebook_actions").update({ status: "verzonden", channel: "email", sent_at: new Date().toISOString() }).eq("id", claimRow.id);
+    await auditManualSend("email");
     await admin.from("whatsapp_logs").insert({
       user_id: userId,
       customer_id,
