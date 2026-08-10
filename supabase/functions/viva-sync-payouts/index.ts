@@ -14,7 +14,12 @@
 // Does NOT touch Mollie, bookings, appointments, redirect fallback or reconcile cron.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import { vivaEnv, getVivaAccessToken, isVivaConfigured } from "../_shared/viva.ts";
+import {
+  getIsvSettlements,
+  hasResellerBasicCredentials,
+  isvWarn,
+  maskId,
+} from "../_shared/vivaIsv.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -42,30 +47,17 @@ interface VivaSettlementRow {
   statusId?: string;
 }
 
-async function fetchSettlements(fromDate: string, toDate: string): Promise<VivaSettlementRow[]> {
-  const env = vivaEnv();
-  const token = await getVivaAccessToken();
-  // Viva exposes settlement transactions via /acquiring/v1/transactions
-  const url = `${env.api}/acquiring/v1/transactions?DateFrom=${fromDate}&DateTo=${toDate}`;
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } });
-  const text = await res.text();
-  if (!res.ok) {
-    throw new Error(`Viva settlements fetch failed (${res.status}): ${text.slice(0, 300)}`);
-  }
-  let data: any = {};
-  try { data = JSON.parse(text); } catch { data = {}; }
-  const rows: VivaSettlementRow[] = Array.isArray(data) ? data
-    : Array.isArray(data?.transactions) ? data.transactions
-    : Array.isArray(data?.data) ? data.data
-    : [];
-  return rows;
-}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
-  if (!isVivaConfigured()) return json({ error: "viva_not_configured" }, 400);
+  // Payout retrieval is merchant scoped and requires the reseller Basic-auth
+  // credentials. Without them we refuse rather than fall back to a single
+  // platform merchant dataset (that would leak data across salons).
+  if (!hasResellerBasicCredentials()) {
+    return json({ error: "reseller_credentials_missing" }, 400);
+  }
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -81,36 +73,43 @@ Deno.serve(async (req) => {
   const fromDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
   const fmt = (d: Date) => d.toISOString().slice(0, 10);
 
-  // Resolve users to sync (only live merchants with viva payments)
-  let users: { user_id: string }[] = [];
-  if (targetUserId) {
-    users = [{ user_id: targetUserId }];
-  } else {
-    const { data } = await supabase
-      .from("payments")
-      .select("user_id")
-      .eq("provider", "viva")
-      .eq("is_demo", false)
-      .gte("created_at", fromDate.toISOString());
-    const seen = new Set<string>();
-    for (const r of data || []) {
-      if (r.user_id && !seen.has(r.user_id)) { seen.add(r.user_id); users.push({ user_id: r.user_id }); }
-    }
-  }
+  // Resolve merchants to sync. The merchant mapping is the only source of
+  // truth: one connected merchant -> exactly one salon (user_id).
+  let mq = supabase
+    .from("glowpay_connected_merchants")
+    .select("user_id, viva_merchant_id, viva_source_code")
+    .eq("is_demo", false)
+    .not("viva_merchant_id", "is", null);
+  if (targetUserId) mq = mq.eq("user_id", targetUserId);
+  const { data: merchants } = await mq;
 
-  let settlements: VivaSettlementRow[] = [];
-  try {
-    settlements = await fetchSettlements(fmt(fromDate), fmt(toDate));
-  } catch (e) {
-    console.error("[viva-sync-payouts] fetch failed", e);
-    return json({ error: String((e as Error).message || e) }, 502);
-  }
+  const targets = (merchants || []).filter((m: any) => m.user_id && m.viva_merchant_id);
+  if (targets.length === 0) return json({ ok: true, users_synced: 0, payouts_upserted: 0, transactions_upserted: 0, mismatches: 0 });
 
   let totalPayouts = 0;
   let totalTx = 0;
   let mismatches = 0;
+  const failedMerchants: string[] = [];
 
-  for (const u of users) {
+  for (const m of targets as any[]) {
+    const u = { user_id: m.user_id as string };
+    const merchantId = String(m.viva_merchant_id);
+
+    // Merchant-scoped retrieval: rows returned here belong to this merchant only.
+    let settlements: VivaSettlementRow[] = [];
+    try {
+      settlements = await getIsvSettlements(merchantId, fmt(fromDate), fmt(toDate)) as VivaSettlementRow[];
+    } catch (e) {
+      isvWarn("settlement_fetch_failed", {
+        fn: "viva-sync-payouts",
+        user_id: u.user_id,
+        merchant_id: maskId(merchantId),
+        message: String((e as Error)?.message || "error"),
+      });
+      failedMerchants.push(maskId(merchantId));
+      continue;
+    }
+
     // Group settlements by settlementId (one payout per settlement)
     const byPayout = new Map<string, VivaSettlementRow[]>();
     for (const row of settlements) {
@@ -131,8 +130,9 @@ Deno.serve(async (req) => {
           user_id: u.user_id,
           is_demo: false,
           payout_id: payoutId,
-          merchant_id: Deno.env.get("VIVA_MERCHANT_ID") || null,
-          source_code: Deno.env.get("VIVA_SOURCE_CODE") || null,
+          merchant_id: merchantId,
+          source_code: m.viva_source_code || null,
+
           gross_amount: gross.toFixed(2),
           fee_amount: fee.toFixed(2),
           net_amount: net.toFixed(2),
@@ -215,10 +215,12 @@ Deno.serve(async (req) => {
 
   return json({
     ok: true,
-    users_synced: users.length,
+    users_synced: targets.length - failedMerchants.length,
+    merchants_failed: failedMerchants.length,
     payouts_upserted: totalPayouts,
     transactions_upserted: totalTx,
     mismatches,
     range: { from: fmt(fromDate), to: fmt(toDate) },
+
   });
 });

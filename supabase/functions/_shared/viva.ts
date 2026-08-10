@@ -190,16 +190,18 @@ export async function createVivaOrder(args: CreateVivaOrderArgs): Promise<Create
       placeholder_source_code: true,
     }));
   }
+  // Safe logging: never dump the payload (it carries customer name/email/phone).
   console.log(JSON.stringify({
     fn: "createVivaOrder",
     stage: "request",
+    scope: "platform",
     url,
     method: "POST",
     environment,
-    sourceCode: sourceCode || null,
-    source_code_omitted: !sourceCode,
-    payload,
+    source_code_present: Boolean(sourceCode),
+    amount_cents: Math.round(args.amountCents),
   }));
+
 
   const res = await fetch(url, {
     method: "POST",
@@ -218,8 +220,10 @@ export async function createVivaOrder(args: CreateVivaOrderArgs): Promise<Create
     stage: "response",
     http_status: res.status,
     ok: res.ok,
-    viva_body: data,
+    viva_error_code: data?.ErrorCode ?? data?.errorCode ?? null,
+    order_code: data?.orderCode != null ? String(data.orderCode) : null,
   }));
+
 
   if (!res.ok || data?.orderCode == null) {
     const err: any = new Error(`Viva order error (${res.status}): ${JSON.stringify(data)}`);

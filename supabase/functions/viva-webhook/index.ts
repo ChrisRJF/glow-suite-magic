@@ -5,6 +5,8 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getVivaTransaction } from "../_shared/viva.ts";
+import { getIsvTransactionById, hasResellerBasicCredentials } from "../_shared/vivaIsv.ts";
+
 import { diagnosticCorsHeaders, okText, parseVivaPayload, writeWebhookDebugLog } from "../_shared/vivaDiagnostics.ts";
 import { GLOWPAY_MARGIN_CENTS } from "../_shared/glowpayMargin.ts";
 import { appendConfirmationBlock, buildConfirmationLink, claimReminderDispatch } from "../_shared/reminderEngine.ts";
@@ -235,6 +237,12 @@ Deno.serve(async (req) => {
     eventData?.MerchantTrns ?? eventData?.merchantTrns ?? "",
   ) || null;
   const sessionIdEvt = String(eventData?.SessionId ?? eventData?.sessionId ?? "") || null;
+  // ISV merchant identification straight from the event, when Viva supplies it.
+  const eventMerchantId = String(
+    eventData?.MerchantId ?? eventData?.merchantId ??
+    (p as any)?.MerchantId ?? (p as any)?.merchantId ?? "",
+  ) || null;
+
   const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const statusId = String(eventData?.StatusId ?? eventData?.statusId ?? "") || null;
   const status = mapVivaStatus(statusId || "", eventTypeId || undefined);
@@ -292,6 +300,8 @@ Deno.serve(async (req) => {
         order_code: orderCode,
         transaction_id: transactionId,
         status,
+        viva_merchant_id: eventMerchantId,
+
         source: eventSource,
         raw_payload: payload as any,
         signature_valid: signatureValid,
@@ -336,9 +346,19 @@ Deno.serve(async (req) => {
         if (typeof (eventData as any)?.TerminalsEnabled === "boolean") upd.terminals_enabled = (eventData as any).TerminalsEnabled;
         if (typeof (eventData as any)?.OnlinePaymentsEnabled === "boolean") upd.online_payments_enabled = (eventData as any).OnlinePaymentsEnabled;
         if ((eventData as any)?.MerchantId) upd.viva_merchant_id = String((eventData as any).MerchantId);
-        upd.metadata = { ...(m.metadata as any || {}), last_webhook_event: { eventTypeId, eventTypeName, eventData } };
+        // Only persist a source code when Viva actually supplies one. Never guess.
+        const evtSourceCode = String((eventData as any)?.SourceCode ?? (eventData as any)?.sourceCode ?? "").trim();
+        if (evtSourceCode) upd.viva_source_code = evtSourceCode;
+        const resolvedMerchantId = upd.viva_merchant_id ?? m.viva_merchant_id;
+        const resolvedSourceCode = upd.viva_source_code ?? (m as any).viva_source_code;
+        upd.setup_complete = Boolean(resolvedMerchantId && resolvedSourceCode);
+        upd.setup_incomplete_reason = resolvedMerchantId
+          ? (resolvedSourceCode ? null : "source_code_unknown")
+          : "merchant_id_unknown";
+        upd.metadata = { ...(m.metadata as any || {}), last_webhook_event: { eventTypeId, eventTypeName } };
         await supabase.from("glowpay_connected_merchants").update(upd).eq("id", m.id);
-        if (ledgerId) await supabase.from("viva_webhook_events").update({ user_id: m.user_id, processed: true, processed_at: new Date().toISOString() }).eq("id", ledgerId);
+        if (ledgerId) await supabase.from("viva_webhook_events").update({ user_id: m.user_id, viva_merchant_id: (resolvedMerchantId as string) || null, processed: true, processed_at: new Date().toISOString() }).eq("id", ledgerId);
+
         if (!transactionId && !orderCode) return okText();
       }
     }
@@ -356,18 +376,37 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // ---- MERCHANT RESOLUTION (ISV) ----
+    // 1. Event carries MerchantId -> map via glowpay_connected_merchants.
+    // 2. Local payment/order/transaction mapping -> payment.user_id.
+    // 3. ParentId / OrderCode / transaction ID fallbacks (below).
+    // An event is never attributed to more than one salon.
+    let merchantOwnerUserId: string | null = null;
+    if (eventMerchantId) {
+      const { data: mRows } = await supabase
+        .from("glowpay_connected_merchants")
+        .select("id, user_id")
+        .eq("viva_merchant_id", eventMerchantId)
+        .limit(2);
+      if (mRows && mRows.length === 1) merchantOwnerUserId = mRows[0].user_id;
+      else if (mRows && mRows.length > 1) {
+        console.warn("[viva-webhook] ambiguous merchant mapping — refusing to attribute");
+      }
+    }
+
     // Locate payment by orderCode or stored transactionId.
     let payment: any = null;
     if (orderCode) {
-      const { data } = await supabase
+      let q = supabase
         .from("payments")
         .select("*")
         .or(`mollie_payment_id.eq.${orderCode},checkout_reference.eq.${orderCode}`)
-        .eq("provider", "viva")
-        .limit(1)
-        .maybeSingle();
+        .eq("provider", "viva");
+      if (merchantOwnerUserId) q = q.eq("user_id", merchantOwnerUserId);
+      const { data } = await q.limit(1).maybeSingle();
       payment = data;
     }
+
     // Terminal payments: merchantReference == payment.id (UUID). Also lookup by
     // session_id stored in metadata so we never miss the final webhook.
     if (!payment && merchantReference && UUID_RE.test(merchantReference)) {
@@ -451,7 +490,19 @@ Deno.serve(async (req) => {
       }
       if (ledgerId) {
         await supabase.from("viva_webhook_events")
-          .update({ error: "payment_not_found", processed: false })
+          .update({ error: "payment_not_found", processed: false, user_id: merchantOwnerUserId })
+          .eq("id", ledgerId);
+      }
+      return okText();
+    }
+
+    // Cross-merchant guard: if the event names a merchant, the matched payment
+    // must belong to that merchant's salon. Never attribute across tenants.
+    if (merchantOwnerUserId && payment.user_id !== merchantOwnerUserId) {
+      console.warn("[viva-webhook] cross_merchant_mismatch — event dropped");
+      if (ledgerId) {
+        await supabase.from("viva_webhook_events")
+          .update({ error: "cross_merchant_mismatch", processed: false, suspicious: true, suspicious_reason: "cross_merchant_mismatch" })
           .eq("id", ledgerId);
       }
       return okText();
@@ -463,8 +514,10 @@ Deno.serve(async (req) => {
         user_id: payment.user_id,
         is_demo: !!payment.is_demo,
         payment_id: payment.id,
+        viva_merchant_id: eventMerchantId || payment.viva_merchant_id || null,
       }).eq("id", ledgerId);
     }
+
 
     if (payment.is_demo) {
       if (ledgerId) await supabase.from("viva_webhook_events").update({ processed: true, processed_at: new Date().toISOString() }).eq("id", ledgerId);
@@ -478,17 +531,29 @@ Deno.serve(async (req) => {
     let resolvedStatus = status;
     if (transactionId) {
       try {
-        const tx = await getVivaTransaction(transactionId);
-        resolvedStatus = mapVivaStatus(tx.statusId, eventTypeId || undefined);
+        // Prefer reseller/merchant-scoped retrieval when the merchant is known
+        // and ISV Basic credentials are configured; fall back to the platform
+        // lookup so existing behaviour never regresses.
+        const scopedMerchantId = payment.viva_merchant_id || (payment.metadata as any)?.viva_merchant_id || null;
+        let tx: { statusId: string | null; orderCode: string | null; amountCents?: number; amount?: number; raw?: any };
+        if (scopedMerchantId && hasResellerBasicCredentials()) {
+          const isvTx = await getIsvTransactionById(scopedMerchantId, transactionId);
+          tx = { statusId: isvTx.statusId, orderCode: isvTx.orderCode, amountCents: isvTx.amountCents, raw: isvTx.raw };
+        } else {
+          const platformTx = await getVivaTransaction(transactionId);
+          tx = { statusId: platformTx.statusId, orderCode: platformTx.orderCode, amountCents: platformTx.amount, raw: platformTx };
+        }
+        resolvedStatus = mapVivaStatus(String(tx.statusId || ""), eventTypeId || undefined);
         resolvedOrderCode = resolvedOrderCode || tx.orderCode;
-        txAmountCents = tx.amount;
-        // tx.totalFee not in shared helper; attempt via raw json
-        const txAny = tx as any;
-        if (typeof txAny.totalFee === "number") providerFeeCents = Math.round(txAny.totalFee * 100);
+        txAmountCents = tx.amountCents ?? null;
+        const txAny: any = tx.raw || {};
+        const fee = txAny.totalFee ?? txAny.TotalFee;
+        if (typeof fee === "number") providerFeeCents = Math.round(fee * 100);
       } catch (e) {
-        console.warn("Viva tx lookup failed", e);
+        console.warn("[viva-webhook] tx lookup failed", { message: String((e as Error)?.message || "error") });
       }
     }
+
 
     // Idempotent state machine guard.
     const currentStatus = String(payment.status || "pending");

@@ -2,6 +2,8 @@
 // POST /functions/v1/create-viva-terminal-payment
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { vivaPosEnv, getVivaPosAccessToken, isVivaPosConfigured, vivaPosSourceCode, vivaPosCredentialKind } from "../_shared/viva.ts";
+import { requireMerchantContext, isvWarn, maskId } from "../_shared/vivaIsv.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -62,6 +64,47 @@ Deno.serve(async (req) => {
     if (terErr) return json({ error: "terminal_lookup_failed", detail: terErr.message }, 500);
     if (!terminal) return json({ error: "terminal_not_found" }, 404);
     if (terminal.status !== "active") return json({ error: "terminal_inactive" }, 400);
+
+    // ---- ISV MERCHANT SCOPE (live only) ----
+    // The terminal must demonstrably belong to the same Viva merchant as the
+    // signed-in salon. Merchant identifiers are never taken from the request.
+    let merchantCtx: { merchantId: string; sourceCode: string | null } | null = null;
+    if (!is_demo) {
+      const merchantResult = await requireMerchantContext(admin, userId);
+      if (!merchantResult.ok || !merchantResult.context) {
+        isvWarn("terminal_merchant_context_missing", {
+          fn: "create-viva-terminal-payment",
+          user_id: userId,
+          reason: merchantResult.error,
+        });
+        return json({
+          error: merchantResult.message || "GlowPay merchant-koppeling ontbreekt.",
+          code: merchantResult.error,
+        }, 409);
+      }
+      merchantCtx = {
+        merchantId: merchantResult.context.merchantId,
+        sourceCode: merchantResult.context.sourceCode,
+      };
+
+      const terminalMerchantRow = (terminal as any).connected_merchant_id;
+      const terminalAccountId = (terminal as any).viva_account_id;
+      const ownsByRow = terminalMerchantRow && terminalMerchantRow === merchantResult.context.merchant.id;
+      const ownsByAccount = terminalAccountId && terminalAccountId === merchantResult.context.merchant.viva_account_id;
+      if (!ownsByRow && !ownsByAccount) {
+        isvWarn("terminal_merchant_mismatch", {
+          fn: "create-viva-terminal-payment",
+          user_id: userId,
+          merchant_id: maskId(merchantCtx.merchantId),
+          terminal_id: maskId(terminal_id),
+        });
+        return json({
+          error: "Deze terminal is niet aantoonbaar gekoppeld aan de merchant van deze salon.",
+          code: "terminal_merchant_mismatch",
+        }, 409);
+      }
+    }
+
 
     // Server-side amount enforcement: when paying an appointment, cap the
     // amount to the appointment's outstanding balance + tip. Prevents a
@@ -125,7 +168,11 @@ Deno.serve(async (req) => {
         provider: "viva",
         is_demo: !!is_demo,
         checkout_reference: sessionId,
+        viva_merchant_id: merchantCtx?.merchantId || null,
+        viva_source_code: merchantCtx?.sourceCode || null,
         metadata: {
+          viva_merchant_id: merchantCtx?.merchantId || null,
+
           terminal_id,
           terminal_row_id: terminal.id,
           source_terminal_id: (terminal as any).source_terminal_id || terminal_id,
@@ -187,7 +234,9 @@ Deno.serve(async (req) => {
       try {
         const { token, kind } = await getVivaPosAccessToken();
         const env = vivaPosEnv();
-        const sourceCode = vivaPosSourceCode();
+        // Merchant source code wins for live connected merchants; the global POS
+        // source code is only a demo-mode fallback.
+        const sourceCode = merchantCtx?.sourceCode || (is_demo ? vivaPosSourceCode() : null);
         const url = `${env.api}/ecr/v1/transactions:sale`;
         const merchantReference = payment.id;
         const requestBody: Record<string, unknown> = {
@@ -203,8 +252,14 @@ Deno.serve(async (req) => {
           tipAmount: Math.max(0, Number(tip_cents) || 0),
         };
         if (sourceCode) requestBody.sourceCode = sourceCode;
-        console.log("[create-viva-terminal-payment] outgoing payload", { url, ...logCtx, payload: requestBody });
-        console.log("[create-viva-terminal-payment] viva request", { url, credential_kind: kind, body: requestBody });
+        if (merchantCtx?.merchantId) requestBody.merchantId = merchantCtx.merchantId;
+        console.log("[create-viva-terminal-payment] viva request", {
+          url,
+          credential_kind: kind,
+          ...logCtx,
+          merchant_id: maskId(merchantCtx?.merchantId),
+          amount_cents: Math.round(amt),
+        });
         const res = await fetch(url, {
           method: "POST",
           headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -215,7 +270,13 @@ Deno.serve(async (req) => {
         let data: any = {};
         try { data = JSON.parse(text); } catch { data = { raw: text }; }
         vivaResponseBody = data;
-        console.log("[create-viva-terminal-payment] viva response", { ...logCtx, http_status: res.status, body: data });
+        console.log("[create-viva-terminal-payment] viva response", {
+          ...logCtx,
+          merchant_id: maskId(merchantCtx?.merchantId),
+          http_status: res.status,
+          viva_error_code: data?.ErrorCode ?? data?.errorCode ?? null,
+        });
+
         console.log("[create-viva-terminal-payment] lifecycle", {
           sessionId,
           transactionId: data?.transactionId ?? data?.TransactionId ?? null,
