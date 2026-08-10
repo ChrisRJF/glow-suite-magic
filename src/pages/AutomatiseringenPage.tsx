@@ -23,6 +23,7 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { PaymentAutomationsCard } from "@/components/PaymentAutomationsCard";
 import { NoShowCenter } from "@/components/NoShowCenter";
+import { AutoRebookCenter } from "@/components/AutoRebookCenter";
 
 type Status = "live" | "soon" | "off";
 
@@ -84,19 +85,7 @@ const AUTOMATIONS: AutoDef[] = [
     icon: Sparkles,
   },
   // No-show follow-up leeft nu in NoShowCenter (één centrale hub).
-  {
-    key: "revenue_boost",
-    title: "Revenue Boost",
-    description: "Win-back WhatsApp voor klanten die langer dan X dagen niet zijn geweest.",
-    trigger: "Klant inactief (standaard 42+ dagen)",
-    action: "WhatsApp reactivatiebericht",
-    templateLabel: "Revenue Boost",
-    templateType: "revenue_boost",
-    settingsFlag: "send_revenue_boost",
-    logKind: "revenue_boost",
-    status: "live",
-    icon: Gift,
-  },
+  // Auto Rebook leeft nu in AutoRebookCenter (één centrale hub).
   {
     key: "birthday",
     title: "Verjaardagskorting",
@@ -252,6 +241,8 @@ export default function AutomatiseringenPage() {
       subtitle="Slimme WhatsApp-automatiseringen die voor je werken"
     >
       <NoShowCenter />
+
+      <AutoRebookCenter />
 
       {/* Master state banner */}
       {!loading && !waSettings?.enabled && (
