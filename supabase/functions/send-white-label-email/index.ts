@@ -25,6 +25,7 @@ const TemplateSchema = z.enum([
   "booking_cancellation",
   "membership_notification",
   "review_request",
+  "auto_rebook",
 ]);
 
 const LangSchema = z.enum(["nl", "en", "de", "fr", "es"]);
@@ -116,6 +117,47 @@ function noteBlock(title: string, items: unknown[]) {
 function amountSummary(args: { amount?: unknown; vatAmount?: unknown; vatRate?: unknown; total?: unknown; totalLabel: string; vatLine?: string }) {
   return `<div style="background:#111827;border-radius:20px;padding:18px;margin:16px 0;color:#ffffff;"><p style="margin:0 0 8px;color:#D1D5DB;font-size:13px;font-weight:700;">${escapeHtml(args.totalLabel)}</p><p style="margin:0;color:#ffffff;font-size:30px;line-height:1;font-weight:850;">${escapeHtml(args.total as string)}</p>${args.vatLine ? `<p style="margin:12px 0 0;color:#D1D5DB;font-size:13px;">${escapeHtml(args.vatLine)}</p>` : ""}</div>`;
 }
+
+
+// Auto Rebook e-mail (kanaalfallback wanneer WhatsApp niet kan). Compacte,
+// zelfstandige copy zodat we de gedeelde vertalingen niet hoeven te wijzigen.
+const AUTO_REBOOK_STRINGS: Record<string, { subject: (s: string) => string; title: string; intro: (n: string, s: string) => string; body: string; cta: string }> = {
+  nl: {
+    subject: (s) => `Tijd voor je volgende afspraak bij ${s}`,
+    title: "Klaar voor je volgende afspraak?",
+    intro: (n, s) => `${n ? n + ", h" : "H"}et is alweer even geleden. Bij ${s} staat een moment voor je klaar.`,
+    body: "Kies zelf een dag en tijd die je uitkomt. Je hoeft niets opnieuw in te vullen.",
+    cta: "Afspraak inplannen",
+  },
+  en: {
+    subject: (s) => `Time for your next appointment at ${s}`,
+    title: "Ready for your next appointment?",
+    intro: (n, s) => `${n ? n + ", i" : "I"}t has been a while. ${s} has a spot ready for you.`,
+    body: "Pick a day and time that suits you. No need to fill in anything again.",
+    cta: "Book appointment",
+  },
+  de: {
+    subject: (s) => `Zeit für deinen nächsten Termin bei ${s}`,
+    title: "Bereit für deinen nächsten Termin?",
+    intro: (n, s) => `${n ? n + ", e" : "E"}s ist schon eine Weile her. Bei ${s} wartet ein Termin auf dich.`,
+    body: "Wähle einfach einen passenden Tag und eine Uhrzeit.",
+    cta: "Termin buchen",
+  },
+  fr: {
+    subject: (s) => `Il est temps de reprendre rendez-vous chez ${s}`,
+    title: "Prêt pour votre prochain rendez-vous ?",
+    intro: (n, s) => `${n ? n + ", c" : "C"}ela fait un moment. ${s} vous réserve un créneau.`,
+    body: "Choisissez le jour et l'heure qui vous conviennent.",
+    cta: "Prendre rendez-vous",
+  },
+  es: {
+    subject: (s) => `Es hora de tu próxima cita en ${s}`,
+    title: "¿Listo para tu próxima cita?",
+    intro: (n, s) => `${n ? n + ", h" : "H"}ace tiempo que no nos vemos. ${s} tiene un hueco para ti.`,
+    body: "Elige el día y la hora que mejor te venga.",
+    cta: "Reservar cita",
+  },
+};
 
 function template(key: TemplateKey, data: Record<string, unknown>, salonName: string, branding: any, lang: EmailLang): TemplateResult {
   const s = emailStrings(lang);
@@ -262,6 +304,24 @@ function template(key: TemplateKey, data: Record<string, unknown>, salonName: st
       preview: intro,
       html: shell({ ...base, title, intro, body, primaryAction: { label: t.cta_manage, url: membershipUrl }, secondaryAction: { label: t.cta_book, url: bookingUrl } }),
       text: `${title}\n${intro}\n${String(data.membership_name || "")}`,
+    };
+  }
+
+  if (key === "auto_rebook") {
+    const t = AUTO_REBOOK_STRINGS[lang] || AUTO_REBOOK_STRINGS.nl;
+    const rebookUrl = absoluteUrl(firstFilled(data.rebook_url, data.booking_url), "/boeken", publicBaseUrl);
+    const title = t.title;
+    const intro = t.intro(firstName, salonName);
+    const rows = infoRows([
+      [sh.row_service, data.service_name],
+      [sh.row_date, formatDateLong(data.last_visit_date, lang)],
+    ]);
+    const body = rows + `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.65;">${escapeHtml(t.body)}</p>`;
+    return {
+      subject: t.subject(salonName),
+      preview: intro,
+      html: shell({ ...base, title, intro, body, primaryAction: { label: t.cta, url: rebookUrl } }),
+      text: `${title}\n${intro}\n${rebookUrl}`,
     };
   }
 

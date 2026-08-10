@@ -26,6 +26,7 @@ export default function ServicesPage() {
   const [activeLang, setActiveLang] = useState<string>("en");
   const [form, setForm] = useState({
     name: '', duration_minutes: 30, price: 0, category: '', color: '#7B61FF', description: '',
+    rebook_interval_days: null as number | null,
     is_active: true, is_online_bookable: true, is_internal_only: false,
     translations: {} as ServiceTranslations,
   });
@@ -49,7 +50,7 @@ export default function ServicesPage() {
 
   const close = () => {
     setShowForm(false); setEditingId(null); setShowTranslations(false);
-    setForm({ name: '', duration_minutes: 30, price: 0, category: '', color: '#7B61FF', description: '', is_active: true, is_online_bookable: true, is_internal_only: false, translations: {} });
+    setForm({ name: '', duration_minutes: 30, price: 0, category: '', color: '#7B61FF', description: '', rebook_interval_days: null, is_active: true, is_online_bookable: true, is_internal_only: false, translations: {} });
   };
 
   const openEdit = (s: any) => {
@@ -57,6 +58,7 @@ export default function ServicesPage() {
     setForm({
       name: s.name, duration_minutes: s.duration_minutes, price: s.price,
       category: s.category || '', color: s.color || '#7B61FF', description: s.description || '',
+      rebook_interval_days: s.rebook_interval_days ?? null,
       is_active: s.is_active ?? true, is_online_bookable: s.is_online_bookable ?? true, is_internal_only: s.is_internal_only ?? false,
       translations: (s.translations && typeof s.translations === 'object') ? s.translations : {},
     });
@@ -96,6 +98,22 @@ export default function ServicesPage() {
               </div>
               <div><label className="text-xs text-muted-foreground">Categorie</label><input value={form.category} onChange={e => setForm({...form, category: e.target.value})} className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="bijv. Haar, Kleur, Styling" /></div>
               <div><label className="text-xs text-muted-foreground">Beschrijving</label><textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} rows={2} className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" placeholder="Korte beschrijving (optioneel)" /></div>
+              <div>
+                <label className="text-xs text-muted-foreground">Terugkomadvies (dagen)</label>
+                <input
+                  type="number"
+                  min={7}
+                  max={365}
+                  value={form.rebook_interval_days ?? ''}
+                  onChange={e => {
+                    const raw = e.target.value.trim();
+                    setForm({ ...form, rebook_interval_days: raw === '' ? null : Math.min(365, Math.max(7, parseInt(raw) || 0)) });
+                  }}
+                  className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  placeholder="Leeg = automatisch bepalen"
+                />
+                <p className="text-[11px] text-muted-foreground mt-1">Auto Rebook gebruikt dit interval. Laat leeg om het ritme uit de klanthistorie te halen.</p>
+              </div>
               <div><label className="text-xs text-muted-foreground">Kleur</label><input type="color" value={form.color} onChange={e => setForm({...form, color: e.target.value})} className="w-full mt-1 h-10 rounded-xl" /></div>
 
               {/* Translations */}

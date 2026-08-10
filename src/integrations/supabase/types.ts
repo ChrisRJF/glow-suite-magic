@@ -2271,30 +2271,69 @@ export type Database = {
       }
       rebook_actions: {
         Row: {
+          appointment_id: string | null
+          attributed_revenue: number | null
+          booked_at: string | null
+          channel: string | null
           created_at: string
           customer_id: string | null
+          days_overdue: number | null
+          estimated_value: number | null
+          expected_return_date: string | null
           id: string
           is_demo: boolean
+          message_log_id: string | null
+          reason: string | null
+          rebook_token: string
+          sent_at: string | null
+          service_id: string | null
           status: string | null
           suggested_date: string | null
+          updated_at: string
           user_id: string
         }
         Insert: {
+          appointment_id?: string | null
+          attributed_revenue?: number | null
+          booked_at?: string | null
+          channel?: string | null
           created_at?: string
           customer_id?: string | null
+          days_overdue?: number | null
+          estimated_value?: number | null
+          expected_return_date?: string | null
           id?: string
           is_demo?: boolean
+          message_log_id?: string | null
+          reason?: string | null
+          rebook_token?: string
+          sent_at?: string | null
+          service_id?: string | null
           status?: string | null
           suggested_date?: string | null
+          updated_at?: string
           user_id: string
         }
         Update: {
+          appointment_id?: string | null
+          attributed_revenue?: number | null
+          booked_at?: string | null
+          channel?: string | null
           created_at?: string
           customer_id?: string | null
+          days_overdue?: number | null
+          estimated_value?: number | null
+          expected_return_date?: string | null
           id?: string
           is_demo?: boolean
+          message_log_id?: string | null
+          reason?: string | null
+          rebook_token?: string
+          sent_at?: string | null
+          service_id?: string | null
           status?: string | null
           suggested_date?: string | null
+          updated_at?: string
           user_id?: string
         }
         Relationships: [
@@ -2639,6 +2678,7 @@ export type Database = {
           is_online_bookable: boolean | null
           name: string
           price: number
+          rebook_interval_days: number | null
           translations: Json
           updated_at: string
           user_id: string
@@ -2656,6 +2696,7 @@ export type Database = {
           is_online_bookable?: boolean | null
           name: string
           price?: number
+          rebook_interval_days?: number | null
           translations?: Json
           updated_at?: string
           user_id: string
@@ -2673,6 +2714,7 @@ export type Database = {
           is_online_bookable?: boolean | null
           name?: string
           price?: number
+          rebook_interval_days?: number | null
           translations?: Json
           updated_at?: string
           user_id?: string
@@ -3967,6 +4009,22 @@ export type Database = {
       check_public_rate_limit: {
         Args: { _bucket: string; _max: number; _window_seconds: number }
         Returns: boolean
+      }
+      claim_auto_rebook: {
+        Args: {
+          _customer_id: string
+          _days_overdue: number
+          _estimated_value: number
+          _expected_return_date: string
+          _is_demo: boolean
+          _reason: string
+          _service_id: string
+          _user_id: string
+        }
+        Returns: {
+          id: string
+          rebook_token: string
+        }[]
       }
       claim_reminder_dispatch: {
         Args: {

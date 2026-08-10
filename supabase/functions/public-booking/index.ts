@@ -48,6 +48,7 @@ const RequestSchema = z.discriminatedUnion("action", [
     payment: z.object({ required: z.boolean(), amount: z.number().min(0).max(100000), type: z.enum(["deposit", "full", "remainder"]).optional().default("deposit"), method: z.enum(["ideal", "bancontact", "creditcard", "applepay", "paypal"]).optional().default("ideal") }),
     notes: z.string().trim().max(1000).optional().default(""),
     language: z.enum(["nl","en","de","fr","es"]).optional(),
+    rebook_token: z.string().uuid().optional().nullable(),
   }),
 ]);
 
@@ -380,6 +381,19 @@ Deno.serve(async (req) => {
       reason: decision.reason,
     });
 
+    // ---- AUTO REBOOK ATTRIBUTION ----
+    // A valid, unused token proves this booking came from an Auto Rebook message.
+    let rebookAction: { id: string; customer_id: string | null } | null = null;
+    if (data.rebook_token) {
+      const { data: ra } = await supabase
+        .from("rebook_actions")
+        .select("id, customer_id, booked_at")
+        .eq("rebook_token", data.rebook_token)
+        .eq("user_id", ctx.settings.user_id)
+        .maybeSingle();
+      if (ra && !ra.booked_at) rebookAction = { id: ra.id, customer_id: ra.customer_id };
+    }
+
     const appointmentsToInsert = bookingRows.map((row, index) => {
       const start = combineDateTime(data.date, row.time);
       const end = new Date(start.getTime() + row.service.duration_minutes * 60000);
@@ -400,7 +414,7 @@ Deno.serve(async (req) => {
         payment_status: serverPayment.required ? "pending" : "unpaid",
         payment_required: serverPayment.required,
         deposit_amount: serverPayment.required ? serverPayment.amount : 0,
-        source: "online_booking",
+        source: index === 0 && rebookAction ? "auto_rebook" : "online_booking",
         booking_group_id: bookingRows.length > 1 ? groupId : null,
         payment_type: serverPayment.type,
         accepted_glowsuite_terms: Boolean(data.customer.accepted_glowsuite_terms),
@@ -424,6 +438,16 @@ Deno.serve(async (req) => {
       }
       console.error("appointment insert error", appointmentError);
       return json({ error: "Boeking kon niet worden opgeslagen. Probeer het opnieuw of kies een ander tijdstip." }, 500);
+    }
+
+    if (rebookAction && appointments?.[0]) {
+      const attributed = appointmentsToInsert.reduce((sum, row) => sum + Number(row.price || 0), 0);
+      await supabase.from("rebook_actions").update({
+        status: "geboekt",
+        booked_at: new Date().toISOString(),
+        appointment_id: appointments[0].id,
+        attributed_revenue: attributed,
+      }).eq("id", rebookAction.id).is("booked_at", null);
     }
 
     const primaryAppointment = appointments?.[0];

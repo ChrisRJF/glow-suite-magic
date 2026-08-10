@@ -20,7 +20,8 @@ export type ReminderType =
   | "reminder"
   | "no_show"
   | "review"
-  | "revenue_boost";
+  | "revenue_boost"
+  | "auto_rebook";
 
 export type ReminderChannel = "whatsapp" | "email";
 
