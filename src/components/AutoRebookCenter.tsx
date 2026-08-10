@@ -6,9 +6,8 @@ import { Repeat, Send, CalendarCheck, Euro, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
-import { useCustomers, useAppointments, useServices } from "@/hooks/useSupabaseData";
-import { calculateAutoRebook } from "@/lib/autoRebook";
-import { DEFAULT_WHATSAPP_TEMPLATES } from "@/lib/whatsappTemplates";
+import { useServices } from "@/hooks/useSupabaseData";
+import { fetchDueRebookCustomers, salonMonthStartIso } from "@/lib/autoRebookClient";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -21,28 +20,35 @@ export function AutoRebookCenter() {
   const { user } = useAuth();
   const { hasAny } = useUserRole();
   const canManage = hasAny("eigenaar", "manager", "admin");
-  const { data: customers } = useCustomers();
-  const { data: appointments } = useAppointments();
   const { data: services } = useServices();
 
   const [enabled, setEnabled] = useState(false);
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(0);
   const [booked, setBooked] = useState(0);
-  const [revenue, setRevenue] = useState(0);
+  const [realized, setRealized] = useState(0);
   const [failed, setFailed] = useState(0);
+  const [dueNow, setDueNow] = useState(0);
+  const [timezone, setTimezone] = useState<string | null>(null);
 
-  const monthStart = useMemo(() => {
-    const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString();
-  }, []);
+  // Salon timezone, never the browser timezone.
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("settings").select("timezone").eq("user_id", user.id)
+      .order("created_at", { ascending: false }).limit(1).maybeSingle()
+      .then(({ data }) => setTimezone((data as any)?.timezone || null));
+  }, [user]);
+
+  const monthStart = useMemo(() => salonMonthStartIso(timezone), [timezone]);
 
   const load = useCallback(async () => {
     if (!user) return;
     const [wa, tpl, actions, failRes] = await Promise.all([
       supabase.from("whatsapp_settings").select("send_revenue_boost").eq("user_id", user.id).maybeSingle(),
       supabase.from("whatsapp_templates").select("is_active").eq("user_id", user.id).eq("template_type", "revenue_boost").maybeSingle(),
-      supabase.from("rebook_actions").select("sent_at, booked_at, attributed_revenue").eq("user_id", user.id).gte("created_at", monthStart),
+      supabase.from("rebook_actions")
+        .select("sent_at, booked_at, realized_revenue, realized_at")
+        .eq("user_id", user.id).gte("created_at", monthStart),
       supabase.from("whatsapp_logs").select("id", { count: "exact", head: true })
         .eq("user_id", user.id).eq("kind", "auto_rebook").eq("dead_letter", true).gte("created_at", monthStart),
     ]);
@@ -50,61 +56,31 @@ export function AutoRebookCenter() {
     const rows = (actions.data as any[]) || [];
     setSent(rows.filter((r) => r.sent_at).length);
     setBooked(rows.filter((r) => r.booked_at).length);
-    setRevenue(rows.reduce((sum, r) => sum + Number(r.attributed_revenue || 0), 0));
+    // Realized only: cancelled, no-show, declined and refunded bookings are
+    // reversed by the database and never counted here.
+    setRealized(rows.reduce((sum, r) => sum + Number(r.realized_revenue || 0), 0));
     setFailed(failRes.count || 0);
   }, [user, monthStart]);
 
   useEffect(() => { load(); }, [load]);
 
-  // Klanten die nu toe zijn — zelfde engine als de scheduler gebruikt.
-  const dueNow = useMemo(() => {
-    const serviceIntervals: Record<string, number | null> = {};
-    const servicePrices: Record<string, number | null> = {};
-    for (const s of (services as any[]) || []) {
-      serviceIntervals[s.id] = s.rebook_interval_days ?? null;
-      servicePrices[s.id] = Number(s.price ?? 0) || null;
-    }
-    const byCustomer = new Map<string, any[]>();
-    for (const a of (appointments as any[]) || []) {
-      if (!a.customer_id) continue;
-      const arr = byCustomer.get(a.customer_id) || [];
-      arr.push(a);
-      byCustomer.set(a.customer_id, arr);
-    }
-    let count = 0;
-    for (const c of (customers as any[]) || []) {
-      const decision = calculateAutoRebook({
-        customer_id: c.id,
-        appointments: byCustomer.get(c.id) || [],
-        serviceIntervals,
-        servicePrices,
-      });
-      if (decision.should_rebook) count++;
-    }
-    return count;
-  }, [customers, appointments, services]);
+  // Klanten die nu toe zijn — server-genarrowd, canonieke engine.
+  useEffect(() => {
+    let active = true;
+    fetchDueRebookCustomers((services as any[]) || []).then((rows) => {
+      if (active) setDueNow(rows.length);
+    });
+    return () => { active = false; };
+  }, [services]);
 
   const toggle = async (next: boolean) => {
     if (!user || !canManage) return;
     setBusy(true);
     setEnabled(next);
     try {
-      const [{ error: setErr }, { error: tplErr }] = await Promise.all([
-        supabase.from("whatsapp_settings").upsert(
-          { user_id: user.id, send_revenue_boost: next },
-          { onConflict: "user_id" },
-        ),
-        supabase.from("whatsapp_templates").upsert(
-          {
-            user_id: user.id,
-            template_type: "revenue_boost",
-            is_active: next,
-            content: DEFAULT_WHATSAPP_TEMPLATES.revenue_boost,
-          },
-          { onConflict: "user_id,template_type", ignoreDuplicates: false },
-        ),
-      ]);
-      if (setErr || tplErr) throw setErr || tplErr;
+      // Atomic: setting, template and any open retries change in one call.
+      const { error } = await supabase.rpc("set_auto_rebook", { _enabled: next });
+      if (error) throw error;
       toast.success(next ? "Auto Rebook staat aan" : "Auto Rebook staat uit");
     } catch (e: any) {
       toast.error(e?.message || "Kon niet opslaan");
@@ -118,10 +94,10 @@ export function AutoRebookCenter() {
   const tiles = [
     { label: "Klanten nu toe", value: String(dueNow), icon: Repeat, dot: "bg-violet-500" },
     { label: "Berichten verstuurd", value: String(sent), icon: Send, dot: "bg-emerald-500" },
-    { label: "Opnieuw geboekt", value: String(booked), icon: CalendarCheck, dot: "bg-emerald-500" },
+    { label: "Geboekt via Auto Rebook", value: String(booked), icon: CalendarCheck, dot: "bg-emerald-500" },
     {
-      label: "Omzet uit Auto Rebook",
-      value: revenue.toLocaleString("nl-NL", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }),
+      label: "Teruggewonnen omzet",
+      value: realized.toLocaleString("nl-NL", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }),
       icon: Euro,
       dot: "bg-sky-500",
     },
