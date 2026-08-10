@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
     // ---- ISV MERCHANT SCOPE (live only) ----
     // The terminal must demonstrably belong to the same Viva merchant as the
     // signed-in salon. Merchant identifiers are never taken from the request.
-    let merchantCtx: { merchantId: string; sourceCode: string } | null = null;
+    let merchantCtx: { merchantId: string; sourceCode: string | null } | null = null;
     if (!is_demo) {
       const merchantResult = await requireMerchantContext(admin, userId);
       if (!merchantResult.ok || !merchantResult.context) {
