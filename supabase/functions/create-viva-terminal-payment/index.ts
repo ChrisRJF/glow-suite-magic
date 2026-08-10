@@ -228,7 +228,9 @@ Deno.serve(async (req) => {
       try {
         const { token, kind } = await getVivaPosAccessToken();
         const env = vivaPosEnv();
-        const sourceCode = vivaPosSourceCode();
+        // Merchant source code wins for live connected merchants; the global POS
+        // source code is only a demo-mode fallback.
+        const sourceCode = merchantCtx?.sourceCode || (is_demo ? vivaPosSourceCode() : null);
         const url = `${env.api}/ecr/v1/transactions:sale`;
         const merchantReference = payment.id;
         const requestBody: Record<string, unknown> = {
@@ -244,8 +246,14 @@ Deno.serve(async (req) => {
           tipAmount: Math.max(0, Number(tip_cents) || 0),
         };
         if (sourceCode) requestBody.sourceCode = sourceCode;
-        console.log("[create-viva-terminal-payment] outgoing payload", { url, ...logCtx, payload: requestBody });
-        console.log("[create-viva-terminal-payment] viva request", { url, credential_kind: kind, body: requestBody });
+        if (merchantCtx?.merchantId) requestBody.merchantId = merchantCtx.merchantId;
+        console.log("[create-viva-terminal-payment] viva request", {
+          url,
+          credential_kind: kind,
+          ...logCtx,
+          merchant_id: maskId(merchantCtx?.merchantId),
+          amount_cents: Math.round(amt),
+        });
         const res = await fetch(url, {
           method: "POST",
           headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -256,7 +264,13 @@ Deno.serve(async (req) => {
         let data: any = {};
         try { data = JSON.parse(text); } catch { data = { raw: text }; }
         vivaResponseBody = data;
-        console.log("[create-viva-terminal-payment] viva response", { ...logCtx, http_status: res.status, body: data });
+        console.log("[create-viva-terminal-payment] viva response", {
+          ...logCtx,
+          merchant_id: maskId(merchantCtx?.merchantId),
+          http_status: res.status,
+          viva_error_code: data?.ErrorCode ?? data?.errorCode ?? null,
+        });
+
         console.log("[create-viva-terminal-payment] lifecycle", {
           sessionId,
           transactionId: data?.transactionId ?? data?.TransactionId ?? null,
