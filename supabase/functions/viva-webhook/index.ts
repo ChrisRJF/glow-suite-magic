@@ -529,17 +529,29 @@ Deno.serve(async (req) => {
     let resolvedStatus = status;
     if (transactionId) {
       try {
-        const tx = await getVivaTransaction(transactionId);
-        resolvedStatus = mapVivaStatus(tx.statusId, eventTypeId || undefined);
+        // Prefer reseller/merchant-scoped retrieval when the merchant is known
+        // and ISV Basic credentials are configured; fall back to the platform
+        // lookup so existing behaviour never regresses.
+        const scopedMerchantId = payment.viva_merchant_id || (payment.metadata as any)?.viva_merchant_id || null;
+        let tx: { statusId: string | null; orderCode: string | null; amountCents?: number; amount?: number; raw?: any };
+        if (scopedMerchantId && hasResellerBasicCredentials()) {
+          const isvTx = await getIsvTransactionById(scopedMerchantId, transactionId);
+          tx = { statusId: isvTx.statusId, orderCode: isvTx.orderCode, amountCents: isvTx.amountCents, raw: isvTx.raw };
+        } else {
+          const platformTx = await getVivaTransaction(transactionId);
+          tx = { statusId: platformTx.statusId, orderCode: platformTx.orderCode, amountCents: platformTx.amount, raw: platformTx };
+        }
+        resolvedStatus = mapVivaStatus(String(tx.statusId || ""), eventTypeId || undefined);
         resolvedOrderCode = resolvedOrderCode || tx.orderCode;
-        txAmountCents = tx.amount;
-        // tx.totalFee not in shared helper; attempt via raw json
-        const txAny = tx as any;
-        if (typeof txAny.totalFee === "number") providerFeeCents = Math.round(txAny.totalFee * 100);
+        txAmountCents = tx.amountCents ?? null;
+        const txAny: any = tx.raw || {};
+        const fee = txAny.totalFee ?? txAny.TotalFee;
+        if (typeof fee === "number") providerFeeCents = Math.round(fee * 100);
       } catch (e) {
-        console.warn("Viva tx lookup failed", e);
+        console.warn("[viva-webhook] tx lookup failed", { message: String((e as Error)?.message || "error") });
       }
     }
+
 
     // Idempotent state machine guard.
     const currentStatus = String(payment.status || "pending");
