@@ -168,7 +168,11 @@ Deno.serve(async (req) => {
         provider: "viva",
         is_demo: !!is_demo,
         checkout_reference: sessionId,
+        viva_merchant_id: merchantCtx?.merchantId || null,
+        viva_source_code: merchantCtx?.sourceCode || null,
         metadata: {
+          viva_merchant_id: merchantCtx?.merchantId || null,
+
           terminal_id,
           terminal_row_id: terminal.id,
           source_terminal_id: (terminal as any).source_terminal_id || terminal_id,
