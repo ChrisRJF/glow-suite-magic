@@ -3,13 +3,16 @@
 // Demo mode never calls Viva.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { z } from "https://esm.sh/zod@3.23.8";
+import { vivaCheckoutUrl } from "../_shared/viva.ts";
 import {
-  createVivaOrder,
-  vivaCheckoutUrl,
-  isVivaConfigured,
-  type VivaPaymentSource,
-  type VivaPaymentType,
-} from "../_shared/viva.ts";
+  createVivaIsvOrder,
+  requireMerchantContext,
+  isvCredentialKind,
+  isvLog,
+  isvWarn,
+  maskId,
+} from "../_shared/vivaIsv.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
