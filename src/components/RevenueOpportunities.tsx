@@ -21,7 +21,13 @@ export function RevenueOpportunities() {
 
   const loading = apptsLoading || custsLoading || svcsLoading;
   // Canonieke Auto Rebook engine — deze kaart heeft geen eigen drempels.
-  const { dueCount: rebookReady } = useDueRebook(services as any[]);
+  const { dueCount: rebookReady, dueRows } = useDueRebook(services as any[]);
+  // "Al lang niet gezien" is dezelfde canonieke engine, alleen de
+  // fallback-reden (langer weg dan gebruikelijk). Geen eigen dagdrempel.
+  const inactive = useMemo(
+    () => dueRows.filter((r) => r.decision.reason === "due_fallback").length,
+    [dueRows],
+  );
 
   const items = useMemo(() => {
     const now = Date.now();
@@ -41,7 +47,6 @@ export function RevenueOpportunities() {
       : 0;
     const potentialRevenue = Math.round(freeSlots * avgPrice);
 
-    let inactive = 0;
     let recentNoReview = 0;
     for (const c of customers as any[]) {
       const visits = (appointments as any[])
@@ -53,7 +58,6 @@ export function RevenueOpportunities() {
       const hasFuture = (appointments as any[]).some(
         (a) => a.customer_id === c.id && new Date(a.appointment_date) > new Date() && a.status !== "geannuleerd",
       );
-      if (!hasFuture && daysSince > 60 && visits.length >= 1) inactive++;
       if (daysSince >= 1 && daysSince <= 14 && !c.last_review_at) recentNoReview++;
     }
 
@@ -116,7 +120,7 @@ export function RevenueOpportunities() {
     }
 
     return list.slice(0, 4);
-  }, [appointments, customers, services, navigate, rebookReady]);
+  }, [appointments, customers, services, navigate, rebookReady, inactive]);
 
   if (loading) {
     return <Skeleton className="h-24 rounded-2xl" />;
