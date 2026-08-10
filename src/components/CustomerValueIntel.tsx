@@ -5,6 +5,7 @@ import { formatEuro } from "@/lib/data";
 import { Send, Calendar, Sparkles, TrendingUp, AlertCircle } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { calculateNoShowRisk } from "@/lib/noShowRisk";
+import { calculateAutoRebook } from "@/lib/autoRebook";
 
 interface Props {
   customer: Tables<"customers">;
@@ -44,8 +45,31 @@ export function CustomerValueIntel({ customer, appointments, services }: Props) 
     // Risk + recommendation
     const isVip = customer.is_vip || (totalSpent > 500 && visits >= 5);
     const isRisk = calculateNoShowRisk(customer).isElevated;
+    // Auto Rebook eligibility komt uitsluitend uit de canonieke engine.
+    const serviceIntervals: Record<string, number | null> = {};
+    const servicePrices: Record<string, number | null> = {};
+    for (const s of services) {
+      serviceIntervals[s.id] = (s as any).rebook_interval_days ?? null;
+      servicePrices[s.id] = Number(s.price ?? 0) || null;
+    }
+    const rebookDecision = calculateAutoRebook({
+      customer_id: customer.id,
+      appointments: appointments
+        .filter((a) => a.customer_id === customer.id)
+        .map((a) => ({
+          id: a.id,
+          service_id: a.service_id,
+          appointment_date: a.appointment_date,
+          status: a.status,
+          price: a.price,
+        })),
+      serviceIntervals,
+      servicePrices,
+    });
+    const rebookReady = rebookDecision.should_rebook;
+    // Aparte metric, geen Auto Rebook-signaal: klant is ruim over de eigen
+    // bezoekcyclus heen en dreigt af te haken.
     const churnRisk = avgCycle > 0 && daysSinceLast > avgCycle * 1.5;
-    const rebookReady = avgCycle > 0 && daysSinceLast > avgCycle * 0.8 && daysSinceLast < avgCycle * 1.5;
 
     let recommendation = "Geen actie nodig";
     let recAction: { label: string; icon: typeof Send; route: string } | null = null;

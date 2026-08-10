@@ -4048,7 +4048,7 @@ export type Database = {
     }
     Functions: {
       auto_rebook_candidates: {
-        Args: { _max_customers?: number }
+        Args: { _max_customers?: number; _offset?: number }
         Returns: {
           appointments: Json
           customer_id: string
@@ -4133,6 +4133,10 @@ export type Database = {
       }
       set_scheduler_cursor: {
         Args: { _name: string; _value: string }
+        Returns: undefined
+      }
+      sync_auto_rebook_revenue: {
+        Args: { _appointment_id: string }
         Returns: undefined
       }
       try_acquire_scheduler_lock: {
