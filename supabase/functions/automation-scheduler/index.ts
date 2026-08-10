@@ -2,6 +2,26 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { loadAIModes, canAutoRun, effectiveMode, triggerToCategory } from "../_shared/aiModes.ts";
 import { acquireSchedulerLock, claimReminderDispatch, maskPhone, maskEmail, releaseSchedulerLock } from "../_shared/reminderEngine.ts";
 
+/**
+ * Retention triggers that are now owned exclusively by the canonical
+ * Auto Rebook engine. They resolve to zero candidates so a legacy or
+ * hand-crafted automation_rule can never become a second rebook engine.
+ *  - rebook_30_days      : replaced by Auto Rebook service interval
+ *  - inactive_60_days    : replaced by Auto Rebook history median
+ *  - inactive_90_days    : replaced by Auto Rebook history median
+ *  - klant_inactief_4w   : replaced by Auto Rebook
+ *  - klant_inactief_8w   : replaced by Auto Rebook
+ * Kept (different use case): cancel_winback (membership churn),
+ * ask_review_after_appointment / na_afspraak (reviews).
+ */
+const RETIRED_REBOOK_TRIGGERS = new Set([
+  "rebook_30_days",
+  "inactive_60_days",
+  "inactive_90_days",
+  "klant_inactief_4w",
+  "klant_inactief_8w",
+]);
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -186,22 +206,16 @@ async function candidatesForRule(admin: any, rule: Rule, settings: any) {
     (data || []).forEach((appointment: any) => appointment.customer && candidates.push({ appointment, customer: appointment.customer, service: appointment.service }));
   }
 
-  if (["rebook_30_days", "ask_review_after_appointment", "na_afspraak"].includes(trigger)) {
-    const days = trigger === "rebook_30_days" ? 30 : 1;
+  // RETIRED TRIGGERS — replaced by the canonical Auto Rebook engine.
+  // Hard guard so no future automation_rule can start a second rebook engine.
+  if (RETIRED_REBOOK_TRIGGERS.has(trigger)) return candidates;
+
+  if (["ask_review_after_appointment", "na_afspraak"].includes(trigger)) {
+    const days = 1;
     const from = new Date(now.getTime() - (days + 1) * 24 * 60 * 60 * 1000).toISOString();
     const to = new Date(now.getTime() - days * 24 * 60 * 60 * 1000).toISOString();
     const { data } = await admin.from("appointments").select("*, customer:customers(*), service:services(*)").match(userFilter).gte("appointment_date", from).lte("appointment_date", to).in("status", ["completed", "afgerond", "confirmed", "gepland"]).limit(50);
     (data || []).forEach((appointment: any) => appointment.customer && candidates.push({ appointment, customer: appointment.customer, service: appointment.service }));
-  }
-
-  if (["inactive_60_days", "inactive_90_days", "klant_inactief_4w", "klant_inactief_8w"].includes(trigger)) {
-    const days = trigger.includes("90") || trigger.includes("8w") ? 90 : trigger.includes("4w") ? 28 : 60;
-    const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000).toISOString();
-    const { data: customers } = await admin.from("customers").select("*").match(userFilter).limit(100);
-    for (const customer of customers || []) {
-      const { data: latest } = await admin.from("appointments").select("id").match({ ...userFilter, customer_id: customer.id }).gt("appointment_date", cutoff).limit(1);
-      if (!latest?.length) candidates.push({ customer });
-    }
   }
 
   if (["payment_failed", "membership_payment_failed", "betaling_mislukt"].includes(trigger)) {

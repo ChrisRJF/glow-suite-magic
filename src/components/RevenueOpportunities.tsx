@@ -5,6 +5,7 @@ import { useAppointments, useCustomers, useServices } from "@/hooks/useSupabaseD
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatEuro } from "@/lib/data";
 import { cn } from "@/lib/utils";
+import { useDueRebook } from "@/lib/autoRebookClient";
 
 /**
  * Calm, revenue-focused opportunity surface for the main dashboard.
@@ -19,6 +20,8 @@ export function RevenueOpportunities() {
   const { data: services, loading: svcsLoading } = useServices();
 
   const loading = apptsLoading || custsLoading || svcsLoading;
+  // Canonieke Auto Rebook engine — deze kaart heeft geen eigen drempels.
+  const { dueCount: rebookReady } = useDueRebook(services as any[]);
 
   const items = useMemo(() => {
     const now = Date.now();
@@ -38,7 +41,6 @@ export function RevenueOpportunities() {
       : 0;
     const potentialRevenue = Math.round(freeSlots * avgPrice);
 
-    let rebookReady = 0;
     let inactive = 0;
     let recentNoReview = 0;
     for (const c of customers as any[]) {
@@ -51,8 +53,7 @@ export function RevenueOpportunities() {
       const hasFuture = (appointments as any[]).some(
         (a) => a.customer_id === c.id && new Date(a.appointment_date) > new Date() && a.status !== "geannuleerd",
       );
-      if (!hasFuture && daysSince >= 25 && daysSince <= 50) rebookReady++;
-      if (daysSince > 60 && visits.length >= 1) inactive++;
+      if (!hasFuture && daysSince > 60 && visits.length >= 1) inactive++;
       if (daysSince >= 1 && daysSince <= 14 && !c.last_review_at) recentNoReview++;
     }
 
@@ -115,7 +116,7 @@ export function RevenueOpportunities() {
     }
 
     return list.slice(0, 4);
-  }, [appointments, customers, services, navigate]);
+  }, [appointments, customers, services, navigate, rebookReady]);
 
   if (loading) {
     return <Skeleton className="h-24 rounded-2xl" />;

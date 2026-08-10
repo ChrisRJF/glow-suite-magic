@@ -15,7 +15,8 @@ import {
   selectChannel,
   type ReminderType,
 } from "../_shared/reminderEngine.ts";
-import { calculateAutoRebook } from "../_shared/autoRebook.ts";
+import { runAutoRebookSweep } from "../_shared/autoRebookPass.ts";
+import { canStillSendRebook, maskContact } from "../_shared/autoRebookGuards.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -162,22 +163,25 @@ Deno.serve(async (req) => {
           }
         }
 
-        // Auto Rebook: stop retrying the moment the customer books again.
+        // Auto Rebook: re-evaluate consent, opt-outs, the master toggle and a
+        // possible new booking BEFORE every retry. A blocked retry is
+        // suppressed, never counted as a delivery failure.
         if (row.reminder_type === "auto_rebook" && row.customer_id) {
-          const { data: futureAppt } = await admin
-            .from("appointments")
-            .select("id")
-            .eq("customer_id", row.customer_id)
-            .gte("appointment_date", nowIso)
-            .not("status", "in", "(geannuleerd,cancelled,no_show)")
-            .limit(1)
-            .maybeSingle();
-          if (futureAppt) {
+          const guard = await canStillSendRebook(admin, row.user_id, row.customer_id);
+          if (!guard.allowed) {
             await admin.from("whatsapp_logs").update({
               dead_letter: true,
-              error: "customer_already_rebooked",
+              status: "suppressed",
+              error: guard.reason,
               next_retry_at: null,
             }).eq("id", row.id);
+            const raId = (row.meta as any)?.rebook_action_id;
+            if (raId) {
+              await admin.from("rebook_actions")
+                .update({ status: "suppressed" })
+                .eq("id", raId)
+                .is("booked_at", null);
+            }
             continue;
           }
         }
@@ -742,267 +746,118 @@ Deno.serve(async (req) => {
         }
       }
 
-      // -------- AUTO REBOOK PASS -------- (klant_retention)
-      // Canonical: the Auto Rebook engine decides WHO is due. No local
-      // day-count formulas live here anymore. Claims, channel fallback and
-      // retries reuse the same production patterns as the no-show pipeline.
-      if (s.send_revenue_boost && gate("klant_retention")) {
-        try {
-          const { data: salonCfg } = await admin
-            .from("settings")
-            .select("timezone, public_slug, email_enabled, is_demo, demo_mode")
-            .eq("user_id", s.user_id)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          const rbTz = salonCfg?.timezone || DEFAULT_TZ;
-          const salonIsDemo = Boolean(salonCfg?.is_demo || salonCfg?.demo_mode);
-          const localNow = getLocalParts(now, rbTz);
+    }
 
-          if (salonIsDemo) {
-            stats.windows.push({ user_id: s.user_id, pass: "auto_rebook", skipped_reason: "demo_account" });
-          } else if (localNow.hour < 9 || localNow.hour >= 19) {
-            // Respect salon timezone: never message outside 09:00-19:00 local.
-            stats.windows.push({ user_id: s.user_id, pass: "auto_rebook", skipped_reason: "outside_local_hours", tz: rbTz });
-          } else {
-            const maxPerMonth = Math.max(1, s.revenue_boost_max_per_month || 1);
-            const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
+    // -------- AUTO REBOOK DEAD-LETTER FALLBACK --------
+    // WhatsApp gave up after all retries. Try exactly ONE canonical email
+    // fallback (never a second full retry cycle), otherwise notify the salon
+    // in plain language. Idempotency lives in meta.dl_handled + the email
+    // idempotency key, so two channels can never both deliver.
+    try {
+      const { data: dlRows } = await admin
+        .from("whatsapp_logs")
+        .select("id, user_id, customer_id, meta")
+        .eq("reminder_type", "auto_rebook")
+        .eq("dead_letter", true)
+        .eq("status", "failed")
+        .is("meta->>dl_handled", null)
+        .limit(30);
 
-            const { data: rbTpl } = await admin
-              .from("whatsapp_templates")
-              .select("content, is_active")
-              .eq("user_id", s.user_id)
-              .eq("template_type", "revenue_boost")
-              .maybeSingle();
+      for (const row of dlRows || []) {
+        const meta = (row.meta as any) || {};
+        const markHandled = async (how: string) =>
+          admin.from("whatsapp_logs")
+            .update({ meta: { ...meta, dl_handled: how, dl_handled_at: new Date().toISOString() } })
+            .eq("id", row.id);
 
-            if (rbTpl?.is_active === false) {
-              stats.windows.push({ user_id: s.user_id, pass: "auto_rebook", skipped_reason: "template_disabled" });
-            } else {
-              const { data: profileRb } = await admin
-                .from("profiles").select("salon_name").eq("user_id", s.user_id).maybeSingle();
-              const salonNameRb = profileRb?.salon_name || "ons salon";
+        if (!row.customer_id) { await markHandled("no_customer"); continue; }
 
-              const { data: svcRows } = await admin
-                .from("services")
-                .select("id, name, price, rebook_interval_days")
-                .eq("user_id", s.user_id);
-              const serviceIntervals: Record<string, number | null> = {};
-              const servicePrices: Record<string, number | null> = {};
-              const serviceNames: Record<string, string> = {};
-              for (const svc of svcRows || []) {
-                serviceIntervals[svc.id] = (svc as any).rebook_interval_days ?? null;
-                servicePrices[svc.id] = Number((svc as any).price ?? 0) || null;
-                serviceNames[svc.id] = (svc as any).name || "";
-              }
+        const guard = await canStillSendRebook(admin, row.user_id, row.customer_id);
+        if (!guard.allowed) { await markHandled(`suppressed:${guard.reason}`); continue; }
 
-              const { data: candidates } = await admin
-                .from("customers")
-                .select("id, name, phone, email, whatsapp_opt_in, preferred_language")
-                .eq("user_id", s.user_id)
-                .eq("is_demo", false)
-                .limit(500);
+        const [{ data: cust }, { data: pref }, { data: cfg }, { data: prof }] = await Promise.all([
+          admin.from("customers").select("id, name, email, preferred_language").eq("id", row.customer_id).maybeSingle(),
+          admin.from("customer_message_preferences").select("email_opt_out").eq("user_id", row.user_id).eq("customer_id", row.customer_id).maybeSingle(),
+          admin.from("settings").select("email_enabled, public_slug").eq("user_id", row.user_id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+          admin.from("profiles").select("salon_name").eq("user_id", row.user_id).maybeSingle(),
+        ]);
 
-              const histSince = new Date(now.getTime() - 730 * 24 * 60 * 60 * 1000).toISOString();
-              const { data: apptRows } = await admin
-                .from("appointments")
-                .select("id, customer_id, service_id, appointment_date, status, price")
-                .eq("user_id", s.user_id)
-                .gte("appointment_date", histSince)
-                .limit(5000);
-              const byCustomer = new Map<string, any[]>();
-              for (const a of apptRows || []) {
-                if (!a.customer_id) continue;
-                const arr = byCustomer.get(a.customer_id) || [];
-                arr.push(a);
-                byCustomer.set(a.customer_id, arr);
-              }
+        const emailOk = Boolean(cust?.email) && !pref?.email_opt_out && Boolean(cfg?.email_enabled ?? true);
+        let delivered = false;
+        if (emailOk) {
+          try {
+            const res = await admin.functions.invoke("send-white-label-email", {
+              body: {
+                user_id: row.user_id,
+                salon_name: prof?.salon_name || "ons salon",
+                salon_slug: cfg?.public_slug || undefined,
+                recipient_email: cust.email,
+                recipient_name: cust.name || "",
+                template_key: "auto_rebook",
+                idempotency_key: `auto-rebook-${meta.rebook_action_id || row.id}`,
+                language: normalizeMessageLang(cust.preferred_language || "nl"),
+                template_data: {
+                  customer_name: cust.name || "",
+                  salon_name: prof?.salon_name || "ons salon",
+                  rebook_url: meta.booking_link || "",
+                  booking_url: meta.booking_link || "",
+                },
+              },
+            });
+            delivered = !res.error;
+          } catch (_) { delivered = false; }
+        }
 
-              const { data: prefRows } = await admin
-                .from("customer_message_preferences")
-                .select("customer_id, email_opt_out, whatsapp_opt_out")
-                .eq("user_id", s.user_id);
-              const prefMap = new Map<string, any>();
-              for (const p of prefRows || []) prefMap.set(p.customer_id, p);
-
-              const { data: monthLogs } = await admin
-                .from("whatsapp_logs")
-                .select("customer_id")
-                .eq("user_id", s.user_id)
-                .eq("kind", "auto_rebook")
-                .in("status", ["sent", "demo"])
-                .gte("created_at", monthStart);
-              const sentThisMonth = new Map<string, number>();
-              for (const l of monthLogs || []) {
-                if (!l.customer_id) continue;
-                sentThisMonth.set(l.customer_id, (sentThisMonth.get(l.customer_id) || 0) + 1);
-              }
-
-              const origin = publicAppOrigin();
-              const slug = (salonCfg as any)?.public_slug || null;
-              const salonEmailEnabled = Boolean((salonCfg as any)?.email_enabled ?? true);
-
-              for (const c of candidates || []) {
-                stats.checked++;
-                const decision = calculateAutoRebook({
-                  customer_id: c.id,
-                  appointments: (byCustomer.get(c.id) || []) as any,
-                  serviceIntervals,
-                  servicePrices,
-                  now,
-                });
-                if (!decision.should_rebook) { stats.skipped++; continue; }
-                if ((sentThisMonth.get(c.id) || 0) >= maxPerMonth) { stats.skipped++; continue; }
-
-                const pref = prefMap.get(c.id);
-                const chan = selectChannel({
-                  customer: {
-                    phone: c.phone,
-                    email: c.email,
-                    whatsapp_opt_in: pref?.whatsapp_opt_out ? false : c.whatsapp_opt_in,
-                  },
-                  waEnabled: true,
-                  emailEnabled: salonEmailEnabled && !pref?.email_opt_out,
-                });
-                if (!chan.channel) {
-                  stats.skipped++;
-                  stats.windows.push({ user_id: s.user_id, customer_id: c.id, pass: "auto_rebook", skipped_reason: chan.reason });
-                  continue;
-                }
-
-                // Canonical claim: one send per customer + service + return moment.
-                const { data: claimData, error: claimErr } = await admin.rpc("claim_auto_rebook", {
-                  _user_id: s.user_id,
-                  _customer_id: c.id,
-                  _service_id: decision.service_id,
-                  _expected_return_date: decision.expected_return_date,
-                  _days_overdue: decision.days_overdue,
-                  _reason: decision.reason,
-                  _estimated_value: decision.estimated_value,
-                  _is_demo: false,
-                });
-                if (claimErr) {
-                  stats.errors.push(`auto_rebook claim ${c.id}: ${claimErr.message}`);
-                  continue;
-                }
-                const claimRow = Array.isArray(claimData) ? claimData[0] : (claimData as any);
-                if (!claimRow?.id) {
-                  stats.skipped++;
-                  stats.windows.push({ user_id: s.user_id, customer_id: c.id, pass: "auto_rebook", skipped_reason: "already_claimed" });
-                  continue;
-                }
-
-                const bookingLink = slug
-                  ? `${origin}/boeken/${slug}?rb=${claimRow.rebook_token}${decision.service_id ? `&svc=${decision.service_id}` : ""}`
-                  : `${origin}/boeken?rb=${claimRow.rebook_token}`;
-
-                const rbLang = normalizeMessageLang((c as any).preferred_language || "nl");
-                const rbContent = rbTpl?.content || getDefaultMessageTemplate("reactivation", rbLang, "whatsapp");
-                const message = renderMessage(rbContent, {
-                  customer_name: c.name || "",
-                  salon_name: salonNameRb,
-                  booking_link: bookingLink,
-                });
-                const rebookMeta = {
-                  rebook_action_id: claimRow.id,
-                  expected_return_date: decision.expected_return_date,
-                  days_overdue: decision.days_overdue,
-                  interval_days: decision.recommended_interval_days,
-                  interval_source: decision.interval_source,
-                  reason: decision.reason,
-                  booking_link: bookingLink,
-                  tz: rbTz,
-                };
-
-                if (chan.channel === "whatsapp") {
-                  try {
-                    const resp = await fetch(`${SUPABASE_URL}/functions/v1/whatsapp-send`, {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${SERVICE_KEY}` },
-                      body: JSON.stringify({
-                        user_id: s.user_id,
-                        to: c.phone,
-                        message,
-                        customer_id: c.id,
-                        kind: "auto_rebook",
-                        reminder_type: "auto_rebook" as ReminderType,
-                        meta: rebookMeta,
-                      }),
-                    });
-                    const data = await resp.json();
-                    if (resp.ok && (data.success || data.deduped)) {
-                      if (data.deduped) stats.skipped++; else stats.sent++;
-                      await admin.from("rebook_actions").update({
-                        status: "verzonden", channel: "whatsapp", sent_at: new Date().toISOString(),
-                      }).eq("id", claimRow.id);
-                      sentThisMonth.set(c.id, (sentThisMonth.get(c.id) || 0) + 1);
-                    } else {
-                      // whatsapp-send already logged a failed row with a retry
-                      // schedule; the retry pass takes it from here.
-                      stats.failed++;
-                      await admin.from("rebook_actions").update({ status: "retry", channel: "whatsapp" }).eq("id", claimRow.id);
-                      stats.errors.push(`auto_rebook ${c.id}: ${data.error || resp.status}`);
-                    }
-                  } catch (e) {
-                    stats.failed++;
-                    await admin.from("rebook_actions").update({ status: "retry", channel: "whatsapp" }).eq("id", claimRow.id);
-                    stats.errors.push(`auto_rebook ${c.id}: ${e instanceof Error ? e.message : "unknown"}`);
-                  }
-                } else {
-                  // Email fallback through the existing white-label sender.
-                  try {
-                    const invokeRes = await admin.functions.invoke("send-white-label-email", {
-                      body: {
-                        user_id: s.user_id,
-                        salon_name: salonNameRb,
-                        salon_slug: slug || undefined,
-                        recipient_email: c.email,
-                        recipient_name: c.name || "",
-                        template_key: "auto_rebook",
-                        idempotency_key: `auto-rebook-${claimRow.id}`,
-                        language: rbLang,
-                        template_data: {
-                          customer_name: c.name || "",
-                          salon_name: salonNameRb,
-                          service_name: decision.service_id ? serviceNames[decision.service_id] || "" : "",
-                          last_visit_date: decision.last_appointment_date,
-                          rebook_url: bookingLink,
-                          booking_url: bookingLink,
-                        },
-                      },
-                    });
-                    if (invokeRes.error) throw new Error(invokeRes.error.message || "email_invoke_failed");
-                    stats.sent++;
-                    await admin.from("rebook_actions").update({
-                      status: "verzonden", channel: "email", sent_at: new Date().toISOString(),
-                    }).eq("id", claimRow.id);
-                    sentThisMonth.set(c.id, (sentThisMonth.get(c.id) || 0) + 1);
-                    // Canonical audit trail, same table as WhatsApp sends.
-                    try {
-                      await admin.from("whatsapp_logs").insert({
-                        user_id: s.user_id,
-                        customer_id: c.id,
-                        to_number: `email:${c.email}`,
-                        message: `[email] ${message.slice(0, 480)}`,
-                        status: "sent",
-                        kind: "auto_rebook",
-                        reminder_type: "auto_rebook",
-                        meta: { ...rebookMeta, channel: "email", fallback_reason: chan.reason },
-                      });
-                    } catch (_) { /* non-fatal audit */ }
-                  } catch (e) {
-                    stats.failed++;
-                    stats.errors.push(`auto_rebook email ${c.id}: ${e instanceof Error ? e.message : "unknown"}`);
-                    // Release the claim so the next tick can try again.
-                    await admin.from("rebook_actions").delete().eq("id", claimRow.id);
-                  }
-                }
-              }
-            }
+        if (delivered) {
+          if (meta.rebook_action_id) {
+            await admin.from("rebook_actions").update({
+              status: "verzonden", channel: "email", sent_at: new Date().toISOString(),
+            }).eq("id", meta.rebook_action_id).is("booked_at", null);
           }
-        } catch (e) {
-          stats.errors.push(`auto_rebook pass ${s.user_id}: ${e instanceof Error ? e.message : "unknown"}`);
+          await markHandled("email_fallback");
+        } else {
+          await admin.from("admin_notifications").insert({
+            user_id: row.user_id,
+            type: "auto_rebook_undeliverable",
+            severity: "warning",
+            title: "Een Auto Rebook-bericht kon niet worden verstuurd.",
+            body: "We hebben deze klant niet kunnen bereiken via WhatsApp of e-mail. Neem eventueel zelf contact op.",
+            payload: { customer_id: row.customer_id, log_id: row.id },
+            link: "/herboekingen",
+          });
+          if (meta.rebook_action_id) {
+            await admin.from("rebook_actions").update({ status: "mislukt" })
+              .eq("id", meta.rebook_action_id).is("booked_at", null);
+          }
+          await markHandled("merchant_notified");
         }
       }
+    } catch (e) {
+      stats.errors.push(`auto_rebook dead_letter: ${e instanceof Error ? e.message : "unknown"}`);
+    }
+
+    // -------- AUTO REBOOK SWEEP -------- (klant_retention)
+    // Fair, resumable round-robin across salons with keyset-paginated
+    // customer batches. No salon or customer is silently truncated.
+    const rebookSalons = (settingsList || []).filter((s) => s.send_revenue_boost).map((s) => s.user_id);
+    const rebookCfg = new Map<string, { maxPerMonth: number }>();
+    for (const s of settingsList || []) {
+      rebookCfg.set(s.user_id, { maxPerMonth: Math.max(1, s.revenue_boost_max_per_month || 1) });
+    }
+    try {
+      await runAutoRebookSweep({
+        admin,
+        supabaseUrl: SUPABASE_URL,
+        serviceKey: SERVICE_KEY,
+        now,
+        stats,
+        salonIds: rebookSalons,
+        configFor: (uid) => rebookCfg.get(uid) || { maxPerMonth: 1 },
+        aiGate: async (uid) => canAutoRun(await loadAIModes(admin, uid, false), "klant_retention"),
+        getLocalHour: (tz) => getLocalParts(now, tz).hour,
+      });
+    } catch (e) {
+      stats.errors.push(`auto_rebook sweep: ${e instanceof Error ? e.message : "unknown"}`);
     }
 
     if (runId) {

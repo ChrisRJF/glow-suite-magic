@@ -383,15 +383,33 @@ Deno.serve(async (req) => {
 
     // ---- AUTO REBOOK ATTRIBUTION ----
     // A valid, unused token proves this booking came from an Auto Rebook message.
-    let rebookAction: { id: string; customer_id: string | null } | null = null;
+    // Token lifecycle + server-side identity check. A forwarded link still
+    // books normally, it just never attributes revenue to the wrong customer.
+    let rebookAction: { id: string; customer_id: string | null; service_id: string | null } | null = null;
     if (data.rebook_token) {
       const { data: ra } = await supabase
         .from("rebook_actions")
-        .select("id, customer_id, booked_at")
+        .select("id, customer_id, service_id, booked_at, status, token_expires_at")
         .eq("rebook_token", data.rebook_token)
         .eq("user_id", ctx.settings.user_id)
         .maybeSingle();
-      if (ra && !ra.booked_at) rebookAction = { id: ra.id, customer_id: ra.customer_id };
+
+      const expired = ra?.token_expires_at ? new Date(ra.token_expires_at).getTime() < Date.now() : false;
+      const cancelled = ["suppressed", "vervallen", "mislukt"].includes(String(ra?.status || ""));
+      const identityMatches = Boolean(ra?.customer_id) && ra?.customer_id === customerId;
+
+      if (!ra) {
+        console.log("[public-booking] rebook token unknown");
+      } else if (ra.booked_at) {
+        console.log("[public-booking] rebook token already used", { action_id: ra.id });
+      } else if (expired || cancelled) {
+        console.log("[public-booking] rebook token no longer valid", { action_id: ra.id, expired, cancelled });
+      } else if (!identityMatches) {
+        // Forwarded link: booking proceeds as a normal online booking.
+        console.log("[public-booking] rebook token customer mismatch", { action_id: ra.id });
+      } else {
+        rebookAction = { id: ra.id, customer_id: ra.customer_id, service_id: ra.service_id };
+      }
     }
 
     const appointmentsToInsert = bookingRows.map((row, index) => {
@@ -441,11 +459,18 @@ Deno.serve(async (req) => {
     }
 
     if (rebookAction && appointments?.[0]) {
-      const attributed = appointmentsToInsert.reduce((sum, row) => sum + Number(row.price || 0), 0);
+      // GROUP BOOKINGS: attribute only the single appointment that belongs to
+      // the original Auto Rebook context (the rebooked customer's own line).
+      // Extra people in a group booking are never counted as rebook revenue.
+      const primaryIndex = rebookAction.service_id
+        ? Math.max(0, appointmentsToInsert.findIndex((r) => r.service_id === rebookAction!.service_id))
+        : 0;
+      const primary = appointments[primaryIndex] || appointments[0];
+      const attributed = Number(appointmentsToInsert[primaryIndex]?.price || appointmentsToInsert[0]?.price || 0);
       await supabase.from("rebook_actions").update({
         status: "geboekt",
         booked_at: new Date().toISOString(),
-        appointment_id: appointments[0].id,
+        appointment_id: primary.id,
         attributed_revenue: attributed,
       }).eq("id", rebookAction.id).is("booked_at", null);
     }

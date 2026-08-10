@@ -911,6 +911,8 @@ export type Database = {
           is_demo: boolean
           language: string
           preferred_channel: string
+          retention_opt_out: boolean
+          retention_opt_out_at: string | null
           sms_opt_out: boolean
           updated_at: string
           user_id: string
@@ -924,6 +926,8 @@ export type Database = {
           is_demo?: boolean
           language?: string
           preferred_channel?: string
+          retention_opt_out?: boolean
+          retention_opt_out_at?: string | null
           sms_opt_out?: boolean
           updated_at?: string
           user_id: string
@@ -937,6 +941,8 @@ export type Database = {
           is_demo?: boolean
           language?: string
           preferred_channel?: string
+          retention_opt_out?: boolean
+          retention_opt_out_at?: string | null
           sms_opt_out?: boolean
           updated_at?: string
           user_id?: string
@@ -2282,13 +2288,20 @@ export type Database = {
           expected_return_date: string | null
           id: string
           is_demo: boolean
+          last_appointment_id: string | null
           message_log_id: string | null
+          realized_at: string | null
+          realized_revenue: number | null
           reason: string | null
           rebook_token: string
+          reversal_reason: string | null
+          reversed_at: string | null
+          reversed_revenue: number | null
           sent_at: string | null
           service_id: string | null
           status: string | null
           suggested_date: string | null
+          token_expires_at: string | null
           updated_at: string
           user_id: string
         }
@@ -2304,13 +2317,20 @@ export type Database = {
           expected_return_date?: string | null
           id?: string
           is_demo?: boolean
+          last_appointment_id?: string | null
           message_log_id?: string | null
+          realized_at?: string | null
+          realized_revenue?: number | null
           reason?: string | null
           rebook_token?: string
+          reversal_reason?: string | null
+          reversed_at?: string | null
+          reversed_revenue?: number | null
           sent_at?: string | null
           service_id?: string | null
           status?: string | null
           suggested_date?: string | null
+          token_expires_at?: string | null
           updated_at?: string
           user_id: string
         }
@@ -2326,13 +2346,20 @@ export type Database = {
           expected_return_date?: string | null
           id?: string
           is_demo?: boolean
+          last_appointment_id?: string | null
           message_log_id?: string | null
+          realized_at?: string | null
+          realized_revenue?: number | null
           reason?: string | null
           rebook_token?: string
+          reversal_reason?: string | null
+          reversed_at?: string | null
+          reversed_revenue?: number | null
           sent_at?: string | null
           service_id?: string | null
           status?: string | null
           suggested_date?: string | null
+          token_expires_at?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -2640,6 +2667,24 @@ export type Database = {
           shown_at?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      scheduler_cursors: {
+        Row: {
+          cursor_value: string | null
+          scheduler_name: string
+          updated_at: string
+        }
+        Insert: {
+          cursor_value?: string | null
+          scheduler_name: string
+          updated_at?: string
+        }
+        Update: {
+          cursor_value?: string | null
+          scheduler_name?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -4002,6 +4047,13 @@ export type Database = {
       }
     }
     Functions: {
+      auto_rebook_candidates: {
+        Args: { _max_customers?: number }
+        Returns: {
+          appointments: Json
+          customer_id: string
+        }[]
+      }
       bootstrap_current_user: { Args: never; Returns: Json }
       can_manage_operations: { Args: { _user_id: string }; Returns: boolean }
       can_manage_users: { Args: { _user_id: string }; Returns: boolean }
@@ -4017,13 +4069,16 @@ export type Database = {
           _estimated_value: number
           _expected_return_date: string
           _is_demo: boolean
+          _last_appointment_id?: string
           _reason: string
           _service_id: string
+          _token_ttl_days?: number
           _user_id: string
         }
         Returns: {
           id: string
           rebook_token: string
+          token_expires_at: string
         }[]
       }
       claim_reminder_dispatch: {
@@ -4036,6 +4091,7 @@ export type Database = {
       }
       current_account_is_demo: { Args: never; Returns: boolean }
       ensure_referral_code: { Args: { _user_id: string }; Returns: string }
+      get_scheduler_cursor: { Args: { _name: string }; Returns: string }
       has_any_role: {
         Args: {
           _roles: Database["public"]["Enums"]["app_role"][]
@@ -4065,6 +4121,7 @@ export type Database = {
         Args: { _user_id: string }
         Returns: number
       }
+      set_auto_rebook: { Args: { _enabled: boolean }; Returns: undefined }
       set_noshow_prevention: {
         Args: {
           _booking_confirmation_template: string
@@ -4072,6 +4129,10 @@ export type Database = {
           _no_show_template: string
           _reminder_template: string
         }
+        Returns: undefined
+      }
+      set_scheduler_cursor: {
+        Args: { _name: string; _value: string }
         Returns: undefined
       }
       try_acquire_scheduler_lock: {

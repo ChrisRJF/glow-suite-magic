@@ -225,6 +225,7 @@ Deno.serve(async (req) => {
       await supabase.from("rebook_actions").insert(rebookCustomers.map((c) => ({
         user_id: uid,
         customer_id: c.id,
+        is_demo: true,
         status: Math.random() > 0.5 ? "pending" : "sent",
         suggested_date: new Date(today.getTime() + Math.random() * 14 * 86400000).toISOString(),
       })));

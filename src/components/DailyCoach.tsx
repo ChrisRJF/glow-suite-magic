@@ -7,6 +7,7 @@ import { calculateNoShowRisk } from "@/lib/noShowRisk";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Phone, Send, Calendar, AlertTriangle, TrendingDown, Zap, ArrowRight, Target, CreditCard, BadgeCheck } from "lucide-react";
 
+import { useDueRebook } from "@/lib/autoRebookClient";
 import { useAIModes, effectiveMode, type AICategory } from "@/lib/aiModes";
 
 interface CoachAction {
@@ -32,6 +33,8 @@ export function DailyCoach() {
   const { data: payments } = usePayments();
   const navigate = useNavigate();
   const { modes } = useAIModes();
+  // Canonieke Auto Rebook engine — geen eigen dagdrempels meer.
+  const { dueCount: rebookReadyCount, estimatedValue: rebookValue } = useDueRebook(services as any[]);
 
   const actions = useMemo<CoachAction[]>(() => {
     const list: CoachAction[] = [];
@@ -62,23 +65,14 @@ export function DailyCoach() {
       });
     }
 
-    // 2. Herboeking klaar
-    const rebookReady = customers.filter(c => {
-      const last = appointments
-        .filter(a => a.customer_id === c.id && a.status !== 'geannuleerd')
-        .sort((a, b) => new Date(b.appointment_date).getTime() - new Date(a.appointment_date).getTime())[0];
-      if (!last) return false;
-      const diff = (Date.now() - new Date(last.appointment_date).getTime()) / 86400000;
-      const future = appointments.find(a => a.customer_id === c.id && new Date(a.appointment_date) > now && a.status !== 'geannuleerd');
-      return diff > 30 && diff < 90 && !future;
-    });
-    if (rebookReady.length >= 1) {
+    // 2. Herboeking klaar — beslissing komt volledig uit de Auto Rebook engine.
+    if (rebookReadyCount >= 1) {
       list.push({
         id: "rebook",
         icon: Phone,
-        title: `Bel ${Math.min(rebookReady.length, 5)} klanten klaar voor herboeking`,
-        reason: `${rebookReady.length} klanten 30-90 dagen geleden geweest, nog geen vervolg`,
-        impact: `+${formatEuro(rebookReady.length * 65)} verwacht`,
+        title: `Bel ${Math.min(rebookReadyCount, 5)} klanten klaar voor herboeking`,
+        reason: `${rebookReadyCount} klanten zijn volgens hun eigen ritme toe aan een nieuwe afspraak`,
+        impact: `+${formatEuro(rebookValue)} verwacht`,
         cta: "Open herboekingen",
         route: "/herboekingen",
         tone: "primary",
@@ -207,7 +201,7 @@ export function DailyCoach() {
     });
 
     return filtered.slice(0, 2);
-  }, [customers, appointments, services, leads, memberships, payments, modes]);
+  }, [customers, appointments, services, leads, memberships, payments, modes, rebookReadyCount, rebookValue]);
 
   const handleClick = (route: string) => {
     if (route.startsWith("/#")) {
