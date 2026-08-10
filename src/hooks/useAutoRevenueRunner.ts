@@ -87,7 +87,6 @@ export function useAutoRevenueRunner(
   const { data: services, loading: servicesLoading } = useServices();
   const { insert: insertCampaign } = useCrud("campaigns");
   const { insert: insertDiscount } = useCrud("discounts");
-  const { insert: insertRebook } = useCrud("rebook_actions");
 
   // Auto-read autopilot config from the SAME localStorage key the Overview
   // engine writes to. This guarantees both call sites see identical settings
@@ -518,13 +517,14 @@ export function useAutoRevenueRunner(
 
         if (action === "whatsapp_blast") {
           for (const c of topTargets.slice(0, decisions.length)) {
-            const r = await insertRebook({
-              customer_id: c.id,
-              status: "verzonden",
-              suggested_date: new Date(
-                Date.now() + 86_400_000,
-              ).toISOString(),
-            });
+            // Canonical pipeline only: rebook_actions is never written from
+            // the client. The auto-rebook-send edge function owns claim,
+            // consent, dedup and lifecycle for every Auto Rebook message.
+            const { data: rb, error: rbErr } = await supabase.functions.invoke(
+              "auto-rebook-send",
+              { body: { customer_id: c.id } },
+            );
+            const r = !rbErr && !(rb as any)?.error;
             if (!r) errors.push(`rebook voor ${c.name || c.id} mislukt`);
             if (runId) {
               try {
