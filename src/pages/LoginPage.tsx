@@ -88,6 +88,10 @@ export default function LoginPage() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast.success(t("auth.toasts.welcomeBack"));
+        if (nextPath) {
+          window.location.href = nextPath;
+          return;
+        }
         if (wantsCheckout && plan) {
           window.location.href = `/?checkout=1&plan=${plan}`;
           return;
