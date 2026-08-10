@@ -344,9 +344,19 @@ Deno.serve(async (req) => {
         if (typeof (eventData as any)?.TerminalsEnabled === "boolean") upd.terminals_enabled = (eventData as any).TerminalsEnabled;
         if (typeof (eventData as any)?.OnlinePaymentsEnabled === "boolean") upd.online_payments_enabled = (eventData as any).OnlinePaymentsEnabled;
         if ((eventData as any)?.MerchantId) upd.viva_merchant_id = String((eventData as any).MerchantId);
-        upd.metadata = { ...(m.metadata as any || {}), last_webhook_event: { eventTypeId, eventTypeName, eventData } };
+        // Only persist a source code when Viva actually supplies one. Never guess.
+        const evtSourceCode = String((eventData as any)?.SourceCode ?? (eventData as any)?.sourceCode ?? "").trim();
+        if (evtSourceCode) upd.viva_source_code = evtSourceCode;
+        const resolvedMerchantId = upd.viva_merchant_id ?? m.viva_merchant_id;
+        const resolvedSourceCode = upd.viva_source_code ?? (m as any).viva_source_code;
+        upd.setup_complete = Boolean(resolvedMerchantId && resolvedSourceCode);
+        upd.setup_incomplete_reason = resolvedMerchantId
+          ? (resolvedSourceCode ? null : "source_code_unknown")
+          : "merchant_id_unknown";
+        upd.metadata = { ...(m.metadata as any || {}), last_webhook_event: { eventTypeId, eventTypeName } };
         await supabase.from("glowpay_connected_merchants").update(upd).eq("id", m.id);
-        if (ledgerId) await supabase.from("viva_webhook_events").update({ user_id: m.user_id, processed: true, processed_at: new Date().toISOString() }).eq("id", ledgerId);
+        if (ledgerId) await supabase.from("viva_webhook_events").update({ user_id: m.user_id, viva_merchant_id: (resolvedMerchantId as string) || null, processed: true, processed_at: new Date().toISOString() }).eq("id", ledgerId);
+
         if (!transactionId && !orderCode) return okText();
       }
     }
