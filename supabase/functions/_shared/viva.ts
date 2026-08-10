@@ -220,8 +220,10 @@ export async function createVivaOrder(args: CreateVivaOrderArgs): Promise<Create
     stage: "response",
     http_status: res.status,
     ok: res.ok,
-    viva_body: data,
+    viva_error_code: data?.ErrorCode ?? data?.errorCode ?? null,
+    order_code: data?.orderCode != null ? String(data.orderCode) : null,
   }));
+
 
   if (!res.ok || data?.orderCode == null) {
     const err: any = new Error(`Viva order error (${res.status}): ${JSON.stringify(data)}`);
