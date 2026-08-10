@@ -276,11 +276,15 @@ Deno.serve(async (req) => {
         provider: "viva",
         mollie_payment_id: order.orderCode, // store orderCode as string in shared slot
         checkout_reference: order.orderCode,
+        viva_merchant_id: merchantId,
+        viva_source_code: sourceCode,
         metadata: {
           ...baseMetadata,
           viva_order_code: order.orderCode,
+          viva_merchant_id: merchantId,
           checkout_url: checkoutUrl,
         },
+
       })
       .select()
       .single();
