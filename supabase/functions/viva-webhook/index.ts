@@ -235,6 +235,12 @@ Deno.serve(async (req) => {
     eventData?.MerchantTrns ?? eventData?.merchantTrns ?? "",
   ) || null;
   const sessionIdEvt = String(eventData?.SessionId ?? eventData?.sessionId ?? "") || null;
+  // ISV merchant identification straight from the event, when Viva supplies it.
+  const eventMerchantId = String(
+    eventData?.MerchantId ?? eventData?.merchantId ??
+    (p as any)?.MerchantId ?? (p as any)?.merchantId ?? "",
+  ) || null;
+
   const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const statusId = String(eventData?.StatusId ?? eventData?.statusId ?? "") || null;
   const status = mapVivaStatus(statusId || "", eventTypeId || undefined);
