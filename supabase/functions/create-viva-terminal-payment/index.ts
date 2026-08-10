@@ -63,6 +63,47 @@ Deno.serve(async (req) => {
     if (!terminal) return json({ error: "terminal_not_found" }, 404);
     if (terminal.status !== "active") return json({ error: "terminal_inactive" }, 400);
 
+    // ---- ISV MERCHANT SCOPE (live only) ----
+    // The terminal must demonstrably belong to the same Viva merchant as the
+    // signed-in salon. Merchant identifiers are never taken from the request.
+    let merchantCtx: { merchantId: string; sourceCode: string } | null = null;
+    if (!is_demo) {
+      const merchantResult = await requireMerchantContext(admin, userId);
+      if (!merchantResult.ok || !merchantResult.context) {
+        isvWarn("terminal_merchant_context_missing", {
+          fn: "create-viva-terminal-payment",
+          user_id: userId,
+          reason: merchantResult.error,
+        });
+        return json({
+          error: merchantResult.message || "GlowPay merchant-koppeling ontbreekt.",
+          code: merchantResult.error,
+        }, 409);
+      }
+      merchantCtx = {
+        merchantId: merchantResult.context.merchantId,
+        sourceCode: merchantResult.context.sourceCode,
+      };
+
+      const terminalMerchantRow = (terminal as any).connected_merchant_id;
+      const terminalAccountId = (terminal as any).viva_account_id;
+      const ownsByRow = terminalMerchantRow && terminalMerchantRow === merchantResult.context.merchant.id;
+      const ownsByAccount = terminalAccountId && terminalAccountId === merchantResult.context.merchant.viva_account_id;
+      if (!ownsByRow && !ownsByAccount) {
+        isvWarn("terminal_merchant_mismatch", {
+          fn: "create-viva-terminal-payment",
+          user_id: userId,
+          merchant_id: maskId(merchantCtx.merchantId),
+          terminal_id: maskId(terminal_id),
+        });
+        return json({
+          error: "Deze terminal is niet aantoonbaar gekoppeld aan de merchant van deze salon.",
+          code: "terminal_merchant_mismatch",
+        }, 409);
+      }
+    }
+
+
     // Server-side amount enforcement: when paying an appointment, cap the
     // amount to the appointment's outstanding balance + tip. Prevents a
     // tampered client from overcharging the customer.
