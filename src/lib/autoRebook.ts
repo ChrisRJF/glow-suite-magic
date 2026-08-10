@@ -19,7 +19,12 @@ export const AUTO_REBOOK_MAX_DAYS = 365;
 
 const DAY_MS = 86_400_000;
 
-/** Statuses that count as a real, completed visit. */
+/**
+ * CANONICAL COMPLETED-VISIT STATUSES.
+ * Only these count as a real, executed visit for Auto Rebook history.
+ * A past appointment that was never closed off (e.g. still "gepland")
+ * is NOT a visit — see PART 5 of the Auto Rebook completion sprint.
+ */
 const COMPLETED_STATUSES = new Set(["voltooid", "completed", "afgerond", "done"]);
 /** Statuses that never count (cancelled / no-show). */
 const DEAD_STATUSES = new Set([
@@ -71,7 +76,13 @@ export interface AutoRebookDecision {
   last_appointment_date: string | null;
   recommended_interval_days: number;
   interval_source: IntervalSource;
-  /** yyyy-mm-dd */
+  /**
+   * Stable cycle identity: the appointment id of the last completed visit.
+   * One completed visit may only ever produce one Auto Rebook cycle, even
+   * when the salon later changes the service interval.
+   */
+  last_appointment_id: string | null;
+  /** Informational only — never the primary cycle identity. */
   expected_return_date: string | null;
   days_overdue: number;
   reason: string;
@@ -104,11 +115,9 @@ function median(values: number[]): number {
 
 function isCompleted(a: RebookAppointment, nowMs: number): boolean {
   const status = String(a.status || "").toLowerCase();
-  if (DEAD_STATUSES.has(status)) return false;
+  if (!COMPLETED_STATUSES.has(status)) return false;
   const t = toTime(a.appointment_date);
   if (!Number.isFinite(t)) return false;
-  if (COMPLETED_STATUSES.has(status)) return t <= nowMs;
-  // Past appointments that were never cancelled count as visited.
   return t <= nowMs;
 }
 
@@ -135,6 +144,7 @@ export function calculateAutoRebook(input: AutoRebookInput): AutoRebookDecision 
     customer_id: input.customer_id,
     service_id: null,
     last_appointment_date: null,
+    last_appointment_id: null,
     recommended_interval_days: AUTO_REBOOK_FALLBACK_DAYS,
     interval_source: "fallback",
     expected_return_date: null,
@@ -213,6 +223,7 @@ export function calculateAutoRebook(input: AutoRebookInput): AutoRebookDecision 
     customer_id: input.customer_id,
     service_id: serviceId,
     last_appointment_date: new Date(lastMs).toISOString(),
+    last_appointment_id: last.id || null,
     recommended_interval_days: interval,
     interval_source: source,
     expected_return_date: ymd(expectedMs),
