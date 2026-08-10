@@ -11,6 +11,15 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 const REF_STORAGE_KEY = "gs_ref_code";
 
+/** Same-origin relative path preserved across sign-in (used by the OAuth consent flow). */
+function safeNextPath(): string | null {
+  if (typeof window === "undefined") return null;
+  const raw = new URLSearchParams(window.location.search).get("next");
+  if (!raw) return null;
+  if (!raw.startsWith("/") || raw.startsWith("//")) return null;
+  return raw;
+}
+
 export default function LoginPage() {
   useLanguagePersistence();
   const { t } = useTranslation();
