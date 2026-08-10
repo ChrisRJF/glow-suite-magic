@@ -298,6 +298,8 @@ Deno.serve(async (req) => {
         order_code: orderCode,
         transaction_id: transactionId,
         status,
+        viva_merchant_id: eventMerchantId,
+
         source: eventSource,
         raw_payload: payload as any,
         signature_valid: signatureValid,
