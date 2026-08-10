@@ -3,6 +3,7 @@ import { z } from "https://esm.sh/zod@3.23.8";
 import { calculateAutoRebook } from "../_shared/autoRebook.ts";
 import { publicAppOrigin, selectChannel } from "../_shared/reminderEngine.ts";
 import { getDefaultMessageTemplate, normalizeMessageLang, renderMessage } from "../_shared/messageTranslations.ts";
+import { autoRebookEnabled, maskContact, retentionAllowed } from "../_shared/autoRebookGuards.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -45,6 +46,17 @@ Deno.serve(async (req) => {
   const { customer_id, force } = parsed.data;
 
   try {
+    // ---- Server-side role check: only roles that may handle customer
+    // communication can trigger a manual Auto Rebook send. ----
+    const { data: allowedRole } = await admin.rpc("can_manage_operations", { _user_id: userId });
+    if (!allowedRole) return json(403, { error: "forbidden" });
+
+    // ---- MASTER TOGGLE (choice B): Auto Rebook OFF blocks every Auto Rebook
+    // send, automatic and manual. One switch, no hidden behaviour. ----
+    if (!(await autoRebookEnabled(admin, userId))) {
+      return json(409, { error: "auto_rebook_disabled" });
+    }
+
     const [{ data: customer }, { data: svcRows }, { data: apptRows }, { data: settingsRow }, { data: profileRow }, { data: tpl }, { data: pref }] =
       await Promise.all([
         admin.from("customers").select("id, name, phone, email, whatsapp_opt_in, preferred_language").eq("id", customer_id).eq("user_id", userId).maybeSingle(),
@@ -53,10 +65,12 @@ Deno.serve(async (req) => {
         admin.from("settings").select("timezone, public_slug, email_enabled").eq("user_id", userId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
         admin.from("profiles").select("salon_name").eq("user_id", userId).maybeSingle(),
         admin.from("whatsapp_templates").select("content").eq("user_id", userId).eq("template_type", "revenue_boost").maybeSingle(),
-        admin.from("customer_message_preferences").select("email_opt_out, whatsapp_opt_out").eq("user_id", userId).eq("customer_id", customer_id).maybeSingle(),
+        admin.from("customer_message_preferences").select("email_opt_out, whatsapp_opt_out, retention_opt_out").eq("user_id", userId).eq("customer_id", customer_id).maybeSingle(),
       ]);
 
     if (!customer) return json(404, { error: "customer_not_found" });
+    // Retention consent is separate from transactional consent.
+    if (!retentionAllowed(pref)) return json(200, { skipped: true, reason: "retention_opt_out" });
 
     const serviceIntervals: Record<string, number | null> = {};
     const servicePrices: Record<string, number | null> = {};
@@ -95,6 +109,8 @@ Deno.serve(async (req) => {
       _reason: decision.reason,
       _estimated_value: decision.estimated_value,
       _is_demo: false,
+      _last_appointment_id: decision.last_appointment_id,
+      _token_ttl_days: 60,
     });
     if (claimErr) return json(500, { error: "claim_failed" });
     const claimRow = Array.isArray(claimData) ? claimData[0] : (claimData as any);
@@ -175,8 +191,8 @@ Deno.serve(async (req) => {
     await admin.from("whatsapp_logs").insert({
       user_id: userId,
       customer_id,
-      to_number: `email:${customer.email}`,
-      message: `[email] ${message.slice(0, 480)}`,
+      to_number: `email:${maskContact(customer.email)}`,
+      message: "[email] Auto Rebook",
       status: "sent",
       kind: "auto_rebook",
       reminder_type: "auto_rebook",
