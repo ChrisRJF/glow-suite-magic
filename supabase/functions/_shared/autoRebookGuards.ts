@@ -68,6 +68,42 @@ export interface RetrySendability {
   reason: string;
 }
 
+/** Statuses in which a rebook cycle is closed and must never be sent again. */
+const CLOSED_REBOOK_STATUSES = new Set([
+  "geboekt",
+  "booked",
+  "gerealiseerd",
+  "vervallen",
+  "suppressed",
+  "mislukt",
+]);
+
+/**
+ * Cycle validity: the claim must still exist, still be open and its token must
+ * not have expired. Without this a retry could deliver a link that the public
+ * booking endpoint would refuse anyway.
+ */
+export async function rebookCycleStillValid(
+  admin: SupabaseAdmin,
+  rebookActionId: string,
+): Promise<RetrySendability> {
+  const { data } = await admin
+    .from("rebook_actions")
+    .select("id, status, booked_at, token_expires_at")
+    .eq("id", rebookActionId)
+    .maybeSingle();
+
+  if (!data?.id) return { allowed: false, reason: "rebook_action_missing" };
+  if (data.booked_at) return { allowed: false, reason: "cycle_already_booked" };
+  if (CLOSED_REBOOK_STATUSES.has(String(data.status || "").toLowerCase())) {
+    return { allowed: false, reason: `cycle_${String(data.status).toLowerCase()}` };
+  }
+  if (data.token_expires_at && new Date(data.token_expires_at).getTime() <= Date.now()) {
+    return { allowed: false, reason: "token_expired" };
+  }
+  return { allowed: true, reason: "ok" };
+}
+
 /**
  * Re-evaluated before EVERY retry. When any of these now blocks the send the
  * retry is suppressed — it is never counted as a delivery failure.
@@ -76,6 +112,7 @@ export async function canStillSendRebook(
   admin: SupabaseAdmin,
   userId: string,
   customerId: string,
+  rebookActionId?: string | null,
 ): Promise<RetrySendability> {
   if (!(await autoRebookEnabled(admin, userId))) return { allowed: false, reason: "auto_rebook_disabled" };
 
@@ -91,8 +128,14 @@ export async function canStillSendRebook(
   if (await hasFutureAppointment(admin, userId, customerId)) {
     return { allowed: false, reason: "customer_already_rebooked" };
   }
+
+  if (rebookActionId) {
+    const cycle = await rebookCycleStillValid(admin, rebookActionId);
+    if (!cycle.allowed) return cycle;
+  }
   return { allowed: true, reason: "ok" };
 }
+
 
 /** Masked identifier for operational logs — never full email or phone. */
 export function maskContact(value?: string | null): string {
