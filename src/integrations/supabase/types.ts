@@ -1491,11 +1491,15 @@ export type Database = {
           online_payments_enabled: boolean
           payouts_enabled: boolean
           phone: string | null
+          reseller_source_code: string | null
+          setup_complete: boolean
+          setup_incomplete_reason: string | null
           terminals_enabled: boolean
           updated_at: string
           user_id: string
           viva_account_id: string | null
           viva_merchant_id: string | null
+          viva_source_code: string | null
         }
         Insert: {
           business_name?: string | null
@@ -1512,11 +1516,15 @@ export type Database = {
           online_payments_enabled?: boolean
           payouts_enabled?: boolean
           phone?: string | null
+          reseller_source_code?: string | null
+          setup_complete?: boolean
+          setup_incomplete_reason?: string | null
           terminals_enabled?: boolean
           updated_at?: string
           user_id: string
           viva_account_id?: string | null
           viva_merchant_id?: string | null
+          viva_source_code?: string | null
         }
         Update: {
           business_name?: string | null
@@ -1533,11 +1541,15 @@ export type Database = {
           online_payments_enabled?: boolean
           payouts_enabled?: boolean
           phone?: string | null
+          reseller_source_code?: string | null
+          setup_complete?: boolean
+          setup_incomplete_reason?: string | null
           terminals_enabled?: boolean
           updated_at?: string
           user_id?: string
           viva_account_id?: string | null
           viva_merchant_id?: string | null
+          viva_source_code?: string | null
         }
         Relationships: []
       }
@@ -2056,6 +2068,8 @@ export type Database = {
           status: string
           updated_at: string
           user_id: string
+          viva_merchant_id: string | null
+          viva_source_code: string | null
           webhook_received_at: string | null
         }
         Insert: {
@@ -2084,6 +2098,8 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id: string
+          viva_merchant_id?: string | null
+          viva_source_code?: string | null
           webhook_received_at?: string | null
         }
         Update: {
@@ -2112,6 +2128,8 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id?: string
+          viva_merchant_id?: string | null
+          viva_source_code?: string | null
           webhook_received_at?: string | null
         }
         Relationships: [
@@ -3529,6 +3547,7 @@ export type Database = {
           suspicious_reason: string | null
           transaction_id: string | null
           user_id: string | null
+          viva_merchant_id: string | null
         }
         Insert: {
           created_at?: string
@@ -3551,6 +3570,7 @@ export type Database = {
           suspicious_reason?: string | null
           transaction_id?: string | null
           user_id?: string | null
+          viva_merchant_id?: string | null
         }
         Update: {
           created_at?: string
@@ -3573,6 +3593,7 @@ export type Database = {
           suspicious_reason?: string | null
           transaction_id?: string | null
           user_id?: string | null
+          viva_merchant_id?: string | null
         }
         Relationships: []
       }
