@@ -233,6 +233,20 @@ export default function BookingPage() {
     }));
   }, [isPublicBooking, liveServices, publicData]);
 
+  // Auto Rebook deeplink: ?rb=<token>&svc=<service_id> preselects the service
+  // and attributes the booking back to the rebook message.
+  const rebookToken = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    const value = new URL(window.location.href).searchParams.get("rb");
+    return value && /^[0-9a-f-]{36}$/i.test(value) ? value : null;
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !bookingServices.length || selectedService) return;
+    const svc = new URL(window.location.href).searchParams.get("svc");
+    if (svc && bookingServices.some((service) => service.id === svc)) setSelectedService(svc);
+  }, [bookingServices, selectedService]);
+
   useEffect(() => {
     if (selectedService && !bookingServices.some((service) => service.id === selectedService)) {
       setSelectedService(null);
@@ -687,6 +701,7 @@ export default function BookingPage() {
           payment: { required: Boolean(paymentDecision?.required), amount: paymentDecision?.amount || 0, type: paymentDecision?.type || "deposit", method: selectedMethod },
           notes: "",
           language: i18n.language,
+          rebook_token: rebookToken,
         });
 
         setConfirmation(result.confirmation);

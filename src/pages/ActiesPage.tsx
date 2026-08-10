@@ -2,6 +2,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { useCampaigns, useDiscounts, useCustomers, useAppointments } from "@/hooks/useSupabaseData";
 import { useCrud } from "@/hooks/useCrud";
+import { supabase } from "@/integrations/supabase/client";
 import { Zap, Calendar, Send, Percent, CheckCircle, Clock, ArrowRight } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -20,7 +21,7 @@ export default function ActiesPage() {
   const { data: appointments } = useAppointments();
   const { insert: insertCampaign } = useCrud("campaigns");
   const { insert: insertDiscount } = useCrud("discounts");
-  const { insert: insertRebook } = useCrud("rebook_actions");
+
 
   const withoutNext = customers.filter(c => !appointments.find(a => a.customer_id === c.id && new Date(a.appointment_date) > new Date() && a.status !== 'geannuleerd'));
 
@@ -28,7 +29,7 @@ export default function ActiesPage() {
     { id: "1", icon: Calendar, title: "Vul lege plekken", description: "Campagne klaarzetten voor klanten zonder afspraak", impact: `${withoutNext.length} klanten zonder vervolgafspraak`, status: "beschikbaar" },
     { id: "2", icon: Send, title: "Stuur campagne", description: "Maak een conceptcampagne voor inactieve klanten", impact: `${customers.length} klanten in database`, status: "beschikbaar" },
     { id: "3", icon: Percent, title: "Activeer korting", description: "15% korting op rustige uren", impact: "Korting wordt opgeslagen", status: "beschikbaar" },
-    { id: "4", icon: Zap, title: "Auto-reboek campagne", description: `Herboekvoorstel voor ${withoutNext.length} klanten`, impact: "Rebook-acties worden aangemaakt", status: "beschikbaar" },
+    { id: "4", icon: Zap, title: "Auto-reboek campagne", description: `Herboekvoorstel voor ${withoutNext.length} klanten`, impact: "Auto Rebook stuurt een boekingslink", status: "beschikbaar" },
     { id: "5", icon: Send, title: "VIP follow-up", description: "Conceptcampagne voor top klanten", impact: "Campagne wordt klaargezet", status: "beschikbaar" },
   ], [customers.length, withoutNext.length]);
 
@@ -48,8 +49,9 @@ export default function ActiesPage() {
       await insertDiscount({ title: '15% korting rustige uren', type: 'percentage', value: 15, is_active: true });
     }
     if (id === "4") {
+      // Echte Auto Rebook verzending via de canonieke engine (claim + kanaal + attributie).
       for (const c of withoutNext.slice(0, 5)) {
-        await insertRebook({ customer_id: c.id, status: 'verzonden', suggested_date: new Date(Date.now() + 7 * 86400000).toISOString() });
+        await supabase.functions.invoke("auto-rebook-send", { body: { customer_id: c.id } });
       }
     }
 
