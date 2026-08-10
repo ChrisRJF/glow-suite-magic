@@ -116,7 +116,7 @@ export function RevenueOpportunities() {
     }
 
     return list.slice(0, 4);
-  }, [appointments, customers, services, navigate]);
+  }, [appointments, customers, services, navigate, rebookReady]);
 
   if (loading) {
     return <Skeleton className="h-24 rounded-2xl" />;
