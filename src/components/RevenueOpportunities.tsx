@@ -55,9 +55,6 @@ export function RevenueOpportunities() {
       if (visits.length === 0) continue;
       const last = visits[0];
       const daysSince = (now - new Date(last.appointment_date).getTime()) / DAY;
-      const hasFuture = (appointments as any[]).some(
-        (a) => a.customer_id === c.id && new Date(a.appointment_date) > new Date() && a.status !== "geannuleerd",
-      );
       if (daysSince >= 1 && daysSince <= 14 && !c.last_review_at) recentNoReview++;
     }
 
