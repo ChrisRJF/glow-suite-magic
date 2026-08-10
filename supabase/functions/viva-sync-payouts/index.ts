@@ -14,7 +14,12 @@
 // Does NOT touch Mollie, bookings, appointments, redirect fallback or reconcile cron.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import { vivaEnv, getVivaAccessToken, isVivaConfigured } from "../_shared/viva.ts";
+import {
+  getIsvSettlements,
+  hasResellerBasicCredentials,
+  isvWarn,
+  maskId,
+} from "../_shared/vivaIsv.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -42,24 +47,6 @@ interface VivaSettlementRow {
   statusId?: string;
 }
 
-async function fetchSettlements(fromDate: string, toDate: string): Promise<VivaSettlementRow[]> {
-  const env = vivaEnv();
-  const token = await getVivaAccessToken();
-  // Viva exposes settlement transactions via /acquiring/v1/transactions
-  const url = `${env.api}/acquiring/v1/transactions?DateFrom=${fromDate}&DateTo=${toDate}`;
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } });
-  const text = await res.text();
-  if (!res.ok) {
-    throw new Error(`Viva settlements fetch failed (${res.status}): ${text.slice(0, 300)}`);
-  }
-  let data: any = {};
-  try { data = JSON.parse(text); } catch { data = {}; }
-  const rows: VivaSettlementRow[] = Array.isArray(data) ? data
-    : Array.isArray(data?.transactions) ? data.transactions
-    : Array.isArray(data?.data) ? data.data
-    : [];
-  return rows;
-}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
