@@ -201,7 +201,7 @@ export function DailyCoach() {
     });
 
     return filtered.slice(0, 2);
-  }, [customers, appointments, services, leads, memberships, payments, modes]);
+  }, [customers, appointments, services, leads, memberships, payments, modes, rebookReadyCount, rebookValue]);
 
   const handleClick = (route: string) => {
     if (route.startsWith("/#")) {
