@@ -215,10 +215,12 @@ Deno.serve(async (req) => {
 
   return json({
     ok: true,
-    users_synced: users.length,
+    users_synced: targets.length - failedMerchants.length,
+    merchants_failed: failedMerchants.length,
     payouts_upserted: totalPayouts,
     transactions_upserted: totalTx,
     mismatches,
     range: { from: fmt(fromDate), to: fmt(toDate) },
+
   });
 });
