@@ -600,7 +600,7 @@ export function useAutoRevenueRunner(
     maxMessagesPerDay,
     insertCampaign,
     insertDiscount,
-    insertRebook,
+    
     refetchCampaigns,
     ready,
     notReadyReason,
