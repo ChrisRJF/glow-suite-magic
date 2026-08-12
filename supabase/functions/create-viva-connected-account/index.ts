@@ -77,17 +77,20 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Verified against the Viva ISV demo API: the account invitation endpoint
+    // is POST /isv/v1/accounts and expects `email` (not contactEmail).
     // No global VIVA_SOURCE_CODE is sent: the merchant's own payment source
     // code must come back from Viva, never from a platform default.
     const payload: Record<string, unknown> = {
-      businessName: business_name,
-      contactEmail: contact_email,
+      email: contact_email,
+      name: business_name,
       phone: phone || undefined,
       countryCode: country,
-      returnUrl: return_url || undefined,
+      returnUrl: return_url || "https://glowsuite.nl/glowpay",
     };
 
-    const url = `${env.api}/isv/v1/connected-accounts`;
+    const url = `${env.api}/isv/v1/accounts`;
+
     const res = await fetch(url, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
