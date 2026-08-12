@@ -34,12 +34,16 @@ function json(body: unknown, status = 200) {
 
 type AuthState = "ok" | "failed" | "not_configured";
 
-async function probe(fn: () => Promise<string>): Promise<{ state: AuthState; http_status: number | null }> {
+async function probe(fn: () => Promise<string>): Promise<{ state: AuthState; http_status: number | null; oauth_error: string | null }> {
   try {
     await fn();
-    return { state: "ok", http_status: 200 };
+    return { state: "ok", http_status: 200, oauth_error: null };
   } catch (e: any) {
-    return { state: "failed", http_status: typeof e?.status === "number" ? e.status : null };
+    return {
+      state: "failed",
+      http_status: typeof e?.status === "number" ? e.status : null,
+      oauth_error: typeof e?.oauthError === "string" ? e.oauthError : null,
+    };
   }
 }
 
@@ -55,10 +59,10 @@ Deno.serve(async (req) => {
   const resellerOAuthPresent = hasResellerOAuthCredentials();
   const prodResellerPresent = hasResellerBasicCredentials();
 
-  const isvAuth = isvPresent ? await probe(getIsvAccessToken) : { state: "not_configured" as AuthState, http_status: null };
+  const isvAuth = isvPresent ? await probe(getIsvAccessToken) : { state: "not_configured" as AuthState, http_status: null, oauth_error: null };
   const resellerAuth = resellerOAuthPresent
     ? await probe(getResellerAccessToken)
-    : { state: "not_configured" as AuthState, http_status: null };
+    : { state: "not_configured" as AuthState, http_status: null, oauth_error: null };
 
   // ---- merchant mapping (server-side only, scoped to the caller) ----
   let merchantMapping = "unknown";
@@ -124,9 +128,11 @@ Deno.serve(async (req) => {
     isv_credentials_dedicated: dedicatedIsvCredentials,
     isv_auth: isvAuth.state,
     isv_auth_http_status: isvAuth.http_status,
+    isv_auth_error: isvAuth.oauth_error,
     reseller_credentials_present: resellerOAuthPresent,
     reseller_auth: resellerAuth.state,
     reseller_auth_http_status: resellerAuth.http_status,
+    reseller_auth_error: resellerAuth.oauth_error,
     production_reseller_credentials_present: prodResellerPresent,
     production_reseller_credentials_required_now: environment === "production",
     isv_transaction_retrieval_available: prodResellerPresent,
