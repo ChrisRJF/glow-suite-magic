@@ -43,6 +43,7 @@ Deno.serve(async (req) => {
     companyName: businessName,
     countryCode: "NL",
     country: "NL",
+    returnUrl: String(body?.return_url || "https://glowsuite.nl/glowpay"),
   };
 
   const attempts: Record<string, unknown>[] = [];
