@@ -63,10 +63,12 @@ async function oauthToken(clientId: string, clientSecret: string, label: string)
     body: "grant_type=client_credentials",
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok || !data?.access_token) {
-    // Never log the body: it can echo credential fragments.
+  if (!res.ok || data?.access_token == null) {
+    // Never log the body: it can echo credential fragments. Only the standard
+    // OAuth error code (e.g. "invalid_client") is safe to surface.
     const err: any = new Error(`viva_${label}_token_failed`);
     err.status = res.status;
+    err.oauthError = typeof data?.error === "string" ? data.error : null;
     throw err;
   }
   return data;
