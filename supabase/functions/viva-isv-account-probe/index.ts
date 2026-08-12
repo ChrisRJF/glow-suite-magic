@@ -3,6 +3,7 @@
 // Never logs or returns secrets/tokens.
 import { vivaEnv } from "../_shared/viva.ts";
 import { getIsvAccessToken } from "../_shared/vivaIsv.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -18,6 +19,16 @@ Deno.serve(async (req) => {
   const env = vivaEnv();
   const body = await req.json().catch(() => ({} as any));
   const accountId: string | null = body?.account_id ?? null;
+
+  let callerId: string | null = null;
+  try {
+    const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const auth = req.headers.get("Authorization") || "";
+    if (auth) {
+      const { data } = await admin.auth.getUser(auth.replace("Bearer ", ""));
+      callerId = data?.user?.id ?? null;
+    }
+  } catch (_e) { callerId = null; }
 
   let token: string;
   try {
@@ -45,5 +56,5 @@ Deno.serve(async (req) => {
     }
   }
 
-  return json({ environment: (Deno.env.get("VIVA_ENVIRONMENT") || "demo").toLowerCase(), api_host: env.api, results });
+  return json({ caller_user_id: callerId, environment: (Deno.env.get("VIVA_ENVIRONMENT") || "demo").toLowerCase(), api_host: env.api, results });
 });
