@@ -1,7 +1,11 @@
 // Create or reuse a Viva ISV Connected Account for the current salon.
-// Demo mode never calls Viva — onboarding redirect is production-only.
+// Both demo and live call the ISV Connected Accounts API with ISV OAuth2
+// credentials (group A). No global platform sourceCode fallback is ever sent:
+// the merchant's own source code comes back from Viva after onboarding.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getVivaAccessToken, vivaEnv } from "../_shared/viva.ts";
+import { getIsvAccessToken } from "../_shared/vivaIsv.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
