@@ -33,14 +33,20 @@ Deno.serve(async (req) => {
     return json({ error: "isv_auth_failed", oauth_error: e?.oauthError ?? null }, 502);
   }
 
+  // Viva's ISV "create account invitation" payload field naming is not
+  // consistent across docs; send the documented aliases together.
   const payload = {
-    businessName,
+    email: contactEmail,
     contactEmail,
+    name: businessName,
+    businessName,
+    companyName: businessName,
     countryCode: "NL",
+    country: "NL",
   };
 
   const attempts: Record<string, unknown>[] = [];
-  const candidatePaths = ["/isv/v1/connected-accounts", "/isv/v1/accounts"];
+  const candidatePaths = ["/isv/v1/accounts"];
   let success: { path: string; data: any } | null = null;
 
   for (const p of candidatePaths) {
