@@ -33,35 +33,34 @@ Deno.serve(async (req) => {
     return json({ error: "isv_auth_failed", oauth_error: e?.oauthError ?? null }, 502);
   }
 
-  // Viva's ISV "create account invitation" payload field naming is not
-  // consistent across docs; send the documented aliases together.
-  const payload = {
-    email: contactEmail,
-    contactEmail,
-    name: businessName,
-    businessName,
-    companyName: businessName,
-    countryCode: "NL",
-    country: "NL",
-    returnUrl: String(body?.return_url || "https://glowsuite.nl/glowpay"),
-    logoUrl: String(body?.logo_url || "https://glowsuite.nl/favicon.ico"),
-  };
+  const variants: Record<string, unknown>[] = Array.isArray(body?.variants) && body.variants.length
+    ? body.variants
+    : [{
+        email: contactEmail,
+        name: businessName,
+        countryCode: "NL",
+        returnUrl: String(body?.return_url || "https://glowsuite.nl/glowpay"),
+        logoUrl: String(body?.logo_url || "https://glowsuite.nl/glowsuite-logo.png"),
+      }];
 
   const attempts: Record<string, unknown>[] = [];
   const candidatePaths = ["/isv/v1/accounts"];
   let success: { path: string; data: any } | null = null;
 
+  outer:
   for (const p of candidatePaths) {
-    const res = await fetch(`${env.api}${p}`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const raw = await res.text();
-    let parsed: any = null;
-    try { parsed = raw ? JSON.parse(raw) : null; } catch { parsed = raw.slice(0, 400); }
-    attempts.push({ path: p, status: res.status, body: parsed });
-    if (res.ok) { success = { path: p, data: parsed }; break; }
+    for (let i = 0; i < variants.length; i++) {
+      const res = await fetch(`${env.api}${p}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(variants[i]),
+      });
+      const raw = await res.text();
+      let parsed: any = null;
+      try { parsed = raw ? JSON.parse(raw) : null; } catch { parsed = raw.slice(0, 400); }
+      attempts.push({ path: p, variant: i, keys: Object.keys(variants[i]), status: res.status, body: parsed });
+      if (res.ok) { success = { path: p, data: parsed }; break outer; }
+    }
   }
 
   if (!success) return json({ ok: false, error: "viva_connected_account_create_failed", attempts }, 502);
