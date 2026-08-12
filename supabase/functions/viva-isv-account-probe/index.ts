@@ -28,6 +28,7 @@ Deno.serve(async (req) => {
 
   const paths = [
     "/isv/v1/connected-accounts",
+    "/isv/v1/accounts",
     ...(accountId ? [`/isv/v1/connected-accounts/${encodeURIComponent(accountId)}`, `/isv/v1/accounts/${encodeURIComponent(accountId)}`] : []),
   ];
 
