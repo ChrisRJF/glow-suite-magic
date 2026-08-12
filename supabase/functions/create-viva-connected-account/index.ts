@@ -1,7 +1,11 @@
 // Create or reuse a Viva ISV Connected Account for the current salon.
-// Demo mode never calls Viva — onboarding redirect is production-only.
+// Both demo and live call the ISV Connected Accounts API with ISV OAuth2
+// credentials (group A). No global platform sourceCode fallback is ever sent:
+// the merchant's own source code comes back from Viva after onboarding.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getVivaAccessToken, vivaEnv } from "../_shared/viva.ts";
+import { getIsvAccessToken } from "../_shared/vivaIsv.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -57,52 +61,46 @@ Deno.serve(async (req) => {
       .eq("is_demo", isDemo)
       .maybeSingle();
 
-    if (isDemo) {
-      const message = "Viva onboarding redirect flows are production-only. Use manual demo credentials in demo mode.";
-      if (existing) {
-        await admin.from("glowpay_connected_merchants").update({
-          business_name, contact_email, phone, country,
-          metadata: { ...(existing.metadata as any || {}), demo_message: message },
-        }).eq("id", existing.id);
-        return json({ demo: true, message, account_id: existing.viva_account_id, onboarding_url: existing.onboarding_url });
-      }
-      const { data: created } = await admin.from("glowpay_connected_merchants").insert({
-        user_id: user.id, is_demo: true, business_name, contact_email, phone, country,
-        onboarding_status: "not_started", metadata: { demo_message: message },
-      }).select("*").maybeSingle();
-      return json({ demo: true, message, account_id: null, onboarding_url: null, merchant: created });
-    }
-
-    // LIVE — call Viva ISV API
+    // Viva ISV Connected Accounts API — same flow for demo and live, only the
+    // host differs (vivaEnv() resolves demo vs production).
     const env = vivaEnv();
     let token: string;
     try {
-      token = await getVivaAccessToken();
-    } catch (e) {
-      return json({ error: "viva_token_failed", detail: String((e as Error).message || e) }, 502);
+      token = await getIsvAccessToken();
+    } catch (_e) {
+      // Legacy platform credentials remain a transitional fallback ONLY for the
+      // token itself; merchant scoping is still derived from Viva's response.
+      try {
+        token = await getVivaAccessToken();
+      } catch (e2) {
+        return json({ error: "viva_token_failed", detail: String((e2 as Error).message || e2) }, 502);
+      }
     }
 
-    // If existing has viva_account_id, just refresh onboarding link.
+    // Verified against the Viva ISV demo API: the account invitation endpoint
+    // is POST /isv/v1/accounts and expects `email` (not contactEmail).
+    // No global VIVA_SOURCE_CODE is sent: the merchant's own payment source
+    // code must come back from Viva, never from a platform default.
     const payload: Record<string, unknown> = {
-      sourceCode: Deno.env.get("VIVA_SOURCE_CODE") || undefined,
-      businessName: business_name,
-      contactEmail: contact_email,
+      email: contact_email,
+      name: business_name,
       phone: phone || undefined,
       countryCode: country,
-      returnUrl: return_url || undefined,
+      returnUrl: return_url || "https://glowsuite.nl/glowpay",
     };
 
-    // Viva ISV onboarding endpoint (best-effort path; tolerate API drift)
-    const url = `${env.api}/isv/v1/connected-accounts`;
+    const url = `${env.api}/isv/v1/accounts`;
+
     const res = await fetch(url, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    const data = await res.json().catch(() => ({} as any));
+    const raw = await res.text();
+    let data: any = {};
+    try { data = raw ? JSON.parse(raw) : {}; } catch { data = { raw: raw.slice(0, 400) }; }
 
     if (!res.ok) {
-      // Persist the attempt so UI can surface failure context.
       const meta = { last_error: data || { status: res.status }, attempted_at: new Date().toISOString() };
       if (existing) {
         await admin.from("glowpay_connected_merchants").update({
@@ -111,7 +109,7 @@ Deno.serve(async (req) => {
         }).eq("id", existing.id);
       } else {
         await admin.from("glowpay_connected_merchants").insert({
-          user_id: user.id, is_demo: false, business_name, contact_email, phone, country,
+          user_id: user.id, is_demo: isDemo, business_name, contact_email, phone, country,
           onboarding_status: "not_started", metadata: meta,
         });
       }
@@ -120,19 +118,20 @@ Deno.serve(async (req) => {
 
     const accountId = String(data?.accountId ?? data?.AccountId ?? data?.id ?? "") || null;
     const onboardingUrl = String(data?.onboardingUrl ?? data?.OnboardingUrl ?? data?.url ?? "") || null;
+    // merchantId is only stored when Viva actually confirms it. Never guessed.
     const merchantId = String(data?.merchantId ?? data?.MerchantId ?? "") || null;
 
-    const baseUpdate = {
+    const baseUpdate: Record<string, unknown> = {
       user_id: user.id,
-      is_demo: false,
+      is_demo: isDemo,
       business_name, contact_email, phone, country,
       viva_account_id: accountId,
-      viva_merchant_id: merchantId,
       onboarding_url: onboardingUrl,
       onboarding_status: "invited",
       last_synced_at: new Date().toISOString(),
       metadata: { ...(existing?.metadata as any || {}), last_response: data },
     };
+    if (merchantId) baseUpdate.viva_merchant_id = merchantId;
 
     let row;
     if (existing) {
@@ -143,7 +142,14 @@ Deno.serve(async (req) => {
       row = ins;
     }
 
-    return json({ demo: false, account_id: accountId, onboarding_url: onboardingUrl, merchant: row });
+    return json({
+      demo: isDemo,
+      account_id: accountId,
+      onboarding_url: onboardingUrl,
+      merchant_id_confirmed: Boolean(merchantId),
+      merchant: row,
+    });
+
   } catch (e) {
     console.error("create-viva-connected-account error", e);
     return json({ error: String((e as Error).message || e) }, 500);
