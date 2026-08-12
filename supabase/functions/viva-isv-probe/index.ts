@@ -21,21 +21,22 @@ Deno.serve(async (req) => {
   const env = vivaEnv();
   const token = await getResellerAccessToken();
 
+  const bases = [env.api, "https://demo.vivapayments.com"];
   const paths = [
-    "/api/resellers/merchants",
-    `/api/resellers/merchants/${MERCHANT_ID}`,
-    `/api/resellers/merchants/${MERCHANT_ID}/sourcecodes`,
-    "/isv/v1/merchants",
-    `/isv/v1/merchants/${MERCHANT_ID}`,
-    `/api/merchants/${MERCHANT_ID}`,
-    "/reseller/v1/merchants",
-    `/reseller/v1/merchants/${MERCHANT_ID}`,
+    "/api/v1/merchants",
+    `/api/v1/merchants/${MERCHANT_ID}`,
+    "/api/merchants",
+    "/merchants",
+    `/merchants/${MERCHANT_ID}`,
+    "/api/selfonboarding/v1/merchants",
+    "/selfonboarding/v1/merchants",
+    "/api/resellers/v1/merchants",
   ];
 
   const results: Array<Record<string, unknown>> = [];
-  for (const p of paths) {
+  for (const base of bases) for (const p of paths) {
     try {
-      const res = await fetch(`${env.api}${p}`, {
+      const res = await fetch(`${base}${p}`, {
         headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
       });
       const text = await res.text();
@@ -46,9 +47,9 @@ Deno.serve(async (req) => {
       } catch {
         shape = text.slice(0, 60);
       }
-      results.push({ path: p, status: res.status, shape });
+      results.push({ path: `${base}${p}`, status: res.status, shape });
     } catch (e) {
-      results.push({ path: p, status: null, error: String((e as Error)?.message || e).slice(0, 80) });
+      results.push({ path: `${base}${p}`, status: null, error: String((e as Error)?.message || e).slice(0, 80) });
     }
   }
 
