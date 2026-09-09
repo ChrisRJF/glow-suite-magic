@@ -97,6 +97,68 @@ Deno.serve(async (req) => {
   const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
+  // ---------- MANUAL TEST SEND ----------
+  // Same function, same sender, same templates, same logs. Only difference:
+  // it ignores the 24-hour window and does not consume the real reminder slot.
+  let reqBody: any = {};
+  try { reqBody = await req.clone().json(); } catch { /* cron sends no body */ }
+
+  if (reqBody?.test_appointment_id) {
+    const authHeader = req.headers.get("Authorization") || "";
+    const jwt = authHeader.replace(/^Bearer\s+/i, "");
+    const userClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: `Bearer ${jwt}` } },
+    });
+    const { data: userRes } = await userClient.auth.getUser();
+    const caller = userRes?.user;
+    if (!caller) {
+      return new Response(JSON.stringify({ success: false, error: "Niet ingelogd" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { data: allowed } = await admin.rpc("has_any_role", {
+      _user_id: caller.id,
+      _roles: ["eigenaar", "manager", "admin"],
+    });
+    if (!allowed) {
+      return new Response(JSON.stringify({ success: false, error: "Geen toestemming" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { data: salonSettings } = await admin
+      .from("settings")
+      .select("timezone")
+      .eq("user_id", caller.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const { data: waSettings } = await admin
+      .from("whatsapp_settings")
+      .select("reminder_hours_before")
+      .eq("user_id", caller.id)
+      .maybeSingle();
+
+    const result = await sendAppointmentReminder(admin, {
+      supabaseUrl: SUPABASE_URL,
+      serviceKey: SERVICE_KEY,
+      userId: caller.id,
+      appointmentId: String(reqBody.test_appointment_id),
+      timezone: salonSettings?.timezone || DEFAULT_TZ,
+      reminderHoursBefore: waSettings?.reminder_hours_before || 24,
+      test: true,
+      meta: { manual_test: true, triggered_by: caller.id },
+    });
+
+    return new Response(JSON.stringify({ success: result.status === "sent", ...result }), {
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+
+
   const stats = {
     checked: 0,
     sent: 0,
