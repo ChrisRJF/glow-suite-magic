@@ -17,6 +17,8 @@ import {
 } from "../_shared/reminderEngine.ts";
 import { runAutoRebookSweep } from "../_shared/autoRebookPass.ts";
 import { canStillSendRebook, maskContact } from "../_shared/autoRebookGuards.ts";
+import { sendAppointmentReminder } from "../_shared/sendAppointmentReminder.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
