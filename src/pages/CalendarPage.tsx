@@ -1391,6 +1391,8 @@ export default function CalendarPage() {
                       </div>
                     )}
                   </div>
+                  </>
+                  )}
                 </div>
                 <div className="flex gap-2 mt-4">
                   <Button variant="outline" className="flex-1" onClick={() => { setShowAdd(false); setShowConfirmation(false); }}>Annuleren</Button>
