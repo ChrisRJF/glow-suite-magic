@@ -149,8 +149,11 @@ export async function sendAppointmentReminder(
 
   const confirmationLink = buildConfirmationLink(appt.booking_token as string | null);
 
+  const firstName = (customer.name || "").split(" ")[0] || (customer.name || "");
+
   let message = renderMessage(templateContent, {
     customer_name: customer.name || "",
+    customer_first_name: firstName,
     salon_name: salonName,
     appointment_date: dateStr,
     appointment_time: timeStr,
@@ -158,6 +161,8 @@ export async function sendAppointmentReminder(
     reschedule_link: confirmationLink || "",
     review_link: "",
   });
+  // Remove the treatment line when no service name is available.
+  message = message.replace(/^✨[ \t]*$/gm, "").replace(/\n{3,}/g, "\n\n");
   message = appendConfirmationBlock(message, confirmationLink, "reminder", lang);
 
   const baseMeta = { ...meta, tz, canonical_key: `reminder:${reminderType}:${appt.id}` };

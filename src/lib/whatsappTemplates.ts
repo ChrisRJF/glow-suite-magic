@@ -19,11 +19,17 @@ Let op: de afspraak kan kosteloos tot uiterlijk 12 uur van tevoren worden verpla
 Tot dan!
 
 {{salon_name}}`,
-  reminder: `Hi {{customer_name}} 👋
+  reminder: `Hi {{customer_first_name}} 👋
 
-Herinnering: je afspraak bij {{salon_name}} is op {{appointment_date}} om {{appointment_time}}.
+Dit is een herinnering voor je afspraak bij {{salon_name}}.
 
-Tot dan!`,
+📅 {{appointment_date}}
+
+🕒 {{appointment_time}}
+
+✨ {{services}}
+
+Kun je je afspraak bevestigen?`,
   review: `Bedankt voor je bezoek aan {{salon_name}}, {{customer_name}}!
 
 We horen graag je ervaring. Laat hier een korte review achter:
@@ -60,6 +66,7 @@ export function renderTemplate(
 
 export const SAMPLE_VARS: Record<string, string> = {
   customer_name: "Sophie Jansen",
+  customer_first_name: "Sophie",
   salon_name: "Salon Glow",
   appointment_date: "vrijdag 12 juli",
   appointment_time: "14:30",

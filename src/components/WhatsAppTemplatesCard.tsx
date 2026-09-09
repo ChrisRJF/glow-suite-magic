@@ -149,6 +149,7 @@ export function WhatsAppTemplatesCard({ activeMap, onActiveChange }: WhatsAppTem
       </div>
       <p className="text-xs text-muted-foreground break-words">
         Beschikbare variabelen: <code className="break-all">{`{{customer_name}}`}</code>,{" "}
+        <code className="break-all">{`{{customer_first_name}}`}</code>,{" "}
         <code className="break-all">{`{{salon_name}}`}</code>,{" "}
         <code className="break-all">{`{{appointment_date}}`}</code>,{" "}
         <code className="break-all">{`{{appointment_time}}`}</code>,{" "}

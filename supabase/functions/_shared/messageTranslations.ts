@@ -48,7 +48,7 @@ const WA: Record<MessageLang, Bundle> = {
     booking_confirmation:
       `Beste {{customer_name}},\n\nHierbij bevestigen we je afspraak op {{appointment_date}} om {{appointment_time}} voor de volgende behandeling(en):\n\n{{services}}\n\nLet op: de afspraak kan kosteloos tot uiterlijk 12 uur van tevoren worden verplaatst via deze link:\n{{reschedule_link}}\n\nTot dan!\n\n{{salon_name}}`,
     booking_reminder:
-      `Hi {{customer_name}} 👋\n\nHerinnering: je afspraak bij {{salon_name}} is op {{appointment_date}} om {{appointment_time}}.\n\nTot dan!`,
+      `Hi {{customer_first_name}} 👋\n\nDit is een herinnering voor je afspraak bij {{salon_name}}.\n\n📅 {{appointment_date}}\n\n🕒 {{appointment_time}}\n\n✨ {{services}}\n\nKun je je afspraak bevestigen?`,
     booking_cancellation:
       `Hi {{customer_name}}, je afspraak op {{appointment_date}} om {{appointment_time}} bij {{salon_name}} is geannuleerd. Wil je een nieuwe afspraak inplannen? {{booking_link}}`,
     booking_rescheduled:
