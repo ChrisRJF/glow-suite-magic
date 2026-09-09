@@ -282,14 +282,26 @@ export function NoShowCenter() {
           </div>
         </div>
 
-        <div className="mt-4 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
           <p>
-            Wanneer aan, sturen we automatisch een bevestigingslink, herinnering en opvolging.
+            Kanaal: WhatsApp, e-mail als terugval · {hoursBefore} uur voor de afspraak
           </p>
-          <Button asChild variant="ghost" size="sm" className="h-8 px-2">
-            <Link to="/whatsapp">Berichten bewerken</Link>
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 px-3"
+              disabled={!canManage || testing || !testAppointment}
+              onClick={sendTest}
+            >
+              {testing ? "Bezig..." : "Test herinnering versturen"}
+            </Button>
+            <Button asChild variant="ghost" size="sm" className="h-8 px-2">
+              <Link to="/whatsapp">Berichten bewerken</Link>
+            </Button>
+          </div>
         </div>
+
       </CardContent>
     </Card>
   );
