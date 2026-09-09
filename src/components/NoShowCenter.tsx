@@ -145,6 +145,61 @@ export function NoShowCenter() {
     return count;
   }, [appointments, customers]);
 
+  // Eerstvolgende afspraak met een bereikbare klant — die gebruiken we voor de test.
+  const testAppointment = useMemo(() => {
+    const now = new Date();
+    const custMap = new Map((customers as any[]).map((c) => [c.id, c]));
+    return (appointments as any[])
+      .filter((a) => {
+        if (a.status === "geannuleerd" || a.confirmation_status === "declined") return false;
+        if (new Date(a.appointment_date) < now) return false;
+        const c = custMap.get(a.customer_id);
+        return !!(c && (c.phone || c.email));
+      })
+      .sort((a, b) => +new Date(a.appointment_date) - +new Date(b.appointment_date))[0] || null;
+  }, [appointments, customers]);
+
+  const sendTest = async () => {
+    if (!user || !canManage || testing) return;
+    if (!testAppointment) {
+      toast.error("Geen komende afspraak met een telefoonnummer of e-mailadres gevonden.");
+      return;
+    }
+    setTesting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("whatsapp-reminder-scheduler", {
+        body: { test_appointment_id: testAppointment.id },
+      });
+      if (error) throw error;
+      const res: any = data || {};
+      if (res.status === "sent") {
+        toast.success(
+          res.channel === "email"
+            ? "Verzonden via e-mail"
+            : "Verzonden via WhatsApp",
+        );
+      } else if (res.status === "skipped") {
+        const reasons: Record<string, string> = {
+          no_contact_details: "Geen geldig nummer of e-mailadres bij deze klant.",
+          customer_opted_out: "Deze klant wil geen berichten ontvangen.",
+          no_deliverable_channel: "Geen geldig nummer of e-mailadres bij deze klant.",
+          no_channel_enabled: "Herinneringen staan uit.",
+          recently_sent: "Net al een testbericht verstuurd. Wacht even.",
+          appointment_cancelled: "Deze afspraak is geannuleerd.",
+        };
+        toast.info(reasons[res.reason] || "Niet verstuurd.");
+      } else {
+        toast.error("Niet afgeleverd. Controleer het nummer van de klant.");
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Niet afgeleverd.");
+    } finally {
+      setTesting(false);
+      load();
+    }
+  };
+
+
   const toggle = async (next: boolean) => {
     if (!user || !canManage) return;
     setBusy(true);
