@@ -172,7 +172,9 @@ export function NoShowCenter() {
       });
       if (error) throw error;
       const res: any = data || {};
-      if (res.status === "sent") {
+      if (res.status === "sent" && res.reason === "demo_simulated") {
+        toast.info("Demomodus: bericht is alleen gesimuleerd, er is niets echt verstuurd.");
+      } else if (res.status === "sent") {
         toast.success(
           res.channel === "email"
             ? "Verzonden via e-mail"
