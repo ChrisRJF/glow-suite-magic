@@ -27,9 +27,7 @@ Dit is een herinnering voor je afspraak bij {{salon_name}}.
 
 🕒 {{appointment_time}}
 
-✨ {{services}}
-
-Kun je je afspraak bevestigen?`,
+✨ {{services}}`,
   review: `Bedankt voor je bezoek aan {{salon_name}}, {{customer_name}}!
 
 We horen graag je ervaring. Laat hier een korte review achter:
