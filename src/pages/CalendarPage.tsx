@@ -98,6 +98,7 @@ export default function CalendarPage() {
   const [subAppts, setSubAppts] = useState<SubApptForm[]>([]);
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [showMoreOptions, setShowMoreOptions] = useState(false);
   const [placementOptions, setPlacementOptions] = useState<PlacementOption[]>([]);
   const [selectedOption, setSelectedOption] = useState(0);
   const [selectedEmployee, setSelectedEmployee] = useState<string>('alle');
