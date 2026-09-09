@@ -27,11 +27,14 @@ export function NoShowCenter() {
 
   const [enabled, setEnabled] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [hoursBefore, setHoursBefore] = useState(24);
+  const [testing, setTesting] = useState(false);
   const [remindersSent, setRemindersSent] = useState(0);
   const [confirmed, setConfirmed] = useState(0);
   const [depositsRequested, setDepositsRequested] = useState(0);
   const [deliveryFailed, setDeliveryFailed] = useState(0);
   const [activeRetries, setActiveRetries] = useState(0);
+
 
   const [salonTz, setSalonTz] = useState<string>("Europe/Amsterdam");
 
