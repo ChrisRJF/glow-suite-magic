@@ -276,7 +276,7 @@ export default function AutomatiseringenPage() {
           icon={Clock}
         />
         <SummaryTile
-          label="Scheduler laatste run"
+          label="Laatste controle"
           value={lastRun?.started_at ? formatRelative(lastRun.started_at) : "—"}
           icon={CalendarCheck}
         />
@@ -285,7 +285,7 @@ export default function AutomatiseringenPage() {
       {/* Scheduler status: next run + last error + processed count */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 mb-4">
         <SummaryTile
-          label="Volgende run"
+          label="Volgende controle"
           value={(() => {
             // Reminders run every 15 min via pg_cron
             const base = lastRun?.started_at ? new Date(lastRun.started_at) : new Date();
@@ -296,8 +296,8 @@ export default function AutomatiseringenPage() {
           icon={Clock}
         />
         <SummaryTile
-          label="Reminders verwerkt"
-          value={lastRun ? `${lastRun.sent ?? 0} verstuurd${lastRun.checked ? ` / ${lastRun.checked} bekeken` : ""}` : "—"}
+          label="Herinneringen verstuurd"
+          value={lastRun ? `${lastRun.sent ?? 0} verstuurd${lastRun.checked ? ` / ${lastRun.checked} gecontroleerd` : ""}` : "—"}
           icon={CheckCircle2}
         />
         <SummaryTile
