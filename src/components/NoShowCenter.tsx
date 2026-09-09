@@ -74,9 +74,10 @@ export function NoShowCenter() {
     const [wa, remRes, confRes, depRes, failRes, retryRes] = await Promise.all([
       supabase
         .from("whatsapp_settings")
-        .select("send_reminders, send_no_show_followup, send_booking_confirmation")
+        .select("send_reminders, send_no_show_followup, send_booking_confirmation, reminder_hours_before")
         .eq("user_id", user.id)
         .maybeSingle(),
+
       supabase
         .from("whatsapp_logs")
         .select("id", { count: "exact", head: true })
