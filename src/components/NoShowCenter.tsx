@@ -27,11 +27,14 @@ export function NoShowCenter() {
 
   const [enabled, setEnabled] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [hoursBefore, setHoursBefore] = useState(24);
+  const [testing, setTesting] = useState(false);
   const [remindersSent, setRemindersSent] = useState(0);
   const [confirmed, setConfirmed] = useState(0);
   const [depositsRequested, setDepositsRequested] = useState(0);
   const [deliveryFailed, setDeliveryFailed] = useState(0);
   const [activeRetries, setActiveRetries] = useState(0);
+
 
   const [salonTz, setSalonTz] = useState<string>("Europe/Amsterdam");
 
@@ -71,9 +74,10 @@ export function NoShowCenter() {
     const [wa, remRes, confRes, depRes, failRes, retryRes] = await Promise.all([
       supabase
         .from("whatsapp_settings")
-        .select("send_reminders, send_no_show_followup, send_booking_confirmation")
+        .select("send_reminders, send_no_show_followup, send_booking_confirmation, reminder_hours_before")
         .eq("user_id", user.id)
         .maybeSingle(),
+
       supabase
         .from("whatsapp_logs")
         .select("id", { count: "exact", head: true })
@@ -110,6 +114,8 @@ export function NoShowCenter() {
     ]);
     const w: any = wa.data || {};
     setEnabled(!!(w.send_reminders && w.send_no_show_followup && w.send_booking_confirmation));
+    setHoursBefore(Number(w.reminder_hours_before) || 24);
+
     setRemindersSent(remRes.count || 0);
     setConfirmed(confRes.count || 0);
     setDepositsRequested(depRes.count || 0);
@@ -138,6 +144,63 @@ export function NoShowCenter() {
     }
     return count;
   }, [appointments, customers]);
+
+  // Eerstvolgende afspraak met een bereikbare klant — die gebruiken we voor de test.
+  const testAppointment = useMemo(() => {
+    const now = new Date();
+    const custMap = new Map((customers as any[]).map((c) => [c.id, c]));
+    return (appointments as any[])
+      .filter((a) => {
+        if (a.status === "geannuleerd" || a.confirmation_status === "declined") return false;
+        if (new Date(a.appointment_date) < now) return false;
+        const c = custMap.get(a.customer_id);
+        return !!(c && (c.phone || c.email));
+      })
+      .sort((a, b) => +new Date(a.appointment_date) - +new Date(b.appointment_date))[0] || null;
+  }, [appointments, customers]);
+
+  const sendTest = async () => {
+    if (!user || !canManage || testing) return;
+    if (!testAppointment) {
+      toast.error("Geen komende afspraak met een telefoonnummer of e-mailadres gevonden.");
+      return;
+    }
+    setTesting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("whatsapp-reminder-scheduler", {
+        body: { test_appointment_id: testAppointment.id },
+      });
+      if (error) throw error;
+      const res: any = data || {};
+      if (res.status === "sent" && res.reason === "demo_simulated") {
+        toast.info("Demomodus: bericht is alleen gesimuleerd, er is niets echt verstuurd.");
+      } else if (res.status === "sent") {
+        toast.success(
+          res.channel === "email"
+            ? "Verzonden via e-mail"
+            : "Verzonden via WhatsApp",
+        );
+      } else if (res.status === "skipped") {
+        const reasons: Record<string, string> = {
+          no_contact_details: "Geen geldig nummer of e-mailadres bij deze klant.",
+          customer_opted_out: "Deze klant wil geen berichten ontvangen.",
+          no_deliverable_channel: "Geen geldig nummer of e-mailadres bij deze klant.",
+          no_channel_enabled: "Herinneringen staan uit.",
+          recently_sent: "Net al een testbericht verstuurd. Wacht even.",
+          appointment_cancelled: "Deze afspraak is geannuleerd.",
+        };
+        toast.info(reasons[res.reason] || "Niet verstuurd.");
+      } else {
+        toast.error("Niet afgeleverd. Controleer het nummer van de klant.");
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Niet afgeleverd.");
+    } finally {
+      setTesting(false);
+      load();
+    }
+  };
+
 
   const toggle = async (next: boolean) => {
     if (!user || !canManage) return;
@@ -221,14 +284,26 @@ export function NoShowCenter() {
           </div>
         </div>
 
-        <div className="mt-4 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
           <p>
-            Wanneer aan, sturen we automatisch een bevestigingslink, herinnering en opvolging.
+            Kanaal: WhatsApp, e-mail als terugval · {hoursBefore} uur voor de afspraak
           </p>
-          <Button asChild variant="ghost" size="sm" className="h-8 px-2">
-            <Link to="/whatsapp">Berichten bewerken</Link>
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 px-3"
+              disabled={!canManage || testing || !testAppointment}
+              onClick={sendTest}
+            >
+              {testing ? "Bezig..." : "Test herinnering versturen"}
+            </Button>
+            <Button asChild variant="ghost" size="sm" className="h-8 px-2">
+              <Link to="/whatsapp">Berichten bewerken</Link>
+            </Button>
+          </div>
         </div>
+
       </CardContent>
     </Card>
   );

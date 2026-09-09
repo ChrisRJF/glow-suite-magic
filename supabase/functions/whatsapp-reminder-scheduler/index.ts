@@ -17,6 +17,8 @@ import {
 } from "../_shared/reminderEngine.ts";
 import { runAutoRebookSweep } from "../_shared/autoRebookPass.ts";
 import { canStillSendRebook, maskContact } from "../_shared/autoRebookGuards.ts";
+import { sendAppointmentReminder } from "../_shared/sendAppointmentReminder.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -94,6 +96,68 @@ Deno.serve(async (req) => {
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
   const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const admin = createClient(SUPABASE_URL, SERVICE_KEY);
+
+  // ---------- MANUAL TEST SEND ----------
+  // Same function, same sender, same templates, same logs. Only difference:
+  // it ignores the 24-hour window and does not consume the real reminder slot.
+  let reqBody: any = {};
+  try { reqBody = await req.clone().json(); } catch { /* cron sends no body */ }
+
+  if (reqBody?.test_appointment_id) {
+    const authHeader = req.headers.get("Authorization") || "";
+    const jwt = authHeader.replace(/^Bearer\s+/i, "");
+    const userClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: `Bearer ${jwt}` } },
+    });
+    const { data: userRes } = await userClient.auth.getUser();
+    const caller = userRes?.user;
+    if (!caller) {
+      return new Response(JSON.stringify({ success: false, error: "Niet ingelogd" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { data: allowed } = await admin.rpc("has_any_role", {
+      _user_id: caller.id,
+      _roles: ["eigenaar", "manager", "admin"],
+    });
+    if (!allowed) {
+      return new Response(JSON.stringify({ success: false, error: "Geen toestemming" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { data: salonSettings } = await admin
+      .from("settings")
+      .select("timezone")
+      .eq("user_id", caller.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const { data: waSettings } = await admin
+      .from("whatsapp_settings")
+      .select("reminder_hours_before")
+      .eq("user_id", caller.id)
+      .maybeSingle();
+
+    const result = await sendAppointmentReminder(admin, {
+      supabaseUrl: SUPABASE_URL,
+      serviceKey: SERVICE_KEY,
+      userId: caller.id,
+      appointmentId: String(reqBody.test_appointment_id),
+      timezone: salonSettings?.timezone || DEFAULT_TZ,
+      reminderHoursBefore: waSettings?.reminder_hours_before || 24,
+      test: true,
+      meta: { manual_test: true, triggered_by: caller.id },
+    });
+
+    return new Response(JSON.stringify({ success: result.status === "sent", ...result }), {
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+
 
   const stats = {
     checked: 0,
@@ -324,198 +388,32 @@ Deno.serve(async (req) => {
         if (!inWindow) continue;
 
         stats.checked++;
-        if (!appt.customer_id) { stats.skipped++; continue; }
 
-        // Canonical cross-scheduler dedup: same appointment + reminder type,
-        // whether the WA scheduler or automation-scheduler already sent it.
-        if (await reminderAlreadySent(admin, appt.id, "reminder")) {
-          stats.skipped++;
-          continue;
-        }
-
-        const { data: customer } = await admin
-          .from("customers")
-          .select("id, name, phone, email, whatsapp_opt_in, preferred_language")
-          .eq("id", appt.customer_id)
-          .maybeSingle();
-        if (!customer) { stats.skipped++; continue; }
-
-        // Canonical channel selection: WhatsApp preferred, email fallback.
-        const salonEmailEnabled = Boolean((s as any).email_enabled ?? true);
-        const chan = selectChannel({
-          customer,
-          waEnabled: true, // we're already inside the whatsapp scheduler for this salon
-          emailEnabled: salonEmailEnabled,
+        // Canonical single-appointment sender — the exact same path the
+        // manual "Test herinnering versturen" action uses.
+        const result = await sendAppointmentReminder(admin, {
+          supabaseUrl: SUPABASE_URL,
+          serviceKey: SERVICE_KEY,
+          userId: s.user_id,
+          appointmentId: appt.id,
+          timezone: tz,
+          reminderHoursBefore: hoursBefore,
+          emailEnabled: Boolean((s as any).email_enabled ?? true),
+          meta: {
+            scheduler_window: `${windowInfo.window_local_start} → ${windowInfo.window_local_end}`,
+          },
         });
-        if (chan.channel === null) {
+
+        if (result.status === "sent") {
+          stats.sent++;
+        } else if (result.status === "skipped") {
           stats.skipped++;
-          stats.windows.push({ user_id: s.user_id, appt_id: appt.id, skipped_reason: chan.reason });
-          continue;
+          stats.windows.push({ user_id: s.user_id, appt_id: appt.id, skipped_reason: result.reason });
+        } else {
+          stats.failed++;
+          stats.errors.push(`appt ${appt.id}: ${result.error || result.reason || "unknown"}`);
         }
 
-        // Cross-channel canonical claim — DB-level guarantee that only one
-        // sender (WA or email, any scheduler) ever wins this reminder.
-        const claimed = await claimReminderDispatch(admin, appt.id, "reminder", chan.channel);
-        if (!claimed) {
-          stats.skipped++;
-          stats.windows.push({ user_id: s.user_id, appt_id: appt.id, skipped_reason: "already_claimed" });
-          continue;
-        }
-
-        const { data: profile } = await admin
-          .from("profiles")
-          .select("salon_name")
-          .eq("user_id", s.user_id)
-          .maybeSingle();
-        const salonName = profile?.salon_name || "ons salon";
-
-        const waLang = normalizeMessageLang((customer as any).preferred_language || "nl");
-
-        // Format using salon timezone for display
-        const apptInstant = new Date(appt.appointment_date);
-        const localApptParts = getLocalParts(apptInstant, tz);
-        const dateStr = new Intl.DateTimeFormat(intlLocale(waLang), {
-          timeZone: tz, day: "numeric", month: "long",
-        }).format(apptInstant);
-        const timeStr = startTime.substring(0, 5);
-        const localApptStr = `${fmtDate(localApptParts)} ${timeStr} (${tz})`;
-
-        // Load reminder template (per-salon)
-        const { data: tpl } = await admin
-          .from("whatsapp_templates")
-          .select("content, is_active")
-          .eq("user_id", s.user_id)
-          .eq("template_type", "reminder")
-          .maybeSingle();
-
-        const templateContent = (tpl?.is_active === false ? null : tpl?.content)
-          || getDefaultMessageTemplate("booking_reminder", waLang, "whatsapp");
-
-        const confirmationLink = buildConfirmationLink(appt.booking_token as string | null);
-
-        let message = renderMessage(templateContent, {
-          customer_name: customer.name || "",
-          salon_name: salonName,
-          appointment_date: dateStr,
-          appointment_time: timeStr,
-          services: "",
-          reschedule_link: confirmationLink || "",
-          review_link: "",
-        });
-        // Canonical: append confirmation CTA when the template omitted it.
-        message = appendConfirmationBlock(message, confirmationLink, "reminder", waLang);
-
-        // ---- Channel dispatch ----
-        if (chan.channel === "whatsapp") {
-          try {
-            const fnUrl = `${SUPABASE_URL}/functions/v1/whatsapp-send`;
-            const resp = await fetch(fnUrl, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${SERVICE_KEY}`,
-              },
-              body: JSON.stringify({
-                user_id: s.user_id,
-                to: customer.phone,
-                message,
-                customer_id: customer.id,
-                appointment_id: appt.id,
-                kind: "reminder",
-                reminder_type: "reminder" as ReminderType,
-                booking_token: appt.booking_token,
-                confirmation_link: confirmationLink,
-                meta: {
-                  local_appointment: localApptStr,
-                  scheduler_window: `${windowInfo.window_local_start} → ${windowInfo.window_local_end}`,
-                  tz,
-                  canonical_key: `reminder:reminder:${appt.id}`,
-                },
-              }),
-            });
-            const data = await resp.json();
-            if (resp.ok && (data.success || data.deduped)) {
-              if (data.deduped) stats.skipped++; else stats.sent++;
-            } else {
-              stats.failed++;
-              stats.errors.push(`appt ${appt.id}: ${data.error || resp.status}`);
-            }
-          } catch (e) {
-            stats.failed++;
-            stats.errors.push(`appt ${appt.id}: ${e instanceof Error ? e.message : "unknown"}`);
-          }
-        } else if (chan.channel === "email") {
-          // Real WA → email fallback. Do NOT depend on a separate automation
-          // rule; invoke the white-label email path directly with the same
-          // appointment data + booking token so the customer sees identical
-          // Ja/Nee CTAs. Idempotency guaranteed by claim + template idempotency
-          // key derived from the appointment id + reminder type.
-          try {
-            const { data: service } = appt.service_id
-              ? await admin.from("services").select("name").eq("id", appt.service_id).maybeSingle()
-              : { data: null };
-            const salonSlugBase = (salonName || "salon")
-              .toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "salon";
-            const invokeRes = await admin.functions.invoke("send-white-label-email", {
-              body: {
-                user_id: s.user_id,
-                salon_name: salonName,
-                salon_slug: salonSlugBase,
-                recipient_email: customer.email,
-                recipient_name: customer.name || "",
-                template_key: "appointment_reminder",
-                idempotency_key: `reminder-${appt.id}-email`,
-                language: waLang,
-                template_data: {
-                  customer_name: customer.name || "",
-                  salon_name: salonName,
-                  appointment_date: appt.appointment_date,
-                  date: appt.appointment_date,
-                  time: timeStr,
-                  start_time: timeStr,
-                  service_name: (service as any)?.name || "",
-                  manage_url: confirmationLink || undefined,
-                  confirm_url: confirmationLink ? `${confirmationLink}?a=confirm` : undefined,
-                  decline_url: confirmationLink ? `${confirmationLink}?a=decline` : undefined,
-                  reminder_hours_before: s.reminder_hours_before || 24,
-                  scheduler_window: `${windowInfo.window_local_start} → ${windowInfo.window_local_end}`,
-                },
-              },
-            });
-            if (invokeRes.error) throw new Error(invokeRes.error.message || "email_invoke_failed");
-            stats.sent++;
-            // Canonical audit trail: log the email dispatch too so NoShowCenter
-            // and merchants see one row per reminder regardless of channel.
-            try {
-              await admin.from("whatsapp_logs").insert({
-                user_id: s.user_id,
-                customer_id: customer.id,
-                appointment_id: appt.id,
-                to_number: `email:${customer.email}`,
-                message: `[email] ${message.slice(0, 480)}`,
-                status: "sent",
-                kind: "reminder",
-                reminder_type: "reminder",
-                booking_token: appt.booking_token,
-                confirmation_link: confirmationLink,
-                meta: {
-                  channel: "email",
-                  fallback_reason: chan.reason,
-                  canonical_key: `reminder:reminder:${appt.id}`,
-                  tz,
-                },
-              });
-            } catch (_) { /* non-fatal audit */ }
-          } catch (e) {
-            stats.failed++;
-            stats.errors.push(`appt ${appt.id} email: ${e instanceof Error ? e.message : "unknown"}`);
-            // Release the claim so a retry can attempt again next tick.
-            await admin.from("reminder_dispatch_claims")
-              .delete()
-              .eq("appointment_id", appt.id)
-              .eq("reminder_type", "reminder");
-          }
-        }
       }
       } // end reminder else-block
 
