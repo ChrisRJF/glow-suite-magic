@@ -246,7 +246,7 @@ export function NoShowCenter() {
           <div className="min-w-0">
             <h2 className="text-section-title">No-show preventie</h2>
             <p className="text-meta mt-1">
-              Herinnering, bevestigingsvraag en opvolging na een gemiste afspraak — automatisch.
+              Automatische herinnering, bevestiging en opvolging.
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -290,7 +290,7 @@ export function NoShowCenter() {
           </p>
           <div className="flex items-center gap-1">
             <Button
-              variant="outline"
+              variant="gradient"
               size="sm"
               className="h-8 px-3"
               disabled={!canManage || testing || !testAppointment}
