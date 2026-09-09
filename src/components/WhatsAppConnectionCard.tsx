@@ -379,7 +379,7 @@ export function WhatsAppConnectionCard() {
           </div>
           <Button onClick={runSchedulerNow} disabled={runningScheduler} variant="outline" size="sm" className="h-11 sm:h-9">
             {runningScheduler ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-            Nu draaien
+            Nu controleren
           </Button>
         </div>
       </div>

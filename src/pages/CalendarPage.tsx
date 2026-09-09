@@ -98,6 +98,7 @@ export default function CalendarPage() {
   const [subAppts, setSubAppts] = useState<SubApptForm[]>([]);
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [showMoreOptions, setShowMoreOptions] = useState(false);
   const [placementOptions, setPlacementOptions] = useState<PlacementOption[]>([]);
   const [selectedOption, setSelectedOption] = useState(0);
   const [selectedEmployee, setSelectedEmployee] = useState<string>('alle');
@@ -1252,7 +1253,7 @@ export default function CalendarPage() {
                       </select>
                     </div>
                   </div>
-                  <div><label className="text-xs text-muted-foreground">Notities</label><textarea value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 min-h-[60px]" /></div>
+                  
 
                   {/* Multi-employee assignment (DB employees) */}
                   {activeDbEmployees.length > 0 && (
@@ -1293,6 +1294,21 @@ export default function CalendarPage() {
                       </p>
                     </div>
                   )}
+
+                  <button
+                    type="button"
+                    onClick={() => setShowMoreOptions(v => !v)}
+                    className="text-xs font-medium text-primary hover:underline"
+                  >
+                    {showMoreOptions ? "Minder opties" : "Meer opties"}
+                  </button>
+
+                  {showMoreOptions && (
+                  <>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Notities</label>
+                    <textarea value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 min-h-[60px]" />
+                  </div>
 
                   {/* Group booking section */}
                   <div className="border-t border-border pt-3">
@@ -1375,6 +1391,8 @@ export default function CalendarPage() {
                       </div>
                     )}
                   </div>
+                  </>
+                  )}
                 </div>
                 <div className="flex gap-2 mt-4">
                   <Button variant="outline" className="flex-1" onClick={() => { setShowAdd(false); setShowConfirmation(false); }}>Annuleren</Button>
