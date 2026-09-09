@@ -182,7 +182,13 @@ export async function sendAppointmentReminder(
       });
       const data = await resp.json().catch(() => ({}));
       if (resp.ok && (data.success || data.deduped)) {
-        return { status: "sent", channel: "whatsapp", preview: test ? message : undefined };
+        return {
+          status: "sent",
+          channel: "whatsapp",
+          // Demo accounts never reach the provider — never claim a real delivery.
+          reason: data.demo ? "demo_simulated" : undefined,
+          preview: test ? message : undefined,
+        };
       }
       return { status: "failed", channel: "whatsapp", error: data?.error || `http_${resp.status}` };
     } catch (e) {
