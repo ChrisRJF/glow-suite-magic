@@ -144,7 +144,7 @@ export default function DashboardPage() {
               <h2 className="text-[15px] sm:text-base font-medium tracking-tight text-foreground/90">
                 +{formatEuro(glowSuiteWeekRevenue)} verdiend via GlowSuite deze week
               </h2>
-              <p className="text-[12px] text-muted-foreground/80">Groei uit boekingen, betalingen en automatische opvolging.</p>
+              <p className="text-[12px] text-muted-foreground/80">Uit boekingen, betalingen en opvolging.</p>
             </div>
             <Button variant="ghost" size="sm" onClick={() => navigate("/rapporten?type=omzet")} className="self-start sm:self-auto">
               Bekijk groei <ArrowRight className="w-3.5 h-3.5 ml-1" />

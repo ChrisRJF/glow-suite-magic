@@ -1012,16 +1012,20 @@ export default function CalendarPage() {
   // -----------------------------------------------------------------------
 
   return (
-    <AppLayout title="Agenda" subtitle="Beheer je afspraken en vind lege plekken."
+    <AppLayout title="Agenda" subtitle="Je afspraken per dag"
       actions={
         <div className="w-full max-w-full overflow-hidden flex flex-col lg:flex-row lg:items-center gap-2">
           {/* Row 1: Vandaag + view toggle */}
           <div className="flex items-center gap-2 w-full lg:w-auto min-w-0">
-            {!isToday && (
-              <Button variant="outline" size="sm" onClick={goToToday} className="shrink-0">
-                <CalendarDays className="w-4 h-4 mr-1" /> Vandaag
-              </Button>
-            )}
+            <Button
+              variant={isToday ? "secondary" : "outline"}
+              size="sm"
+              onClick={goToToday}
+              aria-current={isToday ? "date" : undefined}
+              className="shrink-0"
+            >
+              <CalendarDays className="w-4 h-4 mr-1" /> Vandaag
+            </Button>
             <div className="flex flex-1 lg:flex-none rounded-xl border border-border overflow-hidden min-w-0">
               <button onClick={() => setView('day')} className={cn("flex-1 lg:flex-none px-3 py-2 text-sm font-medium transition-colors", view === 'day' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')}>Dag</button>
               <button onClick={() => setView('columns')} className={cn("flex-1 lg:flex-none px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-1", view === 'columns' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')} title="Kolommen per medewerker">
@@ -1145,7 +1149,7 @@ export default function CalendarPage() {
           <span className="text-xs text-muted-foreground">
             <strong className="text-foreground">{emptySlotCount} vrije slots</strong> vandaag
             {selectedEmployee !== 'alle' && ` voor ${displayEmployees.find((e: any) => e.id === selectedEmployee || e.name === selectedEmployee)?.name || selectedEmployee}`}
-            {' '}— klik op een leeg tijdslot om direct te boeken
+            {'. '}Klik op een leeg tijdslot om te boeken.
           </span>
         </div>
       )}

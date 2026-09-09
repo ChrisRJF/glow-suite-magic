@@ -66,7 +66,6 @@ export function PremiumOwnerMetrics() {
       <div className="flex items-end justify-between mb-4">
         <div>
           <h2 className="text-section-title">Premium overzicht</h2>
-          <p className="text-meta mt-1">Eenvoudige cijfers die er voor jou toe doen</p>
         </div>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
