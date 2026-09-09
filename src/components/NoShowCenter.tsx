@@ -114,6 +114,8 @@ export function NoShowCenter() {
     ]);
     const w: any = wa.data || {};
     setEnabled(!!(w.send_reminders && w.send_no_show_followup && w.send_booking_confirmation));
+    setHoursBefore(Number(w.reminder_hours_before) || 24);
+
     setRemindersSent(remRes.count || 0);
     setConfirmed(confRes.count || 0);
     setDepositsRequested(depRes.count || 0);
