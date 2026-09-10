@@ -889,6 +889,62 @@ export type Database = {
           },
         ]
       }
+      customer_alerts: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          customer_id: string
+          id: string
+          is_demo: boolean
+          label: string
+          review_status: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          source_id: string | null
+          source_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          customer_id: string
+          id?: string
+          is_demo?: boolean
+          label: string
+          review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source_id?: string | null
+          source_type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string
+          id?: string
+          is_demo?: boolean
+          label?: string
+          review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source_id?: string | null
+          source_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_alerts_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_memberships: {
         Row: {
           cancel_at_period_end: boolean
@@ -1197,6 +1253,50 @@ export type Database = {
         }
         Relationships: []
       }
+      dossier_automation_queue: {
+        Row: {
+          appointment_id: string
+          attempts: number
+          created_at: string
+          event: string
+          id: string
+          is_demo: boolean
+          last_error: string | null
+          processed_at: string | null
+          user_id: string
+        }
+        Insert: {
+          appointment_id: string
+          attempts?: number
+          created_at?: string
+          event?: string
+          id?: string
+          is_demo?: boolean
+          last_error?: string | null
+          processed_at?: string | null
+          user_id: string
+        }
+        Update: {
+          appointment_id?: string
+          attempts?: number
+          created_at?: string
+          event?: string
+          id?: string
+          is_demo?: boolean
+          last_error?: string | null
+          processed_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dossier_automation_queue_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_availability_exceptions: {
         Row: {
           created_at: string
@@ -1489,6 +1589,57 @@ export type Database = {
           },
         ]
       }
+      form_reissue_flags: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          customer_id: string
+          id: string
+          is_demo: boolean
+          reason: string | null
+          required_after: string
+          template_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          customer_id: string
+          id?: string
+          is_demo?: boolean
+          reason?: string | null
+          required_after?: string
+          template_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string
+          id?: string
+          is_demo?: boolean
+          reason?: string | null
+          required_after?: string
+          template_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_reissue_flags_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_reissue_flags_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "form_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       form_requests: {
         Row: {
           appointment_id: string | null
@@ -1500,6 +1651,7 @@ export type Database = {
           id: string
           is_demo: boolean
           opened_at: string | null
+          reminder_sent_at: string | null
           sent_at: string | null
           status: string
           template_id: string
@@ -1518,6 +1670,7 @@ export type Database = {
           id?: string
           is_demo?: boolean
           opened_at?: string | null
+          reminder_sent_at?: string | null
           sent_at?: string | null
           status?: string
           template_id: string
@@ -1536,6 +1689,7 @@ export type Database = {
           id?: string
           is_demo?: boolean
           opened_at?: string | null
+          reminder_sent_at?: string | null
           sent_at?: string | null
           status?: string
           template_id?: string
@@ -3073,28 +3227,43 @@ export type Database = {
       }
       service_form_requirements: {
         Row: {
+          auto_send: boolean
           created_at: string
           id: string
           is_demo: boolean
+          reissue_on_new_version: boolean
+          reminder_hours: number
           service_id: string
           template_id: string
           user_id: string
+          validity_mode: string
+          validity_months: number | null
         }
         Insert: {
+          auto_send?: boolean
           created_at?: string
           id?: string
           is_demo?: boolean
+          reissue_on_new_version?: boolean
+          reminder_hours?: number
           service_id: string
           template_id: string
           user_id: string
+          validity_mode?: string
+          validity_months?: number | null
         }
         Update: {
+          auto_send?: boolean
           created_at?: string
           id?: string
           is_demo?: boolean
+          reissue_on_new_version?: boolean
+          reminder_hours?: number
           service_id?: string
           template_id?: string
           user_id?: string
+          validity_mode?: string
+          validity_months?: number | null
         }
         Relationships: [
           {
@@ -4637,6 +4806,21 @@ export type Database = {
       current_account_is_demo: { Args: never; Returns: boolean }
       current_tenant_id: { Args: never; Returns: string }
       current_tenant_is_demo: { Args: never; Returns: boolean }
+      customer_dossier_timeline: {
+        Args: { _customer_id: string; _limit?: number; _offset?: number }
+        Returns: {
+          category: string
+          detail_id: string
+          kind: string
+          label: string
+          meta: Json
+          occurred_at: string
+        }[]
+      }
+      determine_required_forms_for_appointment: {
+        Args: { _appointment_id: string }
+        Returns: Json
+      }
       ensure_referral_code: { Args: { _user_id: string }; Returns: string }
       get_scheduler_cursor: { Args: { _name: string }; Returns: string }
       has_any_role: {

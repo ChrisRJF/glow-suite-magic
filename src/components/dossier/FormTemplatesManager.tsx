@@ -17,7 +17,33 @@ interface BuilderField {
   type: FieldType;
   required: boolean;
   options?: string[];
+  /** Optional attention rule: "checked", "filled" or one of the options. */
+  alert_when?: string;
 }
+
+interface RequirementRow {
+  id: string;
+  service_id: string;
+  template_id: string;
+  validity_mode: string;
+  validity_months: number | null;
+  reissue_on_new_version: boolean;
+  auto_send: boolean;
+  reminder_hours: number;
+}
+
+const VALIDITY_MODES: { value: string; label: string }[] = [
+  { value: "once", label: "Eenmalig invullen" },
+  { value: "every_appointment", label: "Bij iedere afspraak" },
+  { value: "months", label: "Opnieuw na aantal maanden" },
+  { value: "new_version", label: "Opnieuw bij nieuwe versie" },
+];
+
+const REMINDER_OPTIONS: { value: number; label: string }[] = [
+  { value: 0, label: "Geen herinnering" },
+  { value: 24, label: "24 uur vooraf" },
+  { value: 48, label: "48 uur vooraf" },
+];
 
 interface TemplateRow {
   id: string;
@@ -57,18 +83,20 @@ export function FormTemplatesManager() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState("");
   const [services, setServices] = useState<{ id: string; name: string }[]>([]);
-  const [links, setLinks] = useState<{ id: string; service_id: string; template_id: string }[]>([]);
+  const [links, setLinks] = useState<RequirementRow[]>([]);
 
   const load = async () => {
     setLoading(true);
     const [t, s, l] = await Promise.all([
       supabase.from("form_templates").select("id, title, kind, is_active, require_signature, current_version, draft_schema").order("created_at", { ascending: true }),
       supabase.from("services").select("id, name").order("name"),
-      supabase.from("service_form_requirements").select("id, service_id, template_id"),
+      supabase
+        .from("service_form_requirements")
+        .select("id, service_id, template_id, validity_mode, validity_months, reissue_on_new_version, auto_send, reminder_hours"),
     ]);
     setTemplates((t.data as unknown as TemplateRow[]) || []);
     setServices((s.data as { id: string; name: string }[]) || []);
-    setLinks((l.data as { id: string; service_id: string; template_id: string }[]) || []);
+    setLinks((l.data as unknown as RequirementRow[]) || []);
     setLoading(false);
   };
 
@@ -164,6 +192,12 @@ export function FormTemplatesManager() {
       await supabase.from("service_form_requirements").insert({ user_id: tenant as string, template_id: templateId, service_id: serviceId });
     }
     load();
+  };
+
+  const updateRequirement = async (id: string, patch: Partial<RequirementRow>) => {
+    setLinks((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l)));
+    const { error } = await supabase.from("service_form_requirements").update(patch).eq("id", id);
+    if (error) toast.error("Opslaan mislukt");
   };
 
   return (
@@ -280,6 +314,29 @@ export function FormTemplatesManager() {
                           />
                           Verplicht
                         </label>
+                        <select
+                          className="h-9 rounded-md border border-input bg-background px-2 text-xs"
+                          aria-label="Aandachtspunt bij antwoord"
+                          value={f.alert_when ?? ""}
+                          onChange={(e) => {
+                            const next = [...draftFields];
+                            const value = e.target.value;
+                            next[i] = { ...f, alert_when: value || undefined };
+                            saveDraft(t.id, next);
+                          }}
+                        >
+                          <option value="">Geen aandachtspunt</option>
+                          {f.type === "checkbox" && <option value="checked">Aandachtspunt bij aanvinken</option>}
+                          {(f.type === "select" || f.type === "radio") &&
+                            (f.options ?? []).map((o) => (
+                              <option key={o} value={o}>
+                                Aandachtspunt bij "{o}"
+                              </option>
+                            ))}
+                          {f.type !== "checkbox" && f.type !== "select" && f.type !== "radio" && (
+                            <option value="filled">Aandachtspunt als ingevuld</option>
+                          )}
+                        </select>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -319,6 +376,65 @@ export function FormTemplatesManager() {
                           );
                         })}
                       </div>
+
+                      {links
+                        .filter((l) => l.template_id === t.id)
+                        .map((l) => {
+                          const service = services.find((s) => s.id === l.service_id);
+                          return (
+                            <div key={l.id} className="space-y-2 rounded-xl border border-border p-3">
+                              <p className="text-xs font-medium text-foreground">{service?.name || "Behandeling"}</p>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <select
+                                  className="h-9 rounded-md border border-input bg-background px-2 text-xs"
+                                  aria-label="Wanneer opnieuw invullen"
+                                  value={l.validity_mode}
+                                  onChange={(e) => updateRequirement(l.id, { validity_mode: e.target.value })}
+                                >
+                                  {VALIDITY_MODES.map((m) => (
+                                    <option key={m.value} value={m.value}>{m.label}</option>
+                                  ))}
+                                </select>
+                                {l.validity_mode === "months" && (
+                                  <Input
+                                    type="number"
+                                    min={1}
+                                    max={60}
+                                    className="w-24"
+                                    aria-label="Aantal maanden geldig"
+                                    value={l.validity_months ?? 12}
+                                    onChange={(e) => updateRequirement(l.id, { validity_months: Math.max(1, Number(e.target.value) || 12) })}
+                                  />
+                                )}
+                                <select
+                                  className="h-9 rounded-md border border-input bg-background px-2 text-xs"
+                                  aria-label="Herinnering"
+                                  value={l.reminder_hours}
+                                  onChange={(e) => updateRequirement(l.id, { reminder_hours: Number(e.target.value) })}
+                                >
+                                  {REMINDER_OPTIONS.map((o) => (
+                                    <option key={o.value} value={o.value}>{o.label}</option>
+                                  ))}
+                                </select>
+                                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  <Switch
+                                    checked={l.auto_send}
+                                    onCheckedChange={(v) => updateRequirement(l.id, { auto_send: v })}
+                                  />
+                                  Automatisch versturen bij boeking
+                                </label>
+                                <label className="flex items-center gap-1 text-xs text-muted-foreground">
+                                  <input
+                                    type="checkbox"
+                                    checked={l.reissue_on_new_version}
+                                    onChange={(e) => updateRequirement(l.id, { reissue_on_new_version: e.target.checked })}
+                                  />
+                                  Opnieuw bij nieuwe versie
+                                </label>
+                              </div>
+                            </div>
+                          );
+                        })}
                     </div>
                   )}
 

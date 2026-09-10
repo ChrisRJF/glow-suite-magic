@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { FileText, Send, ShieldCheck, Clock, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { useDossierAccess } from "@/hooks/useDossierAccess";
+import { CustomerAlertsPanel } from "./CustomerAlertsPanel";
+import { CustomerTimeline } from "./CustomerTimeline";
 
 interface Props {
   customerId: string;
@@ -73,6 +75,25 @@ export function CustomerDossierPanel({ customerId, appointmentId = null, compact
 
   const visibleRequests = compact ? requests.filter((r) => r.appointment_id === appointmentId) : requests;
 
+  /** Marks a template as "must be filled in again", without touching history. */
+  const markReissue = async (templateId: string) => {
+    const { data: tenant } = await supabase.rpc("current_tenant_id");
+    const { data: userData } = await supabase.auth.getUser();
+    const { error } = await supabase.from("form_reissue_flags").upsert(
+      {
+        user_id: tenant as string,
+        customer_id: customerId,
+        template_id: templateId,
+        required_after: new Date().toISOString(),
+        created_by: userData?.user?.id ?? null,
+      },
+      { onConflict: "user_id,customer_id,template_id" },
+    );
+    if (error) return toast.error("Instellen mislukt");
+    toast.success("Dit formulier wordt bij de volgende afspraak opnieuw gevraagd.");
+    load();
+  };
+
   const send = async (templateId: string) => {
     setSending(templateId);
     const { data, error } = await supabase.functions.invoke("customer-forms", {
@@ -119,11 +140,18 @@ export function CustomerDossierPanel({ customerId, appointmentId = null, compact
                       </p>
                     )}
                   </div>
-                  {canViewContent && submission && (
-                    <Button variant="ghost" size="sm" onClick={() => setOpenSubmission(openSubmission === r.id ? null : r.id)}>
-                      {openSubmission === r.id ? "Verberg" : "Bekijk"}
-                    </Button>
-                  )}
+                  <div className="flex gap-1">
+                    {canSend && r.status === "completed" && !compact && (
+                      <Button variant="ghost" size="sm" onClick={() => markReissue(r.template_id)}>
+                        Opnieuw laten invullen
+                      </Button>
+                    )}
+                    {canViewContent && submission && (
+                      <Button variant="ghost" size="sm" onClick={() => setOpenSubmission(openSubmission === r.id ? null : r.id)}>
+                        {openSubmission === r.id ? "Verberg" : "Bekijk"}
+                      </Button>
+                    )}
+                  </div>
                 </div>
 
                 {canViewContent && submission && openSubmission === r.id && (
@@ -169,6 +197,13 @@ export function CustomerDossierPanel({ customerId, appointmentId = null, compact
               {sending === t.id ? "Versturen..." : t.title}
             </Button>
           ))}
+        </div>
+      )}
+
+      {!compact && (
+        <div className="space-y-5 border-t border-border pt-4">
+          <CustomerAlertsPanel customerId={customerId} />
+          <CustomerTimeline customerId={customerId} />
         </div>
       )}
     </div>

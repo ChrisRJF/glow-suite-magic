@@ -2,9 +2,9 @@ import { CustomerDossierPanel } from "./CustomerDossierPanel";
 import { TreatmentRecordPanel } from "./TreatmentRecordPanel";
 import { ClinicalMediaPanel } from "./ClinicalMediaPanel";
 import { DossierStatusBadge } from "./DossierStatusBadge";
-import { useDossierStatus, DOSSIER_STATUS_LABEL } from "@/hooks/useDossierStatus";
+import { useDossierStatus, DOSSIER_STATUS_LABEL, FORM_STATE_LABEL } from "@/hooks/useDossierStatus";
 import { useDossierAccess } from "@/hooks/useDossierAccess";
-import { CheckCircle2, Circle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Circle } from "lucide-react";
 
 interface Props {
   customerId: string;
@@ -30,10 +30,19 @@ export function AppointmentDossierBlock({ customerId, appointmentId, serviceId }
 
       {reasons && (
         <div className="space-y-1">
+          {(reasons.open_alerts ?? 0) > 0 && (
+            <p className="flex items-center gap-1.5 text-xs font-medium text-amber-600">
+              <AlertTriangle className="h-3 w-3" />
+              {reasons.open_alerts} aandachtspunt{(reasons.open_alerts ?? 0) > 1 ? "en" : ""} nog niet beoordeeld
+            </p>
+          )}
           {reasons.forms.map((f) => (
             <p key={f.title} className="flex items-center gap-1.5 text-xs text-muted-foreground">
               {f.ok ? <CheckCircle2 className="h-3 w-3 text-emerald-600" /> : <Circle className="h-3 w-3" />}
-              {f.title} {f.ok ? "ingevuld" : "ontbreekt"}
+              {f.title} {f.ok ? "ingevuld" : FORM_STATE_LABEL[f.state ?? "missing"]}
+              {f.ok && f.valid_until
+                ? ` (geldig tot ${new Date(f.valid_until).toLocaleDateString("nl-NL", { dateStyle: "medium" })})`
+                : ""}
             </p>
           ))}
           {reasons.treatment_record_required && (

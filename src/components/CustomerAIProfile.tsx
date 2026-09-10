@@ -95,7 +95,7 @@ function buildRecommendations(i: CustomerIntelligence, customerId: string): Reco
     recs.push({
       id: "reactivate",
       title: "Stuur heractivatiecampagne",
-      reason: `Klant is ${i.lastVisitDaysAgo}d geleden geweest — hoge afhaakkans.`,
+      reason: `Klant is ${i.lastVisitDaysAgo}d geleden geweest, hoge afhaakkans.`,
       confidence: Math.min(95, 60 + Math.round(i.churnRisk / 4)),
       impact: `+${formatEuro(i.avgSpend)} per terugkomst`,
       icon: Sparkles,
@@ -109,7 +109,7 @@ function buildRecommendations(i: CustomerIntelligence, customerId: string): Reco
       id: "followup",
       title: "Boek follow-up binnen 14 dagen",
       reason: i.avgCycleDays
-        ? `Gemiddelde cyclus ${i.avgCycleDays}d — klant is klaar voor herboeking.`
+        ? `Gemiddelde cyclus ${i.avgCycleDays}d, klant is klaar voor herboeking.`
         : `Klaar voor volgende afspraak.`,
       confidence: Math.round(i.rebookingLikelihood),
       impact: `+${formatEuro(i.avgSpend)}`,
@@ -123,7 +123,7 @@ function buildRecommendations(i: CustomerIntelligence, customerId: string): Reco
     recs.push({
       id: "membership",
       title: "Bied membership aan",
-      reason: `${i.totalVisits} bezoeken in cyclus van ${i.avgCycleDays}d — ideale kandidaat.`,
+      reason: `${i.totalVisits} bezoeken in cyclus van ${i.avgCycleDays}d, ideale kandidaat.`,
       confidence: 78,
       impact: `+${formatEuro(i.avgSpend * 3)} jaar`,
       icon: Gift,
@@ -136,7 +136,7 @@ function buildRecommendations(i: CustomerIntelligence, customerId: string): Reco
     recs.push({
       id: "upsell",
       title: `Upsell op ${i.preferredServiceName}`,
-      reason: `Klant boekt vaak ${i.preferredServiceName} — kans op aanvullende behandeling.`,
+      reason: `Klant boekt vaak ${i.preferredServiceName}, kans op aanvullende behandeling.`,
       confidence: 64,
       impact: `+${formatEuro(Math.round(i.avgSpend * 0.4))}`,
       icon: TrendingUp,
@@ -149,7 +149,7 @@ function buildRecommendations(i: CustomerIntelligence, customerId: string): Reco
     recs.push({
       id: "review",
       title: "Vraag review",
-      reason: `Recente afspraak — perfect moment voor 5-sterren beoordeling.`,
+      reason: `Recente afspraak, perfect moment voor 5-sterren beoordeling.`,
       confidence: 71,
       impact: `+social proof`,
       icon: Star,
@@ -162,7 +162,7 @@ function buildRecommendations(i: CustomerIntelligence, customerId: string): Reco
     recs.push({
       id: "reminder",
       title: "Stuur extra herinnering",
-      reason: `No-show risico ${i.noShowRisk}/100 — bevestiging beperkt schade.`,
+      reason: `No-show risico ${i.noShowRisk}/100, bevestiging beperkt schade.`,
       confidence: 80,
       impact: `-€${Math.round(i.avgSpend)} verlies`,
       icon: AlertTriangle,
@@ -202,8 +202,8 @@ export function CustomerAIProfile({ intel }: Props) {
     }
     if (parts.length === 0) {
       return intel.totalVisits === 0
-        ? "Nieuwe klant — nog geen patroon zichtbaar. Eerste indruk telt."
-        : "Patroon nog in opbouw — verzamel meer data voor betere voorspellingen.";
+        ? "Nieuwe klant, nog geen patroon zichtbaar. Eerste indruk telt."
+        : "Patroon nog in opbouw, verzamel meer data voor betere voorspellingen.";
     }
     return `Deze klant ${parts.join(", ")}.`;
   }, [intel]);
@@ -289,12 +289,12 @@ export function CustomerAIProfile({ intel }: Props) {
           </div>
           <div>
             <p className="text-sm font-semibold tabular-nums">
-              {intel.avgCycleDays > 0 ? `${intel.avgCycleDays}d` : "—"}
+              {intel.avgCycleDays > 0 ? `${intel.avgCycleDays}d` : "-"}
             </p>
             <p className="text-[10px] text-muted-foreground">Bezoekcyclus</p>
           </div>
           <div>
-            <p className="text-sm font-semibold capitalize">{intel.bestMonth || "—"}</p>
+            <p className="text-sm font-semibold capitalize">{intel.bestMonth || "-"}</p>
             <p className="text-[10px] text-muted-foreground">Beste maand</p>
           </div>
         </div>
@@ -396,7 +396,7 @@ export function CustomerAIProfile({ intel }: Props) {
 }
 
 // ───────────────────────────────────────────────────────────
-// Intelligente klant-tijdlijn — read only, bestaande data
+// Intelligente klant-tijdlijn, read only, bestaande data
 // ───────────────────────────────────────────────────────────
 type TimelineKind =
   | "afspraak"
