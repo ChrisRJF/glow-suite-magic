@@ -259,8 +259,19 @@ async function handleSubmit(req: Request, token: string, body: Record<string, un
   const answersResult = validateAnswers(schema, body.answers);
   if (!answersResult.ok) return json({ error: "validation_failed", detail: answersResult.error }, 400);
 
-  const signatureResult = validateSignature(version.require_signature, body.signer_name, body.signature_data);
+  const signatureResult = validateSignature(
+    version.require_signature,
+    body.signer_name,
+    body.signature_data,
+    body.consent,
+  );
   if (!signatureResult.ok) return json({ error: "validation_failed", detail: signatureResult.error }, 400);
+
+  const signatureMethod = version.require_signature
+    ? signatureResult.signatureData
+      ? ("drawn" as const)
+      : ("typed" as const)
+    : null;
 
   const snapshot = buildCanonicalSnapshot({
     templateId: request.template_id,
@@ -271,6 +282,9 @@ async function handleSubmit(req: Request, token: string, body: Record<string, un
     requireSignature: version.require_signature,
     answers: answersResult.answers,
     signerName: signatureResult.signerName,
+    ...(version.require_signature
+      ? { consent: signatureResult.consent, signatureMethod }
+      : {}),
   });
   const hash = await documentHash(snapshot);
 
