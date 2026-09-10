@@ -324,6 +324,11 @@ export default function CalendarPage() {
     [appointments, dateStr, selectedEmployee, apptEmployees]
   );
 
+  // Klantdossier P0b: one batched status call for the visible day.
+  const dayApptIds = useMemo(() => dayAppts.map((a: any) => a.id), [dayAppts]);
+  const { statuses: dossierStatuses, refresh: refreshDossierStatuses } = useDossierStatus(dayApptIds);
+
+
   const weekStart = useMemo(() => {
     const d = new Date(currentDate);
     d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
