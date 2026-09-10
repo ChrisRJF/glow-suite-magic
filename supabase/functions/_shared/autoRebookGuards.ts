@@ -116,6 +116,16 @@ export async function canStillSendRebook(
 ): Promise<RetrySendability> {
   if (!(await autoRebookEnabled(admin, userId))) return { allowed: false, reason: "auto_rebook_disabled" };
 
+  const { data: customer } = await admin
+    .from("customers")
+    .select("archived_at, pseudonymized_at, communication_blocked_at")
+    .eq("user_id", userId)
+    .eq("id", customerId)
+    .maybeSingle();
+  if (!customer || customer.archived_at || customer.pseudonymized_at || customer.communication_blocked_at) {
+    return { allowed: false, reason: "customer_communication_blocked" };
+  }
+
   const { data: pref } = await admin
     .from("customer_message_preferences")
     .select("retention_opt_out, email_opt_out, whatsapp_opt_out")

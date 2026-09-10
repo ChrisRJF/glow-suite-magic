@@ -289,6 +289,10 @@ Deno.serve(async (req) => {
       const { data: settings } = await admin.from("settings").select("salon_name, public_slug, timezone, email_enabled, whatsapp_enabled, appointment_reminder_schedule, language").eq("user_id", rule.user_id).eq("is_demo", rule.is_demo).order("created_at", { ascending: false }).limit(1).maybeSingle();
       const candidates = await candidatesForRule(admin, rule, settings);
       for (const candidate of candidates) {
+        if (candidate.customer?.archived_at || candidate.customer?.pseudonymized_at || candidate.customer?.communication_blocked_at) {
+          skipped += 1;
+          continue;
+        }
         const { data: preferences } = candidate.customer?.id ? await admin.from("customer_message_preferences").select("*").eq("user_id", rule.user_id).eq("customer_id", candidate.customer.id).maybeSingle() : { data: null };
         const scheduledFor = candidate.reminder?.hours_before ? new Date(new Date(candidate.appointment.appointment_date).getTime() - Number(candidate.reminder.hours_before) * 60 * 60 * 1000) : addDelay(new Date(), Number(rule.delay_value || 0), rule.delay_unit || "instant");
         const result = await insertRun(admin, rule, settings, { ...candidate, preferences }, scheduledFor, rule.trigger_type);
@@ -343,6 +347,15 @@ Deno.serve(async (req) => {
     for (const run of dueRuns) {
       try {
         const payload = (run.payload || {}) as any;
+        if (payload.customer_id) {
+          const { data: runCustomer } = await admin.from("customers")
+            .select("archived_at, pseudonymized_at, communication_blocked_at")
+            .eq("id", payload.customer_id).eq("user_id", run.user_id).maybeSingle();
+          if (!runCustomer || runCustomer.archived_at || runCustomer.pseudonymized_at || runCustomer.communication_blocked_at) {
+            await admin.from("automation_runs").update({ status: "skipped", processed_at: new Date().toISOString(), error_message: "customer_communication_blocked", recipient: null }).eq("id", run.id);
+            continue;
+          }
+        }
         // Cross-channel canonical claim for reminder-type sends: any run tied
         // to a real appointment whose payload is an appointment reminder must
         // race for the shared claim so WA + email can't both fire.

@@ -210,6 +210,15 @@ Deno.serve(async (req) => {
 
     for (const row of retryRows || []) {
       try {
+        if (row.customer_id) {
+          const { data: retryCustomer } = await admin.from("customers")
+            .select("archived_at, pseudonymized_at, communication_blocked_at")
+            .eq("id", row.customer_id).eq("user_id", row.user_id).maybeSingle();
+          if (!retryCustomer || retryCustomer.archived_at || retryCustomer.pseudonymized_at || retryCustomer.communication_blocked_at) {
+            await admin.from("whatsapp_logs").update({ dead_letter: true, status: "suppressed", error: "customer_communication_blocked", next_retry_at: null }).eq("id", row.id);
+            continue;
+          }
+        }
         // If the appointment has been cancelled/rescheduled in the meantime,
         // dead-letter without further attempts — never send a stale reminder.
         if (row.appointment_id) {
@@ -476,10 +485,10 @@ Deno.serve(async (req) => {
 
               const { data: customer } = await admin
                 .from("customers")
-                .select("id, name, phone, whatsapp_opt_in, preferred_language")
+                .select("id, name, phone, whatsapp_opt_in, preferred_language, archived_at, pseudonymized_at, communication_blocked_at")
                 .eq("id", appt.customer_id)
                 .maybeSingle();
-              if (!customer || !customer.phone || customer.whatsapp_opt_in === false) {
+              if (!customer || !customer.phone || customer.whatsapp_opt_in === false || customer.archived_at || customer.pseudonymized_at || customer.communication_blocked_at) {
                 stats.skipped++;
                 continue;
               }
@@ -589,10 +598,10 @@ Deno.serve(async (req) => {
 
               const { data: customer } = await admin
                 .from("customers")
-                .select("id, name, phone, whatsapp_opt_in, preferred_language")
+                .select("id, name, phone, whatsapp_opt_in, preferred_language, archived_at, pseudonymized_at, communication_blocked_at")
                 .eq("id", appt.customer_id)
                 .maybeSingle();
-              if (!customer || !customer.phone || customer.whatsapp_opt_in === false) {
+              if (!customer || !customer.phone || customer.whatsapp_opt_in === false || customer.archived_at || customer.pseudonymized_at || customer.communication_blocked_at) {
                 stats.skipped++;
                 continue;
               }

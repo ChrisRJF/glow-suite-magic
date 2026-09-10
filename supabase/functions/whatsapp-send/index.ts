@@ -78,6 +78,23 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Final safety gate. Every higher-level sender also checks this, but the
+    // transport itself must refuse archived or pseudonymized customers.
+    if (customer_id) {
+      const { data: customer } = await admin
+        .from("customers")
+        .select("id, archived_at, pseudonymized_at, communication_blocked_at")
+        .eq("id", customer_id)
+        .eq("user_id", user_id)
+        .maybeSingle();
+      if (!customer || customer.archived_at || customer.pseudonymized_at || customer.communication_blocked_at) {
+        return new Response(JSON.stringify({ success: false, suppressed: true, error: "customer_communication_blocked" }), {
+          status: 409,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     // Demo mode guard — never call Twilio for demo accounts. Simulate + log only.
     const { data: salonSettings } = await admin
       .from("settings")
