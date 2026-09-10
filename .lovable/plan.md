@@ -69,10 +69,13 @@ Gebeurtenissen in het bestaande auditlogboek: aangemaakt, gepubliceerd, verzoek 
 Alle door gebruikers ingevoerde tekst wordt als platte tekst weergegeven, nooit als opmaakcode.
 
 Tests:
-1. Onveranderlijkheid: v1 invullen en ondertekenen, daarna v2 publiceren; de oude inzending toont nog exact v1 en de hash klopt.
-2. Scheiding tussen salons: salon A kan formulieren, verzoeken en inzendingen van B niet lezen of manipuleren.
-3. Financieel kan geen formulierinhoud lezen.
-4. Verlopen of onjuist token geeft geen gegevens prijs.
+1. Onveranderlijkheid: v1 invullen en ondertekenen, daarna v2 publiceren; de oude inzending toont nog exact v1 en de hash klopt. Wijzigen of verwijderen van een gebruikte versie wordt door de database geweigerd.
+2. Scheiding tussen salons: salon A kan formulieren, aanvragen en inzendingen van B niet lezen of manipuleren, ook niet door verwijzingen van B mee te sturen op de publieke link.
+3. Een teamlid van salon A krijgt nooit salon B als tenant.
+4. Rollen: financieel geen toegang, receptie wel status maar geen inhoud, medewerker inhoud binnen eigen salon.
+5. Demo en productie blijven gescheiden, getest als eigenaar en als teamlid.
+6. Verlopen of onjuist token geeft geen gegevens prijs.
+7. Twee keer insturen levert één inzending op; twee keer versturen levert één openstaande aanvraag op.
 
 ## Wat expliciet niet verandert
 
@@ -85,7 +88,7 @@ Geen automatische verzending bij boeking, geen geldigheidsduur of herinvulregels
 ## Technische details
 
 - Nieuwe tabellen: `form_templates`, `form_template_versions`, `service_form_requirements`, `form_requests`, `form_submissions`.
-- Nieuwe functies in de database: `current_tenant_id()`, `can_access_dossier()`.
+- Nieuwe functies in de database: `current_tenant_id()`, `can_view_dossier_status()`, `can_view_dossier_content()`, `can_send_customer_form()`, `can_manage_form_templates()`, plus triggers voor onveranderlijkheid.
 - Nieuwe edge function: `customer-forms` (publiek, met snelheidslimiet via `check_public_rate_limit`).
 - Nieuwe frontend: formulierbeheer onder Instellingen, `/formulier/:token`, dossier-tab, formulierblok bij de afspraak.
 - Aan te passen bestaande bestanden: `src/App.tsx` (route), `src/pages/InstellingenPage.tsx` (beheer), `src/pages/CustomersPage.tsx` (tab), `src/pages/CalendarPage.tsx` (afspraakdetail), `src/lib/permissions.ts` (nieuwe rechten).
