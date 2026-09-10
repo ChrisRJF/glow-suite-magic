@@ -819,6 +819,76 @@ export type Database = {
           },
         ]
       }
+      clinical_media: {
+        Row: {
+          appointment_id: string | null
+          caption: string | null
+          category: string
+          created_at: string
+          customer_id: string
+          employee_id: string | null
+          id: string
+          is_demo: boolean
+          mime_type: string
+          size_bytes: number
+          storage_path: string
+          treatment_record_id: string | null
+          user_id: string
+        }
+        Insert: {
+          appointment_id?: string | null
+          caption?: string | null
+          category?: string
+          created_at?: string
+          customer_id: string
+          employee_id?: string | null
+          id?: string
+          is_demo?: boolean
+          mime_type: string
+          size_bytes: number
+          storage_path: string
+          treatment_record_id?: string | null
+          user_id: string
+        }
+        Update: {
+          appointment_id?: string | null
+          caption?: string | null
+          category?: string
+          created_at?: string
+          customer_id?: string
+          employee_id?: string | null
+          id?: string
+          is_demo?: boolean
+          mime_type?: string
+          size_bytes?: number
+          storage_path?: string
+          treatment_record_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clinical_media_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clinical_media_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clinical_media_treatment_record_id_fkey"
+            columns: ["treatment_record_id"]
+            isOneToOne: false
+            referencedRelation: "treatment_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_memberships: {
         Row: {
           cancel_at_period_end: boolean
@@ -3502,6 +3572,132 @@ export type Database = {
         }
         Relationships: []
       }
+      treatment_record_templates: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          is_demo: boolean
+          schema: Json
+          service_id: string | null
+          title: string
+          updated_at: string
+          user_id: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_demo?: boolean
+          schema?: Json
+          service_id?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_demo?: boolean
+          schema?: Json
+          service_id?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "treatment_record_templates_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      treatment_records: {
+        Row: {
+          appointment_id: string | null
+          completed_at: string | null
+          created_at: string
+          customer_id: string
+          employee_id: string | null
+          id: string
+          is_demo: boolean
+          locked_at: string | null
+          service_id: string | null
+          status: string
+          template_id: string | null
+          template_snapshot: Json
+          template_version: number
+          updated_at: string
+          user_id: string
+          values: Json
+        }
+        Insert: {
+          appointment_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          customer_id: string
+          employee_id?: string | null
+          id?: string
+          is_demo?: boolean
+          locked_at?: string | null
+          service_id?: string | null
+          status?: string
+          template_id?: string | null
+          template_snapshot?: Json
+          template_version?: number
+          updated_at?: string
+          user_id: string
+          values?: Json
+        }
+        Update: {
+          appointment_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          customer_id?: string
+          employee_id?: string | null
+          id?: string
+          is_demo?: boolean
+          locked_at?: string | null
+          service_id?: string | null
+          status?: string
+          template_id?: string | null
+          template_snapshot?: Json
+          template_version?: number
+          updated_at?: string
+          user_id?: string
+          values?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "treatment_records_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "treatment_records_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "treatment_records_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "treatment_record_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_access: {
         Row: {
           created_at: string
@@ -4384,6 +4580,14 @@ export type Database = {
       }
     }
     Functions: {
+      appointment_dossier_status: {
+        Args: { _appointment_ids: string[] }
+        Returns: {
+          appointment_id: string
+          reasons: Json
+          status: string
+        }[]
+      }
       auto_rebook_candidates: {
         Args: { _max_customers?: number; _offset?: number }
         Returns: {

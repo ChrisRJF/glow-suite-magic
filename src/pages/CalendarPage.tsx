@@ -28,7 +28,11 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { EmployeeColumnDayView } from "@/components/EmployeeColumnDayView";
 import { MoveAppointmentSheet, type MoveTarget } from "@/components/MoveAppointmentSheet";
 import { SmartReflowDialog, type ReflowAppointment } from "@/components/SmartReflowDialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { CustomerDossierPanel } from "@/components/dossier/CustomerDossierPanel";
+import { AppointmentDossierBlock } from "@/components/dossier/AppointmentDossierBlock";
+import { DossierStatusBadge } from "@/components/dossier/DossierStatusBadge";
+import { useDossierStatus } from "@/hooks/useDossierStatus";
 import { findConflict, snapToFine, timeToMinutes, minutesToTime } from "@/lib/agendaMove";
 import { useNavigate as useRouterNavigate } from "react-router-dom";
 import { cancelAppointment } from "@/lib/cancelAppointment";
@@ -109,6 +113,7 @@ export default function CalendarPage() {
   // Phase 3: drag/drop + move sheet state
   const isMobile = useIsMobile();
   const [moveSheetOpen, setMoveSheetOpen] = useState(false);
+  const [dossierAppt, setDossierAppt] = useState<any | null>(null);
   const [moveTargetAppt, setMoveTargetAppt] = useState<any | null>(null);
   const [reflowOpen, setReflowOpen] = useState(false);
 
@@ -323,6 +328,11 @@ export default function CalendarPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [appointments, dateStr, selectedEmployee, apptEmployees]
   );
+
+  // Klantdossier P0b: one batched status call for the visible day.
+  const dayApptIds = useMemo(() => dayAppts.map((a: any) => a.id), [dayAppts]);
+  const { statuses: dossierStatuses, refresh: refreshDossierStatuses } = useDossierStatus(dayApptIds);
+
 
   const weekStart = useMemo(() => {
     const d = new Date(currentDate);
@@ -1541,6 +1551,15 @@ export default function CalendarPage() {
                                 <GripVertical className="w-4 h-4 text-muted-foreground" />
                               </button>
                               <div className="flex items-center gap-1 shrink-0">
+                                {dossierStatuses[apt.id] && (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); setDossierAppt(apt); }}
+                                    aria-label="Dossier openen"
+                                    title="Dossier openen"
+                                  >
+                                    <DossierStatusBadge status={dossierStatuses[apt.id].status} />
+                                  </button>
+                                )}
                                 <button
                                   onClick={(e) => { e.stopPropagation(); openMoveSheet(apt); }}
                                   className="p-1.5 rounded-lg hover:bg-secondary/60 flex items-center gap-1 text-[11px] text-muted-foreground"
@@ -1672,6 +1691,27 @@ export default function CalendarPage() {
           if (ok) setMoveSheetOpen(false);
         }}
       />
+
+      <Sheet open={!!dossierAppt} onOpenChange={(o) => { if (!o) { setDossierAppt(null); refreshDossierStatuses(); } }}>
+        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>
+              {customers.find(c => c.id === dossierAppt?.customer_id)?.name || 'Klant'}
+            </SheetTitle>
+          </SheetHeader>
+          {dossierAppt && (
+            <div className="mt-4">
+              <AppointmentDossierBlock
+                customerId={dossierAppt.customer_id}
+                appointmentId={dossierAppt.id}
+                serviceId={dossierAppt.service_id}
+              />
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
+
 
       <SmartReflowDialog
         open={reflowOpen}
