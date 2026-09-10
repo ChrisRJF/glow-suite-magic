@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useAppointments } from "@/hooks/useSupabaseData";
 import { useCrud } from "@/hooks/useCrud";
 import { useDemoMode } from "@/hooks/useDemoMode";
+import { useDemoShowcaseAccess } from "@/lib/salesDemoAccess";
 import { useAutoRevenueRunner } from "@/hooks/useAutoRevenueRunner";
 import { actionLogKey, autopilotLastRunKey, autopilotStateKey, clearLegacyDemoLocalState, demoStateKey } from "@/lib/demoIsolation";
 import { formatEuro } from "@/lib/data";
@@ -101,6 +102,7 @@ interface AutoRevenueEngineProps {
 export function AutoRevenueEngine({ source = "overview" }: AutoRevenueEngineProps) {
   const { user } = useAuth();
   const { demoMode } = useDemoMode();
+  const { showcaseAccess } = useDemoShowcaseAccess();
   const { data: appointments, refetch: refetchAppointments } = useAppointments();
   // removeAppointment kept only for defensive cleanup of legacy demo rows.
   const { remove: removeAppointment } = useCrud("appointments");
