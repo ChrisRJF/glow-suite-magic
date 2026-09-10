@@ -247,17 +247,32 @@ export default function PublicFormPage() {
           ))}
 
           {form?.require_signature && (
-            <div className="space-y-2 border-t border-border pt-4">
-              <Label htmlFor="signer" className="text-sm">Naam ondertekenaar <span className="text-destructive">*</span></Label>
-              <Input id="signer" value={signerName} onChange={(e) => setSignerName(e.target.value)} />
-              <Label className="text-sm">Handtekening <span className="text-destructive">*</span></Label>
-              <SignaturePad onChange={setSignature} />
+            <div className="space-y-3 border-t border-border pt-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="signer" className="text-sm">Naam ondertekenaar <span className="text-destructive">*</span></Label>
+                <Input id="signer" value={signerName} onChange={(e) => setSignerName(e.target.value)} />
+              </div>
+              <label className="flex items-start gap-2 text-sm text-foreground">
+                <input type="checkbox" className="mt-1" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
+                <span>
+                  Ik heb bovenstaande informatie gelezen en ga akkoord.
+                  <span className="text-destructive"> *</span>
+                </span>
+              </label>
+              <button
+                type="button"
+                className="text-xs text-muted-foreground underline"
+                onClick={() => setShowDrawing((v) => !v)}
+              >
+                {showDrawing ? "Tekenen verbergen" : "Liever tekenen met uw vinger?"}
+              </button>
+              {showDrawing && <SignaturePad onChange={setSignature} />}
             </div>
           )}
         </div>
 
         <Button className="w-full" size="lg" disabled={submitting} onClick={submit}>
-          {submitting ? "Versturen..." : "Versturen"}
+          {submitting ? "Bezig..." : form?.require_signature ? "Digitaal ondertekenen" : "Versturen"}
         </Button>
         <p className="text-center text-xs text-muted-foreground">Je gegevens worden alleen gedeeld met {form?.salon_name}.</p>
       </div>
