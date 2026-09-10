@@ -1253,6 +1253,171 @@ export type Database = {
         }
         Relationships: []
       }
+      document_exports: {
+        Row: {
+          appointment_id: string | null
+          created_at: string
+          customer_id: string
+          document_ref: string
+          download_count: number
+          error_code: string | null
+          expires_at: string
+          file_bytes: number | null
+          format: string
+          id: string
+          idempotency_key: string | null
+          include_photos: boolean
+          is_demo: boolean
+          last_downloaded_at: string | null
+          photo_count: number
+          requested_by: string | null
+          scope: string
+          source_id: string | null
+          status: string
+          storage_path: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          appointment_id?: string | null
+          created_at?: string
+          customer_id: string
+          document_ref: string
+          download_count?: number
+          error_code?: string | null
+          expires_at?: string
+          file_bytes?: number | null
+          format?: string
+          id?: string
+          idempotency_key?: string | null
+          include_photos?: boolean
+          is_demo?: boolean
+          last_downloaded_at?: string | null
+          photo_count?: number
+          requested_by?: string | null
+          scope: string
+          source_id?: string | null
+          status?: string
+          storage_path?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          appointment_id?: string | null
+          created_at?: string
+          customer_id?: string
+          document_ref?: string
+          download_count?: number
+          error_code?: string | null
+          expires_at?: string
+          file_bytes?: number | null
+          format?: string
+          id?: string
+          idempotency_key?: string | null
+          include_photos?: boolean
+          is_demo?: boolean
+          last_downloaded_at?: string | null
+          photo_count?: number
+          requested_by?: string | null
+          scope?: string
+          source_id?: string | null
+          status?: string
+          storage_path?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_exports_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_exports_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_shares: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          customer_id: string
+          download_count: number
+          expires_at: string
+          export_id: string
+          first_viewed_at: string | null
+          id: string
+          is_demo: boolean
+          last_downloaded_at: string | null
+          max_downloads: number
+          revoked_at: string | null
+          revoked_by: string | null
+          status: string
+          token_hash: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          customer_id: string
+          download_count?: number
+          expires_at?: string
+          export_id: string
+          first_viewed_at?: string | null
+          id?: string
+          is_demo?: boolean
+          last_downloaded_at?: string | null
+          max_downloads?: number
+          revoked_at?: string | null
+          revoked_by?: string | null
+          status?: string
+          token_hash: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string
+          download_count?: number
+          expires_at?: string
+          export_id?: string
+          first_viewed_at?: string | null
+          id?: string
+          is_demo?: boolean
+          last_downloaded_at?: string | null
+          max_downloads?: number
+          revoked_at?: string | null
+          revoked_by?: string | null
+          status?: string
+          token_hash?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_shares_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_shares_export_id_fkey"
+            columns: ["export_id"]
+            isOneToOne: false
+            referencedRelation: "document_exports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dossier_automation_queue: {
         Row: {
           appointment_id: string
