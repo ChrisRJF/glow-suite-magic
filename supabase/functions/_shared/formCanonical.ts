@@ -158,12 +158,14 @@ export interface CanonicalInput {
   requireSignature: boolean;
   answers: ValidatedAnswers;
   signerName: string | null;
+  consent?: boolean;
+  signatureMethod?: "typed" | "drawn" | null;
 }
 
 /** Deterministic snapshot: fixed key order, fixed field order, no timestamps. */
 export function buildCanonicalSnapshot(input: CanonicalInput): Record<string, unknown> {
-  return {
-    schema_version: 1,
+  const snapshot: Record<string, unknown> = {
+    schema_version: input.consent === undefined ? 1 : 2,
     template_id: input.templateId,
     template_version_id: input.templateVersionId,
     version: input.version,
