@@ -486,7 +486,6 @@ async function handleDownload(ctx: Ctx, body: Record<string, unknown>) {
   });
   if (error || !signed?.signedUrl) return json({ error: "sign_failed" }, 500);
 
-  await admin.rpc("noop_missing", {}).then(() => {}, () => {});
   await admin.from("document_exports").update({
     download_count: (await currentCount(row.id)) + 1,
     last_downloaded_at: new Date().toISOString(),
