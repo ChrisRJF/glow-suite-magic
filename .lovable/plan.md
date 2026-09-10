@@ -8,11 +8,16 @@ Teamleden zijn eigen accounts, gekoppeld via `user_access.owner_user_id`, terwij
 
 ## Stap 1 — Tenant- en rolfundament
 
-Twee database-functies (security definer, vaste search_path, geen input uit de browser):
-- `current_tenant_id()` — eigenaar krijgt het eigen account; een actief teamlid krijgt `owner_user_id` uit `user_access` (alleen bij status actief); anders leeg.
-- `can_access_dossier()` — eigenaar, admin, manager en medewerker: ja. Financieel: nee. Receptie: alleen versturen en status, geen inhoud.
+Database-functies met vaste search_path, volledig gekwalificeerde tabelnamen, uitvoerrecht alleen voor ingelogde gebruikers, en nooit invoer uit de browser:
+- `current_tenant_id()` — eigenaar krijgt het eigen account; een teamlid krijgt `owner_user_id` uit `user_access`, uitsluitend bij een actieve relatie; anders leeg.
+- `can_view_dossier_status()` — eigenaar, admin, manager, medewerker, receptie.
+- `can_view_dossier_content()` — eigenaar, admin, manager, medewerker. Niet receptie, niet financieel.
+- `can_send_customer_form()` — eigenaar, admin, manager, medewerker, receptie.
+- `can_manage_form_templates()` — eigenaar, admin, manager.
 
-Alleen de nieuwe tabellen gebruiken deze functies. Bestaande tabellen worden niet aangeraakt.
+Financieel krijgt nergens toegang. Alle rechten worden in de database afgedwongen; de interface verbergt alleen wat toch al geblokkeerd is. Alleen de nieuwe tabellen gebruiken deze functies; bestaande tabellen blijven ongemoeid.
+
+Status en inhoud worden gescheiden opgehaald, zodat receptie wel "intake ontvangen" of "toestemming ontbreekt" ziet, maar nooit antwoorden, contracttekst of handtekening.
 
 ## Stap 2 — Database (nieuwe tabellen)
 
