@@ -1179,7 +1179,10 @@ export type Database = {
       }
       customers: {
         Row: {
+          archived_at: string | null
+          archived_by: string | null
           cancellation_count: number | null
+          communication_blocked_at: string | null
           created_at: string
           email: string | null
           id: string
@@ -1193,13 +1196,18 @@ export type Database = {
           phone: string | null
           preferred_language: string
           privacy_consent: boolean | null
+          pseudonymized_at: string | null
+          pseudonymized_by: string | null
           total_spent: number | null
           updated_at: string
           user_id: string
           whatsapp_opt_in: boolean | null
         }
         Insert: {
+          archived_at?: string | null
+          archived_by?: string | null
           cancellation_count?: number | null
+          communication_blocked_at?: string | null
           created_at?: string
           email?: string | null
           id?: string
@@ -1213,13 +1221,18 @@ export type Database = {
           phone?: string | null
           preferred_language?: string
           privacy_consent?: boolean | null
+          pseudonymized_at?: string | null
+          pseudonymized_by?: string | null
           total_spent?: number | null
           updated_at?: string
           user_id: string
           whatsapp_opt_in?: boolean | null
         }
         Update: {
+          archived_at?: string | null
+          archived_by?: string | null
           cancellation_count?: number | null
+          communication_blocked_at?: string | null
           created_at?: string
           email?: string | null
           id?: string
@@ -1233,6 +1246,8 @@ export type Database = {
           phone?: string | null
           preferred_language?: string
           privacy_consent?: boolean | null
+          pseudonymized_at?: string | null
+          pseudonymized_by?: string | null
           total_spent?: number | null
           updated_at?: string
           user_id?: string
@@ -2424,6 +2439,53 @@ export type Database = {
         }
         Relationships: []
       }
+      legal_holds: {
+        Row: {
+          created_at: string
+          created_by: string
+          customer_id: string | null
+          customer_ref: string
+          id: string
+          is_demo: boolean
+          reason: string
+          released_at: string | null
+          released_by: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          customer_id?: string | null
+          customer_ref: string
+          id?: string
+          is_demo?: boolean
+          reason: string
+          released_at?: string | null
+          released_by?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          customer_id?: string | null
+          customer_ref?: string
+          id?: string
+          is_demo?: boolean
+          reason?: string
+          released_at?: string | null
+          released_by?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legal_holds_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       membership_plans: {
         Row: {
           benefits: Json
@@ -2934,6 +2996,155 @@ export type Database = {
         }
         Relationships: []
       }
+      privacy_requests: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          customer_id: string | null
+          customer_ref: string
+          export_expires_at: string | null
+          export_storage_path: string | null
+          failed_at: string | null
+          failure_code: string | null
+          handled_by: string | null
+          id: string
+          idempotency_key: string
+          include_photos: boolean
+          is_demo: boolean
+          request_type: string
+          requested_at: string
+          requested_by: string
+          result_summary: Json | null
+          snapshot_manifest: Json | null
+          started_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          customer_id?: string | null
+          customer_ref: string
+          export_expires_at?: string | null
+          export_storage_path?: string | null
+          failed_at?: string | null
+          failure_code?: string | null
+          handled_by?: string | null
+          id?: string
+          idempotency_key: string
+          include_photos?: boolean
+          is_demo?: boolean
+          request_type: string
+          requested_at?: string
+          requested_by: string
+          result_summary?: Json | null
+          snapshot_manifest?: Json | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          customer_id?: string | null
+          customer_ref?: string
+          export_expires_at?: string | null
+          export_storage_path?: string | null
+          failed_at?: string | null
+          failure_code?: string | null
+          handled_by?: string | null
+          id?: string
+          idempotency_key?: string
+          include_photos?: boolean
+          is_demo?: boolean
+          request_type?: string
+          requested_at?: string
+          requested_by?: string
+          result_summary?: Json | null
+          snapshot_manifest?: Json | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      privacy_runtime_controls: {
+        Row: {
+          control_key: string
+          enabled: boolean
+          updated_at: string
+        }
+        Insert: {
+          control_key: string
+          enabled?: boolean
+          updated_at?: string
+        }
+        Update: {
+          control_key?: string
+          enabled?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      privacy_storage_cleanup: {
+        Row: {
+          attempts: number
+          bucket_id: string
+          completed_at: string | null
+          created_at: string
+          id: string
+          is_demo: boolean
+          last_error: string | null
+          next_retry_at: string | null
+          object_path: string
+          privacy_request_id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          bucket_id: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          is_demo?: boolean
+          last_error?: string | null
+          next_retry_at?: string | null
+          object_path: string
+          privacy_request_id: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          bucket_id?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          is_demo?: boolean
+          last_error?: string | null
+          next_retry_at?: string | null
+          object_path?: string
+          privacy_request_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "privacy_storage_cleanup_privacy_request_id_fkey"
+            columns: ["privacy_request_id"]
+            isOneToOne: false
+            referencedRelation: "privacy_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           category: string | null
@@ -3392,6 +3603,63 @@ export type Database = {
           channel?: string
           claimed_at?: string
           reminder_type?: string
+        }
+        Relationships: []
+      }
+      retention_policies: {
+        Row: {
+          action: string
+          activated_at: string | null
+          activated_by: string | null
+          category: string
+          created_at: string
+          created_by: string
+          dry_run_at: string | null
+          dry_run_summary: Json | null
+          enabled: boolean
+          id: string
+          is_demo: boolean
+          policy_version: number
+          retention_months: number | null
+          review_status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          action?: string
+          activated_at?: string | null
+          activated_by?: string | null
+          category: string
+          created_at?: string
+          created_by: string
+          dry_run_at?: string | null
+          dry_run_summary?: Json | null
+          enabled?: boolean
+          id?: string
+          is_demo?: boolean
+          policy_version?: number
+          retention_months?: number | null
+          review_status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          activated_at?: string | null
+          activated_by?: string | null
+          category?: string
+          created_at?: string
+          created_by?: string
+          dry_run_at?: string | null
+          dry_run_summary?: Json | null
+          enabled?: boolean
+          id?: string
+          is_demo?: boolean
+          policy_version?: number
+          retention_months?: number | null
+          review_status?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -5007,10 +5275,16 @@ export type Database = {
         }[]
       }
       bootstrap_current_user: { Args: never; Returns: Json }
+      can_delete_customer_data: { Args: never; Returns: boolean }
       can_manage_consent: { Args: never; Returns: boolean }
       can_manage_form_templates: { Args: never; Returns: boolean }
+      can_manage_legal_hold: { Args: never; Returns: boolean }
       can_manage_operations: { Args: { _user_id: string }; Returns: boolean }
+      can_manage_privacy_archive: { Args: never; Returns: boolean }
+      can_manage_retention: { Args: never; Returns: boolean }
       can_manage_users: { Args: { _user_id: string }; Returns: boolean }
+      can_privacy_export: { Args: never; Returns: boolean }
+      can_pseudonymize_customer: { Args: never; Returns: boolean }
       can_send_customer_form: { Args: never; Returns: boolean }
       can_use_media_for_marketing: {
         Args: { _media_id: string; _scope?: string }
@@ -5073,11 +5347,25 @@ export type Database = {
           occurred_at: string
         }[]
       }
+      customer_privacy_preflight: {
+        Args: { _customer_id: string; _tenant_id: string }
+        Returns: Json
+      }
       determine_required_forms_for_appointment: {
         Args: { _appointment_id: string }
         Returns: Json
       }
       ensure_referral_code: { Args: { _user_id: string }; Returns: string }
+      execute_customer_privacy_action: {
+        Args: {
+          _action: string
+          _actor_id: string
+          _customer_id: string
+          _request_id: string
+          _tenant_id: string
+        }
+        Returns: Json
+      }
       get_scheduler_cursor: { Args: { _name: string }; Returns: string }
       has_any_role: {
         Args: {
@@ -5111,6 +5399,15 @@ export type Database = {
       reset_due_membership_credits: {
         Args: { _user_id: string }
         Returns: number
+      }
+      retention_dry_run: {
+        Args: {
+          _category: string
+          _is_demo: boolean
+          _months: number
+          _tenant_id: string
+        }
+        Returns: Json
       }
       set_auto_rebook: { Args: { _enabled: boolean }; Returns: undefined }
       set_noshow_prevention: {
