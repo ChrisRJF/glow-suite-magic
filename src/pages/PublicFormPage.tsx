@@ -117,9 +117,19 @@ export default function PublicFormPage() {
   }, [token]);
 
   const submit = async () => {
+    if (form?.require_signature) {
+      if (signerName.trim().length < 2) {
+        toast.error("Vul je volledige naam in.");
+        return;
+      }
+      if (!consent) {
+        toast.error("Zet een vinkje bij het akkoord om te ondertekenen.");
+        return;
+      }
+    }
     setSubmitting(true);
     const { data, error } = await supabase.functions.invoke("customer-forms", {
-      body: { action: "submit", token, answers, signer_name: signerName, signature_data: signature },
+      body: { action: "submit", token, answers, signer_name: signerName, signature_data: signature, consent },
     });
     setSubmitting(false);
     const res = data as { ok?: boolean; error?: string } | null;
@@ -127,6 +137,7 @@ export default function PublicFormPage() {
       toast.error("Niet alle verplichte velden zijn ingevuld.");
       return;
     }
+    setSignedAt(new Date());
     setState("done");
   };
 
