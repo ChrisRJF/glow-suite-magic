@@ -829,6 +829,9 @@ export type Database = {
           employee_id: string | null
           id: string
           is_demo: boolean
+          marketing_approved: boolean
+          marketing_approved_at: string | null
+          marketing_approved_by: string | null
           mime_type: string
           size_bytes: number
           storage_path: string
@@ -844,6 +847,9 @@ export type Database = {
           employee_id?: string | null
           id?: string
           is_demo?: boolean
+          marketing_approved?: boolean
+          marketing_approved_at?: string | null
+          marketing_approved_by?: string | null
           mime_type: string
           size_bytes: number
           storage_path: string
@@ -859,6 +865,9 @@ export type Database = {
           employee_id?: string | null
           id?: string
           is_demo?: boolean
+          marketing_approved?: boolean
+          marketing_approved_at?: string | null
+          marketing_approved_by?: string | null
           mime_type?: string
           size_bytes?: number
           storage_path?: string
@@ -938,6 +947,68 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "customer_alerts_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_consents: {
+        Row: {
+          actor_id: string | null
+          consent_type: string
+          created_at: string
+          customer_id: string
+          event: string
+          id: string
+          is_demo: boolean
+          note: string | null
+          occurred_at: string
+          proof_reference: string | null
+          scope: string
+          source: string
+          source_reference: string | null
+          user_id: string
+          version: number | null
+        }
+        Insert: {
+          actor_id?: string | null
+          consent_type: string
+          created_at?: string
+          customer_id: string
+          event: string
+          id?: string
+          is_demo?: boolean
+          note?: string | null
+          occurred_at?: string
+          proof_reference?: string | null
+          scope: string
+          source?: string
+          source_reference?: string | null
+          user_id: string
+          version?: number | null
+        }
+        Update: {
+          actor_id?: string | null
+          consent_type?: string
+          created_at?: string
+          customer_id?: string
+          event?: string
+          id?: string
+          is_demo?: boolean
+          note?: string | null
+          occurred_at?: string
+          proof_reference?: string | null
+          scope?: string
+          source?: string
+          source_reference?: string | null
+          user_id?: string
+          version?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_consents_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
@@ -2042,6 +2113,7 @@ export type Database = {
       }
       form_templates: {
         Row: {
+          consent_scope: string | null
           created_at: string
           current_version: number
           draft_schema: Json
@@ -2055,6 +2127,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          consent_scope?: string | null
           created_at?: string
           current_version?: number
           draft_schema?: Json
@@ -2068,6 +2141,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          consent_scope?: string | null
           created_at?: string
           current_version?: number
           draft_schema?: Json
@@ -4930,10 +5004,16 @@ export type Database = {
         }[]
       }
       bootstrap_current_user: { Args: never; Returns: Json }
+      can_manage_consent: { Args: never; Returns: boolean }
       can_manage_form_templates: { Args: never; Returns: boolean }
       can_manage_operations: { Args: { _user_id: string }; Returns: boolean }
       can_manage_users: { Args: { _user_id: string }; Returns: boolean }
       can_send_customer_form: { Args: never; Returns: boolean }
+      can_use_media_for_marketing: {
+        Args: { _media_id: string; _scope?: string }
+        Returns: boolean
+      }
+      can_view_consent_history: { Args: never; Returns: boolean }
       can_view_dossier_content: { Args: never; Returns: boolean }
       can_view_dossier_status: { Args: never; Returns: boolean }
       can_view_finance: { Args: { _user_id: string }; Returns: boolean }
@@ -4973,6 +5053,10 @@ export type Database = {
         Returns: Json
       }
       current_account_is_demo: { Args: never; Returns: boolean }
+      current_consent_status: {
+        Args: { _consent_type?: string; _customer_id: string; _scope: string }
+        Returns: string
+      }
       current_tenant_id: { Args: never; Returns: string }
       current_tenant_is_demo: { Args: never; Returns: boolean }
       customer_dossier_timeline: {
