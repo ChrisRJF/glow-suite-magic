@@ -264,8 +264,13 @@ export function FormTemplatesManager() {
                   </div>
 
                   <div className="space-y-2">
-                    {draftFields.map((f, i) => (
-                      <div key={i} className="flex flex-wrap items-center gap-2 rounded-lg border border-border p-2">
+                    {draftFields.map((f, i) => {
+                      const alertCapable = f.type === "checkbox" || f.type === "select" || f.type === "radio";
+                      const alertOn = Boolean(f.alert_when);
+                      const defaultRule = f.type === "checkbox" ? "checked" : (f.options ?? [])[0] ?? "";
+                      return (
+                      <div key={i} className="space-y-2 rounded-lg border border-border p-2">
+                        <div className="flex flex-wrap items-center gap-2">
                         <Input
                           className="flex-1 min-w-[160px]"
                           value={f.label}
@@ -282,7 +287,14 @@ export function FormTemplatesManager() {
                           onChange={(e) => {
                             const next = [...draftFields];
                             const type = e.target.value as FieldType;
-                            next[i] = { ...f, type, options: type === "select" || type === "radio" ? f.options ?? ["Ja", "Nee"] : undefined };
+                            const keepAlert = type === "checkbox" || type === "select" || type === "radio";
+                            next[i] = {
+                              ...f,
+                              type,
+                              options: type === "select" || type === "radio" ? f.options ?? ["Ja", "Nee"] : undefined,
+                              alert_when: keepAlert ? f.alert_when : undefined,
+                              alert_label: keepAlert ? f.alert_label : undefined,
+                            };
                             saveDraft(t.id, next);
                           }}
                         >
@@ -314,29 +326,6 @@ export function FormTemplatesManager() {
                           />
                           Verplicht
                         </label>
-                        <select
-                          className="h-9 rounded-md border border-input bg-background px-2 text-xs"
-                          aria-label="Aandachtspunt bij antwoord"
-                          value={f.alert_when ?? ""}
-                          onChange={(e) => {
-                            const next = [...draftFields];
-                            const value = e.target.value;
-                            next[i] = { ...f, alert_when: value || undefined };
-                            saveDraft(t.id, next);
-                          }}
-                        >
-                          <option value="">Geen aandachtspunt</option>
-                          {f.type === "checkbox" && <option value="checked">Aandachtspunt bij aanvinken</option>}
-                          {(f.type === "select" || f.type === "radio") &&
-                            (f.options ?? []).map((o) => (
-                              <option key={o} value={o}>
-                                Aandachtspunt bij "{o}"
-                              </option>
-                            ))}
-                          {f.type !== "checkbox" && f.type !== "select" && f.type !== "radio" && (
-                            <option value="filled">Aandachtspunt als ingevuld</option>
-                          )}
-                        </select>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -345,8 +334,65 @@ export function FormTemplatesManager() {
                         >
                           <Trash2 className="h-4 w-4 text-muted-foreground" />
                         </Button>
+                        </div>
+
+                        {alertCapable && (
+                          <div className="space-y-2 border-t border-border pt-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <Label htmlFor={`alert-${t.id}-${i}`} className="text-xs text-muted-foreground">
+                                Aandachtspunt maken bij bepaald antwoord
+                              </Label>
+                              <Switch
+                                id={`alert-${t.id}-${i}`}
+                                checked={alertOn}
+                                onCheckedChange={(v) => {
+                                  const next = [...draftFields];
+                                  next[i] = v
+                                    ? { ...f, alert_when: defaultRule || undefined }
+                                    : { ...f, alert_when: undefined, alert_label: undefined };
+                                  saveDraft(t.id, next);
+                                }}
+                              />
+                            </div>
+                            {alertOn && (
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-xs text-muted-foreground">Wanneer antwoord is</span>
+                                {f.type === "checkbox" ? (
+                                  <span className="text-xs text-foreground">aangevinkt</span>
+                                ) : (
+                                  <select
+                                    className="h-9 rounded-md border border-input bg-background px-2 text-xs"
+                                    aria-label="Wanneer antwoord is"
+                                    value={f.alert_when ?? ""}
+                                    onChange={(e) => {
+                                      const next = [...draftFields];
+                                      next[i] = { ...f, alert_when: e.target.value || undefined };
+                                      saveDraft(t.id, next);
+                                    }}
+                                  >
+                                    {(f.options ?? []).map((o) => (
+                                      <option key={o} value={o}>{o}</option>
+                                    ))}
+                                  </select>
+                                )}
+                                <Input
+                                  className="min-w-[160px] flex-1 text-xs"
+                                  placeholder="Label voor behandelaar (optioneel)"
+                                  defaultValue={f.alert_label ?? ""}
+                                  onBlur={(e) => {
+                                    const value = e.target.value.trim();
+                                    const next = [...draftFields];
+                                    next[i] = { ...f, alert_label: value || undefined };
+                                    saveDraft(t.id, next);
+                                  }}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
-                    ))}
+                      );
+                    })}
                     <Button
                       variant="outline"
                       size="sm"
