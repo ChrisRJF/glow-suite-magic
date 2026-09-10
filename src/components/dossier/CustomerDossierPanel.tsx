@@ -9,6 +9,7 @@ import { CustomerTimeline } from "./CustomerTimeline";
 import { CustomerConsentPanel } from "./CustomerConsentPanel";
 import { DocumentExportDialog } from "./DocumentExportDialog";
 import { CustomerPrivacyPanel } from "./CustomerPrivacyPanel";
+import { JourneyPanel } from "./JourneyPanel";
 
 interface Props {
   customerId: string;
