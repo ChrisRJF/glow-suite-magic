@@ -23,9 +23,10 @@ interface RequestRow {
 interface SubmissionRow {
   id: string;
   request_id: string;
-  rendered_snapshot: { fields?: { key: string; label: string; value: unknown }[]; title?: string } | null;
+  rendered_snapshot: { fields?: { key: string; label: string; value: unknown }[]; title?: string; version?: number } | null;
   signer_name: string | null;
   signed_at: string | null;
+  signature_data: string | null;
   document_hash: string;
   submitted_at: string;
 }
@@ -57,7 +58,7 @@ export function CustomerDossierPanel({ customerId, appointmentId = null, compact
     if (canViewContent) {
       const { data } = await supabase
         .from("form_submissions")
-        .select("id, request_id, rendered_snapshot, signer_name, signed_at, document_hash, submitted_at")
+        .select("id, request_id, rendered_snapshot, signer_name, signed_at, signature_data, document_hash, submitted_at")
         .eq("customer_id", customerId);
       setSubmissions((data as unknown as SubmissionRow[]) || []);
     }
@@ -109,7 +110,14 @@ export function CustomerDossierPanel({ customerId, appointmentId = null, compact
                     <p className="text-xs text-muted-foreground flex items-center gap-1">
                       {r.status === "completed" ? <CheckCircle2 className="h-3 w-3 text-emerald-600" /> : <Clock className="h-3 w-3" />}
                       {STATUS_LABEL[r.status] || r.status}
+                      {submission?.signed_at ? " en ondertekend" : ""}
                     </p>
+                    {submission && (
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(submission.submitted_at).toLocaleString("nl-NL", { dateStyle: "medium", timeStyle: "short" })}
+                        {submission.rendered_snapshot?.version ? ` · versie ${submission.rendered_snapshot.version}` : ""}
+                      </p>
+                    )}
                   </div>
                   {canViewContent && submission && (
                     <Button variant="ghost" size="sm" onClick={() => setOpenSubmission(openSubmission === r.id ? null : r.id)}>
@@ -129,11 +137,22 @@ export function CustomerDossierPanel({ customerId, appointmentId = null, compact
                       </div>
                     ))}
                     {submission.signer_name && (
-                      <p className="text-xs text-muted-foreground flex items-center gap-1">
-                        <ShieldCheck className="h-3 w-3" /> Ondertekend door {submission.signer_name}
-                      </p>
+                      <div className="space-y-1 pt-1">
+                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          <ShieldCheck className="h-3 w-3" /> Ondertekend door {submission.signer_name}
+                          {submission.signed_at
+                            ? ` op ${new Date(submission.signed_at).toLocaleString("nl-NL", { dateStyle: "medium", timeStyle: "short" })}`
+                            : ""}
+                        </p>
+                        {submission.signature_data && (
+                          <img
+                            src={submission.signature_data}
+                            alt={`Handtekening van ${submission.signer_name}`}
+                            className="h-16 rounded-lg border border-border bg-background"
+                          />
+                        )}
+                      </div>
                     )}
-                    <p className="text-[11px] text-muted-foreground break-all">Documentcode: {submission.document_hash.slice(0, 16)}</p>
                   </div>
                 )}
               </div>

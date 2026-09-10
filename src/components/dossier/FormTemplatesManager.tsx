@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Plus, Trash2, FileText, Check } from "lucide-react";
 import { toast } from "sonner";
@@ -25,7 +26,7 @@ interface TemplateRow {
   is_active: boolean;
   require_signature: boolean;
   current_version: number;
-  draft_schema: { fields?: BuilderField[] } | null;
+  draft_schema: { fields?: BuilderField[]; intro?: string } | null;
 }
 
 const FIELD_TYPES: { value: FieldType; label: string }[] = [
@@ -104,9 +105,15 @@ export function FormTemplatesManager() {
     id: string,
     fields: BuilderField[],
     extra: Partial<Pick<TemplateRow, "title" | "is_active" | "require_signature">> = {},
+    intro?: string,
   ) => {
-    setTemplates((prev) => prev.map((t) => (t.id === id ? { ...t, ...extra, draft_schema: { fields } } : t)));
-    const { error } = await supabase.from("form_templates").update({ draft_schema: { fields } as never, ...extra }).eq("id", id);
+    const current = templates.find((t) => t.id === id);
+    const nextIntro = intro !== undefined ? intro : current?.draft_schema?.intro ?? "";
+    setTemplates((prev) => prev.map((t) => (t.id === id ? { ...t, ...extra, draft_schema: { fields, intro: nextIntro } } : t)));
+    const { error } = await supabase
+      .from("form_templates")
+      .update({ draft_schema: { fields, intro: nextIntro } as never, ...extra })
+      .eq("id", id);
     if (error) toast.error("Opslaan mislukt");
   };
 
@@ -123,7 +130,7 @@ export function FormTemplatesManager() {
       title: t.title,
       kind: t.kind,
       require_signature: t.require_signature,
-      schema: { fields } as never,
+      schema: { fields, intro: t.draft_schema?.intro ?? "" } as never,
     });
     if (error) return toast.error("Publiceren mislukt");
     await supabase.from("form_templates").update({ current_version: nextVersion }).eq("id", t.id);
@@ -200,6 +207,17 @@ export function FormTemplatesManager() {
                       id={`sig-${t.id}`}
                       checked={t.require_signature}
                       onCheckedChange={(v) => saveDraft(t.id, draftFields, { require_signature: v })}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`intro-${t.id}`} className="text-sm">Toelichting voor de klant (optioneel)</Label>
+                    <Textarea
+                      id={`intro-${t.id}`}
+                      rows={3}
+                      placeholder="Bijvoorbeeld: Ik verklaar dat ik bovenstaande vragen naar waarheid heb ingevuld."
+                      defaultValue={t.draft_schema?.intro ?? ""}
+                      onBlur={(e) => saveDraft(t.id, draftFields, {}, e.target.value)}
                     />
                   </div>
 
