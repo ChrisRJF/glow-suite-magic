@@ -5275,6 +5275,10 @@ export type Database = {
         }[]
       }
       bootstrap_current_user: { Args: never; Returns: Json }
+      build_privacy_export_snapshot: {
+        Args: { _as_of: string; _customer_id: string; _tenant_id: string }
+        Returns: Json
+      }
       can_delete_customer_data: { Args: never; Returns: boolean }
       can_manage_consent: { Args: never; Returns: boolean }
       can_manage_form_templates: { Args: never; Returns: boolean }
