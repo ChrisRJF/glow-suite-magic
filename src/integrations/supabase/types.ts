@@ -967,6 +967,7 @@ export type Database = {
           occurred_at: string
           proof_reference: string | null
           scope: string
+          seq: number
           source: string
           source_reference: string | null
           user_id: string
@@ -984,6 +985,7 @@ export type Database = {
           occurred_at?: string
           proof_reference?: string | null
           scope: string
+          seq?: number
           source?: string
           source_reference?: string | null
           user_id: string
@@ -1001,6 +1003,7 @@ export type Database = {
           occurred_at?: string
           proof_reference?: string | null
           scope?: string
+          seq?: number
           source?: string
           source_reference?: string | null
           user_id?: string
