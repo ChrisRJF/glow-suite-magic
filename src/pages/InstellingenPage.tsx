@@ -948,7 +948,12 @@ export default function InstellingenPage() {
         )}
 
         {/* Klantdossier: formulieren */}
-        {activeTab === "klanten" && <FormTemplatesManager />}
+        {activeTab === "klanten" && (
+          <div className="space-y-6">
+            <FormTemplatesManager />
+            <TreatmentTemplatesManager />
+          </div>
+        )}
 
         {/* Customer Settings */}
         {activeTab === "klanten" && (
