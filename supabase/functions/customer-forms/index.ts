@@ -300,9 +300,14 @@ async function handleSubmit(req: Request, token: string, body: Record<string, un
     rendered_snapshot: snapshot,
     document_hash: hash,
     signer_name: signatureResult.signerName,
-    signed_at: signatureResult.signatureData ? new Date().toISOString() : null,
+    signed_at: signatureResult.consent ? new Date().toISOString() : null,
     signature_data: signatureResult.signatureData,
-    audit_metadata: { fingerprint: await auditFingerprint(req), submitted_via: "public_link" },
+    audit_metadata: {
+      fingerprint: await auditFingerprint(req),
+      submitted_via: "public_link",
+      explicit_consent: signatureResult.consent,
+      signature_method: signatureMethod,
+    },
   });
 
   if (submitError) {
