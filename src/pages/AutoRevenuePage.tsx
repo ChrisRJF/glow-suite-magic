@@ -99,18 +99,21 @@ export default function AutoRevenuePage() {
     if (!user) return;
     let cancelled = false;
     (async () => {
-      const [{ count: mollieCount }, { count: waitCount }] = await Promise.all([
+      const [{ count: mollieCount }, { count: waitCount }, waRes] = await Promise.all([
         supabase.from("mollie_connections").select("id", { count: "exact", head: true }).eq("user_id", user.id),
         supabase.from("waitlist_entries").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("is_demo", demoMode),
+        supabase.from("whatsapp_settings").select("enabled, send_reminders").eq("user_id", user.id).maybeSingle(),
       ]);
       if (cancelled) return;
       setMollieConnected((mollieCount || 0) > 0);
       setWaitlistCount(waitCount || 0);
+      const wa = waRes.data as any;
+      setWhatsappReady(Boolean(wa?.enabled && wa?.send_reminders));
     })();
     return () => { cancelled = true; };
   }, [user, demoMode]);
 
-  const whatsappEnabled = Boolean(settings?.whatsapp_enabled);
+  const whatsappEnabled = whatsappReady || Boolean(settings?.whatsapp_enabled);
   const campaignsSent = (campaigns?.length || 0) > 0;
 
   const checklistItems = useMemo(() => ([
