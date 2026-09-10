@@ -305,6 +305,18 @@ async function employeeNames(tenantId: string, ids: string[]): Promise<Record<st
   return Object.fromEntries((data || []).map((s) => [s.id as string, s.name as string]));
 }
 
+
+/** Timeline wording stays in plain Dutch, whatever the stored status value is. */
+function apptStatusLabel(status: string | null): string {
+  const s = (status || "").toLowerCase();
+  if (["voltooid", "completed", "afgerond", "done"].includes(s)) return "afgerond";
+  if (["geannuleerd", "cancelled", "canceled", "declined"].includes(s)) return "geannuleerd";
+  if (["no_show", "no-show", "noshow", "niet_verschenen"].includes(s)) return "niet verschenen";
+  if (["confirmed", "bevestigd"].includes(s)) return "bevestigd";
+  if (["gepland", "planned", "pending", "scheduled"].includes(s)) return "gepland";
+  return s || "gepland";
+}
+
 async function buildDocument(args: BuildArgs): Promise<BuildResult> {
   const { ctx, scope, customer, appointment, sourceId, sections, includePhotos, mediaIds, meta } = args;
   const blocks: Block[] = [];
@@ -440,7 +452,7 @@ async function buildDocument(args: BuildArgs): Promise<BuildResult> {
         items.push({
           occurred_at: a.appointment_date as string,
           category: "treatments",
-          label: `${svcTl[a.service_id as string] ?? "Afspraak"} (${a.status ?? "-"})`,
+          label: `${svcTl[a.service_id as string] ?? "Afspraak"} (${apptStatusLabel(a.status as string | null)})`,
         });
       }
       for (const s of subs2 || []) {
