@@ -83,12 +83,21 @@ Deno.serve(async (req) => {
 
   const [{ data: customer }, { data: service }] = await Promise.all([
     appt.customer_id
-      ? supabase.from("customers").select("name").eq("id", appt.customer_id).maybeSingle()
+      ? supabase
+          .from("customers")
+          .select("name, archived_at, pseudonymized_at, communication_blocked")
+          .eq("id", appt.customer_id)
+          .maybeSingle()
       : Promise.resolve({ data: null }),
     appt.service_id
-      ? supabase.from("services").select("name").eq("id", appt.service_id).maybeSingle()
+      ? supabase.from("services").select("name, aftercare_text").eq("id", appt.service_id).maybeSingle()
       : Promise.resolve({ data: null }),
   ]);
+
+  const cust = customer as
+    | { name?: string; archived_at?: string | null; pseudonymized_at?: string | null; communication_blocked?: boolean | null }
+    | null;
+  const customerBlocked = Boolean(cust?.archived_at || cust?.pseudonymized_at || cust?.communication_blocked);
 
   const publicAppt = {
     id: appt.id,
