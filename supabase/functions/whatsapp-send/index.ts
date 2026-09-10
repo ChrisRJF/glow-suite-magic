@@ -18,6 +18,14 @@ function normalizePhone(phone: string): string | null {
   return "+" + digits;
 }
 
+// A document share link carries a bearer token. The customer and Twilio get the
+// real link, but nothing token-bearing may stay readable in our own storage/logs.
+const SHARE_LINK_RE = /(\/document\/)[a-f0-9]{32,}/gi;
+function redactShareLinks<T>(value: T): T {
+  if (typeof value !== "string") return value;
+  return value.replace(SHARE_LINK_RE, "$1[beveiligde-link]") as unknown as T;
+}
+
 function safeError(payload: unknown): string {
   try {
     if (!payload) return "Onbekende fout";
