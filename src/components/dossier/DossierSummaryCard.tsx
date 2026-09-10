@@ -1,6 +1,7 @@
 import { Sparkles } from "lucide-react";
 import { useDossierOverview } from "@/hooks/useDossierOverview";
 import { nextAction } from "@/lib/dossierInsights";
+import { AiSummaryButton } from "./AiSummaryButton";
 
 /**
  * P4 samenvatting: compacte, regelgebaseerde weergave van bestaande dossierdata.
@@ -79,6 +80,8 @@ export function DossierSummaryCard({ customerId }: { customerId: string }) {
       <p className="text-[11px] text-muted-foreground">
         Alleen administratief overzicht uit bestaande gegevens. Geen diagnose of behandeladvies.
       </p>
+
+      <AiSummaryButton label="AI-samenvatting maken" action="dossier_summary" customerId={customerId} />
     </div>
   );
 }

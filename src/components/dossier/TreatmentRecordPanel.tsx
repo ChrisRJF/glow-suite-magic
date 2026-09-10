@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useDossierAccess } from "@/hooks/useDossierAccess";
 import type { TreatmentField } from "./TreatmentTemplatesManager";
 import { DocumentExportDialog } from "./DocumentExportDialog";
+import { AiSummaryButton } from "./AiSummaryButton";
 
 interface RecordRow {
   id: string;
