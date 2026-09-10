@@ -1531,15 +1531,12 @@ function MessagingSettingsCard() {
           <div><span className="text-sm">WhatsApp automatisering</span><p className="text-[11px] text-muted-foreground">Verstuur automatische WhatsApp berichten</p></div>
           <Switch checked={s.whatsappEnabled} onCheckedChange={(checked) => upd({ whatsappEnabled: checked })} />
         </div>
-        <div className="flex items-center justify-between py-2">
-          <div><span className="text-sm">SMS automatisering</span><p className="text-[11px] text-muted-foreground">Verstuur automatische SMS-berichten</p></div>
-          <Switch checked={s.smsEnabled} onCheckedChange={(checked) => upd({ smsEnabled: checked })} />
-        </div>
-        <div className="flex items-center justify-between py-2">
-          <div><span className="text-sm">Voorkeurskanaal</span><p className="text-[11px] text-muted-foreground">Wat als beide actief zijn</p></div>
-          <select value={s.preferredChannel} onChange={e => upd({ preferredChannel: e.target.value as 'whatsapp' | 'sms' })} className="px-3 py-1.5 rounded-xl bg-secondary/50 border border-border text-sm">
-            <option value="whatsapp">WhatsApp</option><option value="sms">SMS</option>
-          </select>
+        <div className="flex items-center justify-between py-2 opacity-60">
+          <div className="flex items-center gap-2">
+            <div><span className="text-sm">SMS</span><p className="text-[11px] text-muted-foreground">Nog niet beschikbaar</p></div>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">Binnenkort</span>
+          </div>
+          <Switch checked={false} disabled />
         </div>
         <div className="flex items-center justify-between py-2">
           <div><span className="text-sm">Max berichten per dag</span><p className="text-[11px] text-muted-foreground">Limiet om spam te voorkomen</p></div>

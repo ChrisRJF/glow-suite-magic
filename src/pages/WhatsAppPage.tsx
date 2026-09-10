@@ -179,7 +179,7 @@ export default function WhatsAppPage() {
   };
 
   return (
-    <AppLayout title="WhatsApp & SMS" subtitle="Automatische berichten, campagnes en logs.">
+    <AppLayout title="WhatsApp" subtitle="Automatische berichten, campagnes en logs.">
       <div className="w-full max-w-full overflow-x-hidden space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full min-w-0">
           <div className="min-w-0 w-full">
