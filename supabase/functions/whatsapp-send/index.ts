@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
         customer_id,
         appointment_id,
         to_number: `whatsapp:${to}`,
-        message,
+        message: redactShareLinks(message),
         status: "demo",
         twilio_sid: null,
         error: null,
@@ -102,7 +102,7 @@ Deno.serve(async (req) => {
         meta: { ...meta, demo: true, simulated: true },
         reminder_type,
         booking_token,
-        confirmation_link,
+        confirmation_link: redactShareLinks(confirmation_link),
       });
       console.log("whatsapp-send simulated (demo)", { user_id, kind, to: maskPhone(to) });
       return new Response(
@@ -168,7 +168,7 @@ Deno.serve(async (req) => {
       twilio_status: twStatus,
       sid: twData?.sid,
       error_code: twData?.code,
-      error_message: twData?.message,
+      error_message: redactShareLinks(twData?.message),
       sandbox: isSandbox,
     });
 
@@ -186,15 +186,15 @@ Deno.serve(async (req) => {
       customer_id,
       appointment_id,
       to_number: waTo,
-      message,
+      message: redactShareLinks(message),
       status: ok ? "sent" : "failed",
       twilio_sid: twData?.sid ?? null,
-      error: ok ? null : safeError(twData),
+      error: ok ? null : redactShareLinks(safeError(twData)),
       kind,
       meta: logMeta,
       reminder_type,
       booking_token,
-      confirmation_link,
+      confirmation_link: redactShareLinks(confirmation_link),
       retry_count: 0,
       next_retry_at: ok ? null : new Date(Date.now() + 60 * 1000).toISOString(),
     });
