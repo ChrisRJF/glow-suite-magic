@@ -99,7 +99,7 @@ const navGroups: NavGroup[] = [
     items: [
       { label: "Instellingen", icon: Settings, path: "/instellingen" },
       { label: "Support", icon: HelpCircle, path: "/support" },
-      { label: "Launch Status", icon: Rocket, path: "/launch-status", ownerOnly: true },
+      { label: "Launch Status", icon: Rocket, path: "/launch-status", staffOnly: true },
       { label: "QA Status", icon: ShieldCheck, path: "/qa-status", staffOnly: true },
       { label: "Email previews", icon: Mail, path: "/admin/email-templates", staffOnly: true },
     ],
