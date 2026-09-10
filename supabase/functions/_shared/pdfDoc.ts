@@ -139,8 +139,16 @@ class Writer {
       case "kv": {
         this.ensure(LINE);
         const label = pdfSafe(block.label);
+        const labelWidth = 170;
+        const fits = this.bold.widthOfTextAtSize(label, 9.5) <= labelWidth - 10;
+        if (!fits) {
+          // Long questions get their own line so nothing ever overlaps.
+          this.paragraph(block.label, this.bold, 9.5, MUTED);
+          this.paragraph(block.value, this.regular, 9.5, INK, 12);
+          this.y -= 2;
+          break;
+        }
         this.page.drawText(label, { x: MARGIN, y: this.y, size: 9.5, font: this.bold, color: MUTED });
-        const labelWidth = 150;
         const lines = this.wrap(block.value, this.regular, 9.5, A4[0] - MARGIN * 2 - labelWidth);
         let first = true;
         for (const line of lines) {

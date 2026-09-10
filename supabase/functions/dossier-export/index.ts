@@ -305,6 +305,18 @@ async function employeeNames(tenantId: string, ids: string[]): Promise<Record<st
   return Object.fromEntries((data || []).map((s) => [s.id as string, s.name as string]));
 }
 
+
+/** Timeline wording stays in plain Dutch, whatever the stored status value is. */
+function apptStatusLabel(status: string | null): string {
+  const s = (status || "").toLowerCase();
+  if (["voltooid", "completed", "afgerond", "done"].includes(s)) return "afgerond";
+  if (["geannuleerd", "cancelled", "canceled", "declined"].includes(s)) return "geannuleerd";
+  if (["no_show", "no-show", "noshow", "niet_verschenen"].includes(s)) return "niet verschenen";
+  if (["confirmed", "bevestigd"].includes(s)) return "bevestigd";
+  if (["gepland", "planned", "pending", "scheduled"].includes(s)) return "gepland";
+  return s || "gepland";
+}
+
 async function buildDocument(args: BuildArgs): Promise<BuildResult> {
   const { ctx, scope, customer, appointment, sourceId, sections, includePhotos, mediaIds, meta } = args;
   const blocks: Block[] = [];
@@ -421,10 +433,45 @@ async function buildDocument(args: BuildArgs): Promise<BuildResult> {
     }
 
     if (sections.timeline) {
-      const { data: timeline } = await admin.rpc("customer_dossier_timeline", {
-        _customer_id: customer.id, _limit: 100, _offset: 0,
-      });
-      blocks.push(...timelineBlocks((timeline || []) as Array<{ occurred_at: string; label: string; category: string }>));
+      // The timeline RPC is scoped to a signed in staff member, so it cannot be
+      // used from the service role. The same events are assembled here instead.
+      const [{ data: appts }, { data: subs2 }, { data: recs2 }] = await Promise.all([
+        admin.from("appointments").select("appointment_date, service_id, status")
+          .eq("user_id", ctx.tenantId).eq("customer_id", customer.id).eq("is_demo", ctx.isDemo)
+          .order("appointment_date", { ascending: false }).limit(60),
+        admin.from("form_submissions").select("submitted_at, rendered_snapshot, signed_at")
+          .eq("user_id", ctx.tenantId).eq("customer_id", customer.id)
+          .order("submitted_at", { ascending: false }).limit(60),
+        admin.from("treatment_records").select("completed_at, created_at, status")
+          .eq("user_id", ctx.tenantId).eq("customer_id", customer.id)
+          .order("created_at", { ascending: false }).limit(60),
+      ]);
+      const svcTl = await serviceNames(ctx.tenantId, (appts || []).map((a) => a.service_id as string));
+      const items: Array<{ occurred_at: string; label: string; category: string }> = [];
+      for (const a of appts || []) {
+        items.push({
+          occurred_at: a.appointment_date as string,
+          category: "treatments",
+          label: `${svcTl[a.service_id as string] ?? "Afspraak"} (${apptStatusLabel(a.status as string | null)})`,
+        });
+      }
+      for (const s of subs2 || []) {
+        const title = String((s.rendered_snapshot as Record<string, unknown> | null)?.title ?? "Formulier");
+        items.push({
+          occurred_at: s.submitted_at as string,
+          category: "forms",
+          label: s.signed_at ? `${title} ingevuld en ondertekend` : `${title} ingevuld`,
+        });
+      }
+      for (const r of recs2 || []) {
+        items.push({
+          occurred_at: (r.completed_at ?? r.created_at) as string,
+          category: "treatments",
+          label: r.status === "completed" ? "Behandelverslag afgerond" : "Behandelverslag als concept opgeslagen",
+        });
+      }
+      items.sort((a, b) => new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime());
+      blocks.push(...timelineBlocks(items.slice(0, 100)));
     }
   }
 
