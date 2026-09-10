@@ -122,7 +122,14 @@ export function FormTemplatesManager() {
     if (fields.length === 0) return toast.error("Voeg eerst minimaal één vraag toe");
     const { data: tenant } = await supabase.rpc("current_tenant_id");
     if (!tenant) return toast.error("Geen toegang");
-    const nextVersion = (t.current_version || 0) + 1;
+    const { data: latest } = await supabase
+      .from("form_template_versions")
+      .select("version")
+      .eq("template_id", t.id)
+      .order("version", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const nextVersion = Math.max(latest?.version ?? 0, t.current_version || 0) + 1;
     const { error } = await supabase.from("form_template_versions").insert({
       user_id: tenant as string,
       template_id: t.id,
@@ -133,7 +140,8 @@ export function FormTemplatesManager() {
       schema: { fields, intro: t.draft_schema?.intro ?? "" } as never,
     });
     if (error) return toast.error("Publiceren mislukt");
-    await supabase.from("form_templates").update({ current_version: nextVersion }).eq("id", t.id);
+    const { error: updErr } = await supabase.from("form_templates").update({ current_version: nextVersion }).eq("id", t.id);
+    if (updErr) return toast.error("Versie opgeslagen, maar activeren mislukt");
     toast.success(`Versie ${nextVersion} gepubliceerd`);
     load();
   };

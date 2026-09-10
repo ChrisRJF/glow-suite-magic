@@ -100,12 +100,14 @@ async function handleSend(req: Request, body: Record<string, unknown>) {
     if (appt.customer_id !== customerId) return json({ error: "appointment_customer_mismatch" }, 400);
   }
 
+  // Always use the LATEST published version of this template.
   const { data: version } = await admin
     .from("form_template_versions")
     .select("id, version, schema, require_signature, title")
     .eq("template_id", templateId)
     .eq("user_id", tenantId)
-    .eq("version", template.current_version)
+    .order("version", { ascending: false })
+    .limit(1)
     .maybeSingle();
   if (!version) return json({ error: "version_not_found" }, 404);
 
