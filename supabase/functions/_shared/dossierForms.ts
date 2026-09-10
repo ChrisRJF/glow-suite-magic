@@ -236,7 +236,7 @@ async function remindOpenRequest(
     admin.from("form_template_versions").select("title").eq("id", request.template_version_id).maybeSingle(),
   ]);
 
-  return await deliverFormMessage({
+  const ok = await deliverFormMessage({
     admin,
     tenantId: String(request.user_id),
     customerId: String(request.customer_id),
@@ -248,6 +248,12 @@ async function remindOpenRequest(
     requestId: request.id,
     kind: "form_reminder",
   });
+
+  // Delivery failed: release the claim so the single reminder is not burned.
+  if (!ok) {
+    await admin.from("form_requests").update({ reminder_sent_at: null }).eq("id", request.id);
+  }
+  return ok;
 }
 
 export interface DossierPassStats {
@@ -322,7 +328,7 @@ export async function runDossierFormPass(admin: SupabaseClient, now = new Date()
   const horizon = new Date(now.getTime() + 48 * 3600 * 1000).toISOString();
   const { data: openRequests } = await admin
     .from("form_requests")
-    .select("id, user_id, appointment_id, template_id, reminder_sent_at, appointments!inner(id, appointment_date, status, service_id)")
+    .select("id, user_id, appointment_id, template_id, sent_at, reminder_sent_at, appointments!inner(id, appointment_date, status, service_id)")
     .in("status", ["sent", "opened"])
     .is("reminder_sent_at", null)
     .not("appointment_id", "is", null)
@@ -334,6 +340,12 @@ export async function runDossierFormPass(admin: SupabaseClient, now = new Date()
     const appt = (row as unknown as { appointments: { appointment_date: string; status: string; service_id: string } }).appointments;
     if (!appt) continue;
     if (DEAD_STATUSES.includes(String(appt.status || "").toLowerCase())) {
+      stats.skipped++;
+      continue;
+    }
+    // Never remind within an hour of the original request.
+    const sentAt = row.sent_at ? new Date(String(row.sent_at)).getTime() : 0;
+    if (sentAt && now.getTime() - sentAt < 3600 * 1000) {
       stats.skipped++;
       continue;
     }
