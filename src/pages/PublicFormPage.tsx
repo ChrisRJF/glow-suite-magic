@@ -161,7 +161,15 @@ export default function PublicFormPage() {
       <main className="min-h-screen flex items-center justify-center p-6">
         <div className="max-w-sm text-center space-y-3">
           <CheckCircle2 className="h-10 w-10 text-emerald-600 mx-auto" />
-          <h1 className="text-xl font-semibold text-foreground">Bedankt, het formulier is ontvangen</h1>
+          <h1 className="text-xl font-semibold text-foreground">
+            {form?.require_signature ? "Digitaal ondertekend" : "Bedankt, het formulier is ontvangen"}
+          </h1>
+          {form?.require_signature && signedAt && (
+            <p className="text-sm text-foreground">
+              {signedAt.toLocaleDateString("nl-NL", { dateStyle: "long" })} om{" "}
+              {signedAt.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })}
+            </p>
+          )}
           <p className="text-sm text-muted-foreground">{form?.salon_name} heeft je antwoorden binnen.</p>
         </div>
       </main>
