@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { z } from "https://esm.sh/zod@3.23.8";
 import { cancelAppointmentCanonical } from "../_shared/cancelAppointment.ts";
+import { generateFormToken, hashToken } from "../_shared/formCanonical.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,6 +10,13 @@ const corsHeaders = {
 
 const RequestSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("get"), token: z.string().min(6).max(200) }),
+  // Klantportaal light (P3): alleen gegevens van deze ene afspraak.
+  z.object({ action: z.literal("portal"), token: z.string().min(6).max(200) }),
+  z.object({
+    action: z.literal("form_link"),
+    token: z.string().min(6).max(200),
+    request_id: z.string().uuid(),
+  }),
   z.object({
     action: z.literal("respond"),
     token: z.string().min(6).max(200),
