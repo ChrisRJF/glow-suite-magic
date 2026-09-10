@@ -8,6 +8,7 @@ import { ClipboardList, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { useDossierAccess } from "@/hooks/useDossierAccess";
 import type { TreatmentField } from "./TreatmentTemplatesManager";
+import { DocumentExportDialog } from "./DocumentExportDialog";
 
 interface RecordRow {
   id: string;
@@ -103,9 +104,20 @@ export function TreatmentRecordPanel({ customerId, appointmentId, serviceId, onC
         <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
           <ClipboardList className="h-4 w-4 text-primary" /> Behandelverslag
         </h4>
-        <Button variant="ghost" size="sm" onClick={() => setOpen(!open)}>
-          {open ? "Verberg" : locked ? "Bekijk" : record ? "Verder invullen" : "Invullen"}
-        </Button>
+        <div className="flex items-center gap-1">
+          {locked && record && (
+            <DocumentExportDialog
+              customerId={customerId}
+              appointmentId={appointmentId}
+              scope="treatment_record"
+              sourceId={record.id}
+              triggerLabel="PDF"
+            />
+          )}
+          <Button variant="ghost" size="sm" onClick={() => setOpen(!open)}>
+            {open ? "Verberg" : locked ? "Bekijk" : record ? "Verder invullen" : "Invullen"}
+          </Button>
+        </div>
       </div>
 
       <p className="text-xs text-muted-foreground">
