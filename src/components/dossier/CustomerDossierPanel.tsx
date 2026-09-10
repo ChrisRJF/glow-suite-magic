@@ -8,6 +8,7 @@ import { CustomerAlertsPanel } from "./CustomerAlertsPanel";
 import { CustomerTimeline } from "./CustomerTimeline";
 import { CustomerConsentPanel } from "./CustomerConsentPanel";
 import { DocumentExportDialog } from "./DocumentExportDialog";
+import { CustomerPrivacyPanel } from "./CustomerPrivacyPanel";
 
 interface Props {
   customerId: string;
@@ -234,6 +235,7 @@ export function CustomerDossierPanel({ customerId, appointmentId = null, compact
       {!compact && (
         <div className="space-y-5 border-t border-border pt-4">
           <CustomerConsentPanel customerId={customerId} />
+          <CustomerPrivacyPanel customerId={customerId} onChanged={load} />
           <CustomerAlertsPanel customerId={customerId} />
           <CustomerTimeline customerId={customerId} />
         </div>

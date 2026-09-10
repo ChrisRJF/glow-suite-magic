@@ -5,10 +5,9 @@ import { useCrud } from "@/hooks/useCrud";
 import { formatEuro } from "@/lib/data";
 import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Search, Phone, Mail, Calendar, Euro, ArrowRight, X, Plus, Trash2, Pencil, Save, Star, AlertTriangle, UserCheck } from "lucide-react";
+import { Search, Phone, Mail, ArrowRight, X, Plus, Pencil, Save, Star, AlertTriangle, UserCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { CustomerAIProfile } from "@/components/CustomerAIProfile";
 import { CustomerDossierPanel } from "@/components/dossier/CustomerDossierPanel";
 import { CustomerTreatmentHistory } from "@/components/dossier/CustomerTreatmentHistory";
@@ -22,7 +21,7 @@ export default function CustomersPage() {
   const { data: customers, loading, refetch } = useCustomers();
   const { data: appointments } = useAppointments();
   const { byId: intelById } = useCustomerIntelligence();
-  const { insert, update, remove } = useCrud("customers");
+  const { insert, update } = useCrud("customers");
   const { can } = useUserRole();
   const [searchParams] = useSearchParams();
   const [search, setSearch] = useState('');
@@ -34,7 +33,6 @@ export default function CustomersPage() {
     const f = searchParams.get("filter");
     return f || "alle";
   });
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const customerIntel = useMemo(() => {
     return customers.map(c => {
@@ -70,11 +68,6 @@ export default function CustomersPage() {
     if (result) { toast.success("Klant bijgewerkt"); setEditing(false); refetch(); setSelectedCustomer({ ...selectedCustomer, ...form }); }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!can("customers:delete")) { toast.error("Alleen eigenaren en managers kunnen klanten verwijderen."); return; }
-    if (await remove(id)) { toast.success("Klant verwijderd"); setSelectedCustomer(null); refetch(); }
-  };
-
   const selectedIntel = selectedCustomer ? customerIntel.find(c => c.id === selectedCustomer.id) : null;
 
   const initials = (name: string) => name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
@@ -91,16 +84,6 @@ export default function CustomersPage() {
   return (
     <AppLayout title="Klanten" subtitle={`${customers.length} klanten in je salon`}
       actions={can("customers:create") ? <Button variant="gradient" size="sm" onClick={() => { setShowAdd(true); setForm({ name: '', phone: '', email: '', notes: '' }); }}><Plus className="w-4 h-4" /> Nieuwe klant</Button> : undefined}>
-
-      <ConfirmDialog
-        open={!!confirmDeleteId}
-        onOpenChange={(o) => !o && setConfirmDeleteId(null)}
-        title="Klant verwijderen?"
-        description="Deze klant en alle gekoppelde data wordt verwijderd. Deze actie kan niet ongedaan worden gemaakt."
-        confirmLabel="Verwijderen"
-        destructive
-        onConfirm={() => confirmDeleteId && handleDelete(confirmDeleteId)}
-      />
 
       {showAdd && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowAdd(false)}>
@@ -171,7 +154,6 @@ export default function CustomersPage() {
               <h3 className="text-lg font-semibold">Klantprofiel</h3>
               <div className="flex gap-1">
                 <button onClick={() => { setEditing(!editing); if (!editing) setForm({ name: selectedCustomer.name, phone: selectedCustomer.phone || '', email: selectedCustomer.email || '', notes: selectedCustomer.notes || '' }); }} className="p-1.5 rounded-lg hover:bg-secondary"><Pencil className="w-4 h-4" /></button>
-                {can("customers:delete") && <button onClick={() => setConfirmDeleteId(selectedCustomer.id)} className="p-1.5 rounded-lg hover:bg-destructive/20 text-destructive"><Trash2 className="w-4 h-4" /></button>}
                 <button onClick={() => setSelectedCustomer(null)} className="p-1.5 rounded-lg hover:bg-secondary lg:hidden"><X className="w-4 h-4" /></button>
               </div>
             </div>
