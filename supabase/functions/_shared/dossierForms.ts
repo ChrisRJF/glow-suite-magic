@@ -236,7 +236,7 @@ async function remindOpenRequest(
     admin.from("form_template_versions").select("title").eq("id", request.template_version_id).maybeSingle(),
   ]);
 
-  return await deliverFormMessage({
+  const ok = await deliverFormMessage({
     admin,
     tenantId: String(request.user_id),
     customerId: String(request.customer_id),
@@ -248,6 +248,12 @@ async function remindOpenRequest(
     requestId: request.id,
     kind: "form_reminder",
   });
+
+  // Delivery failed: release the claim so the single reminder is not burned.
+  if (!ok) {
+    await admin.from("form_requests").update({ reminder_sent_at: null }).eq("id", request.id);
+  }
+  return ok;
 }
 
 export interface DossierPassStats {
