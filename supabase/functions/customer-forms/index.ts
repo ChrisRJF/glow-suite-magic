@@ -291,7 +291,7 @@ async function handleSubmit(req: Request, token: string, body: Record<string, un
   });
   const hash = await documentHash(snapshot);
 
-  const { error: submitError } = await admin.from("form_submissions").insert({
+  const { data: submissionRow, error: submitError } = await admin.from("form_submissions").insert({
     user_id: request.user_id,
     is_demo: false,
     request_id: request.id,
@@ -311,12 +311,34 @@ async function handleSubmit(req: Request, token: string, body: Record<string, un
       explicit_consent: signatureResult.consent,
       signature_method: signatureMethod,
     },
-  });
+  }).select("id").single();
 
   if (submitError) {
     if (submitError.code === "23505") return json({ ok: true, already_submitted: true });
     console.error("form_submission_insert_failed", submitError.message);
     return json({ error: "submit_failed" }, 500);
+  }
+
+  // P2b-1: a signed template that records marketing consent creates one append-only consent event.
+  const { data: templateRow } = await admin
+    .from("form_templates")
+    .select("consent_scope")
+    .eq("id", request.template_id)
+    .maybeSingle();
+  const consentScope = templateRow?.consent_scope as string | null | undefined;
+  if (consentScope && signatureResult.consent) {
+    await admin.from("customer_consents").insert({
+      user_id: request.user_id,
+      is_demo: false,
+      customer_id: request.customer_id,
+      consent_type: "marketing_media",
+      scope: consentScope,
+      event: "granted",
+      source: "form",
+      source_reference: request.id,
+      version: version.version,
+      proof_reference: submissionRow?.id ?? null,
+    }).then(() => {}, () => {});
   }
 
   await admin.from("form_requests").update({ status: "completed", completed_at: new Date().toISOString() }).eq("id", request.id);
