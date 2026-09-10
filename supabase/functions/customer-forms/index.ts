@@ -178,10 +178,11 @@ async function handleSend(req: Request, body: Record<string, unknown>) {
 
   await admin.from("audit_logs").insert({
     user_id: tenantId,
+    actor_user_id: user.id,
     action: "form_request_sent",
-    entity_type: "form_request",
-    entity_id: request.id,
-    metadata: { template_id: templateId, version: version.version, channel, actor: user.id },
+    target_type: "form_request",
+    target_id: request.id,
+    details: { template_id: templateId, version: version.version, channel },
   }).then(() => {}, () => {});
 
   return json({ ok: true, request_id: request.id, link, delivery });
@@ -300,9 +301,9 @@ async function handleSubmit(req: Request, token: string, body: Record<string, un
   await admin.from("audit_logs").insert({
     user_id: request.user_id,
     action: "form_submitted",
-    entity_type: "form_request",
-    entity_id: request.id,
-    metadata: { template_id: request.template_id, version: version.version, document_hash: hash },
+    target_type: "form_request",
+    target_id: request.id,
+    details: { template_id: request.template_id, version: version.version, document_hash: hash },
   }).then(() => {}, () => {});
 
   return json({ ok: true });
