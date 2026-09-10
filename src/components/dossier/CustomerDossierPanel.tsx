@@ -142,6 +142,13 @@ export function CustomerDossierPanel({ customerId, appointmentId = null, compact
         </div>
       )}
 
+      {!compact && (
+        <>
+          <DossierSummaryCard customerId={customerId} />
+          <DossierSearchCard customerId={customerId} />
+        </>
+      )}
+
       {visibleRequests.length === 0 ? (
         <p className="text-sm text-muted-foreground">Nog geen formulieren verstuurd.</p>
       ) : (
