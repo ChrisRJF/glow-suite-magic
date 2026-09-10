@@ -30,6 +30,23 @@ const ICON: Record<string, typeof FileText> = {
 
 const PAGE = 25;
 
+/** Presentation only: keeps the order from the query, adds month headings. */
+function groupByMonth(rows: TimelineRow[]): { key: string; title: string; rows: TimelineRow[] }[] {
+  const groups: { key: string; title: string; rows: TimelineRow[] }[] = [];
+  for (const r of rows) {
+    const d = new Date(r.occurred_at);
+    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    let group = groups[groups.length - 1];
+    if (!group || group.key !== key) {
+      const title = d.toLocaleDateString("nl-NL", { month: "long", year: "numeric" });
+      group = { key, title: title.charAt(0).toUpperCase() + title.slice(1), rows: [] };
+      groups.push(group);
+    }
+    group.rows.push(r);
+  }
+  return groups;
+}
+
 export function CustomerTimeline({ customerId }: { customerId: string }) {
   const { canViewStatus, loading: accessLoading } = useDossierAccess();
   const [rows, setRows] = useState<TimelineRow[]>([]);
