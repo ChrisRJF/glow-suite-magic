@@ -1691,6 +1691,27 @@ export default function CalendarPage() {
         }}
       />
 
+      <Sheet open={!!dossierAppt} onOpenChange={(o) => { if (!o) { setDossierAppt(null); refreshDossierStatuses(); } }}>
+        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>
+              {customers.find(c => c.id === dossierAppt?.customer_id)?.name || 'Klant'}
+            </SheetTitle>
+          </SheetHeader>
+          {dossierAppt && (
+            <div className="mt-4">
+              <AppointmentDossierBlock
+                customerId={dossierAppt.customer_id}
+                appointmentId={dossierAppt.id}
+                serviceId={dossierAppt.service_id}
+              />
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
+
+
       <SmartReflowDialog
         open={reflowOpen}
         onOpenChange={setReflowOpen}
