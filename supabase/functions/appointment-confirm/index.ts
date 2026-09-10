@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { z } from "https://esm.sh/zod@3.23.8";
 import { cancelAppointmentCanonical } from "../_shared/cancelAppointment.ts";
+import { generateFormToken, hashToken } from "../_shared/formCanonical.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,6 +10,13 @@ const corsHeaders = {
 
 const RequestSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("get"), token: z.string().min(6).max(200) }),
+  // Klantportaal light (P3): alleen gegevens van deze ene afspraak.
+  z.object({ action: z.literal("portal"), token: z.string().min(6).max(200) }),
+  z.object({
+    action: z.literal("form_link"),
+    token: z.string().min(6).max(200),
+    request_id: z.string().uuid(),
+  }),
   z.object({
     action: z.literal("respond"),
     token: z.string().min(6).max(200),
@@ -75,12 +83,21 @@ Deno.serve(async (req) => {
 
   const [{ data: customer }, { data: service }] = await Promise.all([
     appt.customer_id
-      ? supabase.from("customers").select("name").eq("id", appt.customer_id).maybeSingle()
+      ? supabase
+          .from("customers")
+          .select("name, archived_at, pseudonymized_at, communication_blocked")
+          .eq("id", appt.customer_id)
+          .maybeSingle()
       : Promise.resolve({ data: null }),
     appt.service_id
-      ? supabase.from("services").select("name").eq("id", appt.service_id).maybeSingle()
+      ? supabase.from("services").select("name, aftercare_text").eq("id", appt.service_id).maybeSingle()
       : Promise.resolve({ data: null }),
   ]);
+
+  const cust = customer as
+    | { name?: string; archived_at?: string | null; pseudonymized_at?: string | null; communication_blocked?: boolean | null }
+    | null;
+  const customerBlocked = Boolean(cust?.archived_at || cust?.pseudonymized_at || cust?.communication_blocked);
 
   const publicAppt = {
     id: appt.id,
@@ -97,6 +114,90 @@ Deno.serve(async (req) => {
   if (parsed.data.action === "get") {
     return json(200, { appointment: publicAppt });
   }
+
+  // ---------------------------------------------------------------------
+  // P3 Klantportaal light: strikt afspraakgebonden, geen klantaccount.
+  // ---------------------------------------------------------------------
+  if (parsed.data.action === "portal" || parsed.data.action === "form_link") {
+    if (customerBlocked) return json(410, { error: "unavailable" });
+
+    // Openstaande en afgeronde formulieren van uitsluitend deze afspraak.
+    const { data: reqs } = await supabase
+      .from("form_requests")
+      .select("id, status, expires_at, template_id, appointment_id, customer_id, user_id")
+      .eq("appointment_id", appt.id)
+      .order("created_at", { ascending: true });
+    const requests = (reqs ?? []) as Array<{
+      id: string; status: string; expires_at: string | null; template_id: string | null;
+      appointment_id: string; customer_id: string; user_id: string;
+    }>;
+
+    if (parsed.data.action === "form_link") {
+      const target = requests.find((r) => r.id === parsed.data.request_id);
+      if (!target) return json(404, { error: "not_found" });
+      if (!["draft", "sent", "opened"].includes(target.status)) {
+        return json(410, { error: "not_open" });
+      }
+      if (target.expires_at && new Date(target.expires_at).getTime() < Date.now()) {
+        return json(410, { error: "expired" });
+      }
+      // Bestaande architectuur: token roteren en alleen de hash opslaan.
+      const raw = generateFormToken();
+      const { error: rotErr } = await supabase
+        .from("form_requests")
+        .update({ token_hash: await hashToken(raw), updated_at: new Date().toISOString() })
+        .eq("id", target.id)
+        .eq("appointment_id", appt.id);
+      if (rotErr) return json(500, { error: "link_failed" });
+      return json(200, { path: `/formulier/${raw}` });
+    }
+
+    const templateIds = [...new Set(requests.map((r) => r.template_id).filter(Boolean))] as string[];
+    const { data: tpls } = templateIds.length
+      ? await supabase.from("form_templates").select("id, title").in("id", templateIds)
+      : { data: [] as Array<{ id: string; title: string }> };
+    const titleById = new Map((tpls ?? []).map((t: { id: string; title: string }) => [t.id, t.title]));
+
+    const [{ data: settingsRow }, { data: profileRow }] = await Promise.all([
+      supabase.from("settings").select("salon_name").eq("user_id", appt.user_id).maybeSingle(),
+      supabase.from("profiles").select("salon_name").eq("id", appt.user_id).maybeSingle(),
+    ]);
+    const salonName =
+      (settingsRow as { salon_name?: string } | null)?.salon_name ||
+      (profileRow as { salon_name?: string } | null)?.salon_name ||
+      "de salon";
+
+    let documents: Array<{ document_type: string; created_at: string }> = [];
+    try {
+      const { data: docs } = await supabase
+        .from("document_exports")
+        .select("scope, created_at, appointment_id, status")
+        .eq("appointment_id", appt.id)
+        .eq("status", "ready")
+        .order("created_at", { ascending: false })
+        .limit(10);
+      documents = ((docs ?? []) as Array<{ scope: string; created_at: string }>).map((d) => ({
+        document_type: d.scope === "treatment_record" ? "Behandelverslag" : "Dossierdocument",
+        created_at: d.created_at,
+      }));
+    } catch (_) { /* documenten zijn optioneel */ }
+
+    const done = appt.status === "afgerond" || appt.status === "completed";
+    return json(200, {
+      appointment: publicAppt,
+      salon_name: salonName,
+      forms: requests.map((r) => ({
+        id: r.id,
+        title: (r.template_id && titleById.get(r.template_id)) || "Formulier",
+        status: r.status,
+        open: ["draft", "sent", "opened"].includes(r.status),
+      })),
+      documents,
+      aftercare: done ? ((service as { aftercare_text?: string | null } | null)?.aftercare_text ?? null) : null,
+      treatment_done: done,
+    });
+  }
+
 
   if (expired) return json(410, { error: "expired", appointment: publicAppt });
 

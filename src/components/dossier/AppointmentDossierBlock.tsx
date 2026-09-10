@@ -2,6 +2,7 @@ import { CustomerDossierPanel } from "./CustomerDossierPanel";
 import { TreatmentRecordPanel } from "./TreatmentRecordPanel";
 import { ClinicalMediaPanel } from "./ClinicalMediaPanel";
 import { DossierStatusBadge } from "./DossierStatusBadge";
+import { DossierCheckCard } from "./DossierCheckCard";
 import { AppointmentAlertBanner } from "./AppointmentAlertBanner";
 import { useDossierStatus, DOSSIER_STATUS_LABEL, FORM_STATE_LABEL } from "@/hooks/useDossierStatus";
 import { useDossierAccess } from "@/hooks/useDossierAccess";
@@ -44,35 +45,10 @@ export function AppointmentDossierBlock({ customerId, appointmentId, serviceId, 
         {entry && <DossierStatusBadge status={entry.status} />}
       </div>
 
-      {reasons && (
-        <div className="space-y-1">
-          {reasons.forms.map((f) => {
-            const validity = f.ok ? formatValidity(f.valid_until) : null;
-            return (
-              <p key={f.title} className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                {f.ok ? <CheckCircle2 className="h-3 w-3 text-emerald-600" /> : <Circle className="h-3 w-3" />}
-                {f.title} {f.ok ? "ingevuld" : FORM_STATE_LABEL[f.state ?? "missing"]}
-                {validity && <span className={VALIDITY_CLASS[validity.tone]}>· {validity.text}</span>}
-              </p>
-            );
-          })}
-          {reasons.treatment_record_required && (
-            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              {reasons.treatment_record_status === "completed" ? (
-                <CheckCircle2 className="h-3 w-3 text-emerald-600" />
-              ) : (
-                <Circle className="h-3 w-3" />
-              )}
-              Behandelverslag {reasons.treatment_record_status === "completed" ? "afgerond" : "nog niet afgerond"}
-            </p>
-          )}
-          {reasons.before_photos > 0 && (
-            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Voorfoto toegevoegd
-            </p>
-          )}
-          {!entry && <p className="text-xs text-muted-foreground">{DOSSIER_STATUS_LABEL.af_te_ronden}</p>}
-        </div>
+      {reasons ? (
+        <DossierCheckCard reasons={reasons as never} />
+      ) : (
+        <p className="text-xs text-muted-foreground">{DOSSIER_STATUS_LABEL.af_te_ronden}</p>
       )}
 
       <CustomerDossierPanel customerId={customerId} appointmentId={appointmentId} compact />

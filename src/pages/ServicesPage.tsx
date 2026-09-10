@@ -26,6 +26,7 @@ export default function ServicesPage() {
   const [activeLang, setActiveLang] = useState<string>("en");
   const [form, setForm] = useState({
     name: '', duration_minutes: 30, price: 0, category: '', color: '#7B61FF', description: '',
+    aftercare_text: '',
     rebook_interval_days: null as number | null,
     is_active: true, is_online_bookable: true, is_internal_only: false,
     translations: {} as ServiceTranslations,
@@ -50,7 +51,7 @@ export default function ServicesPage() {
 
   const close = () => {
     setShowForm(false); setEditingId(null); setShowTranslations(false);
-    setForm({ name: '', duration_minutes: 30, price: 0, category: '', color: '#7B61FF', description: '', rebook_interval_days: null, is_active: true, is_online_bookable: true, is_internal_only: false, translations: {} });
+    setForm({ name: '', duration_minutes: 30, price: 0, category: '', color: '#7B61FF', description: '', aftercare_text: '', rebook_interval_days: null, is_active: true, is_online_bookable: true, is_internal_only: false, translations: {} });
   };
 
   const openEdit = (s: any) => {
@@ -58,6 +59,7 @@ export default function ServicesPage() {
     setForm({
       name: s.name, duration_minutes: s.duration_minutes, price: s.price,
       category: s.category || '', color: s.color || '#7B61FF', description: s.description || '',
+      aftercare_text: (s as any).aftercare_text || '',
       rebook_interval_days: s.rebook_interval_days ?? null,
       is_active: s.is_active ?? true, is_online_bookable: s.is_online_bookable ?? true, is_internal_only: s.is_internal_only ?? false,
       translations: (s.translations && typeof s.translations === 'object') ? s.translations : {},
@@ -114,6 +116,7 @@ export default function ServicesPage() {
                 />
                 <p className="text-[11px] text-muted-foreground mt-1">Auto Rebook gebruikt dit interval. Laat leeg om het ritme uit de klanthistorie te halen.</p>
               </div>
+              <div><label className="text-xs text-muted-foreground">Nazorg voor de klant</label><textarea value={form.aftercare_text} onChange={e => setForm({...form, aftercare_text: e.target.value})} rows={3} maxLength={2000} className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" placeholder="Wat de klant na deze behandeling moet weten (optioneel)" /></div>
               <div><label className="text-xs text-muted-foreground">Kleur</label><input type="color" value={form.color} onChange={e => setForm({...form, color: e.target.value})} className="w-full mt-1 h-10 rounded-xl" /></div>
 
               {/* Translations */}

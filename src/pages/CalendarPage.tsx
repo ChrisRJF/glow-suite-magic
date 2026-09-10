@@ -34,7 +34,7 @@ import { AppointmentDossierBlock } from "@/components/dossier/AppointmentDossier
 import { DossierStatusBadge } from "@/components/dossier/DossierStatusBadge";
 import { useDossierStatus } from "@/hooks/useDossierStatus";
 import { findConflict, snapToFine, timeToMinutes, minutesToTime } from "@/lib/agendaMove";
-import { useNavigate as useRouterNavigate } from "react-router-dom";
+import { useNavigate as useRouterNavigate, useSearchParams } from "react-router-dom";
 import { cancelAppointment } from "@/lib/cancelAppointment";
 
 
@@ -100,6 +100,9 @@ export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ customer_id: '', service_id: '', date: '', time: '09:00', notes: '' });
+  // P3: een controle-afspraak vanuit een behandeltraject wordt hier voorgevuld.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [journeyLink, setJourneyLink] = useState<{ id: string; session: number } | null>(null);
   const [subAppts, setSubAppts] = useState<SubApptForm[]>([]);
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -539,6 +542,23 @@ export default function CalendarPage() {
     setSubAppts(updatedSubs);
   };
 
+  useEffect(() => {
+    if (searchParams.get('nieuw') !== '1') return;
+    const journeyId = searchParams.get('traject');
+    const sessionNr = parseInt(searchParams.get('sessie') || '1') || 1;
+    setForm(f => ({
+      ...f,
+      customer_id: searchParams.get('klant') || f.customer_id,
+      service_id: searchParams.get('behandeling') || f.service_id,
+    }));
+    setJourneyLink(journeyId ? { id: journeyId, session: sessionNr } : null);
+    setShowAdd(true);
+    const next = new URLSearchParams(searchParams);
+    ['nieuw', 'klant', 'behandeling', 'traject', 'sessie'].forEach(k => next.delete(k));
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   const handleAdd = async () => {
     if (!form.customer_id || !form.service_id || !form.date || !form.time) { toast.error("Vul alle velden in"); return; }
     const svc = services.find(s => s.id === form.service_id);
@@ -584,6 +604,7 @@ export default function CalendarPage() {
         ? `Groepsboeking: ${subAppts.length + 1} personen | Medewerker: ${employeeLabel}`
         : `Medewerker: ${employeeLabel}`,
       status: 'gepland',
+      ...(journeyLink ? { journey_id: journeyLink.id, journey_session_number: journeyLink.session } : {}),
     });
 
     // Persist multi-employee links
@@ -621,6 +642,7 @@ export default function CalendarPage() {
       toast.success(subAppts.length > 0 ? `Groepsboeking aangemaakt (${subAppts.length + 1} personen)` : "Afspraak aangemaakt");
       setShowAdd(false);
       setShowConfirmation(false);
+      setJourneyLink(null);
       setSubAppts([]);
       setSelectedEmployeeIds([]);
       setPlacementOptions([]);
