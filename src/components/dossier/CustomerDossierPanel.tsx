@@ -10,6 +10,8 @@ import { CustomerConsentPanel } from "./CustomerConsentPanel";
 import { DocumentExportDialog } from "./DocumentExportDialog";
 import { CustomerPrivacyPanel } from "./CustomerPrivacyPanel";
 import { JourneyPanel } from "./JourneyPanel";
+import { DossierSummaryCard } from "./DossierSummaryCard";
+import { DossierSearchCard } from "./DossierSearchCard";
 
 interface Props {
   customerId: string;

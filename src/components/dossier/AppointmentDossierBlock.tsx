@@ -58,7 +58,13 @@ export function AppointmentDossierBlock({ customerId, appointmentId, serviceId, 
       </div>
 
       {reasons ? (
-        <DossierCheckCard reasons={reasons as never} />
+        <DossierCheckCard
+          reasons={reasons as never}
+          previousRecord={previousRecord}
+          appointmentCompleted={appointmentCompleted}
+          aftercareAvailable={aftercareAvailable}
+          journeyNeedsFollowUp={journeyNeedsFollowUp}
+        />
       ) : (
         <p className="text-xs text-muted-foreground">{DOSSIER_STATUS_LABEL.af_te_ronden}</p>
       )}
