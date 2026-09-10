@@ -1549,6 +1549,15 @@ export default function CalendarPage() {
                                 <GripVertical className="w-4 h-4 text-muted-foreground" />
                               </button>
                               <div className="flex items-center gap-1 shrink-0">
+                                {dossierStatuses[apt.id] && (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); setDossierAppt(apt); }}
+                                    aria-label="Dossier openen"
+                                    title="Dossier openen"
+                                  >
+                                    <DossierStatusBadge status={dossierStatuses[apt.id].status} />
+                                  </button>
+                                )}
                                 <button
                                   onClick={(e) => { e.stopPropagation(); openMoveSheet(apt); }}
                                   className="p-1.5 rounded-lg hover:bg-secondary/60 flex items-center gap-1 text-[11px] text-muted-foreground"
