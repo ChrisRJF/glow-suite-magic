@@ -96,6 +96,9 @@ export default function PublicFormPage() {
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [signerName, setSignerName] = useState("");
   const [signature, setSignature] = useState<string | null>(null);
+  const [consent, setConsent] = useState(false);
+  const [showDrawing, setShowDrawing] = useState(false);
+  const [signedAt, setSignedAt] = useState<Date | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
