@@ -14,6 +14,14 @@ export interface FormField {
   required?: boolean;
   options?: string[];
   max_length?: number;
+  /**
+   * Optional attention rule. When the given answer occurs, the submission
+   * creates an internal attention point (never a medical judgement).
+   * - checkbox: "checked"
+   * - text/textarea/number/date: "filled"
+   * - select/radio: the exact option value
+   */
+  alert_when?: string;
 }
 
 export interface FormSchema {
@@ -63,6 +71,16 @@ export function validateSchema(input: unknown): { ok: true; schema: FormSchema }
       field.options = opts.slice(0, 30);
     }
     if (typeof o.max_length === "number" && o.max_length > 0) field.max_length = Math.min(o.max_length, MAX_TEXT);
+    if (typeof o.alert_when === "string" && o.alert_when.trim()) {
+      const rule = sanitizeText(o.alert_when, 120);
+      if (type === "select" || type === "radio") {
+        if (field.options?.includes(rule)) field.alert_when = rule;
+      } else if (type === "checkbox") {
+        if (rule === "checked") field.alert_when = rule;
+      } else if (rule === "filled") {
+        field.alert_when = rule;
+      }
+    }
     fields.push(field);
   }
   const schema: FormSchema = { fields };
@@ -219,4 +237,26 @@ export async function hashToken(token: string): Promise<string> {
   return Array.from(new Uint8Array(digest))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
+}
+
+/**
+ * Attention points (aandachtspunten): purely administrative flags derived from
+ * the template configuration. No medical interpretation happens here.
+ */
+export function detectAlertLabels(schema: FormSchema, answers: ValidatedAnswers): string[] {
+  const labels: string[] = [];
+  for (const field of schema.fields) {
+    const rule = field.alert_when;
+    if (!rule) continue;
+    const value = answers.map[field.key];
+    let hit = false;
+    if (field.type === "checkbox") hit = rule === "checked" && value === true;
+    else if (field.type === "select" || field.type === "radio") hit = value === rule;
+    else hit = rule === "filled" && value !== null && String(value).trim() !== "";
+    if (hit) {
+      const shown = field.type === "checkbox" ? "aangevinkt" : String(value ?? "").slice(0, 120);
+      labels.push(sanitizeText(`${field.label}: ${shown}`, 200));
+    }
+  }
+  return labels.slice(0, 20);
 }

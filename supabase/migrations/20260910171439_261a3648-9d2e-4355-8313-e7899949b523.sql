@@ -1,0 +1,2 @@
+GRANT EXECUTE ON FUNCTION public.determine_required_forms_for_appointment(uuid) TO supabase_read_only_user;
+GRANT EXECUTE ON FUNCTION public.customer_dossier_timeline(uuid, integer, integer) TO supabase_read_only_user;

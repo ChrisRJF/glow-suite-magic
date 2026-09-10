@@ -18,6 +18,7 @@ import {
 import { runAutoRebookSweep } from "../_shared/autoRebookPass.ts";
 import { canStillSendRebook, maskContact } from "../_shared/autoRebookGuards.ts";
 import { sendAppointmentReminder } from "../_shared/sendAppointmentReminder.ts";
+import { runDossierFormPass } from "../_shared/dossierForms.ts";
 
 
 const corsHeaders = {
@@ -762,6 +763,23 @@ Deno.serve(async (req) => {
     } catch (e) {
       stats.errors.push(`auto_rebook sweep: ${e instanceof Error ? e.message : "unknown"}`);
     }
+
+    // Klantdossier P1: automatic form sending + open form reminders.
+    try {
+      const dossier = await runDossierFormPass(admin, now);
+      stats.sent += dossier.auto_sent + dossier.reminders_sent;
+      stats.skipped += dossier.skipped;
+      stats.windows.push({
+        pass: "dossier_forms",
+        queue_processed: dossier.queue_processed,
+        auto_sent: dossier.auto_sent,
+        reminders_sent: dossier.reminders_sent,
+      });
+      for (const err of dossier.errors.slice(0, 5)) stats.errors.push(`dossier: ${err}`);
+    } catch (e) {
+      stats.errors.push(`dossier pass: ${e instanceof Error ? e.message : "unknown"}`);
+    }
+
 
     if (runId) {
       await admin.from("whatsapp_scheduler_runs").update({

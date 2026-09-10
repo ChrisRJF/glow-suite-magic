@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Camera, Images, X } from "lucide-react";
+import { Camera, EyeOff, Images, X } from "lucide-react";
 import { toast } from "sonner";
 import { useDossierAccess } from "@/hooks/useDossierAccess";
 
@@ -160,6 +160,9 @@ export function ClinicalMediaPanel({ customerId, appointmentId = null, treatment
                   {new Date(m.created_at).toLocaleDateString("nl-NL", { dateStyle: "medium" })}
                 </p>
                 {m.caption && <p className="text-muted-foreground">{m.caption}</p>}
+                <p className="mt-1 flex items-center gap-1 text-muted-foreground">
+                  <EyeOff className="h-3 w-3" /> Foto verborgen voor privacy. Klik om te bekijken.
+                </p>
               </button>
               {canManageTemplates && (
                 <button className="mt-1 text-muted-foreground hover:text-foreground" onClick={() => remove(m.id)}>

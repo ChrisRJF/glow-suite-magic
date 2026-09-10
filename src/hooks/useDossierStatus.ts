@@ -3,12 +3,23 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type DossierStatusValue = "compleet" | "actie_nodig" | "af_te_ronden";
 
+export type FormState = "valid" | "missing" | "expired" | "version_outdated" | "reissue_required";
+
+export const FORM_STATE_LABEL: Record<FormState, string> = {
+  valid: "in orde",
+  missing: "ontbreekt",
+  expired: "verlopen",
+  version_outdated: "nieuwe versie nodig",
+  reissue_required: "opnieuw invullen",
+};
+
 export interface DossierReasons {
-  forms: { title: string; ok: boolean }[];
+  forms: { title: string; ok: boolean; state?: FormState; valid_until?: string | null }[];
   treatment_record_required: boolean;
   treatment_record_status: "missing" | "draft" | "completed";
   before_photos: number;
   after_photos: number;
+  open_alerts?: number;
 }
 
 export interface DossierStatusRow {

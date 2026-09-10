@@ -13,6 +13,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import {
   buildCanonicalSnapshot,
+  detectAlertLabels,
   documentHash,
   generateFormToken,
   hashToken,
@@ -319,12 +320,29 @@ async function handleSubmit(req: Request, token: string, body: Record<string, un
   }
 
   await admin.from("form_requests").update({ status: "completed", completed_at: new Date().toISOString() }).eq("id", request.id);
+
+  // Attention points: administrative flags configured on the template.
+  const alertLabels = detectAlertLabels(schema, answersResult.answers);
+  if (alertLabels.length > 0) {
+    await admin.from("customer_alerts").insert(
+      alertLabels.map((label) => ({
+        user_id: request.user_id,
+        is_demo: false,
+        customer_id: request.customer_id,
+        source_type: "form_answer",
+        source_id: request.id,
+        label,
+        review_status: "unreviewed",
+      })),
+    ).then(() => {}, () => {});
+  }
+
   await admin.from("audit_logs").insert({
     user_id: request.user_id,
     action: "form_submitted",
     target_type: "form_request",
     target_id: request.id,
-    details: { template_id: request.template_id, version: version.version, document_hash: hash },
+    details: { template_id: request.template_id, version: version.version, document_hash: hash, alerts: alertLabels.length },
   }).then(() => {}, () => {});
 
   return json({ ok: true });
