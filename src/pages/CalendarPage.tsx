@@ -28,6 +28,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { EmployeeColumnDayView } from "@/components/EmployeeColumnDayView";
 import { MoveAppointmentSheet, type MoveTarget } from "@/components/MoveAppointmentSheet";
 import { SmartReflowDialog, type ReflowAppointment } from "@/components/SmartReflowDialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { CustomerDossierPanel } from "@/components/dossier/CustomerDossierPanel";
 import { AppointmentDossierBlock } from "@/components/dossier/AppointmentDossierBlock";
 import { DossierStatusBadge } from "@/components/dossier/DossierStatusBadge";
