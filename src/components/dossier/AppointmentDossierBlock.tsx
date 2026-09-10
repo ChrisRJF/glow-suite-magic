@@ -19,11 +19,24 @@ interface Props {
 export function AppointmentDossierBlock({ customerId, appointmentId, serviceId, appointmentStatus }: Props) {
   const { canViewStatus, canViewContent, loading } = useDossierAccess();
   const { statuses, refresh } = useDossierStatus(appointmentId ? [appointmentId] : []);
+  const overview = useDossierOverview(customerId);
   if (loading || !canViewStatus || !customerId) return null;
 
   const entry = appointmentId ? statuses[appointmentId] : undefined;
   const reasons = entry?.reasons;
   const isCancelled = (appointmentStatus || "").toLowerCase() === "cancelled";
+  const appointmentCompleted = (appointmentStatus || "").toLowerCase() === "completed";
+  const previousRecord = overview.records.some((r) => r.status === "completed" && r.appointment_id !== appointmentId);
+  const aftercareAvailable = Boolean(
+    overview.services.find((s) => s.id === serviceId)?.aftercare_text?.trim(),
+  );
+  const current = overview.appointments.find((a) => a.id === appointmentId);
+  const journeyNeedsFollowUp = Boolean(
+    current?.journey_id &&
+      !overview.appointments.some(
+        (a) => a.journey_id === current.journey_id && a.id !== appointmentId && new Date(a.appointment_date) > new Date(),
+      ),
+  );
 
   return (
     <div className="space-y-4">
