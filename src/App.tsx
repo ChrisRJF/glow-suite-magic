@@ -51,6 +51,7 @@ import MembershipPortalPage from "./pages/MembershipPortalPage";
 import RefundsPage from "./pages/RefundsPage";
 import PublicActionPage from "./pages/PublicActionPage";
 import PublicFormPage from "./pages/PublicFormPage";
+import PublicDocumentPage from "./pages/PublicDocumentPage";
 import LandingPage from "./pages/LandingPage";
 import PricingPage from "./pages/PricingPage";
 import MijnAbonnementPage from "./pages/MijnAbonnementPage";
@@ -121,6 +122,7 @@ const App = () => (
               <Route path="/afspraak/:token" element={<PublicActionPage />} />
               <Route path="/afspraak/:token/:action" element={<PublicActionPage />} />
               <Route path="/formulier/:token" element={<PublicFormPage />} />
+              <Route path="/document/:token" element={<PublicDocumentPage />} />
               <Route path="/betaalbewijs" element={<PublicActionPage />} />
               <Route path="/abonnement-beheren" element={<PublicActionPage />} />
               <Route path="/review" element={<PublicActionPage />} />
