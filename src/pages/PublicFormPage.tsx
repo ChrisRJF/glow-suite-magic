@@ -166,6 +166,9 @@ export default function PublicFormPage() {
         </header>
 
         <div className="space-y-4 rounded-2xl border border-border bg-card p-5">
+          {form?.schema?.intro && (
+            <p className="text-sm text-muted-foreground border-b border-border pb-4">{form.schema.intro}</p>
+          )}
           {fields.map((f) => (
             <div key={f.key} className="space-y-1.5">
               {f.type !== "checkbox" && (
