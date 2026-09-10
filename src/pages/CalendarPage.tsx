@@ -112,6 +112,7 @@ export default function CalendarPage() {
   // Phase 3: drag/drop + move sheet state
   const isMobile = useIsMobile();
   const [moveSheetOpen, setMoveSheetOpen] = useState(false);
+  const [dossierAppt, setDossierAppt] = useState<any | null>(null);
   const [moveTargetAppt, setMoveTargetAppt] = useState<any | null>(null);
   const [reflowOpen, setReflowOpen] = useState(false);
 
