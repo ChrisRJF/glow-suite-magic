@@ -22,6 +22,7 @@ import { OnboardingWizard } from "@/components/OnboardingWizard";
 import { useUserRole } from "@/hooks/useUserRole";
 import { hasPermission } from "@/lib/permissions";
 import { TerminalsCard } from "@/components/TerminalsCard";
+import { FormTemplatesManager } from "@/components/dossier/FormTemplatesManager";
 import { VivaPosCredentialsCard } from "@/components/VivaPosCredentialsCard";
 import { VivaSmartCheckoutStatusCard } from "@/components/VivaSmartCheckoutStatusCard";
 import { MerchantOnboardingCard } from "@/components/MerchantOnboardingCard";
@@ -945,6 +946,9 @@ export default function InstellingenPage() {
             </div>
           </div>
         )}
+
+        {/* Klantdossier: formulieren */}
+        {activeTab === "klanten" && <FormTemplatesManager />}
 
         {/* Customer Settings */}
         {activeTab === "klanten" && (
