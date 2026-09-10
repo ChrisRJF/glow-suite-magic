@@ -84,22 +84,29 @@ export function CustomerTimeline({ customerId }: { customerId: string }) {
       {visible.length === 0 ? (
         <p className="text-sm text-muted-foreground">Nog niets vastgelegd voor deze klant.</p>
       ) : (
-        <ol className="space-y-2">
-          {visible.map((r, i) => {
-            const Icon = ICON[r.category] ?? Calendar;
-            return (
-              <li key={`${r.kind}-${r.detail_id}-${i}`} className="flex items-start gap-2 rounded-xl border border-border p-3">
-                <Icon className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                <div>
-                  <p className="text-sm text-foreground">{r.label}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(r.occurred_at).toLocaleString("nl-NL", { dateStyle: "medium", timeStyle: "short" })}
-                  </p>
-                </div>
-              </li>
-            );
-          })}
-        </ol>
+        <div className="space-y-4">
+          {groupByMonth(visible).map((group) => (
+            <div key={group.key} className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{group.title}</p>
+              <ol className="space-y-2">
+                {group.rows.map((r, i) => {
+                  const Icon = ICON[r.category] ?? Calendar;
+                  return (
+                    <li key={`${r.kind}-${r.detail_id}-${i}`} className="flex items-start gap-2 rounded-xl border border-border p-3">
+                      <Icon className="mt-0.5 h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm text-foreground">{r.label}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(r.occurred_at).toLocaleString("nl-NL", { dateStyle: "medium", timeStyle: "short" })}
+                        </p>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
+          ))}
+        </div>
       )}
 
       {!done && (
