@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useDossierAccess } from "@/hooks/useDossierAccess";
 import type { TreatmentField } from "./TreatmentTemplatesManager";
 import { DocumentExportDialog } from "./DocumentExportDialog";
+import { AiSummaryButton } from "./AiSummaryButton";
 
 interface RecordRow {
   id: string;
@@ -127,6 +128,10 @@ export function TreatmentRecordPanel({ customerId, appointmentId, serviceId, onC
             ? "Concept opgeslagen, nog niet afgerond."
             : "Nog niet ingevuld."}
       </p>
+
+      {record && JSON.stringify(values).length > 400 && (
+        <AiSummaryButton label="Kort samenvatten" action="record_summary" customerId={customerId} recordId={record.id} />
+      )}
 
       {open && (
         <div className="space-y-3 rounded-xl border border-border p-3">

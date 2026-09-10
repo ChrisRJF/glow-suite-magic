@@ -7,6 +7,7 @@ import { AppointmentAlertBanner } from "./AppointmentAlertBanner";
 import { useDossierStatus, DOSSIER_STATUS_LABEL } from "@/hooks/useDossierStatus";
 import { useDossierAccess } from "@/hooks/useDossierAccess";
 import { useDossierOverview } from "@/hooks/useDossierOverview";
+import { AiSummaryButton } from "./AiSummaryButton";
 
 interface Props {
   customerId: string;
@@ -67,6 +68,15 @@ export function AppointmentDossierBlock({ customerId, appointmentId, serviceId, 
         />
       ) : (
         <p className="text-xs text-muted-foreground">{DOSSIER_STATUS_LABEL.af_te_ronden}</p>
+      )}
+
+      {canViewContent && (
+        <AiSummaryButton
+          label="AI-voorbereiding maken"
+          action="appointment_prep"
+          customerId={customerId}
+          appointmentId={appointmentId}
+        />
       )}
 
       <CustomerDossierPanel customerId={customerId} appointmentId={appointmentId} compact />
