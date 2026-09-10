@@ -28,6 +28,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { EmployeeColumnDayView } from "@/components/EmployeeColumnDayView";
 import { MoveAppointmentSheet, type MoveTarget } from "@/components/MoveAppointmentSheet";
 import { SmartReflowDialog, type ReflowAppointment } from "@/components/SmartReflowDialog";
+import { CustomerDossierPanel } from "@/components/dossier/CustomerDossierPanel";
 import { findConflict, snapToFine, timeToMinutes, minutesToTime } from "@/lib/agendaMove";
 import { useNavigate as useRouterNavigate } from "react-router-dom";
 import { cancelAppointment } from "@/lib/cancelAppointment";
@@ -1228,6 +1229,11 @@ export default function CalendarPage() {
                       {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
+                  {form.customer_id && (
+                    <div className="rounded-xl bg-secondary/40 p-3">
+                      <CustomerDossierPanel customerId={form.customer_id} />
+                    </div>
+                  )}
                   <div>
                     <label className="text-xs text-muted-foreground">Behandeling *</label>
                     <select value={form.service_id} onChange={e => setForm({...form, service_id: e.target.value})}

@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { CustomerAIProfile } from "@/components/CustomerAIProfile";
+import { CustomerDossierPanel } from "@/components/dossier/CustomerDossierPanel";
 import type { Tables } from "@/integrations/supabase/types";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useCustomerIntelligence } from "@/hooks/useCustomerIntelligence";
@@ -201,6 +202,9 @@ export default function CustomersPage() {
                   ) : null}
                 </div>
                 {selectedCustomer.notes && <div className="p-3 rounded-xl bg-secondary/50 mb-4"><p className="text-xs text-muted-foreground mb-1">Notities</p><p className="text-sm">{selectedCustomer.notes}</p></div>}
+                <div className="mt-6 border-t border-border pt-4">
+                  <CustomerDossierPanel customerId={selectedCustomer.id} />
+                </div>
               </>
             )}
           </div>

@@ -1419,6 +1419,280 @@ export type Database = {
           },
         ]
       }
+      form_requests: {
+        Row: {
+          appointment_id: string | null
+          channel: string | null
+          completed_at: string | null
+          created_at: string
+          customer_id: string
+          expires_at: string
+          id: string
+          is_demo: boolean
+          opened_at: string | null
+          sent_at: string | null
+          status: string
+          template_id: string
+          template_version_id: string
+          token_hash: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          appointment_id?: string | null
+          channel?: string | null
+          completed_at?: string | null
+          created_at?: string
+          customer_id: string
+          expires_at?: string
+          id?: string
+          is_demo?: boolean
+          opened_at?: string | null
+          sent_at?: string | null
+          status?: string
+          template_id: string
+          template_version_id: string
+          token_hash: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          appointment_id?: string | null
+          channel?: string | null
+          completed_at?: string | null
+          created_at?: string
+          customer_id?: string
+          expires_at?: string
+          id?: string
+          is_demo?: boolean
+          opened_at?: string | null
+          sent_at?: string | null
+          status?: string
+          template_id?: string
+          template_version_id?: string
+          token_hash?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_requests_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_requests_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_requests_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "form_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_requests_template_version_id_fkey"
+            columns: ["template_version_id"]
+            isOneToOne: false
+            referencedRelation: "form_template_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      form_submissions: {
+        Row: {
+          answers: Json
+          appointment_id: string | null
+          audit_metadata: Json
+          created_at: string
+          customer_id: string
+          document_hash: string
+          id: string
+          is_demo: boolean
+          rendered_snapshot: Json
+          request_id: string
+          signature_data: string | null
+          signed_at: string | null
+          signer_name: string | null
+          submitted_at: string
+          template_id: string
+          template_version_id: string
+          user_id: string
+        }
+        Insert: {
+          answers: Json
+          appointment_id?: string | null
+          audit_metadata?: Json
+          created_at?: string
+          customer_id: string
+          document_hash: string
+          id?: string
+          is_demo?: boolean
+          rendered_snapshot: Json
+          request_id: string
+          signature_data?: string | null
+          signed_at?: string | null
+          signer_name?: string | null
+          submitted_at?: string
+          template_id: string
+          template_version_id: string
+          user_id: string
+        }
+        Update: {
+          answers?: Json
+          appointment_id?: string | null
+          audit_metadata?: Json
+          created_at?: string
+          customer_id?: string
+          document_hash?: string
+          id?: string
+          is_demo?: boolean
+          rendered_snapshot?: Json
+          request_id?: string
+          signature_data?: string | null
+          signed_at?: string | null
+          signer_name?: string | null
+          submitted_at?: string
+          template_id?: string
+          template_version_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_submissions_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_submissions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_submissions_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: true
+            referencedRelation: "form_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_submissions_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "form_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_submissions_template_version_id_fkey"
+            columns: ["template_version_id"]
+            isOneToOne: false
+            referencedRelation: "form_template_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      form_template_versions: {
+        Row: {
+          created_at: string
+          id: string
+          is_demo: boolean
+          kind: string
+          published_at: string
+          require_signature: boolean
+          schema: Json
+          template_id: string
+          title: string
+          user_id: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_demo?: boolean
+          kind: string
+          published_at?: string
+          require_signature?: boolean
+          schema: Json
+          template_id: string
+          title: string
+          user_id: string
+          version: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_demo?: boolean
+          kind?: string
+          published_at?: string
+          require_signature?: boolean
+          schema?: Json
+          template_id?: string
+          title?: string
+          user_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_template_versions_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "form_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      form_templates: {
+        Row: {
+          created_at: string
+          current_version: number
+          draft_schema: Json
+          id: string
+          is_active: boolean
+          is_demo: boolean
+          kind: string
+          require_signature: boolean
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_version?: number
+          draft_schema?: Json
+          id?: string
+          is_active?: boolean
+          is_demo?: boolean
+          kind?: string
+          require_signature?: boolean
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_version?: number
+          draft_schema?: Json
+          id?: string
+          is_active?: boolean
+          is_demo?: boolean
+          kind?: string
+          require_signature?: boolean
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       gift_cards: {
         Row: {
           code: string
@@ -2726,6 +3000,48 @@ export type Database = {
           lock_name?: string
         }
         Relationships: []
+      }
+      service_form_requirements: {
+        Row: {
+          created_at: string
+          id: string
+          is_demo: boolean
+          service_id: string
+          template_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_demo?: boolean
+          service_id: string
+          template_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_demo?: boolean
+          service_id?: string
+          template_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_form_requirements_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_form_requirements_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "form_templates"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       services: {
         Row: {
@@ -4076,8 +4392,12 @@ export type Database = {
         }[]
       }
       bootstrap_current_user: { Args: never; Returns: Json }
+      can_manage_form_templates: { Args: never; Returns: boolean }
       can_manage_operations: { Args: { _user_id: string }; Returns: boolean }
       can_manage_users: { Args: { _user_id: string }; Returns: boolean }
+      can_send_customer_form: { Args: never; Returns: boolean }
+      can_view_dossier_content: { Args: never; Returns: boolean }
+      can_view_dossier_status: { Args: never; Returns: boolean }
       can_view_finance: { Args: { _user_id: string }; Returns: boolean }
       check_public_rate_limit: {
         Args: { _bucket: string; _max: number; _window_seconds: number }
@@ -4111,6 +4431,8 @@ export type Database = {
         Returns: boolean
       }
       current_account_is_demo: { Args: never; Returns: boolean }
+      current_tenant_id: { Args: never; Returns: string }
+      current_tenant_is_demo: { Args: never; Returns: boolean }
       ensure_referral_code: { Args: { _user_id: string }; Returns: string }
       get_scheduler_cursor: { Args: { _name: string }; Returns: string }
       has_any_role: {
