@@ -1,94 +1,63 @@
-# Klantdossier P0a — bouwplan
+# Klantdossier P2b — architectuuraudit en ontwerp (nog niets gebouwd)
 
-Alleen P0a: formulier maken, publiceren als versie, koppelen aan behandeling, handmatig versturen, klant vult mobiel in en ondertekent, resultaat terug bij klant en afspraak. Geen automatische verzending, geen behandelverslagen, geen foto's, geen dossierstatus in de agenda, geen export, geen AI.
+## 1. Bestaande consent/data-infrastructuur
+- `customers`: `marketing_consent boolean`, `privacy_consent boolean`, `whatsapp_opt_in`. Dit zijn platte vlaggen zonder datum, bron, bewijs of historie. Ongeschikt als bewijs van fototoestemming.
+- `customer_message_preferences`: `email_opt_out`, `sms_opt_out`, `whatsapp_opt_out`, `retention_opt_out(+_at)`. Alleen communicatie, niet beeldgebruik.
+- Geen enkele tabel heeft soft delete (`deleted_at`), anonimiseringsvelden, retentievelden of legal hold. Er bestaat geen anonymize/delete helper en geen klantverwijderactie in de app.
+- Referenties naar `customers`: cascade bij `clinical_media`, `customer_alerts`, `form_requests`, `form_submissions`, `form_reissue_flags`, `treatment_records`, `document_exports`, `document_shares`, `auto_revenue_offers`. Blokkerend (no action) bij `appointments`, `payments`, `gift_cards`, `payment_links`, `checkout_items`, `rebook_actions`, `feedback_entries`, `waitlist_entries`, `whatsapp_inbound_messages`.
+- Gevolg: een harde verwijdering is nu onmogelijk (financiele records blokkeren) en zou tegelijk stilzwijgend het volledige klinische dossier cascaderen. Verwijderen moet dus altijd via een server-flow, nooit via een directe delete.
+- Aanwezig en herbruikbaar: tenant-resolutie, rolchecks, `audit_logs`, private buckets `clinical-files` en `dossier-exports`, hashed share tokens, PDF/ZIP-generatie, timeline-RPC, rate limiting.
 
-## Blocker die eerst opgelost wordt
+## 2-6. Marketingtoestemming, scope, koppeling, intrekken, historie
+- Nieuwe tabel `customer_consents` als **append-only event log**: `id, user_id, is_demo, customer_id, consent_type, scope, event ('granted'|'withdrawn'), occurred_at, source ('salon'|'form'|'booking'), source_reference, version, proof_reference (verwijzing naar ondertekende submission), actor_id, note`. Nooit overschrijven; huidige status is de laatste gebeurtenis per (klant, type, scope).
+- Statuslogica afgeleid: `not_given` (geen event), `granted`, `withdrawn`. `expired` alleen afgeleid uit een optionele geldigheidsduur, niet als opgeslagen status.
+- Scope-advies: houd het klein. Twee scopes in P2b: `marketing_general` (website, social, portfolio) en optioneel `advertising` als aparte, expliciet aan te vinken scope. Kanaal-per-kanaal is voor salons onwerkbaar en levert schijnprecisie.
+- Media-koppeling: variant C, maar praktisch: algemene toestemming van de klant bepaalt of marketing mogelijk is, en per foto komt een expliciete vlag `marketing_approved` op `clinical_media`. Een foto is alleen marketing-safe als beide waar zijn. Geen automatische publicatie, geen bulk-vinkje.
+- Intrekken: nieuw `withdrawn` event, blokkeert direct alle toekomstige marketingweergave en zet elke `marketing_approved` foto terug naar niet-goedgekeurd. De klinische foto blijft in het dossier staan; intrekken van marketingtoestemming is geen verwijderverzoek.
 
-Teamleden zijn eigen accounts, gekoppeld via `user_access.owner_user_id`, terwijl de huidige toegangsregels alleen `auth.uid() = user_id` vergelijken. Zonder centrale tenant-bepaling kan een medewerker geen dossier zien. Stap 1 is daarom een server-side resolver; bestaande toegangsregels van andere modules blijven ongemoeid.
+## 7-8. Retentie en legal hold
+- Configuratie per salon, geen door ons verzonnen termijnen: `retention_policies (user_id, category, retention_months nullable, delete_action ('none'|'anonymize'|'delete'), enabled)`. Categorieen: klantprofiel, afspraken, formulieren, ondertekende toestemmingen, behandelverslagen, klinische foto's, marketingtoestemming, auditlogs, gegenereerde exports, deellinks.
+- Standaard staat alles op `none`, dus er verdwijnt niets zolang de salon geen beleid kiest.
+- Berekende `retention_until` per record wordt niet opgeslagen maar in de job berekend, behalve voor `document_exports` (heeft al `expires_at`).
+- `legal_holds (user_id, customer_id, reason, created_by, created_at, released_by, released_at)`. Actieve hold blokkeert elke automatische en handmatige verwijdering of anonimisering, met zichtbare melding in het dossier. Geen stille permanente hold: hold blijft zichtbaar en opheffbaar.
 
-## Stap 1 — Tenant- en rolfundament
+## 9-12. Verwijderen, anonimiseren, vrije tekst, foto's
+Drie duidelijk gescheiden acties, alle server-side:
+1. **Archiveren** (`customers.archived_at`): uit actief gebruik, data blijft volledig intact. Omkeerbaar.
+2. **Anonimiseren**: `name` naar "Verwijderde klant", `email`, `phone`, `notes`, `preferred_language` leeg; operationele records blijven met dezelfde `customer_id` als pseudoniem. Onomkeerbaar.
+3. **Verwijderen indien toegestaan**: alleen als er geen legal hold, geen openstaande betaling/cadeaubon en geen bewaarplichtcategorie is; anders wordt de actie geweigerd met uitleg in plaats van half uitgevoerd.
+- Problematische velden: vrije tekst in `customers.notes`, `treatment_records` (verslagvelden), antwoorden in `form_submissions`, `clinical_media.caption`, `customer_alerts.label`, en berichtlogs met telefoonnummer. Deze kunnen namen bevatten en worden bij anonimisering niet automatisch schoongepoetst.
+- Daarom eerlijke terminologie in de UI: dit is **pseudonimisering** van het klantprofiel, geen volledige anonimisering. Alleen bij "verwijderen" verdwijnt de inhoud echt.
+- Foto's: actief dossier ongewijzigd; bij intrekken marketingtoestemming alleen marketinggebruik blokkeren; bij anonimisering blijven foto's staan (ze zijn herleidbaar, dus dit moet expliciet in de bevestiging staan) tenzij de salon kiest voor foto's verwijderen; bij verwijderen worden bestanden uit `clinical-files` gewist; bij legal hold gebeurt niets.
 
-Database-functies met vaste search_path, volledig gekwalificeerde tabelnamen, uitvoerrecht alleen voor ingelogde gebruikers, en nooit invoer uit de browser:
-- `current_tenant_id()` — eigenaar krijgt het eigen account; een teamlid krijgt `owner_user_id` uit `user_access`, uitsluitend bij een actieve relatie; anders leeg.
-- `can_view_dossier_status()` — eigenaar, admin, manager, medewerker, receptie.
-- `can_view_dossier_content()` — eigenaar, admin, manager, medewerker. Niet receptie, niet financieel.
-- `can_send_customer_form()` — eigenaar, admin, manager, medewerker, receptie.
-- `can_manage_form_templates()` — eigenaar, admin, manager.
+## 13. Immutable ondertekende documenten
+- `form_submissions` bevat een snapshot plus hash. Persoonsgegevens daaruit weghalen breekt de hash en daarmee het bewijs.
+- Advies: nooit stil bewerken. Twee toegestane uitkomsten per submission: **behouden** (met vastgelegde grondslag, standaard bij ondertekende toestemmingen) of **volledig verwijderen** inclusief snapshot, hash en afgeleide exports. Een derde optie "hash herberekenen" wordt afgeraden, want dan is geen enkel ondertekend document nog te vertrouwen.
 
-Financieel krijgt nergens toegang. Alle rechten worden in de database afgedwongen; de interface verbergt alleen wat toch al geblokkeerd is. Alleen de nieuwe tabellen gebruiken deze functies; bestaande tabellen blijven ongemoeid.
+## 14-15. Privacy-export en workflow
+- Aparte flow "Persoonsgegevens exporteren", losstaand van de dossierexport: ZIP met `persoonsgegevens.pdf` (leesbaar), `data.json` (machineleesbaar) en optioneel `fotos/`. Bronnen: klantprofiel, afspraken, formulieren en antwoorden, handtekeningmomenten, behandelverslagen, foto-metadata, aandachtspunten, communicatielogs voor deze klant, toestemmingshistorie, deellinks en relevante auditgebeurtenissen. Nooit andere klanten, tokens, signed URLs of interne secrets.
+- Adminworkflow: klant kiezen, "Privacyverzoek", type kiezen, **impactoverzicht** (aantallen per categorie plus wat blijft staan en waarom), bevestigen met typen van `VERWIJDEREN` of `ANONIMISEREN`, server voert uit, auditgebeurtenis volgt. Voor destructieve acties wordt eerst een privacy-export aangeboden, niet verplicht.
+- `privacy_requests` tabel is wel gewenst (status, type, aangevraagd, afgerond, behandeld door, resultaat), omdat een verzoek meerdere stappen en herhaalbaarheid kent. `audit_logs` alleen is te dun voor statusopvolging.
 
-Status en inhoud worden gescheiden opgehaald, zodat receptie wel "intake ontvangen" of "toestemming ontbreekt" ziet, maar nooit antwoorden, contracttekst of handtekening.
+## 16-21. Rechten, uitvoering, transacties, opruimen, audit, schaal
+- Rechten: eigenaar alles; admin alles behalve definitief verwijderen tenzij expliciet recht; manager alleen privacy-export en toestemmingsbeheer; medewerker, receptie en financieel geen privacybeheer en geen inzage in het privacypaneel.
+- Alle acties in een `privacy-actions` Edge Function met service role; per stap idempotent via `privacy_requests.id`; database-werk in RPC's zodat een gedeeltelijk geanonimiseerd dossier niet kan ontstaan; storage-opruiming pas na een geslaagde databasetransactie, en mislukte bestandsverwijderingen belanden in een herhaalbare opruimstap.
+- Opruimen bij verwijdering: `clinical-files` bestanden, `dossier-exports` bestanden, alle deellinks intrekken, wachtrijen en herinneringen voor deze klant stoppen.
+- Auditgebeurtenissen exact zoals gevraagd, altijd zonder inhoud, namen, tokens of URL's.
+- Schaal: 50 salons met directe serverflows; 500 met een dagelijkse retentie-job per categorie in batches; 5.000 met tenant-eerlijke rondes, cursorpaginering en storage-lifecycle. Geen extern wachtrijplatform nodig.
 
-## Stap 2 — Database (nieuwe tabellen)
+## 22. Juridische beslissing nodig (niet door GlowSuite)
+Bewaartermijnen per categorie, grondslag voor het behouden van ondertekende toestemmingen na een verwijderverzoek, welke financiele en medische gegevens niet gewist mogen worden, uitzonderingen op het recht op verwijdering, en of pseudonimisering volstaat. GlowSuite levert de knoppen, de salon of haar jurist vult het beleid.
 
-`form_templates`, `form_template_versions`, `service_form_requirements`, `form_requests`, `form_submissions` — met `user_id` als tenant, `is_demo`, tijdstempels, GRANTs en toegangsregels op basis van stap 1.
+## 23. Top-risico's
+1. Cascade-verwijdering wist stil klinische dossiers. 2. Blokkerende financiele referenties maken verwijderen onmogelijk zonder duidelijke uitleg. 3. Hash-breuk bij bewerken van ondertekende documenten. 4. Schijn-anonimisering door vrije tekst en foto's. 5. Half uitgevoerde verwijdering. 6. Wees-bestanden in private opslag. 7. Actieve deellink na verwijdering. 8. Toestemming ingetrokken terwijl een export loopt. 9. Retentie-job die te veel wist bij verkeerde configuratie. 10. Te ruime rechten op privacyacties.
 
-Belangrijke keuzes:
-- Onveranderlijkheid wordt in de database afgedwongen, niet in de interface: gepubliceerde versies kunnen niet worden gewijzigd of verwijderd zolang ze in gebruik zijn, en een afgeronde inzending kan niet meer worden aangepast. Dit wordt met triggers en toegangsregels vastgelegd en rechtstreeks op databaseniveau getest.
-- De klantlink bevat een cryptografisch sterke willekeurige waarde, niet afleidbaar uit klant- of afspraakgegevens. In de database wordt alleen de versleutelde vorm (hash) bewaard; de leesbare waarde bestaat uitsluitend in het verstuurde bericht.
-- Elke aanvraag heeft een vervaldatum en status (concept, verzonden, geopend, afgerond, verlopen, geannuleerd). Een afgeronde aanvraag kan niet opnieuw worden ingestuurd.
-- Per aanvraag kan maximaal één definitieve inzending bestaan; dat wordt met een unieke sleutel afgedwongen, zodat een herhaalde verzending door netwerkproblemen nooit een tweede inzending oplevert.
-- Audit-gegevens beperken zich tot het strikt nuttige: tijdstip, browsertype en een gezouten hash van het IP-adres. Geen leesbaar IP-adres.
-- Indexen: aanvragen op tenant met klant en status, en op tenant met afspraak; uniek op de token-hash. Inzendingen op tenant met klant op datum, en op tenant met afspraak; uniek per aanvraag. Koppelingen uniek per tenant, behandeling en formulier.
+## 24. Scopevoorstel
+- **P2b-1**: toestemmingsmodel met historie, intrekken, `marketing_approved` per foto, dossierpaneel "Toestemmingen", audit en rechten.
+- **P2b-2**: privacy-export, archiveren/anonimiseren/verwijderen, `privacy_requests`, legal hold, retentieconfiguratie plus job, storage-opruiming.
+- Advies: deze splitsing klopt, maar legal hold hoort al in P2b-2 vóór de retentie-job live gaat.
 
-## Stap 3 — Publieke formulierfunctie (server)
+## 25. Advies
+**BUILD**, in volgorde: P2b-1 eerst (klein, laag risico, direct zichtbare waarde), daarna P2b-2 in de volgorde privacy-export, archiveren, legal hold, anonimiseren, verwijderen, retentieconfiguratie, en pas als laatste de automatische retentie-job.
 
-Nieuwe edge function `customer-forms`, op hetzelfde patroon als de bestaande afspraakbevestiging: snelheidslimiet per token en per IP, alleen de strikt noodzakelijke gegevens terug (salonnaam, logo, voornaam, formulier). Geen klantobject, geen interne verwijzingen, geen saloninstellingen.
-
-De functie draait met verhoogde rechten en controleert daarom elke relatie zelf, uitsluitend op basis van de token: aanvraag bestaat, token klopt, niet verlopen of geannuleerd, formulierversie hoort bij de aanvraag, formulier en klant horen bij dezelfde salon, een eventuele afspraak hoort bij dezelfde salon én klant, en een bestaande inzending hoort bij deze aanvraag. Klant-, afspraak-, formulier- of salongegevens uit de browser worden nooit vertrouwd.
-
-Insturen wordt volledig server-side gevalideerd: elk veld moet in het versieschema voorkomen, onbekende velden worden geweigerd, verplichte velden moeten aanwezig zijn, types en maximale lengtes worden gecontroleerd, keuzes moeten uit de toegestane lijst komen, datums en getallen moeten geldig zijn, en handtekening of akkoordvinkje zijn verplicht wanneer het formulier dat vraagt. De handtekening is een begrensd tekenformaat met maximale grootte, geen vrije opmaakcode.
-
-Bij afronden maakt de server één definitieve weergave met titel, soort, versie, alle getoonde teksten, vraaglabels, antwoorden, naam van de ondertekenaar en verwijzing naar klant en afspraak. Daarover wordt op een vaste manier een hash berekend. Weergave, antwoorden, handtekening en hash liggen daarna vast.
-
-## Stap 4 — Formulierbeheer (salon)
-
-Onder Instellingen komt "Formulieren": overzicht, nieuw formulier, veldtypes (korte tekst, lange tekst, ja/nee, aanvinkvakje, één keuze, meerdere keuzes, keuzelijst, datum, getal, informatietekst, akkoordvinkje, handtekening), per veld label, uitleg, verplicht en volgorde. Concept blijft bewerkbaar; "Publiceren" maakt v1, een latere wijziging wordt v2. Koppelen aan één of meer behandelingen.
-
-Het opgeslagen formaat houdt ruimte voor latere voorwaardelijke vragen zonder oude formulieren te migreren.
-
-## Stap 5 — Handmatig versturen
-
-Actie "Formulier versturen" op het klantprofiel en op de afspraakdetails. Verzending loopt via de bestaande berichtinfrastructuur: WhatsApp wanneer de klant dat toestaat, anders e-mail. Geen SMS, geen nieuwe verzendmotor.
-
-Dubbelklik-bescherming: bestaat er al een openstaand verzoek voor dezelfde klant en hetzelfde formulier, dan wordt dat verzoek opnieuw verstuurd in plaats van een nieuw aangemaakt. Is het al afgerond, dan volgt een expliciete bevestigingsvraag voordat een nieuw verzoek ontstaat.
-
-## Stap 6 — Mobiele klantpagina
-
-Nieuwe route `/formulier/:token`: salonlogo en -naam, korte uitleg, voortgang, grote velden, begrijpelijke foutmeldingen. Bij toestemming of contract eerst de volledige tekst, dan het akkoordvinkje en de handtekening, met knop "Ondertekenen en versturen". Bij gewone intake "Versturen". Afsluitend "Bedankt, alles is ontvangen." Verlopen of onbekende link toont een nette melding zonder gegevens.
-
-## Stap 7 — Terug in GlowSuite
-
-- Klantprofiel krijgt een tab "Dossier" met alleen "Formulieren en toestemmingen": naam, soort, status, verzonden, ingevuld, ondertekend, gekoppelde afspraak, versie, plus "Bekijken" (alleen-lezen weergave van antwoorden en definitieve tekst).
-- Afspraakdetails krijgen een blok "Formulieren" met per gekoppeld formulier of het ingevuld is, plus versturen/opnieuw versturen en bekijken.
-
-## Stap 8 — Audit, veiligheid en tests
-
-Gebeurtenissen in het bestaande auditlogboek: aangemaakt, gepubliceerd, verzoek aangemaakt, verzonden, geopend, ingestuurd, ondertekend, bekeken. Zonder antwoorden, zonder handtekening, zonder token.
-
-Alle door gebruikers ingevoerde tekst wordt als platte tekst weergegeven, nooit als opmaakcode.
-
-Tests:
-1. Onveranderlijkheid: v1 invullen en ondertekenen, daarna v2 publiceren; de oude inzending toont nog exact v1 en de hash klopt. Wijzigen of verwijderen van een gebruikte versie wordt door de database geweigerd.
-2. Scheiding tussen salons: salon A kan formulieren, aanvragen en inzendingen van B niet lezen of manipuleren, ook niet door verwijzingen van B mee te sturen op de publieke link.
-3. Een teamlid van salon A krijgt nooit salon B als tenant.
-4. Rollen: financieel geen toegang, receptie wel status maar geen inhoud, medewerker inhoud binnen eigen salon.
-5. Demo en productie blijven gescheiden, getest als eigenaar en als teamlid.
-6. Verlopen of onjuist token geeft geen gegevens prijs.
-7. Twee keer insturen levert één inzending op; twee keer versturen levert één openstaande aanvraag op.
-
-## Wat expliciet niet verandert
-
-Twilio, Viva/GlowPay, de bestaande herinneringspijplijn, betalingslogica, agenda, no-show preventie en Omzet Autopilot blijven ongewijzigd. Na afloop volgt een regressiecontrole op inloggen, dashboard, agenda, nieuwe afspraak, klanten, no-show, WhatsApp-herinnering en de betaalpagina's.
-
-## Bekende beperkingen van P0a
-
-Geen automatische verzending bij boeking, geen geldigheidsduur of herinvulregels, geen alerts, geen tijdlijn, geen foto's of behandelverslagen, geen dossierstatus in de agenda, geen export.
-
-## Technische details
-
-- Nieuwe tabellen: `form_templates`, `form_template_versions`, `service_form_requirements`, `form_requests`, `form_submissions`.
-- Nieuwe functies in de database: `current_tenant_id()`, `can_view_dossier_status()`, `can_view_dossier_content()`, `can_send_customer_form()`, `can_manage_form_templates()`, plus triggers voor onveranderlijkheid.
-- Nieuwe edge function: `customer-forms` (publiek, met snelheidslimiet via `check_public_rate_limit`).
-- Nieuwe frontend: formulierbeheer onder Instellingen, `/formulier/:token`, dossier-tab, formulierblok bij de afspraak.
-- Aan te passen bestaande bestanden: `src/App.tsx` (route), `src/pages/InstellingenPage.tsx` (beheer), `src/pages/CustomersPage.tsx` (tab), `src/pages/CalendarPage.tsx` (afspraakdetail), `src/lib/permissions.ts` (nieuwe rechten).
+Nog niets gebouwd. Wachtend op akkoord.
