@@ -129,6 +129,10 @@ export function TreatmentRecordPanel({ customerId, appointmentId, serviceId, onC
             : "Nog niet ingevuld."}
       </p>
 
+      {record && JSON.stringify(values).length > 400 && (
+        <AiSummaryButton label="Kort samenvatten" action="record_summary" customerId={customerId} recordId={record.id} />
+      )}
+
       {open && (
         <div className="space-y-3 rounded-xl border border-border p-3">
           {locked && (
