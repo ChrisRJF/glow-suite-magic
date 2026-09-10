@@ -4,10 +4,9 @@ import { ClinicalMediaPanel } from "./ClinicalMediaPanel";
 import { DossierStatusBadge } from "./DossierStatusBadge";
 import { DossierCheckCard } from "./DossierCheckCard";
 import { AppointmentAlertBanner } from "./AppointmentAlertBanner";
-import { useDossierStatus, DOSSIER_STATUS_LABEL, FORM_STATE_LABEL } from "@/hooks/useDossierStatus";
+import { useDossierStatus, DOSSIER_STATUS_LABEL } from "@/hooks/useDossierStatus";
 import { useDossierAccess } from "@/hooks/useDossierAccess";
-import { formatValidity, VALIDITY_CLASS } from "@/lib/formValidity";
-import { CheckCircle2, Circle } from "lucide-react";
+import { useDossierOverview } from "@/hooks/useDossierOverview";
 
 interface Props {
   customerId: string;
