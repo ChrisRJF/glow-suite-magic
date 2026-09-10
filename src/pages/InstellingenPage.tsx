@@ -23,6 +23,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { hasPermission } from "@/lib/permissions";
 import { TerminalsCard } from "@/components/TerminalsCard";
 import { FormTemplatesManager } from "@/components/dossier/FormTemplatesManager";
+import { TreatmentTemplatesManager } from "@/components/dossier/TreatmentTemplatesManager";
 import { VivaPosCredentialsCard } from "@/components/VivaPosCredentialsCard";
 import { VivaSmartCheckoutStatusCard } from "@/components/VivaSmartCheckoutStatusCard";
 import { MerchantOnboardingCard } from "@/components/MerchantOnboardingCard";
