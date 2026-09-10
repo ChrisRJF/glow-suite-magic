@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useDossierAccess } from "@/hooks/useDossierAccess";
 import { CustomerAlertsPanel } from "./CustomerAlertsPanel";
 import { CustomerTimeline } from "./CustomerTimeline";
+import { DocumentExportDialog } from "./DocumentExportDialog";
 
 interface Props {
   customerId: string;
@@ -111,9 +112,29 @@ export function CustomerDossierPanel({ customerId, appointmentId = null, compact
   return (
     <div className="space-y-3">
       {!compact && (
-        <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-          <FileText className="h-4 w-4 text-primary" /> Dossier
-        </h4>
+        <div className="flex items-center justify-between gap-2">
+          <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <FileText className="h-4 w-4 text-primary" /> Dossier
+          </h4>
+          {canViewContent && (
+            <DocumentExportDialog
+              customerId={customerId}
+              scope="full_dossier"
+              triggerLabel="Dossier exporteren"
+              triggerVariant="outline"
+            />
+          )}
+        </div>
+      )}
+      {compact && canViewContent && appointmentId && (
+        <div className="flex justify-end">
+          <DocumentExportDialog
+            customerId={customerId}
+            appointmentId={appointmentId}
+            scope="appointment_bundle"
+            triggerLabel="Bundel exporteren"
+          />
+        </div>
       )}
 
       {visibleRequests.length === 0 ? (
@@ -150,6 +171,15 @@ export function CustomerDossierPanel({ customerId, appointmentId = null, compact
                       <Button variant="ghost" size="sm" onClick={() => setOpenSubmission(openSubmission === r.id ? null : r.id)}>
                         {openSubmission === r.id ? "Verberg" : "Bekijk"}
                       </Button>
+                    )}
+                    {canViewContent && submission && (
+                      <DocumentExportDialog
+                        customerId={customerId}
+                        appointmentId={r.appointment_id}
+                        scope="form"
+                        sourceId={submission.id}
+                        triggerLabel="PDF"
+                      />
                     )}
                   </div>
                 </div>
