@@ -22,6 +22,8 @@ export interface FormField {
    * - select/radio: the exact option value
    */
   alert_when?: string;
+  /** Optional wording for the attention point. Never a medical conclusion. */
+  alert_label?: string;
 }
 
 export interface FormSchema {
@@ -80,6 +82,10 @@ export function validateSchema(input: unknown): { ok: true; schema: FormSchema }
       } else if (rule === "filled") {
         field.alert_when = rule;
       }
+    }
+    if (field.alert_when && typeof o.alert_label === "string" && o.alert_label.trim()) {
+      const label = sanitizeText(o.alert_label, 120);
+      if (label) field.alert_label = label;
     }
     fields.push(field);
   }
@@ -255,7 +261,7 @@ export function detectAlertLabels(schema: FormSchema, answers: ValidatedAnswers)
     else hit = rule === "filled" && value !== null && String(value).trim() !== "";
     if (hit) {
       const shown = field.type === "checkbox" ? "aangevinkt" : String(value ?? "").slice(0, 120);
-      labels.push(sanitizeText(`${field.label}: ${shown}`, 200));
+      labels.push(sanitizeText(field.alert_label || `${field.label}: ${shown}`, 200));
     }
   }
   return labels.slice(0, 20);
