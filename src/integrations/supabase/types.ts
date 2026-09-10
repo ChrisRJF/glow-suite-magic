@@ -138,6 +138,8 @@ export type Database = {
           end_time: string | null
           id: string
           is_demo: boolean
+          journey_id: string | null
+          journey_session_number: number | null
           notes: string | null
           payment_expires_at: string | null
           payment_required: boolean | null
@@ -169,6 +171,8 @@ export type Database = {
           end_time?: string | null
           id?: string
           is_demo?: boolean
+          journey_id?: string | null
+          journey_session_number?: number | null
           notes?: string | null
           payment_expires_at?: string | null
           payment_required?: boolean | null
@@ -200,6 +204,8 @@ export type Database = {
           end_time?: string | null
           id?: string
           is_demo?: boolean
+          journey_id?: string | null
+          journey_session_number?: number | null
           notes?: string | null
           payment_expires_at?: string | null
           payment_required?: boolean | null
@@ -219,6 +225,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_journey_id_fkey"
+            columns: ["journey_id"]
+            isOneToOne: false
+            referencedRelation: "treatment_journeys"
             referencedColumns: ["id"]
           },
           {
@@ -3794,6 +3807,7 @@ export type Database = {
       }
       services: {
         Row: {
+          aftercare_text: string | null
           category: string | null
           color: string | null
           created_at: string
@@ -3812,6 +3826,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          aftercare_text?: string | null
           category?: string | null
           color?: string | null
           created_at?: string
@@ -3830,6 +3845,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          aftercare_text?: string | null
           category?: string | null
           color?: string | null
           created_at?: string
@@ -4250,6 +4266,66 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      treatment_journeys: {
+        Row: {
+          created_at: string
+          customer_id: string
+          id: string
+          is_demo: boolean
+          name: string
+          notes: string | null
+          planned_sessions: number | null
+          service_id: string | null
+          started_on: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          id?: string
+          is_demo?: boolean
+          name: string
+          notes?: string | null
+          planned_sessions?: number | null
+          service_id?: string | null
+          started_on?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          id?: string
+          is_demo?: boolean
+          name?: string
+          notes?: string | null
+          planned_sessions?: number | null
+          service_id?: string | null
+          started_on?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "treatment_journeys_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "treatment_journeys_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       treatment_record_templates: {
         Row: {
