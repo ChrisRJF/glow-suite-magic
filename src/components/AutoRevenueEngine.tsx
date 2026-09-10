@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useAppointments } from "@/hooks/useSupabaseData";
 import { useCrud } from "@/hooks/useCrud";
 import { useDemoMode } from "@/hooks/useDemoMode";
+import { useDemoShowcaseAccess } from "@/lib/salesDemoAccess";
 import { useAutoRevenueRunner } from "@/hooks/useAutoRevenueRunner";
 import { actionLogKey, autopilotLastRunKey, autopilotStateKey, clearLegacyDemoLocalState, demoStateKey } from "@/lib/demoIsolation";
 import { formatEuro } from "@/lib/data";
@@ -101,6 +102,7 @@ interface AutoRevenueEngineProps {
 export function AutoRevenueEngine({ source = "overview" }: AutoRevenueEngineProps) {
   const { user } = useAuth();
   const { demoMode } = useDemoMode();
+  const { showcaseAccess } = useDemoShowcaseAccess();
   const { data: appointments, refetch: refetchAppointments } = useAppointments();
   // removeAppointment kept only for defensive cleanup of legacy demo rows.
   const { remove: removeAppointment } = useCrud("appointments");
@@ -189,7 +191,7 @@ export function AutoRevenueEngine({ source = "overview" }: AutoRevenueEngineProp
   // === DEMO FLOW (pure simulation — no DB writes) ===
   const runDemoSequence = useCallback(async () => {
     if (!user || demoRunning) return;
-    if (!demoMode) {
+    if (!demoMode && !showcaseAccess) {
       toast.error("Deze actie is alleen beschikbaar in demo modus.");
       return;
     }
@@ -255,11 +257,11 @@ export function AutoRevenueEngine({ source = "overview" }: AutoRevenueEngineProp
     toast.success("Demo uitgevoerd — er is niets echt verstuurd of ingepland.", {
       description: `${bookingsToAdd.length} afspraken & ${formatEuro(addedRev)} gesimuleerd`,
     });
-  }, [user, demoRunning, demoMode, emptySlots]);
+  }, [user, demoRunning, demoMode, showcaseAccess, emptySlots]);
 
   // === RESET DEMO ===
   const resetDemo = useCallback(async () => {
-    if (!demoMode) {
+    if (!demoMode && !showcaseAccess) {
       toast.error("Deze actie is alleen beschikbaar in demo modus.");
       return;
     }
@@ -280,7 +282,7 @@ export function AutoRevenueEngine({ source = "overview" }: AutoRevenueEngineProp
       await refetchAppointments();
     }
     toast.success("Demo opnieuw geladen 🔄");
-  }, [demoMode, demoState.addedAppointmentIds, removeAppointment, refetchAppointments]);
+  }, [demoMode, showcaseAccess, demoState.addedAppointmentIds, removeAppointment, refetchAppointments]);
 
   // Auto-run when enabled — never auto-run during demo mode.
   // The runner itself lives in useAutoRevenueRunner so this card and the
