@@ -135,14 +135,17 @@ Deno.serve(async (req) => {
     if (parsed.data.action === "form_link") {
       const target = requests.find((r) => r.id === parsed.data.request_id);
       if (!target) return json(404, { error: "not_found" });
-      if (target.status !== "pending" && target.status !== "sent" && target.status !== "reminded") {
+      if (!["draft", "sent", "opened"].includes(target.status)) {
         return json(410, { error: "not_open" });
+      }
+      if (target.expires_at && new Date(target.expires_at).getTime() < Date.now()) {
+        return json(410, { error: "expired" });
       }
       // Bestaande architectuur: token roteren en alleen de hash opslaan.
       const raw = generateFormToken();
       const { error: rotErr } = await supabase
         .from("form_requests")
-        .update({ token_hash: await hashToken(raw), updated_at: nowIso })
+        .update({ token_hash: await hashToken(raw), updated_at: new Date().toISOString() })
         .eq("id", target.id)
         .eq("appointment_id", appt.id);
       if (rotErr) return json(500, { error: "link_failed" });
@@ -187,7 +190,7 @@ Deno.serve(async (req) => {
         id: r.id,
         title: (r.template_id && titleById.get(r.template_id)) || "Formulier",
         status: r.status,
-        open: r.status === "pending" || r.status === "sent" || r.status === "reminded",
+        open: ["draft", "sent", "opened"].includes(r.status),
       })),
       documents,
       aftercare: done ? ((service as { aftercare_text?: string | null } | null)?.aftercare_text ?? null) : null,
