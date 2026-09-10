@@ -2,27 +2,43 @@ import { CustomerDossierPanel } from "./CustomerDossierPanel";
 import { TreatmentRecordPanel } from "./TreatmentRecordPanel";
 import { ClinicalMediaPanel } from "./ClinicalMediaPanel";
 import { DossierStatusBadge } from "./DossierStatusBadge";
+import { AppointmentAlertBanner } from "./AppointmentAlertBanner";
 import { useDossierStatus, DOSSIER_STATUS_LABEL, FORM_STATE_LABEL } from "@/hooks/useDossierStatus";
 import { useDossierAccess } from "@/hooks/useDossierAccess";
-import { AlertTriangle, CheckCircle2, Circle } from "lucide-react";
+import { formatValidity, VALIDITY_CLASS } from "@/lib/formValidity";
+import { CheckCircle2, Circle } from "lucide-react";
 
 interface Props {
   customerId: string;
   appointmentId: string | null;
   serviceId?: string | null;
+  appointmentStatus?: string | null;
 }
 
 /** Everything a treatment room needs for one appointment, in one calm block. */
-export function AppointmentDossierBlock({ customerId, appointmentId, serviceId }: Props) {
+export function AppointmentDossierBlock({ customerId, appointmentId, serviceId, appointmentStatus }: Props) {
   const { canViewStatus, canViewContent, loading } = useDossierAccess();
   const { statuses, refresh } = useDossierStatus(appointmentId ? [appointmentId] : []);
   if (loading || !canViewStatus || !customerId) return null;
 
   const entry = appointmentId ? statuses[appointmentId] : undefined;
   const reasons = entry?.reasons;
+  const isCancelled = (appointmentStatus || "").toLowerCase() === "cancelled";
 
   return (
     <div className="space-y-4">
+      <AppointmentAlertBanner
+        customerId={customerId}
+        canViewContent={canViewContent}
+        openAlerts={reasons?.open_alerts ?? 0}
+      />
+
+      {isCancelled && (
+        <p className="rounded-xl border border-border bg-muted px-3 py-2 text-xs text-muted-foreground">
+          Afspraak geannuleerd. Automatische formulieren en herinneringen zijn gestopt.
+        </p>
+      )}
+
       <div className="flex items-center justify-between gap-3">
         <h4 className="text-sm font-semibold text-foreground">Dossier</h4>
         {entry && <DossierStatusBadge status={entry.status} />}
@@ -30,21 +46,16 @@ export function AppointmentDossierBlock({ customerId, appointmentId, serviceId }
 
       {reasons && (
         <div className="space-y-1">
-          {(reasons.open_alerts ?? 0) > 0 && (
-            <p className="flex items-center gap-1.5 text-xs font-medium text-amber-600">
-              <AlertTriangle className="h-3 w-3" />
-              {reasons.open_alerts} aandachtspunt{(reasons.open_alerts ?? 0) > 1 ? "en" : ""} nog niet beoordeeld
-            </p>
-          )}
-          {reasons.forms.map((f) => (
-            <p key={f.title} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              {f.ok ? <CheckCircle2 className="h-3 w-3 text-emerald-600" /> : <Circle className="h-3 w-3" />}
-              {f.title} {f.ok ? "ingevuld" : FORM_STATE_LABEL[f.state ?? "missing"]}
-              {f.ok && f.valid_until
-                ? ` (geldig tot ${new Date(f.valid_until).toLocaleDateString("nl-NL", { dateStyle: "medium" })})`
-                : ""}
-            </p>
-          ))}
+          {reasons.forms.map((f) => {
+            const validity = f.ok ? formatValidity(f.valid_until) : null;
+            return (
+              <p key={f.title} className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                {f.ok ? <CheckCircle2 className="h-3 w-3 text-emerald-600" /> : <Circle className="h-3 w-3" />}
+                {f.title} {f.ok ? "ingevuld" : FORM_STATE_LABEL[f.state ?? "missing"]}
+                {validity && <span className={VALIDITY_CLASS[validity.tone]}>· {validity.text}</span>}
+              </p>
+            );
+          })}
           {reasons.treatment_record_required && (
             <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
               {reasons.treatment_record_status === "completed" ? (

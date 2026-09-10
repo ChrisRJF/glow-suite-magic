@@ -1705,6 +1705,7 @@ export default function CalendarPage() {
                 customerId={dossierAppt.customer_id}
                 appointmentId={dossierAppt.id}
                 serviceId={dossierAppt.service_id}
+                appointmentStatus={dossierAppt.status}
               />
             </div>
           )}
