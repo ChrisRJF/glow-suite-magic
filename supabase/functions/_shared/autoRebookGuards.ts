@@ -122,7 +122,7 @@ export async function canStillSendRebook(
     .eq("user_id", userId)
     .eq("id", customerId)
     .maybeSingle();
-  if (!customer || customer.archived_at || customer.pseudonymized_at || customer.communication_blocked_at) {
+  if (customer && (customer.archived_at || customer.pseudonymized_at || customer.communication_blocked_at)) {
     return { allowed: false, reason: "customer_communication_blocked" };
   }
 
