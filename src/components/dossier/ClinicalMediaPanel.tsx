@@ -12,6 +12,7 @@ interface MediaRow {
   category: string;
   caption: string | null;
   created_at: string;
+  marketing_approved: boolean;
 }
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -38,7 +39,7 @@ export function ClinicalMediaPanel({ customerId, appointmentId = null, treatment
   const inputRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
-    let q = supabase.from("clinical_media").select("id, category, caption, created_at").eq("customer_id", customerId);
+    let q = supabase.from("clinical_media").select("id, category, caption, created_at, marketing_approved").eq("customer_id", customerId);
     if (appointmentId) q = q.eq("appointment_id", appointmentId);
     const { data } = await q.order("created_at", { ascending: false });
     setMedia((data as MediaRow[]) || []);
@@ -104,6 +105,17 @@ export function ClinicalMediaPanel({ customerId, appointmentId = null, treatment
     setCompare({ before: b, after: a });
   };
 
+  const toggleMarketing = async (id: string, approved: boolean) => {
+    const { data, error } = await supabase.functions.invoke("clinical-media", {
+      body: { action: "set_marketing_approval", media_id: id, approved },
+    });
+    const err = error ? "failed" : (data as { error?: string })?.error;
+    if (err === "consent_missing") return toast.error("De klant heeft nog geen toestemming gegeven voor marketingfoto's");
+    if (err) return toast.error("Wijzigen mislukt");
+    toast.success(approved ? "Foto vrijgegeven voor marketing" : "Vrijgave ingetrokken");
+    load();
+  };
+
   const remove = async (id: string) => {
     const { error } = await supabase.functions.invoke("clinical-media", { body: { action: "remove", media_id: id } });
     if (error) return toast.error("Verwijderen mislukt");
@@ -164,10 +176,21 @@ export function ClinicalMediaPanel({ customerId, appointmentId = null, treatment
                   <EyeOff className="h-3 w-3" /> Foto verborgen voor privacy. Klik om te bekijken.
                 </p>
               </button>
+              {m.marketing_approved && (
+                <p className="mt-1 font-medium text-primary">Vrijgegeven voor marketing</p>
+              )}
               {canManageTemplates && (
-                <button className="mt-1 text-muted-foreground hover:text-foreground" onClick={() => remove(m.id)}>
-                  Verwijderen
-                </button>
+                <div className="mt-1 flex flex-wrap gap-2">
+                  <button
+                    className="text-muted-foreground hover:text-foreground"
+                    onClick={() => toggleMarketing(m.id, !m.marketing_approved)}
+                  >
+                    {m.marketing_approved ? "Marketingvrijgave intrekken" : "Vrijgeven voor marketing"}
+                  </button>
+                  <button className="text-muted-foreground hover:text-foreground" onClick={() => remove(m.id)}>
+                    Verwijderen
+                  </button>
+                </div>
               )}
             </div>
           ))}

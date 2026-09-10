@@ -53,6 +53,7 @@ interface TemplateRow {
   kind: string;
   is_active: boolean;
   require_signature: boolean;
+  consent_scope: string | null;
   current_version: number;
   draft_schema: { fields?: BuilderField[]; intro?: string } | null;
 }
@@ -90,7 +91,7 @@ export function FormTemplatesManager() {
   const load = async () => {
     setLoading(true);
     const [t, s, l] = await Promise.all([
-      supabase.from("form_templates").select("id, title, kind, is_active, require_signature, current_version, draft_schema").order("created_at", { ascending: true }),
+      supabase.from("form_templates").select("id, title, kind, is_active, require_signature, consent_scope, current_version, draft_schema").order("created_at", { ascending: true }),
       supabase.from("services").select("id, name").order("name"),
       supabase
         .from("service_form_requirements")
@@ -134,7 +135,7 @@ export function FormTemplatesManager() {
   const saveDraft = async (
     id: string,
     fields: BuilderField[],
-    extra: Partial<Pick<TemplateRow, "title" | "is_active" | "require_signature">> = {},
+    extra: Partial<Pick<TemplateRow, "title" | "is_active" | "require_signature" | "consent_scope">> = {},
     intro?: string,
   ) => {
     const current = templates.find((t) => t.id === id);
@@ -251,6 +252,20 @@ export function FormTemplatesManager() {
                       id={`sig-${t.id}`}
                       checked={t.require_signature}
                       onCheckedChange={(v) => saveDraft(t.id, draftFields, { require_signature: v })}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label htmlFor={`consent-${t.id}`} className="text-sm">Legt toestemming voor foto's vast</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Bij ondertekening wordt toestemming voor eigen kanalen vastgelegd in het dossier.
+                      </p>
+                    </div>
+                    <Switch
+                      id={`consent-${t.id}`}
+                      checked={t.consent_scope === "marketing_general"}
+                      onCheckedChange={(v) => saveDraft(t.id, draftFields, { consent_scope: v ? "marketing_general" : null })}
                     />
                   </div>
 

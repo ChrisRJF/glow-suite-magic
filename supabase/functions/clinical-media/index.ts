@@ -223,6 +223,46 @@ async function handleRemove(ctx: Ctx, body: Record<string, unknown>) {
   return json({ ok: true });
 }
 
+/**
+ * P2b-1: per photo marketing approval. Approval alone is never enough:
+ * marketing use also requires a current "granted" consent for the scope.
+ */
+async function handleMarketingApproval(ctx: Ctx, body: Record<string, unknown>) {
+  if (!ctx.mayManage) return json({ error: "forbidden" }, 403);
+  const mediaId = String(body.media_id ?? "");
+  const approved = body.approved === true;
+
+  const { data: media } = await admin
+    .from("clinical_media")
+    .select("id, customer_id, is_demo")
+    .eq("id", mediaId)
+    .eq("user_id", ctx.tenantId)
+    .maybeSingle();
+  if (!media || media.is_demo !== ctx.isDemo) return json({ error: "not_found" }, 404);
+
+  if (approved) {
+    const { data: status } = await admin.rpc("current_consent_status", {
+      _customer_id: media.customer_id,
+      _scope: "marketing_general",
+    });
+    if (status !== "granted") return json({ error: "consent_missing" }, 409);
+  }
+
+  const { error } = await admin
+    .from("clinical_media")
+    .update({
+      marketing_approved: approved,
+      marketing_approved_at: approved ? new Date().toISOString() : null,
+      marketing_approved_by: approved ? ctx.actorId : null,
+    })
+    .eq("id", media.id)
+    .eq("user_id", ctx.tenantId);
+  if (error) return json({ error: "save_failed" }, 500);
+
+  await audit(ctx, approved ? "clinical_media_marketing_approved" : "clinical_media_marketing_revoked", media.id, {});
+  return json({ ok: true, marketing_approved: approved });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
@@ -234,6 +274,7 @@ Deno.serve(async (req) => {
     if (action === "upload") return await handleUpload(ctx, body);
     if (action === "sign") return await handleSign(ctx, body);
     if (action === "remove") return await handleRemove(ctx, body);
+    if (action === "set_marketing_approval") return await handleMarketingApproval(ctx, body);
     return json({ error: "unknown_action" }, 400);
   } catch (e) {
     console.error("clinical_media_error", (e as Error).message);
