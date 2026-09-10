@@ -8,6 +8,9 @@
 ## Actief
 - [ ] P2b-2: privacy-export, archiveren/herstellen, legal hold, pseudonimiseren, veilig verwijderen,
       retentieconfiguratie, dry-run, activering en automatische verwerking.
+- [ ] Finale hardening: privacy- en auditgeschiedenis overleeft verwijdering zonder persoonsgegevens;
+      dubbele delete-preflight, exacte storagepaden met retry-status, strikte rolmatrix, communicatieblokkade,
+      consistente exportsnapshot, retention-herbeoordeling en operationele kill switch.
 
 ## Niet starten
 - Nieuwe dossierfasen of functies buiten P2b-2.
