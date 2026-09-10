@@ -88,10 +88,13 @@ async function handleSend(req: Request, body: Record<string, unknown>) {
 
   // Re-validate every relation against the resolved tenant.
   const [{ data: customer }, { data: template }] = await Promise.all([
-    admin.from("customers").select("id, name, phone, email, is_demo").eq("id", customerId).eq("user_id", tenantId).maybeSingle(),
+    admin.from("customers").select("id, name, phone, email, is_demo, archived_at, pseudonymized_at, communication_blocked_at").eq("id", customerId).eq("user_id", tenantId).maybeSingle(),
     admin.from("form_templates").select("id, title, kind, current_version, is_active, is_demo").eq("id", templateId).eq("user_id", tenantId).maybeSingle(),
   ]);
   if (!customer) return json({ error: "customer_not_found" }, 404);
+  if (customer.archived_at || customer.pseudonymized_at || customer.communication_blocked_at) {
+    return json({ error: "customer_communication_blocked" }, 409);
+  }
   if (!template) return json({ error: "template_not_found" }, 404);
   if (!template.is_active || !template.current_version) return json({ error: "template_not_published" }, 400);
 

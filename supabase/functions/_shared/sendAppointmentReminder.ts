@@ -101,10 +101,13 @@ export async function sendAppointmentReminder(
 
   const { data: customer } = await admin
     .from("customers")
-    .select("id, name, phone, email, whatsapp_opt_in, preferred_language")
+    .select("id, name, phone, email, whatsapp_opt_in, preferred_language, archived_at, pseudonymized_at, communication_blocked_at")
     .eq("id", appt.customer_id)
     .maybeSingle();
   if (!customer) return { status: "skipped", channel: null, reason: "customer_not_found" };
+  if (customer.archived_at || customer.pseudonymized_at || customer.communication_blocked_at) {
+    return { status: "skipped", channel: null, reason: "customer_communication_blocked" };
+  }
 
   const chan = selectChannel({ customer, waEnabled: true, emailEnabled });
   if (!chan.channel) return { status: "skipped", channel: null, reason: chan.reason };

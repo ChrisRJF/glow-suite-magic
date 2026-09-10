@@ -81,10 +81,13 @@ export async function ensureFormRequest(input: {
   const { admin, tenantId, customerId, templateId, appointmentId } = input;
 
   const [{ data: customer }, { data: template }] = await Promise.all([
-    admin.from("customers").select("id, name, phone").eq("id", customerId).eq("user_id", tenantId).maybeSingle(),
+    admin.from("customers").select("id, name, phone, archived_at, pseudonymized_at, communication_blocked_at").eq("id", customerId).eq("user_id", tenantId).maybeSingle(),
     admin.from("form_templates").select("id, title, current_version, is_active").eq("id", templateId).eq("user_id", tenantId).maybeSingle(),
   ]);
   if (!customer) return { requestId: null, sent: false, reused: false, error: "customer_not_found" };
+  if (customer.archived_at || customer.pseudonymized_at || customer.communication_blocked_at) {
+    return { requestId: null, sent: false, reused: false, error: "customer_communication_blocked" };
+  }
   if (!template?.is_active || !template.current_version) {
     return { requestId: null, sent: false, reused: false, error: "template_not_published" };
   }
@@ -232,9 +235,11 @@ async function remindOpenRequest(
   if (rotateError) return false;
 
   const [{ data: customer }, { data: version }] = await Promise.all([
-    admin.from("customers").select("name, phone").eq("id", request.customer_id).maybeSingle(),
+    admin.from("customers").select("name, phone, archived_at, pseudonymized_at, communication_blocked_at").eq("id", request.customer_id).maybeSingle(),
     admin.from("form_template_versions").select("title").eq("id", request.template_version_id).maybeSingle(),
   ]);
+
+  if (!customer || customer.archived_at || customer.pseudonymized_at || customer.communication_blocked_at) return false;
 
   const ok = await deliverFormMessage({
     admin,

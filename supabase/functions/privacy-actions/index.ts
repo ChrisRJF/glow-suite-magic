@@ -286,6 +286,46 @@ async function getState(ctx: Context, customerId: string) {
   return json({ ok: true, capabilities: ctx.capabilities, legal_hold: holdRow.data, requests: requests.data || [], preflight: check });
 }
 
+const RETENTION_CATEGORIES = new Set(["customer_profile", "appointments", "form_submissions", "signed_consents", "treatment_records", "clinical_media", "marketing_consents", "audit_logs", "generated_exports", "document_shares"]);
+
+async function retention(ctx: Context, body: Record<string, unknown>, action: string) {
+  if (!ctx.capabilities.retention) return json({ error: "forbidden" }, 403);
+  if (action === "retention_list") {
+    const { data } = await admin.from("retention_policies").select("id,category,retention_months,action,enabled,review_status,policy_version,dry_run_summary,dry_run_at,activated_at")
+      .eq("user_id", ctx.tenantId).eq("is_demo", ctx.isDemo).order("category");
+    return json({ ok: true, may_manage: true, policies: data || [] });
+  }
+  const category = text(body.category, 40);
+  if (!RETENTION_CATEGORIES.has(category)) return json({ error: "invalid_category" }, 400);
+  if (action === "retention_save") {
+    const months = Number(body.retention_months);
+    const retentionAction = text(body.retention_action, 20);
+    if (!Number.isInteger(months) || months < 1 || months > 1200 || !["none", "pseudonymize", "delete"].includes(retentionAction)) return json({ error: "invalid_policy" }, 400);
+    const { data: existing } = await admin.from("retention_policies").select("id,policy_version").eq("user_id", ctx.tenantId).eq("is_demo", ctx.isDemo).eq("category", category).maybeSingle();
+    const values = { user_id: ctx.tenantId, is_demo: ctx.isDemo, category, retention_months: months, action: retentionAction, enabled: false, review_status: existing ? "needs_review" : "draft", created_by: ctx.actorId };
+    const { error } = existing
+      ? await admin.from("retention_policies").update(values).eq("id", existing.id)
+      : await admin.from("retention_policies").insert(values);
+    if (error) throw new Error("policy_save_failed");
+    return json({ ok: true });
+  }
+  const { data: policy } = await admin.from("retention_policies").select("*").eq("user_id", ctx.tenantId).eq("is_demo", ctx.isDemo).eq("category", category).maybeSingle();
+  if (!policy || !policy.retention_months) return json({ error: "policy_not_found" }, 404);
+  if (action === "retention_dry_run") {
+    const { data, error } = await admin.rpc("retention_dry_run", { _tenant_id: ctx.tenantId, _is_demo: ctx.isDemo, _category: category, _months: policy.retention_months });
+    if (error) throw new Error("dry_run_failed");
+    await admin.from("retention_policies").update({ enabled: false, review_status: "dry_run_ready", dry_run_summary: data, dry_run_at: new Date().toISOString() }).eq("id", policy.id);
+    return json({ ok: true, summary: data });
+  }
+  if (action === "retention_activate") {
+    if (text(body.confirmation, 20) !== "ACTIVEER" || Number(body.policy_version) !== Number(policy.policy_version) || policy.review_status !== "dry_run_ready" || !policy.dry_run_at) return json({ error: "fresh_approval_required" }, 409);
+    await admin.from("retention_policies").update({ enabled: true, review_status: "active", activated_at: new Date().toISOString(), activated_by: ctx.actorId }).eq("id", policy.id);
+    await audit(ctx, "retention_policy_activated", policy.id, { category, policy_version: policy.policy_version });
+    return json({ ok: true });
+  }
+  return json({ error: "unknown_action" }, 400);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
@@ -305,6 +345,7 @@ Deno.serve(async (req) => {
       const requestId = uuid(body.request_id);
       return requestId ? json({ ok: true, cleanup: await cleanupStorage(ctx, requestId) }) : json({ error: "request_required" }, 400);
     }
+    if (action.startsWith("retention_")) return await retention(ctx, body, action);
     return json({ error: "unknown_action" }, 400);
   } catch (error) {
     console.error("privacy_action_failed", error instanceof Error ? error.message : "unknown");
