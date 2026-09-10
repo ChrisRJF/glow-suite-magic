@@ -191,7 +191,7 @@ export function AutoRevenueEngine({ source = "overview" }: AutoRevenueEngineProp
   // === DEMO FLOW (pure simulation — no DB writes) ===
   const runDemoSequence = useCallback(async () => {
     if (!user || demoRunning) return;
-    if (!demoMode) {
+    if (!demoMode && !showcaseAccess) {
       toast.error("Deze actie is alleen beschikbaar in demo modus.");
       return;
     }
@@ -261,7 +261,7 @@ export function AutoRevenueEngine({ source = "overview" }: AutoRevenueEngineProp
 
   // === RESET DEMO ===
   const resetDemo = useCallback(async () => {
-    if (!demoMode) {
+    if (!demoMode && !showcaseAccess) {
       toast.error("Deze actie is alleen beschikbaar in demo modus.");
       return;
     }
