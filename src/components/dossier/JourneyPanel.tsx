@@ -149,6 +149,9 @@ export function JourneyPanel({ customerId }: { customerId: string }) {
                   {new Date(s.appointment_date).toLocaleDateString("nl-NL", { dateStyle: "medium" })}
                 </p>
               ))}
+              {!mine.some((s) => new Date(s.appointment_date) > new Date()) && (
+                <p className="text-xs font-medium text-foreground">Volgende stap: controle-afspraak plannen</p>
+              )}
               <Button variant="outline" size="sm" onClick={() => planSession(j, next)}>
                 <CalendarPlus className="mr-1 h-3.5 w-3.5" /> Controle-afspraak plannen
               </Button>
