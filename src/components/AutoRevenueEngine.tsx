@@ -257,7 +257,7 @@ export function AutoRevenueEngine({ source = "overview" }: AutoRevenueEngineProp
     toast.success("Demo uitgevoerd — er is niets echt verstuurd of ingepland.", {
       description: `${bookingsToAdd.length} afspraken & ${formatEuro(addedRev)} gesimuleerd`,
     });
-  }, [user, demoRunning, demoMode, emptySlots]);
+  }, [user, demoRunning, demoMode, showcaseAccess, emptySlots]);
 
   // === RESET DEMO ===
   const resetDemo = useCallback(async () => {
@@ -282,7 +282,7 @@ export function AutoRevenueEngine({ source = "overview" }: AutoRevenueEngineProp
       await refetchAppointments();
     }
     toast.success("Demo opnieuw geladen 🔄");
-  }, [demoMode, demoState.addedAppointmentIds, removeAppointment, refetchAppointments]);
+  }, [demoMode, showcaseAccess, demoState.addedAppointmentIds, removeAppointment, refetchAppointments]);
 
   // Auto-run when enabled — never auto-run during demo mode.
   // The runner itself lives in useAutoRevenueRunner so this card and the

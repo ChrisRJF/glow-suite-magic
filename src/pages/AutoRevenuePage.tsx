@@ -92,6 +92,8 @@ export default function AutoRevenuePage() {
 
   const [mollieConnected, setMollieConnected] = useState(false);
   const [waitlistCount, setWaitlistCount] = useState(0);
+  // Real reminder-pipeline readiness (whatsapp_settings), not the notification preference.
+  const [whatsappReady, setWhatsappReady] = useState(false);
 
   useEffect(() => {
     if (!user) return;
