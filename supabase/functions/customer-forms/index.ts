@@ -259,8 +259,19 @@ async function handleSubmit(req: Request, token: string, body: Record<string, un
   const answersResult = validateAnswers(schema, body.answers);
   if (!answersResult.ok) return json({ error: "validation_failed", detail: answersResult.error }, 400);
 
-  const signatureResult = validateSignature(version.require_signature, body.signer_name, body.signature_data);
+  const signatureResult = validateSignature(
+    version.require_signature,
+    body.signer_name,
+    body.signature_data,
+    body.consent,
+  );
   if (!signatureResult.ok) return json({ error: "validation_failed", detail: signatureResult.error }, 400);
+
+  const signatureMethod = version.require_signature
+    ? signatureResult.signatureData
+      ? ("drawn" as const)
+      : ("typed" as const)
+    : null;
 
   const snapshot = buildCanonicalSnapshot({
     templateId: request.template_id,
@@ -271,6 +282,9 @@ async function handleSubmit(req: Request, token: string, body: Record<string, un
     requireSignature: version.require_signature,
     answers: answersResult.answers,
     signerName: signatureResult.signerName,
+    ...(version.require_signature
+      ? { consent: signatureResult.consent, signatureMethod }
+      : {}),
   });
   const hash = await documentHash(snapshot);
 
@@ -286,9 +300,14 @@ async function handleSubmit(req: Request, token: string, body: Record<string, un
     rendered_snapshot: snapshot,
     document_hash: hash,
     signer_name: signatureResult.signerName,
-    signed_at: signatureResult.signatureData ? new Date().toISOString() : null,
+    signed_at: signatureResult.consent ? new Date().toISOString() : null,
     signature_data: signatureResult.signatureData,
-    audit_metadata: { fingerprint: await auditFingerprint(req), submitted_via: "public_link" },
+    audit_metadata: {
+      fingerprint: await auditFingerprint(req),
+      submitted_via: "public_link",
+      explicit_consent: signatureResult.consent,
+      signature_method: signatureMethod,
+    },
   });
 
   if (submitError) {

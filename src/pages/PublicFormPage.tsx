@@ -96,6 +96,9 @@ export default function PublicFormPage() {
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [signerName, setSignerName] = useState("");
   const [signature, setSignature] = useState<string | null>(null);
+  const [consent, setConsent] = useState(false);
+  const [showDrawing, setShowDrawing] = useState(false);
+  const [signedAt, setSignedAt] = useState<Date | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -114,9 +117,19 @@ export default function PublicFormPage() {
   }, [token]);
 
   const submit = async () => {
+    if (form?.require_signature) {
+      if (signerName.trim().length < 2) {
+        toast.error("Vul je volledige naam in.");
+        return;
+      }
+      if (!consent) {
+        toast.error("Zet een vinkje bij het akkoord om te ondertekenen.");
+        return;
+      }
+    }
     setSubmitting(true);
     const { data, error } = await supabase.functions.invoke("customer-forms", {
-      body: { action: "submit", token, answers, signer_name: signerName, signature_data: signature },
+      body: { action: "submit", token, answers, signer_name: signerName, signature_data: signature, consent },
     });
     setSubmitting(false);
     const res = data as { ok?: boolean; error?: string } | null;
@@ -124,6 +137,7 @@ export default function PublicFormPage() {
       toast.error("Niet alle verplichte velden zijn ingevuld.");
       return;
     }
+    setSignedAt(new Date());
     setState("done");
   };
 
@@ -147,7 +161,15 @@ export default function PublicFormPage() {
       <main className="min-h-screen flex items-center justify-center p-6">
         <div className="max-w-sm text-center space-y-3">
           <CheckCircle2 className="h-10 w-10 text-emerald-600 mx-auto" />
-          <h1 className="text-xl font-semibold text-foreground">Bedankt, het formulier is ontvangen</h1>
+          <h1 className="text-xl font-semibold text-foreground">
+            {form?.require_signature ? "Digitaal ondertekend" : "Bedankt, het formulier is ontvangen"}
+          </h1>
+          {form?.require_signature && signedAt && (
+            <p className="text-sm text-foreground">
+              {signedAt.toLocaleDateString("nl-NL", { dateStyle: "long" })} om{" "}
+              {signedAt.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })}
+            </p>
+          )}
           <p className="text-sm text-muted-foreground">{form?.salon_name} heeft je antwoorden binnen.</p>
         </div>
       </main>
@@ -225,17 +247,32 @@ export default function PublicFormPage() {
           ))}
 
           {form?.require_signature && (
-            <div className="space-y-2 border-t border-border pt-4">
-              <Label htmlFor="signer" className="text-sm">Naam ondertekenaar <span className="text-destructive">*</span></Label>
-              <Input id="signer" value={signerName} onChange={(e) => setSignerName(e.target.value)} />
-              <Label className="text-sm">Handtekening <span className="text-destructive">*</span></Label>
-              <SignaturePad onChange={setSignature} />
+            <div className="space-y-3 border-t border-border pt-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="signer" className="text-sm">Naam ondertekenaar <span className="text-destructive">*</span></Label>
+                <Input id="signer" value={signerName} onChange={(e) => setSignerName(e.target.value)} />
+              </div>
+              <label className="flex items-start gap-2 text-sm text-foreground">
+                <input type="checkbox" className="mt-1" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
+                <span>
+                  Ik heb bovenstaande informatie gelezen en ga akkoord.
+                  <span className="text-destructive"> *</span>
+                </span>
+              </label>
+              <button
+                type="button"
+                className="text-xs text-muted-foreground underline"
+                onClick={() => setShowDrawing((v) => !v)}
+              >
+                {showDrawing ? "Tekenen verbergen" : "Liever tekenen met uw vinger?"}
+              </button>
+              {showDrawing && <SignaturePad onChange={setSignature} />}
             </div>
           )}
         </div>
 
         <Button className="w-full" size="lg" disabled={submitting} onClick={submit}>
-          {submitting ? "Versturen..." : "Versturen"}
+          {submitting ? "Bezig..." : form?.require_signature ? "Digitaal ondertekenen" : "Versturen"}
         </Button>
         <p className="text-center text-xs text-muted-foreground">Je gegevens worden alleen gedeeld met {form?.salon_name}.</p>
       </div>

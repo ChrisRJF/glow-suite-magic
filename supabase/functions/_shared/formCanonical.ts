@@ -119,19 +119,34 @@ export function validateAnswers(
   return { ok: true, answers: { ordered, map } };
 }
 
+/**
+ * Digital signing: the default method is a typed name + explicit consent.
+ * A drawn (finger) signature stays supported as an optional extra.
+ */
 export function validateSignature(
   requireSignature: boolean,
   signerName: unknown,
   signatureData: unknown,
-): { ok: true; signerName: string | null; signatureData: string | null } | { ok: false; error: string } {
-  if (!requireSignature) return { ok: true, signerName: null, signatureData: null };
+  consent?: unknown,
+):
+  | { ok: true; signerName: string | null; signatureData: string | null; consent: boolean }
+  | { ok: false; error: string } {
+  const sigRaw = typeof signatureData === "string" ? signatureData.trim() : "";
+  if (!requireSignature) return { ok: true, signerName: null, signatureData: null, consent: false };
+
   const name = sanitizeText(String(signerName ?? ""), 120);
   if (name.length < 2) return { ok: false, error: "signer_name_required" };
-  const sig = typeof signatureData === "string" ? signatureData.trim() : "";
-  if (!sig) return { ok: false, error: "signature_required" };
-  if (!/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(sig)) return { ok: false, error: "signature_invalid" };
-  if (sig.length > MAX_SIGNATURE_CHARS) return { ok: false, error: "signature_too_large" };
-  return { ok: true, signerName: name, signatureData: sig };
+
+  const hasConsent = consent === true;
+  if (!hasConsent && !sigRaw) return { ok: false, error: "consent_required" };
+
+  let sig: string | null = null;
+  if (sigRaw) {
+    if (!/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(sigRaw)) return { ok: false, error: "signature_invalid" };
+    if (sigRaw.length > MAX_SIGNATURE_CHARS) return { ok: false, error: "signature_too_large" };
+    sig = sigRaw;
+  }
+  return { ok: true, signerName: name, signatureData: sig, consent: hasConsent || Boolean(sig) };
 }
 
 export interface CanonicalInput {
@@ -143,12 +158,14 @@ export interface CanonicalInput {
   requireSignature: boolean;
   answers: ValidatedAnswers;
   signerName: string | null;
+  consent?: boolean;
+  signatureMethod?: "typed" | "drawn" | null;
 }
 
 /** Deterministic snapshot: fixed key order, fixed field order, no timestamps. */
 export function buildCanonicalSnapshot(input: CanonicalInput): Record<string, unknown> {
-  return {
-    schema_version: 1,
+  const snapshot: Record<string, unknown> = {
+    schema_version: input.consent === undefined ? 1 : 2,
     template_id: input.templateId,
     template_version_id: input.templateVersionId,
     version: input.version,
@@ -163,6 +180,11 @@ export function buildCanonicalSnapshot(input: CanonicalInput): Record<string, un
       value: a.value,
     })),
   };
+  if (input.consent !== undefined) {
+    snapshot.explicit_consent = Boolean(input.consent);
+    snapshot.signature_method = input.signatureMethod ?? null;
+  }
+  return snapshot;
 }
 
 /** Stable JSON: object keys sorted, arrays preserved, no whitespace. */
