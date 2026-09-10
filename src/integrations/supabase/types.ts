@@ -4968,6 +4968,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      consume_document_share_download: {
+        Args: { _token_hash: string }
+        Returns: Json
+      }
       current_account_is_demo: { Args: never; Returns: boolean }
       current_tenant_id: { Args: never; Returns: string }
       current_tenant_is_demo: { Args: never; Returns: boolean }
@@ -5011,6 +5015,10 @@ export type Database = {
       process_paid_webshop_order_stock: {
         Args: { _order_id: string }
         Returns: boolean
+      }
+      release_document_share_download: {
+        Args: { _share_id: string }
+        Returns: undefined
       }
       release_scheduler_lock: { Args: { _name: string }; Returns: undefined }
       reset_due_membership_credits: {
