@@ -112,15 +112,27 @@ Deno.serve(async (req) => {
     }
 
     if (action === "download") {
+      // Atomic reservation: status, expiry, revoke and limit are checked and the
+      // counter is incremented inside one database statement, so two simultaneous
+      // downloads can never both consume the last remaining download.
+      const { data: claimRaw, error: claimErr } = await admin.rpc("consume_document_share_download", {
+        _token_hash: await hashToken(token),
+      });
+      const claim = (claimRaw ?? {}) as { ok?: boolean; error?: string; share_id?: string };
+      if (claimErr || !claim.ok) {
+        const code = claim.error ?? "unavailable";
+        const status = code === "not_found" ? 404 : code === "unavailable" ? 500 : 410;
+        return json({ error: code }, status);
+      }
+
       const { data: signed, error } = await admin.storage.from(BUCKET).createSignedUrl(doc.storage_path!, TTL, {
         download: `${doc.document_ref}.${doc.format}`,
       });
-      if (error || !signed?.signedUrl) return json({ error: "unavailable" }, 500);
-
-      await admin.from("document_shares").update({
-        download_count: share.download_count + 1,
-        last_downloaded_at: new Date().toISOString(),
-      }).eq("id", share.id);
+      if (error || !signed?.signedUrl) {
+        // Nothing was delivered: give the reserved download back.
+        await admin.rpc("release_document_share_download", { _share_id: claim.share_id }).then(() => {}, () => {});
+        return json({ error: "unavailable" }, 500);
+      }
 
       // No token, no URL and no content in the audit trail.
       await admin.from("audit_logs").insert({
