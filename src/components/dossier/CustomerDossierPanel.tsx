@@ -235,6 +235,7 @@ export function CustomerDossierPanel({ customerId, appointmentId = null, compact
 
       {!compact && (
         <div className="space-y-5 border-t border-border pt-4">
+          <JourneyPanel customerId={customerId} />
           <CustomerConsentPanel customerId={customerId} />
           <CustomerPrivacyPanel customerId={customerId} onChanged={load} />
           <CustomerAlertsPanel customerId={customerId} />
