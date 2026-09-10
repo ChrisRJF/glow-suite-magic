@@ -11,6 +11,8 @@ import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { CustomerAIProfile } from "@/components/CustomerAIProfile";
 import { CustomerDossierPanel } from "@/components/dossier/CustomerDossierPanel";
+import { CustomerTreatmentHistory } from "@/components/dossier/CustomerTreatmentHistory";
+import { ClinicalMediaPanel } from "@/components/dossier/ClinicalMediaPanel";
 import type { Tables } from "@/integrations/supabase/types";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useCustomerIntelligence } from "@/hooks/useCustomerIntelligence";
