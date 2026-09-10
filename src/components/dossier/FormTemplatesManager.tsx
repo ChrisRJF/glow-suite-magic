@@ -19,6 +19,8 @@ interface BuilderField {
   options?: string[];
   /** Optional attention rule: "checked", "filled" or one of the options. */
   alert_when?: string;
+  /** Optional wording shown to the treatment room instead of the raw answer. */
+  alert_label?: string;
 }
 
 interface RequirementRow {
