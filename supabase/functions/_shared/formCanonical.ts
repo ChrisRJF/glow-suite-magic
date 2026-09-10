@@ -180,6 +180,11 @@ export function buildCanonicalSnapshot(input: CanonicalInput): Record<string, un
       value: a.value,
     })),
   };
+  if (input.consent !== undefined) {
+    snapshot.explicit_consent = Boolean(input.consent);
+    snapshot.signature_method = input.signatureMethod ?? null;
+  }
+  return snapshot;
 }
 
 /** Stable JSON: object keys sorted, arrays preserved, no whitespace. */
