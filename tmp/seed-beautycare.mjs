@@ -83,7 +83,7 @@ const services = ok(await db.from('services').insert([
   { user_id: uid, is_demo: true, name: 'Laserontharing', duration_minutes: 30, price: 69, category: 'Ontharing', color: '#9B59B6', rebook_interval_days: 42, aftercare_text: 'Koel de huid bij warm gevoel, vermijd 48 uur zon en scrub. Niet epileren tussen sessies door, scheren mag wel.' },
   { user_id: uid, is_demo: true, name: 'Huidanalyse', duration_minutes: 30, price: 39.5, category: 'Intake', color: '#45B7D1', rebook_interval_days: 180 },
   { user_id: uid, is_demo: true, name: 'Peeling', duration_minutes: 45, price: 89, category: 'Huidverbetering', color: '#E91E8C', rebook_interval_days: 35, aftercare_text: 'Huid kan enkele dagen vervellen. Niet krabben of scrubben en dagelijks SPF 50 gebruiken.' },
-  { user_id: uid, is_demo: true, name: 'Controle', duration_minutes: 20, price: 0, category: 'Nazorg', color: '#4ECDC4', rebook_interval_days: 0 },
+  { user_id: uid, is_demo: true, name: 'Controle', duration_minutes: 20, price: 0, category: 'Nazorg', color: '#4ECDC4', rebook_interval_days: null },
 ]).select('id, name, price, duration_minutes'), 'services');
 const svc = Object.fromEntries(services.map((s) => [s.name, s]));
 
