@@ -5,7 +5,7 @@ import { useCrud } from "@/hooks/useCrud";
 import { formatEuro } from "@/lib/data";
 import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Search, Phone, Mail, ArrowRight, X, Plus, Pencil, Save, Star, AlertTriangle, UserCheck } from "lucide-react";
+import { Search, Phone, Mail, ArrowRight, X, Plus, Pencil, Save, Star, AlertTriangle, UserCheck, Route, CircleAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { CustomerAIProfile } from "@/components/CustomerAIProfile";
@@ -81,6 +81,13 @@ export default function CustomersPage() {
     }
   };
 
+  const getShowcaseSignal = (name: string) => {
+    if (name === "Sanne de Jong") return { label: "Laserontharing · sessie 3 gepland", tone: "primary", icon: Route };
+    if (name === "Nina Vermeer") return { label: "Actie vereist", tone: "warning", icon: AlertTriangle };
+    if (name === "Lisa Jansen") return { label: "Aandachtspunt", tone: "muted", icon: CircleAlert };
+    return null;
+  };
+
   return (
     <AppLayout title="Klanten" subtitle={`${customers.length} klanten in je salon`}
       actions={can("customers:create") ? <Button variant="gradient" size="sm" onClick={() => { setShowAdd(true); setForm({ name: '', phone: '', email: '', notes: '' }); }}><Plus className="w-4 h-4" /> Nieuwe klant</Button> : undefined}>
@@ -125,7 +132,10 @@ export default function CustomersPage() {
         <div className={cn("flex-1 space-y-2 opacity-0 animate-fade-in-up", selectedCustomer && "hidden lg:block")} style={{ animationDelay: '200ms' }}>
           {loading ? <p className="text-sm text-muted-foreground text-center py-8">Laden...</p> :
            filtered.length === 0 ? <p className="text-sm text-muted-foreground text-center py-8">Geen klanten gevonden</p> :
-           filtered.map((customer) => (
+            filtered.map((customer) => {
+             const signal = getShowcaseSignal(customer.name);
+             const SignalIcon = signal?.icon;
+             return (
             <button key={customer.id} onClick={() => { setSelectedCustomer(customer); setEditing(false); }}
               className={cn("w-full flex items-center gap-4 p-4 rounded-xl transition-all duration-200 text-left group",
                 selectedCustomer?.id === customer.id ? 'bg-primary/10 border border-primary/20' : 'bg-secondary/50 hover:bg-secondary border border-transparent')}>
@@ -138,20 +148,28 @@ export default function CustomersPage() {
                   {getLabelBadge(customer.label)}
                 </div>
                 <p className="text-xs text-muted-foreground">{customer.phone || 'Geen telefoon'}</p>
+                 {signal && SignalIcon && (
+                   <p className={cn("mt-1 flex items-center gap-1 text-[11px] font-medium", signal.tone === "warning" ? "text-warning" : signal.tone === "primary" ? "text-primary" : "text-muted-foreground")}>
+                     <SignalIcon className="h-3 w-3" /> {signal.label}
+                   </p>
+                 )}
               </div>
               <div className="text-right flex-shrink-0">
                 <p className="text-sm font-semibold tabular-nums">{formatEuro(Number(customer.total_spent) || 0)}</p>
                 <p className="text-xs text-muted-foreground">{customer.custAppts.length} bezoeken</p>
               </div>
               <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
-            </button>
-          ))}
+             </button>
+           );})}
         </div>
 
         {selectedCustomer && selectedIntel && (
           <div className="w-full lg:w-[380px] glass-card p-6 opacity-0 animate-fade-in-up flex-shrink-0">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold">Klantprofiel</h3>
+             <div className="flex items-center justify-between mb-4">
+               <div>
+                 <p className="text-[10px] font-semibold uppercase text-muted-foreground">Klantdossier</p>
+                 <h3 className="text-lg font-semibold mt-0.5">{selectedCustomer.name}</h3>
+               </div>
               <div className="flex gap-1">
                 <button onClick={() => { setEditing(!editing); if (!editing) setForm({ name: selectedCustomer.name, phone: selectedCustomer.phone || '', email: selectedCustomer.email || '', notes: selectedCustomer.notes || '' }); }} className="p-1.5 rounded-lg hover:bg-secondary"><Pencil className="w-4 h-4" /></button>
                 <button onClick={() => setSelectedCustomer(null)} className="p-1.5 rounded-lg hover:bg-secondary lg:hidden"><X className="w-4 h-4" /></button>
@@ -168,12 +186,14 @@ export default function CustomersPage() {
               </div>
             ) : (
               <>
-                <div className="flex flex-col items-center mb-6">
-                  <div className="w-16 h-16 rounded-2xl gradient-bg flex items-center justify-center mb-3">
-                    <span className="text-xl font-bold text-primary-foreground">{initials(selectedCustomer.name)}</span>
-                  </div>
-                  <h4 className="text-base font-semibold">{selectedCustomer.name}</h4>
-                  <div className="mt-1">{getLabelBadge(selectedIntel.label)}</div>
+                 <div className="flex items-center gap-3 mb-4 rounded-xl bg-secondary/40 p-3">
+                   <div className="w-11 h-11 rounded-xl gradient-bg flex items-center justify-center shrink-0">
+                     <span className="text-sm font-bold text-primary-foreground">{initials(selectedCustomer.name)}</span>
+                   </div>
+                   <div className="min-w-0">
+                     <h4 className="text-sm font-semibold truncate">{selectedCustomer.name}</h4>
+                     <div className="mt-1">{getLabelBadge(selectedIntel.label)}</div>
+                   </div>
                 </div>
                 <div className="space-y-3 mb-6">
                   <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/50"><Phone className="w-4 h-4 text-muted-foreground" /><span className="text-sm">{selectedCustomer.phone || '—'}</span></div>

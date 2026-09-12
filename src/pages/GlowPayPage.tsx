@@ -10,17 +10,20 @@ import {
   Wallet, Banknote, Smartphone, QrCode, Link2, Plus, Copy, ExternalLink
 } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useUserRole } from "@/hooks/useUserRole";
 import { GlowPayCashflowHub } from "@/components/GlowPayCashflowHub";
 import { TodayBriefing } from "@/components/TodayBriefing";
+import { useDemoMode } from "@/hooks/useDemoMode";
 
 type TabType = "overzicht" | "betalingen" | "regels" | "betaallinks";
 
 
 export default function GlowPayPage() {
+  const navigate = useNavigate();
+  const { demoMode } = useDemoMode();
   const { data: payments, refetch: refetchPayments } = usePayments();
   const { data: appointments } = useAppointments();
   const { data: customers } = useCustomers();
@@ -182,7 +185,12 @@ export default function GlowPayPage() {
   ];
 
   return (
-    <AppLayout title="GlowPay" subtitle="Betalingen & no-show bescherming">
+    <AppLayout title="GlowPay" subtitle={demoMode ? "Veilige betaalpreview · er wordt niets echt afgeschreven" : "Betalingen en aanbetalingen"}>
+      {demoMode && (
+        <div className="mb-4 flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-foreground">
+          <Shield className="h-4 w-4 text-primary" /> Testmodus actief. Alle bedragen en betaalacties zijn voorbeelden.
+        </div>
+      )}
       {/* Tabs — horizontally scrollable on mobile, no page overflow */}
       <div className="-mx-4 sm:mx-0 mb-5 sm:mb-6 overflow-x-auto scrollbar-none">
         <div className="inline-flex gap-1 bg-secondary/50 p-1 rounded-xl mx-4 sm:mx-0 w-max">
@@ -486,7 +494,7 @@ export default function GlowPayPage() {
                 </div>
               ))}
             </div>
-            <Button variant="outline" size="sm" className="w-full mt-4" onClick={() => window.location.href = "/instellingen"}>
+            <Button variant="outline" size="sm" className="w-full mt-4" onClick={() => navigate("/instellingen")}>
               <CreditCard className="w-3.5 h-3.5" /> Regels aanpassen in Instellingen
             </Button>
           </div>
