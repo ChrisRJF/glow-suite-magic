@@ -17,7 +17,7 @@ export function DossierSummaryCard({ customerId }: { customerId: string }) {
   const completedForms = o.forms.filter((f) => f.status === "completed");
   const completedRecords = o.records.filter((r) => r.status === "completed");
   const activeJourney = o.journeys.find((j) => j.status !== "afgerond") || o.journeys[0];
-  const marketing = o.consents.find((c) => c.consent_type === "marketing");
+  const marketing = o.consents.find((c) => c.consent_type.startsWith("marketing"));
 
   const action = nextAction({
     forms: openForms.map((f) => ({ title: f.title, ok: false, state: "missing" })),
