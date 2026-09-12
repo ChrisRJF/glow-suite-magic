@@ -80,7 +80,7 @@ export function DraggableAppointmentBlock({
             <button
               {...listeners}
               {...attributes}
-              className="p-0.5 rounded hover:bg-secondary/60 cursor-grab active:cursor-grabbing"
+              className="min-h-9 min-w-9 rounded hover:bg-secondary/60 cursor-grab active:cursor-grabbing flex items-center justify-center"
               aria-label="Sleep om te verplaatsen"
               onClick={(e) => e.stopPropagation()}
             >
@@ -89,7 +89,7 @@ export function DraggableAppointmentBlock({
           )}
           <button
             onClick={(e) => { e.stopPropagation(); onRequestMove(apt); }}
-            className="p-0.5 rounded hover:bg-secondary/60"
+            className="min-h-9 min-w-9 rounded hover:bg-secondary/60 flex items-center justify-center"
             aria-label="Verplaats afspraak"
             title="Verplaats afspraak"
           >

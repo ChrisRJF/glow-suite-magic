@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useCampaigns, useDiscounts, useCustomers, useAppointments } from "@/hooks/useSupabaseData";
 import { useCrud } from "@/hooks/useCrud";
 import { supabase } from "@/integrations/supabase/client";
-import { Zap, Calendar, Send, Percent, CheckCircle, Clock, ArrowRight } from "lucide-react";
+import { Zap, Calendar, Send, Percent, CheckCircle, Clock, ArrowRight, TrendingUp } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -65,18 +65,28 @@ export default function ActiesPage() {
   const completed = visibleActions.filter(a => a.status === "voltooid").length;
 
   return (
-    <AppLayout title="Acties" subtitle="Slimme acties om je omzet te verhogen">
+    <AppLayout title="Omzet Autopilot" subtitle="Kansen die GlowSuite in je planning en klantenbestand ziet">
       <div className="grid gap-6">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="stat-card"><p className="text-xs text-muted-foreground">Beschikbare acties</p><p className="text-2xl font-bold mt-1">{available}</p></div>
-          <div className="stat-card"><p className="text-xs text-muted-foreground">Actief</p><p className="text-2xl font-bold mt-1 text-primary">{visibleActions.filter(a => a.status === "actief").length}</p></div>
-          <div className="stat-card"><p className="text-xs text-muted-foreground">Voltooid vandaag</p><p className="text-2xl font-bold mt-1 text-success">{completed}</p></div>
+        <div className="rounded-xl border border-border bg-card px-4 py-4 sm:px-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 rounded-lg bg-primary/10 p-2 text-primary"><TrendingUp className="h-4 w-4" /></div>
+              <div>
+                <p className="text-sm font-semibold">{available} omzetkansen klaar om te beoordelen</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Open een actie om te zien wat GlowSuite heeft gevonden en wat je kunt doen.</p>
+              </div>
+            </div>
+            <div className="flex gap-4 text-xs text-muted-foreground">
+              <span><strong className="text-foreground">{visibleActions.filter(a => a.status === "actief").length}</strong> bezig</span>
+              <span><strong className="text-success">{completed}</strong> voltooid</span>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-3">
            {visibleActions.map((action) => (
-            <div key={action.id} className={`glass-card p-5 flex items-center gap-4 transition-all ${action.status === "voltooid" ? "opacity-60" : ""}`}>
-              <div className={`p-3 rounded-xl ${action.status === "voltooid" ? "bg-success/20" : action.status === "actief" ? "bg-primary/20 animate-pulse" : "bg-secondary"}`}>
+             <div key={action.id} className={`rounded-xl border border-border bg-card p-4 flex flex-col sm:flex-row sm:items-center gap-3 transition-colors ${action.status === "voltooid" ? "opacity-65" : "hover:border-primary/25"}`}>
+               <div className={`p-2.5 rounded-lg self-start ${action.status === "voltooid" ? "bg-success/15" : action.status === "actief" ? "bg-primary/15" : "bg-secondary"}`}>
                 {action.status === "voltooid" ? <CheckCircle className="w-5 h-5 text-success" /> : action.status === "actief" ? <Clock className="w-5 h-5 text-primary" /> : <action.icon className="w-5 h-5 text-primary" />}
               </div>
               <div className="flex-1 min-w-0">
@@ -84,7 +94,7 @@ export default function ActiesPage() {
                 <p className="text-xs text-muted-foreground mt-0.5">{action.description}</p>
                 <p className="text-xs text-primary mt-1 font-medium">{action.impact}</p>
               </div>
-              {action.status === "beschikbaar" && <Button size="sm" onClick={() => activateAction(action.id)} className="shrink-0">Activeer <ArrowRight className="w-3 h-3 ml-1" /></Button>}
+               {action.status === "beschikbaar" && <Button size="sm" variant={action.id === "1" ? "gradient" : "outline"} onClick={() => activateAction(action.id)} className="shrink-0 w-full sm:w-auto">Bekijk en activeer <ArrowRight className="w-3 h-3 ml-1" /></Button>}
               {action.status === "actief" && <span className="text-xs text-primary animate-pulse shrink-0">Bezig...</span>}
               {action.status === "voltooid" && <span className="text-xs text-success shrink-0">Voltooid ✓</span>}
             </div>

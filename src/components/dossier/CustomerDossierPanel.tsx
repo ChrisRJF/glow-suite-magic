@@ -12,6 +12,7 @@ import { CustomerPrivacyPanel } from "./CustomerPrivacyPanel";
 import { JourneyPanel } from "./JourneyPanel";
 import { DossierSummaryCard } from "./DossierSummaryCard";
 import { DossierSearchCard } from "./DossierSearchCard";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 interface Props {
   customerId: string;
@@ -149,8 +150,26 @@ export function CustomerDossierPanel({ customerId, appointmentId = null, compact
         </>
       )}
 
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h5 className="text-sm font-semibold text-foreground">Formulieren</h5>
+          <p className="text-xs text-muted-foreground">Ingevuld, ondertekend en nog openstaand</p>
+        </div>
+      </div>
+
+      {canSend && templates.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {templates.map((t) => (
+            <Button key={t.id} variant="outline" size="sm" disabled={sending === t.id} onClick={() => send(t.id)}>
+              <Send className="h-3.5 w-3.5 mr-1" />
+              {sending === t.id ? "Versturen..." : `Verstuur ${t.title}`}
+            </Button>
+          ))}
+        </div>
+      )}
+
       {visibleRequests.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Nog geen formulieren verstuurd.</p>
+        <p className="rounded-lg bg-secondary/40 px-3 py-2 text-sm text-muted-foreground">Nog geen formulieren. Kies hierboven een formulier om het klaar te zetten.</p>
       ) : (
         <div className="space-y-2">
           {visibleRequests.map((r) => {
@@ -231,24 +250,23 @@ export function CustomerDossierPanel({ customerId, appointmentId = null, compact
         </div>
       )}
 
-      {canSend && templates.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {templates.map((t) => (
-            <Button key={t.id} variant="outline" size="sm" disabled={sending === t.id} onClick={() => send(t.id)}>
-              <Send className="h-3.5 w-3.5 mr-1" />
-              {sending === t.id ? "Versturen..." : t.title}
-            </Button>
-          ))}
-        </div>
-      )}
-
       {!compact && (
         <div className="space-y-5 border-t border-border pt-4">
           <JourneyPanel customerId={customerId} />
-          <CustomerConsentPanel customerId={customerId} />
-          <CustomerPrivacyPanel customerId={customerId} onChanged={load} />
           <CustomerAlertsPanel customerId={customerId} />
-          <CustomerTimeline customerId={customerId} />
+          <Accordion type="multiple" className="rounded-xl border border-border px-3">
+            <AccordionItem value="timeline">
+              <AccordionTrigger className="text-sm hover:no-underline">Geschiedenis</AccordionTrigger>
+              <AccordionContent><CustomerTimeline customerId={customerId} /></AccordionContent>
+            </AccordionItem>
+            <AccordionItem value="consent">
+              <AccordionTrigger className="text-sm hover:no-underline">Toestemming en privacy</AccordionTrigger>
+              <AccordionContent className="space-y-5">
+                <CustomerConsentPanel customerId={customerId} />
+                <CustomerPrivacyPanel customerId={customerId} onChanged={load} />
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </div>
       )}
     </div>

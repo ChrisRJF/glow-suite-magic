@@ -24,6 +24,11 @@ export function AiSummaryButton({ label, action, customerId, appointmentId, reco
   const inFlight = useRef(false);
 
   if (!canViewContent) return null;
+  const explanation = action === "appointment_prep"
+    ? "Vat openstaande formulieren, eerdere afspraken en aandachtspunten samen."
+    : action === "record_summary"
+      ? "Maakt een korte leesversie van dit behandelverslag."
+      : "Vat bestaande dossierinformatie samen zonder iets te wijzigen.";
 
   const run = async () => {
     if (inFlight.current) return;
@@ -47,10 +52,13 @@ export function AiSummaryButton({ label, action, customerId, appointmentId, reco
 
   return (
     <div className="space-y-2">
-      <Button variant="outline" size="sm" onClick={run} disabled={loading}>
-        {loading ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Sparkles className="mr-1.5 h-3.5 w-3.5" />}
-        {loading ? "Bezig" : label}
-      </Button>
+      <div className="flex flex-col items-start gap-1">
+        <Button variant="outline" size="sm" onClick={run} disabled={loading} title={explanation}>
+          {loading ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Sparkles className="mr-1.5 h-3.5 w-3.5" />}
+          {loading ? "Samenvatting maken..." : label}
+        </Button>
+        {!summary && !failed && <p className="text-[11px] text-muted-foreground">{explanation}</p>}
+      </div>
 
       {failed && (
         <p className="rounded-xl border border-border bg-muted px-3 py-2 text-xs text-muted-foreground">

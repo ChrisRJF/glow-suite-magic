@@ -29,7 +29,6 @@ import { EmployeeColumnDayView } from "@/components/EmployeeColumnDayView";
 import { MoveAppointmentSheet, type MoveTarget } from "@/components/MoveAppointmentSheet";
 import { SmartReflowDialog, type ReflowAppointment } from "@/components/SmartReflowDialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { CustomerDossierPanel } from "@/components/dossier/CustomerDossierPanel";
 import { AppointmentDossierBlock } from "@/components/dossier/AppointmentDossierBlock";
 import { DossierStatusBadge } from "@/components/dossier/DossierStatusBadge";
 import { useDossierStatus } from "@/hooks/useDossierStatus";
@@ -560,6 +559,19 @@ export default function CalendarPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
+  useEffect(() => {
+    const appointmentId = searchParams.get('afspraak');
+    if (!appointmentId || appointments.length === 0) return;
+    const appointment = appointments.find((item) => item.id === appointmentId);
+    if (!appointment) return;
+    setCurrentDate(new Date(`${getAppointmentDate(appointment)}T12:00:00`));
+    setDossierAppt(appointment);
+    const next = new URLSearchParams(searchParams);
+    next.delete('afspraak');
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appointments, searchParams]);
+
   const handleAdd = async () => {
     if (!form.customer_id || !form.service_id || !form.date || !form.time) { toast.error("Vul alle velden in"); return; }
     const svc = services.find(s => s.id === form.service_id);
@@ -640,7 +652,9 @@ export default function CalendarPage() {
       }
     }
     if (result) {
-      toast.success(subAppts.length > 0 ? `Groepsboeking aangemaakt (${subAppts.length + 1} personen)` : "Afspraak aangemaakt");
+      toast.success(subAppts.length > 0 ? `Groepsboeking aangemaakt (${subAppts.length + 1} personen)` : "Afspraak staat in de agenda", {
+        description: `${customers.find((customer) => customer.id === form.customer_id)?.name || "Klant"} · ${form.date} om ${form.time}`,
+      });
       setShowAdd(false);
       setShowConfirmation(false);
       setJourneyLink(null);
@@ -1049,7 +1063,7 @@ export default function CalendarPage() {
     <AppLayout title="Agenda" subtitle="Je afspraken per dag"
       actions={
         <div className="w-full max-w-full overflow-hidden flex flex-col lg:flex-row lg:items-center gap-2">
-          {/* Row 1: Vandaag + view toggle */}
+          {/* Dag en weergave */}
           <div className="flex items-center gap-2 w-full lg:w-auto min-w-0">
             <Button
               variant={isToday ? "secondary" : "outline"}
@@ -1068,7 +1082,7 @@ export default function CalendarPage() {
               <button onClick={() => setView('week')} className={cn("flex-1 lg:flex-none px-3 py-2 text-sm font-medium transition-colors", view === 'week' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')}>Week</button>
             </div>
           </div>
-          {/* Row 2 on mobile / inline on desktop: action buttons */}
+          {/* Eén primaire actie; slim plannen blijft secundair */}
           <div className="grid grid-cols-2 gap-3 w-full lg:flex lg:w-auto lg:gap-2">
             <Button
               variant="outline"
@@ -1147,9 +1161,9 @@ export default function CalendarPage() {
           </div>
         )}
 
-        {/* Compact workload overview */}
+        {/* Compact teamoverzicht */}
         {selectedEmployee === 'alle' && (
-          <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
             {filteredMedewerkers.map((emp: any) => {
               const status = getEmployeeStatus(emp, currentDate);
               const wl = getWorkloadLabel(emp, dateStr);
@@ -1176,12 +1190,12 @@ export default function CalendarPage() {
         )}
       </div>
 
-      {/* Empty slot indicator */}
+      {/* Vrije ruimte */}
       {view === 'day' && emptySlotCount > 0 && (
         <div className="mb-4 p-3 rounded-xl bg-primary/5 border border-primary/10 flex items-center gap-2 opacity-0 animate-fade-in-up" style={{ animationDelay: '50ms' }}>
           <Sparkles className="w-4 h-4 text-primary" />
           <span className="text-xs text-muted-foreground">
-            <strong className="text-foreground">{emptySlotCount} vrije slots</strong> vandaag
+            <strong className="text-foreground">{emptySlotCount} vrije plekken</strong> vandaag
             {selectedEmployee !== 'alle' && ` voor ${displayEmployees.find((e: any) => e.id === selectedEmployee || e.name === selectedEmployee)?.name || selectedEmployee}`}
             {'. '}Klik op een leeg tijdslot om te boeken.
           </span>
@@ -1252,8 +1266,16 @@ export default function CalendarPage() {
               </>
             ) : (
               <>
-                <h3 className="text-lg font-semibold mb-4">Nieuwe afspraak</h3>
+                 <div className="mb-4">
+                   <h3 className="text-lg font-semibold">Nieuwe afspraak</h3>
+                   <p className="text-xs text-muted-foreground mt-1">Kies klant, behandeling en tijd. De afspraak wordt direct in de agenda gezet.</p>
+                 </div>
                 <div className="space-y-3">
+                   {journeyLink && (
+                     <div className="rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-foreground">
+                       Vervolgafspraak voor sessie {journeyLink.session}. Klant en behandeling zijn alvast ingevuld.
+                     </div>
+                   )}
                   <div>
                     <label className="text-xs text-muted-foreground">Klant *</label>
                     <select value={form.customer_id} onChange={e => setForm({...form, customer_id: e.target.value})}
@@ -1263,9 +1285,9 @@ export default function CalendarPage() {
                     </select>
                   </div>
                   {form.customer_id && (
-                    <div className="rounded-xl bg-secondary/40 p-3">
-                      <CustomerDossierPanel customerId={form.customer_id} />
-                    </div>
+                    <p className="rounded-lg bg-secondary/50 px-3 py-2 text-xs text-muted-foreground">
+                      Geselecteerd: <span className="font-medium text-foreground">{customers.find((customer) => customer.id === form.customer_id)?.name}</span>
+                    </p>
                   )}
                   <div>
                     <label className="text-xs text-muted-foreground">Behandeling *</label>
@@ -1343,7 +1365,7 @@ export default function CalendarPage() {
                     onClick={() => setShowMoreOptions(v => !v)}
                     className="text-xs font-medium text-primary hover:underline"
                   >
-                    {showMoreOptions ? "Minder opties" : "Meer opties"}
+                    {showMoreOptions ? "Minder instellingen" : "Meer instellingen"}
                   </button>
 
                   {showMoreOptions && (
@@ -1440,7 +1462,7 @@ export default function CalendarPage() {
                 <div className="flex gap-2 mt-4">
                   <Button variant="outline" className="flex-1" onClick={() => { setShowAdd(false); setShowConfirmation(false); }}>Annuleren</Button>
                   <Button variant="gradient" className="flex-1" onClick={handlePrepareConfirmation}>
-                    {subAppts.length > 0 ? 'Bekijk plaatsing' : 'Opslaan'}
+                    {subAppts.length > 0 ? 'Bekijk plaatsing' : 'Afspraak maken'}
                   </Button>
                 </div>
               </>
@@ -1518,7 +1540,8 @@ export default function CalendarPage() {
                           const showPayment = paymentStatus && paymentStatus !== 'none';
                           return (
                           <div
-                            className="absolute left-0 right-0 top-1 z-10 rounded-2xl p-3 transition-all duration-200 bg-card/95 backdrop-blur-sm shadow-[var(--shadow-sm)] flex flex-col gap-2"
+                            onClick={() => setDossierAppt(apt)}
+                            className="absolute left-0 right-0 top-1 z-10 rounded-xl p-3 transition-all duration-200 bg-card/95 shadow-[var(--shadow-sm)] flex flex-col gap-2 cursor-pointer hover:ring-1 hover:ring-primary/20"
                             style={{
                               backgroundImage: `linear-gradient(135deg, ${svc?.color || '#7B61FF'}10, ${svc?.color || '#7B61FF'}06)`,
                               borderLeft: `3px solid ${svc?.color || '#7B61FF'}`,
@@ -1566,7 +1589,7 @@ export default function CalendarPage() {
                               <button
                                 {...listeners}
                                 {...attributes}
-                                className="p-1.5 rounded-lg hover:bg-secondary/60 active:bg-secondary cursor-grab active:cursor-grabbing shrink-0 -ml-1"
+                                className="min-h-9 min-w-9 p-2 rounded-lg hover:bg-secondary/60 active:bg-secondary cursor-grab active:cursor-grabbing shrink-0 -ml-1 flex items-center justify-center"
                                 aria-label="Sleep om te verplaatsen"
                                 onClick={(e) => e.stopPropagation()}
                                 style={{ touchAction: 'none' }}
@@ -1578,14 +1601,15 @@ export default function CalendarPage() {
                                   <button
                                     onClick={(e) => { e.stopPropagation(); setDossierAppt(apt); }}
                                     aria-label="Dossier openen"
-                                    title="Dossier openen"
+                                    title="Afspraak en dossier openen"
+                                    className="min-h-9 flex items-center"
                                   >
                                     <DossierStatusBadge status={dossierStatuses[apt.id].status} />
                                   </button>
                                 )}
                                 <button
                                   onClick={(e) => { e.stopPropagation(); openMoveSheet(apt); }}
-                                  className="p-1.5 rounded-lg hover:bg-secondary/60 flex items-center gap-1 text-[11px] text-muted-foreground"
+                                  className="min-h-9 px-2 rounded-lg hover:bg-secondary/60 flex items-center gap-1 text-[11px] text-muted-foreground"
                                   aria-label="Verplaats afspraak"
                                   title="Verplaats afspraak"
                                 >
@@ -1595,7 +1619,7 @@ export default function CalendarPage() {
                                 <StatusPill apt={apt} />
                                 <button
                                   onClick={(e) => { e.stopPropagation(); handleDelete(apt.id); }}
-                                  className="p-1.5 rounded-lg hover:bg-destructive/15"
+                                  className="min-h-9 min-w-9 p-2 rounded-lg hover:bg-destructive/15 flex items-center justify-center"
                                   aria-label="Verwijder afspraak"
                                 >
                                   <Trash2 className="w-3.5 h-3.5 text-destructive" />
@@ -1718,9 +1742,14 @@ export default function CalendarPage() {
       <Sheet open={!!dossierAppt} onOpenChange={(o) => { if (!o) { setDossierAppt(null); refreshDossierStatuses(); } }}>
         <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>
-              {customers.find(c => c.id === dossierAppt?.customer_id)?.name || 'Klant'}
-            </SheetTitle>
+            <SheetTitle>{customers.find(c => c.id === dossierAppt?.customer_id)?.name || 'Klant'}</SheetTitle>
+            {dossierAppt && (
+              <p className="text-sm text-muted-foreground">
+                {new Date(dossierAppt.appointment_date).toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' })}
+                {' · '}{getAppointmentTime(dossierAppt)}
+                {' · '}{services.find(service => service.id === dossierAppt.service_id)?.name || 'Behandeling'}
+              </p>
+            )}
           </SheetHeader>
           {dossierAppt && (
             <div className="mt-4">

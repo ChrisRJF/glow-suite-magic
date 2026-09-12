@@ -130,6 +130,7 @@ const App = () => (
               <Route path="/review" element={<PublicActionPage />} />
               <Route path="/review/:templateKey" element={<PublicActionPage />} />
               <Route path="/" element={<RootRoute />} />
+              <Route path="/dashboard" element={<RoleProtectedRoute><DashboardPage /></RoleProtectedRoute>} />
               <Route path="/pricing" element={<PricingPage />} />
               <Route path="/prijzen" element={<PricingPage />} />
               <Route path="/glowpay-info" element={<GlowPayMarketingPage />} />

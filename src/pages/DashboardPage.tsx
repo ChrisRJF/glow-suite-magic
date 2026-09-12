@@ -130,6 +130,60 @@ export default function DashboardPage() {
       <div className="space-y-5">
         <TodayBriefing title="Vandaag aandacht nodig" showEmptyState />
 
+        <section aria-labelledby="planning-vandaag">
+          <div className="mb-3 flex items-end justify-between gap-3">
+            <div>
+              <p className="text-eyebrow">Je dag</p>
+              <h2 id="planning-vandaag" className="text-section-title mt-1">Planning vandaag</h2>
+              <p className="text-meta mt-1">
+                {todaysAppts.length === 0
+                  ? "Nog geen afspraken"
+                  : `${todaysAppts.length} ${todaysAppts.length === 1 ? "afspraak" : "afspraken"} · ${formatEuro(omzetVandaag)} verwacht`}
+              </p>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => navigate("/agenda")}>
+              Open agenda <ArrowRight className="w-3.5 h-3.5 ml-1" />
+            </Button>
+          </div>
+
+          <div className="rounded-xl border border-border/70 bg-card p-2 sm:p-3" style={{ boxShadow: "var(--shadow-sm)" }}>
+            {todaysAppts.length === 0 ? (
+              <div className="text-center py-8 px-4">
+                <Calendar className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
+                <p className="text-sm font-medium">Je agenda is vandaag nog leeg</p>
+                <Button variant="gradient" size="sm" className="mt-3" onClick={() => navigate("/agenda?nieuw=1")}>
+                  <Calendar className="w-4 h-4" /> Afspraak maken
+                </Button>
+              </div>
+            ) : (
+              <div className="divide-y divide-border/50">
+                {todaysAppts.slice(0, 6).map((apt) => {
+                  const svc = services.find((s) => s.id === apt.service_id);
+                  const cust = customers.find((c) => c.id === apt.customer_id);
+                  const time = new Date(apt.appointment_date).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
+                  return (
+                    <button
+                      key={apt.id}
+                      onClick={() => navigate(`/agenda?afspraak=${apt.id}`)}
+                      className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left hover:bg-secondary/50 transition-colors group"
+                      aria-label={`Open afspraak van ${cust?.name || "klant"} om ${time}`}
+                    >
+                      <span className="w-12 text-[13px] font-semibold tabular-nums">{time}</span>
+                      <span className="w-[3px] self-stretch rounded-full" style={{ backgroundColor: svc?.color || "hsl(var(--primary))" }} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold">{cust?.name || "Klant"}</span>
+                        <span className="block truncate text-xs text-muted-foreground">{svc?.name || "Behandeling"}</span>
+                      </span>
+                      <span className="hidden text-xs font-medium text-muted-foreground group-hover:text-primary sm:inline">Open afspraak</span>
+                      <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground/60" />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </section>
+
         <TodayAtAGlance />
 
         <RevenueOpportunities />
@@ -152,76 +206,6 @@ export default function DashboardPage() {
           </div>
         </section>
       </div>
-
-      {/* ═══════════ SECTION 2: PLANNING VANDAAG ═══════════ */}
-      <section>
-        <div className="flex items-end justify-between mb-4">
-          <div>
-            <h2 className="text-section-title">Planning vandaag</h2>
-            <p className="text-meta mt-1">
-              {todaysAppts.length === 0
-                ? "Nog geen afspraken ingepland"
-                : `${todaysAppts.length} ${todaysAppts.length === 1 ? "afspraak" : "afspraken"} · ${formatEuro(omzetVandaag)} verwacht`}
-            </p>
-          </div>
-          <Button variant="ghost" size="sm" onClick={() => navigate("/agenda")} className="hidden sm:inline-flex">
-            Bekijk agenda <ArrowRight className="w-3.5 h-3.5 ml-1" />
-          </Button>
-        </div>
-
-        <div className="rounded-2xl border border-border/70 bg-card p-2 sm:p-3" style={{ boxShadow: "var(--shadow-sm)" }}>
-          {todaysAppts.length === 0 ? (
-            <div className="text-center py-10 px-4">
-              <Calendar className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
-              <p className="text-sm font-medium mb-1">Geen afspraken vandaag</p>
-              <p className="text-xs text-muted-foreground mb-4">
-                Activeer autopilot om lege plekken te vullen
-              </p>
-              <Button variant="gradient" size="sm" onClick={() => document.getElementById("auto-revenue-engine")?.scrollIntoView({ behavior: "smooth" })}>
-                <Zap className="w-4 h-4" /> Vul agenda automatisch
-              </Button>
-            </div>
-          ) : (
-            <div className="divide-y divide-border/50">
-              {todaysAppts.slice(0, 6).map((apt) => {
-                const svc = services.find((s) => s.id === apt.service_id);
-                const cust = customers.find((c) => c.id === apt.customer_id);
-                const time = new Date(apt.appointment_date).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
-                return (
-                  <div
-                    key={apt.id}
-                    onClick={() => navigate("/agenda")}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-secondary/50 active:scale-[0.99] transition-all cursor-pointer group"
-                  >
-                    <div className="w-[3px] h-8 rounded-full flex-shrink-0" style={{ backgroundColor: svc?.color || "hsl(var(--primary))" }} />
-                    <div className="w-12 text-[13px] font-semibold tabular-nums text-foreground">{time}</div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[14px] font-semibold truncate leading-tight">{cust?.name || "Klant"}</p>
-                      <p className="text-[12px] text-muted-foreground truncate mt-0.5">{svc?.name || "Behandeling"}</p>
-                    </div>
-                    <div
-                      className={`px-2 py-0.5 rounded-md text-[10px] font-semibold capitalize ${
-                        apt.status === "voltooid"
-                          ? "bg-success/15 text-success"
-                          : apt.status === "geannuleerd"
-                            ? "bg-destructive/15 text-destructive"
-                            : "bg-primary/12 text-primary"
-                      }`}
-                    >
-                      {apt.status}
-                    </div>
-                  </div>
-                );
-              })}
-              {todaysAppts.length > 6 && (
-                <button onClick={() => navigate("/agenda")} className="w-full py-2.5 text-xs text-muted-foreground hover:text-primary transition-colors">
-                  +{todaysAppts.length - 6} meer afspraken
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-      </section>
 
       <section>
         <div className="flex items-end justify-between mb-4">

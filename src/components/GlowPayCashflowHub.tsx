@@ -175,7 +175,7 @@ export function GlowPayCashflowHub({ payments, appointments, onOpenLinks, onOpen
     {
       label: "Automatisch geïncasseerd",
       value: formatEuro(stats.autoCollected),
-      sub: "Aanbetalingen & deposits",
+      sub: "Aanbetalingen",
       icon: Wallet,
       tone: "success",
     },
@@ -192,16 +192,16 @@ export function GlowPayCashflowHub({ payments, appointments, onOpenLinks, onOpen
   const actions = useMemo(() => buildActions({ merchant, terminalCount, openCount: payments.filter(p => p.status === "pending").length, failedCount: payments.filter(p => p.status === "failed").length }), [merchant, terminalCount, payments]);
 
   return (
-    <section aria-label="GlowPay overzicht" className="space-y-6">
+    <section aria-label="GlowPay overzicht" className="space-y-5">
       {/* Top metric grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
         {metricCards.map((m, i) => (
           <MetricCard key={m.label} {...m} delay={i * 60} />
         ))}
       </div>
 
       {/* Two column on desktop: payout timeline + action center */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         <div className="lg:col-span-2">
           <PayoutTimelineCard payouts={payouts} onGetStarted={onOpenPayments} />
         </div>
@@ -315,7 +315,7 @@ function ActionCenterCard({
         <h2 className="text-sm font-semibold tracking-tight flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-primary" /> Actie nodig
         </h2>
-        <p className="text-[11px] text-muted-foreground mt-0.5">GlowSuite regelt de rest automatisch</p>
+           <p className="text-[11px] text-muted-foreground mt-0.5">Wat je nu kunt doen</p>
       </div>
 
       {actions.length === 0 ? (

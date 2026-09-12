@@ -1,4 +1,4 @@
-import { Sparkles } from "lucide-react";
+import { ClipboardCheck } from "lucide-react";
 import { useDossierOverview } from "@/hooks/useDossierOverview";
 import { nextAction } from "@/lib/dossierInsights";
 import { AiSummaryButton } from "./AiSummaryButton";
@@ -39,10 +39,10 @@ export function DossierSummaryCard({ customerId }: { customerId: string }) {
     <div className="space-y-2 rounded-xl border border-border p-3">
       <div className="flex items-center justify-between gap-2">
         <h4 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-          <Sparkles className="h-4 w-4 text-primary" /> Samenvatting
+          <ClipboardCheck className="h-4 w-4 text-primary" /> Dossier in het kort
         </h4>
         <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground">
-          Automatisch samengevat
+          Actueel overzicht
         </span>
       </div>
 

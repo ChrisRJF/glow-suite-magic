@@ -10,6 +10,10 @@ import { useDossierAccess } from "@/hooks/useDossierAccess";
 import type { TreatmentField } from "./TreatmentTemplatesManager";
 import { DocumentExportDialog } from "./DocumentExportDialog";
 import { AiSummaryButton } from "./AiSummaryButton";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface RecordRow {
   id: string;
@@ -35,6 +39,7 @@ export function TreatmentRecordPanel({ customerId, appointmentId, serviceId, onC
   const [values, setValues] = useState<Record<string, unknown>>({});
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [confirmComplete, setConfirmComplete] = useState(false);
 
   const load = async () => {
     const [{ data: tpl }, { data: rec }] = await Promise.all([
@@ -77,7 +82,6 @@ export function TreatmentRecordPanel({ customerId, appointmentId, serviceId, onC
     if (action === "complete") {
       const missing = fields.filter((f) => f.required && f.type !== "info_text" && !values[f.key]);
       if (missing.length > 0) return toast.error(`Vul eerst in: ${missing.map((f) => f.label).join(", ")}`);
-      if (!confirm("Na afronden kan dit verslag niet meer worden gewijzigd. Doorgaan?")) return;
     }
     setBusy(true);
     const { data, error } = await supabase.functions.invoke("treatment-records", {
@@ -115,8 +119,8 @@ export function TreatmentRecordPanel({ customerId, appointmentId, serviceId, onC
               triggerLabel="PDF"
             />
           )}
-          <Button variant="ghost" size="sm" onClick={() => setOpen(!open)}>
-            {open ? "Verberg" : locked ? "Bekijk" : record ? "Verder invullen" : "Invullen"}
+          <Button variant={locked ? "ghost" : "outline"} size="sm" onClick={() => setOpen(!open)}>
+            {open ? "Sluiten" : locked ? "Bekijk verslag" : record ? "Verder met verslag" : "Behandelverslag toevoegen"}
           </Button>
         </div>
       </div>
@@ -210,13 +214,25 @@ export function TreatmentRecordPanel({ customerId, appointmentId, serviceId, onC
               <Button variant="outline" size="sm" disabled={busy} onClick={() => submit("save")}>
                 Concept opslaan
               </Button>
-              <Button size="sm" disabled={busy} onClick={() => submit("complete")}>
+              <Button size="sm" disabled={busy} onClick={() => setConfirmComplete(true)}>
                 Verslag afronden
               </Button>
             </div>
           )}
         </div>
       )}
+      <AlertDialog open={confirmComplete} onOpenChange={setConfirmComplete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Behandelverslag afronden?</AlertDialogTitle>
+            <AlertDialogDescription>Na afronden blijft het verslag bewaard en kan het niet meer worden gewijzigd.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Terug</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setConfirmComplete(false); submit("complete"); }}>Verslag afronden</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
