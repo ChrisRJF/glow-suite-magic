@@ -151,8 +151,9 @@ export default function CalendarPage() {
   );
 
   const displayEmployees = useMemo(() => {
-    // Demo mode intentionally uses demo employees for guided preview.
-    if (demoMode) return hardcodedDemoEmployees;
+    // Demo mode uses the guided preview employees only when the salon has none of its own.
+    if (demoMode && activeDbEmployees.length === 0) return hardcodedDemoEmployees;
+
 
     if (activeDbEmployees.length > 0) {
       return activeDbEmployees.map((e: any) => {
