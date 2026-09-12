@@ -82,11 +82,11 @@ export function CustomerAlertsPanel({ customerId }: { customerId: string }) {
       ) : (
         <div className="space-y-2">
           {alerts.map((a) => (
-            <div key={a.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border p-3">
+            <div key={a.id} className={`flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3 ${a.review_status === "action_needed" ? "border-warning/30 bg-warning/5" : a.review_status === "unreviewed" ? "border-primary/20 bg-primary/5" : "border-border"}`}>
               <div>
                 <p className="text-sm text-foreground">{a.label}</p>
                 <p className="text-xs text-muted-foreground">
-                  {STATUS_LABEL[a.review_status]}
+                  <span className={a.review_status === "action_needed" ? "font-medium text-warning" : ""}>{STATUS_LABEL[a.review_status]}</span>
                   {a.source_type === "form_answer" ? " · uit formulier" : " · handmatig"}
                 </p>
               </div>

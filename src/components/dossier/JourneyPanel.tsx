@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Route, Plus, CalendarPlus } from "lucide-react";
+import { Route, Plus, CalendarPlus, CheckCircle2, Clock3, Circle } from "lucide-react";
 import { toast } from "sonner";
 import { useDossierAccess } from "@/hooks/useDossierAccess";
 
@@ -135,26 +135,44 @@ export function JourneyPanel({ customerId }: { customerId: string }) {
             .filter((s) => s.journey_id === j.id)
             .sort((a, b) => (a.journey_session_number ?? 0) - (b.journey_session_number ?? 0));
           const next = (mine.reduce((m, s) => Math.max(m, s.journey_session_number ?? 0), 0) || 0) + 1;
+          const completedCount = mine.filter((s) => ["voltooid", "completed"].includes(s.status.toLowerCase())).length;
+          const plannedCount = j.planned_sessions ?? Math.max(mine.length, next);
+          const upcoming = mine.find((s) => !["voltooid", "completed", "geannuleerd", "cancelled"].includes(s.status.toLowerCase()));
           return (
-            <div key={j.id} className="space-y-2 rounded-xl border border-border p-3">
+            <div key={j.id} className="space-y-3 rounded-xl border border-border p-3">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-medium text-foreground">{j.name}</p>
-                <span className="text-xs text-muted-foreground">
-                  {mine.length}/{j.planned_sessions ?? "?"} sessies
-                </span>
+                <div>
+                  <p className="text-sm font-semibold text-foreground">{j.name}</p>
+                  <p className="text-xs text-muted-foreground">{completedCount} van {plannedCount} sessies afgerond</p>
+                </div>
+                <span className="text-xs font-medium text-primary">Sessie {upcoming?.journey_session_number ?? next} is de volgende stap</span>
               </div>
-              {mine.map((s) => (
-                <p key={s.id} className="text-xs text-muted-foreground">
-                  Sessie {s.journey_session_number ?? "?"} ·{" "}
-                  {new Date(s.appointment_date).toLocaleDateString("nl-NL", { dateStyle: "medium" })}
-                </p>
-              ))}
-              {!mine.some((s) => new Date(s.appointment_date) > new Date()) && (
-                <p className="text-xs font-medium text-foreground">Volgende stap: controle-afspraak plannen</p>
+              <div className="grid gap-2 sm:grid-cols-3">
+                {Array.from({ length: plannedCount }, (_, index) => {
+                  const number = index + 1;
+                  const session = mine.find((item) => item.journey_session_number === number);
+                  const complete = Boolean(session && ["voltooid", "completed"].includes(session.status.toLowerCase()));
+                  const planned = Boolean(session && !complete);
+                  const Icon = complete ? CheckCircle2 : planned ? Clock3 : Circle;
+                  return (
+                    <div key={number} className={`rounded-lg border px-3 py-2 ${complete ? "border-success/20 bg-success/5" : planned ? "border-primary/25 bg-primary/5" : "border-border bg-secondary/20"}`}>
+                      <div className="flex items-center gap-2">
+                        <Icon className={`h-4 w-4 ${complete ? "text-success" : planned ? "text-primary" : "text-muted-foreground"}`} />
+                        <span className="text-xs font-semibold">Sessie {number}</span>
+                      </div>
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        {complete ? "Afgerond" : planned ? "Gepland" : "Nog te plannen"}
+                        {session ? ` · ${new Date(session.appointment_date).toLocaleDateString("nl-NL", { day: "numeric", month: "short" })}` : ""}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+              {!upcoming && (
+                <Button variant="outline" size="sm" onClick={() => planSession(j, next)}>
+                  <CalendarPlus className="mr-1 h-3.5 w-3.5" /> Vervolgafspraak plannen
+                </Button>
               )}
-              <Button variant="outline" size="sm" onClick={() => planSession(j, next)}>
-                <CalendarPlus className="mr-1 h-3.5 w-3.5" /> Controle-afspraak plannen
-              </Button>
             </div>
           );
         })
