@@ -1,20 +1,51 @@
-# Klantdossier P3: kliniekworkflow
+# GlowSuite UX/UI-polish
 
 ## Doel
-Bouw één compacte workflow van afspraak naar dossiercheck, behandeling, nazorg en controle, plus een veilig afspraakgebonden klantportaal zonder klantaccount.
+Maak de bestaande GlowSuite-ervaring rustiger en vanzelfsprekend voor nieuwe salonmedewerkers, met Beautycare Groningen als volledige praktijktest. Richting 3 bepaalt de hiërarchie: focus op de dagagenda, acties die aandacht vragen en een compact klantdossier. De bestaande GlowSuite-branding en het huidige designsysteem blijven leidend.
 
 ## Uitvoering
-1. Breid het bestaande dossiermodel minimaal uit met behandeltrajecten, sessiekoppelingen en nazorgtekst per behandeling. Gebruik tenantgebonden rechten, bestaande auditfuncties en bestaande afspraken, formulieren, verslagen en media.
-2. Voeg een afspraakgebonden, gehashte portaaltoegang toe via de bestaande publieke tokenstijl. Het portaal toont uitsluitend gegevens, acties en gedeelde documenten van die ene afspraak en hergebruikt bestaande bevestigings-, annulerings-, formulier- en documentstromen.
-3. Toon in het portaal een begrijpelijke checklist voor vóór en na de behandeling, zonder technische of medische termen.
-4. Maak bovenaan het afspraakdetail één dossiercheck met intake, toestemming, aandachtspunt, foto’s en verslag. De knop `Volgende actie` opent de eerste ontbrekende relevante stap.
-5. Voeg in het klantdossier een compact trajectoverzicht toe met chronologische sessies, gekoppelde formulieren, verslagen, foto’s, nazorg en volgende afspraak.
-6. Laat `Controle-afspraak plannen` de bestaande agenda-aanmaak hergebruiken en de nieuwe afspraak aan hetzelfde traject koppelen.
-7. Laat salons eigen nazorgtekst per behandeling beheren. Handmatig delen gebruikt alleen de bestaande communicatie-infrastructuur en wordt tijdens implementatie niet echt verstuurd.
 
-## Veiligheid en controle
-- Reception ziet alleen administratieve status; financieel geen dossierinhoud; overige rollen volgen de bestaande dossierrechten.
-- Publieke toegang controleert tokenhash, afspraakgrens, tenant, verloop en intrekking. Geen volledig dossier of andere afspraken.
-- Nieuwe tabellen krijgen expliciete grants, RLS, tenantisolatie en indexes.
-- Controleer P0-P2, agenda, formulieren, dossier, WhatsApp, documentdelen en GlowPay/Viva. Verstuur geen echte berichten.
-- Rond af met gerichte tests, typecheck en de gevraagde P3-matrix. Start geen P4.
+### 1. Oriëntatie en primaire acties
+- Geef elk kernscherm één duidelijke primaire actie en maak overige acties visueel rustiger.
+- Verkort technische of marketingachtige teksten naar concreet Nederlands.
+- Houd paginatitels, datum/context en volgende actie dichtbij elkaar.
+- Behoud bestaande navigatie, rechten, flows en gegevens.
+
+### 2. Dashboard en Agenda
+- Zet dagplanning en aandachtspunten boven cijfers en verdiepende informatie.
+- Maak dashboardafspraken direct herkenbaar en laat ze gericht in de Agenda terugkomen.
+- Vereenvoudig de Agenda-werkbalk, medewerkerskeuze en vrije-plekcommunicatie zonder functies te verwijderen.
+- Maak afspraakkaarten duidelijker: klant, behandeling, medewerker, tijd, status en dossieractie.
+- Vergroot mobiele klikvlakken en voorkom verborgen of overlappende acties.
+- Houd nieuwe afspraken compact door het volledige dossier niet in het boekingsvenster te laden; toon alleen relevante klantcontext.
+
+### 3. Klanten en dossier
+- Maak zoeken en klantselectie dominant en toon onderscheid tussen normaal, aandachtspunt en actie vereist.
+- Maak het klantprofiel een compact dossieroverzicht met logische secties en minder gelijke visuele prioriteit.
+- Zet formulieren, traject, behandelverslag en volgende actie vóór beheer-, privacy- en historische details.
+- Presenteer Sanne de Jongs Laserontharing als een duidelijke voortgang: sessie 1 afgerond, sessie 2 afgerond, sessie 3 gepland.
+- Maak formulier- en verslagacties expliciet, met bestaande succesfeedback en veilige bevestigingen.
+- Benoem AI-acties naar hun concrete resultaat en toon ze alleen in relevante dossiercontext.
+
+### 4. Omzet Autopilot en GlowPay
+- Maak eerst zichtbaar wat is gevonden, wat het kost/opbrengt en welke actie logisch is.
+- Verminder concurrerende kaarten, badges en marketingcopy; zet details en instellingen lager of achter bestaande verdieping.
+- Maak GlowPay testmodus, bedrag, doel, status en eerstvolgende veilige actie direct herkenbaar.
+- Orden betaalacties op prioriteit zonder betaalgedrag te veranderen of echte betalingen uit te voeren.
+
+### 5. Consistentie en responsive polish
+- Harmoniseer knoppen, iconen, statuskleuren, modals, lege toestanden en feedback met bestaande componenten.
+- Controleer spacing, uitlijning, tekstafbreking, horizontale scroll, mobiele klikvlakken en kleine schermen.
+- Gebruik geen nieuwe decoratieve gradients, animaties, badges of grote hoeveelheden witruimte.
+
+### 6. Verificatie
+- Doorloop als Beautycare-gebruiker: Dashboard → Agenda → afspraak → klantdossier → Sanne → traject → formulier → behandelverslag → nieuwe afspraak → Omzet Autopilot → GlowPay.
+- Meet vóór/na klikken voor boeken, openen, klant vinden, verslag, formulier, vervolgafspraak en betaling.
+- Controleer Beautycare-data, demo/teststatus, uitgeschakelde WhatsApp/e-mail/betalingen en Studio Nova-isolatie.
+- Controleer desktop en mobiel, relevante interacties, typecheck en bestaande tests.
+
+## Technische grenzen
+- Alleen veilige frontend- en presentatiewijzigingen; geen schema-, backend-, integratie-, permission- of businesslogicwijzigingen.
+- Geen echte berichten of betalingen.
+- Geen data-aanpassingen aan Beautycare, Studio Nova of andere tenants.
+- Bestaande routes en werkende acties blijven behouden.
