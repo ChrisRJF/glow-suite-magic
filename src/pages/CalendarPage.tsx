@@ -1163,7 +1163,7 @@ export default function CalendarPage() {
 
         {/* Compact teamoverzicht */}
         {selectedEmployee === 'alle' && (
-          <div className="mt-2 grid grid-cols-3 gap-2">
+          <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
             {filteredMedewerkers.map((emp: any) => {
               const status = getEmployeeStatus(emp, currentDate);
               const wl = getWorkloadLabel(emp, dateStr);
