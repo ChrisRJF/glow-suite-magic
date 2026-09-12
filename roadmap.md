@@ -1,14 +1,4 @@
-# Roadmap
-
-## Afgerond
-- [x] P2b-1: marketingtoestemming (customer_consents append-only), consenthistorie, intrekken,
-      goedkeuring per foto, toestemming via ondertekend formulier, rechten, audit, dossier-UX.
-- [x] Immutability-test uitsluitend op eigen tijdelijke testregel, volledig teruggedraaid.
-- [x] P2b-2: privacy-export, archiveren/herstellen, legal hold, pseudonimiseren, veilig verwijderen,
-      retentieconfiguratie, dry-run, activering en automatische verwerking.
-- [x] Finale hardening: privacy- en auditgeschiedenis overleeft verwijdering zonder persoonsgegevens;
-      dubbele delete-preflight, exacte storagepaden met retry-status, strikte rolmatrix, communicatieblokkade,
-      consistente exportsnapshot, retention-herbeoordeling en operationele kill switch.
-
-## Niet starten
-- Nieuwe dossierfasen of functies buiten P2b-2.
+- [ ] Audit Beautycare demo UX and critical click paths
+- [ ] Apply frontend-only hierarchy, copy, and interaction polish
+- [ ] Verify desktop/mobile flows and safety invariants
+- [ ] Report click-count changes and readiness
