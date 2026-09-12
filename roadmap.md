@@ -1,4 +1,4 @@
 - [ ] Audit Beautycare demo UX and critical click paths
-- [ ] Apply frontend-only hierarchy, copy, and interaction polish
+- [ ] Apply direction 3 hierarchy: day agenda, attention actions, compact dossier, existing GlowSuite design
 - [ ] Verify desktop/mobile flows and safety invariants
 - [ ] Report click-count changes and readiness
