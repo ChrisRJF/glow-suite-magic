@@ -243,11 +243,11 @@ export function CustomerAIProfile({ intel }: Props) {
       {/* Health Pills */}
       <div>
         <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-2">
-          AI Health
+          Klantstatus
         </p>
         <div className="grid grid-cols-3 gap-1.5">
           <ScorePill label="Loyalty" value={intel.loyaltyScore} icon={Heart} tone="primary" />
-          <ScorePill label="Churn" value={intel.churnRisk} icon={AlertTriangle} invert tone="destructive" />
+          <ScorePill label="Risico op vertrek" value={intel.churnRisk} icon={AlertTriangle} invert tone="destructive" />
           <ScorePill label="Spend" value={intel.spendingScore} icon={Euro} tone="success" />
           <ScorePill label="Engage" value={intel.campaignEngagement} icon={MessageCircle} tone="primary" />
           <ScorePill label="Attend" value={intel.attendanceScore} icon={CheckCircle2} tone="success" />
@@ -281,7 +281,7 @@ export function CustomerAIProfile({ intel }: Props) {
         <div className="grid grid-cols-2 gap-2">
           <div>
             <p className="text-base font-bold tabular-nums">{formatEuro(intel.lifetimeValue)}</p>
-            <p className="text-[10px] text-muted-foreground">Lifetime value</p>
+            <p className="text-[10px] text-muted-foreground">Totale besteding</p>
           </div>
           <div>
             <p className="text-base font-bold tabular-nums">{formatEuro(intel.estimatedAnnualValue)}</p>
