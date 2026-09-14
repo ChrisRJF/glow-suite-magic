@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Camera, EyeOff, Images, X } from "lucide-react";
@@ -200,29 +201,42 @@ export function ClinicalMediaPanel({ customerId, appointmentId = null, treatment
         </div>
       )}
 
-      {preview && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/90 p-4" onClick={() => setPreview(null)}>
-          <img src={preview} alt="Foto uit het dossier" className="max-h-[80vh] max-w-full rounded-xl" />
-          <button className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full border border-border bg-background text-muted-foreground" aria-label="Sluiten">
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-      )}
+      {preview &&
+        createPortal(
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/95 p-4" onClick={() => setPreview(null)}>
+            <img src={preview} alt="Foto uit het dossier" className="max-h-[80vh] max-w-full rounded-xl" />
+            <button
+              className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full border border-border bg-background text-muted-foreground"
+              aria-label="Sluiten"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>,
+          document.body,
+        )}
 
-      {compare && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/90 p-4" onClick={() => setCompare(null)}>
-          <div className="grid max-h-[85vh] w-full max-w-3xl grid-cols-1 gap-3 overflow-y-auto sm:grid-cols-2">
-            <div>
-              <p className="mb-1 text-xs text-muted-foreground">Voor</p>
-              <img src={compare.before} alt="Voorfoto" className="w-full rounded-xl" />
+      {compare &&
+        createPortal(
+          <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-background/95 p-4" onClick={() => setCompare(null)}>
+            <div className="grid max-h-[85vh] w-full max-w-3xl grid-cols-1 gap-3 overflow-y-auto sm:grid-cols-2">
+              <div>
+                <p className="mb-1 text-xs text-muted-foreground">Voor</p>
+                <img src={compare.before} alt="Voorfoto" className="w-full rounded-xl" />
+              </div>
+              <div>
+                <p className="mb-1 text-xs text-muted-foreground">Na</p>
+                <img src={compare.after} alt="Nafoto" className="w-full rounded-xl" />
+              </div>
             </div>
-            <div>
-              <p className="mb-1 text-xs text-muted-foreground">Na</p>
-              <img src={compare.after} alt="Nafoto" className="w-full rounded-xl" />
-            </div>
-          </div>
-        </div>
-      )}
+            <button
+              className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full border border-border bg-background text-muted-foreground"
+              aria-label="Sluiten"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
