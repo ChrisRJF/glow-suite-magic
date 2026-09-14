@@ -26,7 +26,7 @@ const password = `Bc-${randomBytes(9).toString('base64url')}`;
 if (!user) {
   user = ok(await db.auth.admin.createUser({
     email: EMAIL, password, email_confirm: true,
-    user_metadata: { name: 'Danica (demo)', salon_name: SALON },
+    user_metadata: { name: 'Danicá (demo)', salon_name: SALON },
   }), 'createUser').user;
 } else {
   user = ok(await db.auth.admin.updateUserById(user.id, { password, email_confirm: true }), 'updateUser').user;
@@ -70,7 +70,7 @@ ok(await db.from('settings').insert({
 
 // ----------------------------------------------------------------- employees
 const employees = ok(await db.from('employees').insert([
-  { user_id: uid, is_demo: true, name: 'Danica', role: 'Eigenaresse / behandelaar', color: '#7B61FF', sort_order: 1, working_days: [1, 2, 3, 4, 5], is_active: true },
+  { user_id: uid, is_demo: true, name: 'Danicá', role: 'Eigenaresse / behandelaar', color: '#7B61FF', sort_order: 1, working_days: [1, 2, 3, 4, 5], is_active: true },
   { user_id: uid, is_demo: true, name: 'Sophie', role: 'Behandelaar', color: '#C850C0', sort_order: 2, working_days: [1, 2, 3, 4, 5], is_active: true },
   { user_id: uid, is_demo: true, name: 'Mila', role: 'Receptie', color: '#45B7D1', sort_order: 3, working_days: [1, 2, 3, 4, 5], is_active: true },
 ]).select('id, name'), 'employees');
@@ -140,27 +140,27 @@ const jrn = Object.fromEntries(journeys.map((j) => [j.name, j.id]));
 // -------------------------------------------------------------- appointments
 const appointments = ok(await db.from('appointments').insert([
   // history
-  appt(-42, '10:00', 'Sanne de Jong', 'Gezichtsbehandeling', 'Danica', { journey_id: jrn['Huidverbetering traject'], journey_session_number: 1, confirmation_status: 'confirmed' }),
+  appt(-42, '10:00', 'Sanne de Jong', 'Gezichtsbehandeling', 'Danicá', { journey_id: jrn['Huidverbetering traject'], journey_session_number: 1, confirmation_status: 'confirmed' }),
   appt(-84, '11:00', 'Eva Brouwer', 'Laserontharing', 'Sophie', { journey_id: jrn['Laserontharing traject'], journey_session_number: 1, confirmation_status: 'confirmed' }),
   appt(-42, '11:00', 'Eva Brouwer', 'Laserontharing', 'Sophie', { journey_id: jrn['Laserontharing traject'], journey_session_number: 2, confirmation_status: 'confirmed' }),
-  appt(-21, '13:30', 'Joyce Hoekstra', 'Peeling', 'Danica', { confirmation_status: 'confirmed' }),
+  appt(-21, '13:30', 'Joyce Hoekstra', 'Peeling', 'Danicá', { confirmation_status: 'confirmed' }),
   appt(-7, '09:30', 'Fatima el Amrani', 'Gezichtsbehandeling', 'Sophie', { confirmation_status: 'confirmed' }),
   // today
-  appt(0, '09:00', 'Marieke Postma', 'Huidanalyse', 'Danica', { status: 'voltooid', payment_status: 'betaald', amount_paid: svc['Huidanalyse'].price, confirmation_status: 'confirmed' }),
-  appt(0, '10:00', 'Sanne de Jong', 'Gezichtsbehandeling', 'Danica', { journey_id: jrn['Huidverbetering traject'], journey_session_number: 2, confirmation_status: 'confirmed' }),
-  appt(0, '11:30', 'Nina Vermeer', 'Microneedling', 'Danica'),
+  appt(0, '09:00', 'Marieke Postma', 'Huidanalyse', 'Danicá', { status: 'voltooid', payment_status: 'betaald', amount_paid: svc['Huidanalyse'].price, confirmation_status: 'confirmed' }),
+  appt(0, '10:00', 'Sanne de Jong', 'Gezichtsbehandeling', 'Danicá', { journey_id: jrn['Huidverbetering traject'], journey_session_number: 2, confirmation_status: 'confirmed' }),
+  appt(0, '11:30', 'Nina Vermeer', 'Microneedling', 'Danicá'),
   appt(0, '09:30', 'Lisa Jansen', 'Peeling', 'Sophie', { confirmation_status: 'confirmed' }),
   appt(0, '11:00', 'Eva Brouwer', 'Laserontharing', 'Sophie', { journey_id: jrn['Laserontharing traject'], journey_session_number: 3 }),
   appt(0, '14:00', 'Ilse Kuipers', 'Huidanalyse', 'Sophie'),
-  appt(0, '15:00', 'Joyce Hoekstra', 'Gezichtsbehandeling', 'Danica', { confirmation_status: 'confirmed' }),
+  appt(0, '15:00', 'Joyce Hoekstra', 'Gezichtsbehandeling', 'Danicá', { confirmation_status: 'confirmed' }),
   // coming days
-  appt(1, '09:30', 'Karin Veldman', 'Gezichtsbehandeling', 'Danica'),
+  appt(1, '09:30', 'Karin Veldman', 'Gezichtsbehandeling', 'Danicá'),
   appt(1, '11:00', 'Wouter Timmer', 'Laserontharing', 'Sophie'),
-  appt(1, '13:00', 'Fatima el Amrani', 'Peeling', 'Danica'),
-  appt(2, '10:00', 'Marieke Postma', 'Microneedling', 'Danica'),
+  appt(1, '13:00', 'Fatima el Amrani', 'Peeling', 'Danicá'),
+  appt(2, '10:00', 'Marieke Postma', 'Microneedling', 'Danicá'),
   appt(2, '11:30', 'Joyce Hoekstra', 'Controle', 'Sophie'),
   appt(3, '09:00', 'Ilse Kuipers', 'Gezichtsbehandeling', 'Sophie'),
-  appt(3, '14:00', 'Lisa Jansen', 'Controle', 'Danica'),
+  appt(3, '14:00', 'Lisa Jansen', 'Controle', 'Danicá'),
   appt(4, '10:30', 'Karin Veldman', 'Laserontharing', 'Sophie'),
 ]).select('id, customer_id, service_id, appointment_date, status, journey_session_number'), 'appointments');
 
@@ -350,7 +350,7 @@ const trTemplates = ok(await db.from('treatment_record_templates').insert([
 ]).select('id, title, schema, version'), 'treatment templates');
 const trt = Object.fromEntries(trTemplates.map((t) => [t.title, t]));
 
-async function addRecord({ tplTitle, customer, appointmentId, values, whenOffset, employee = 'Danica' }) {
+async function addRecord({ tplTitle, customer, appointmentId, values, whenOffset, employee = 'Danicá' }) {
   const t = trt[tplTitle];
   return ok(await db.from('treatment_records').insert({
     user_id: uid, is_demo: true, customer_id: cus[customer], appointment_id: appointmentId,
