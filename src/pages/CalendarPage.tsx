@@ -18,6 +18,8 @@ import {
 import { ChevronDown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoMode } from "@/hooks/useDemoMode";
+import { GuidanceHint } from "@/components/demo/GuidanceHint";
+
 import { EmployeeAvatar, EmployeeAvatarStack } from "@/components/EmployeeAvatar";
 import {
   DndContext, DragEndEvent, PointerSensor, TouchSensor, KeyboardSensor,
@@ -1103,8 +1105,15 @@ export default function CalendarPage() {
         </div>
       }>
 
+      <GuidanceHint
+        id="agenda-open-afspraak"
+        text="Open een afspraak om direct te zien wat er nog nodig is."
+        className="mb-3"
+      />
+
       {/* Employee selector & workload overview */}
       <div className="mb-4 opacity-0 animate-fade-in-up" style={{ animationDelay: '30ms' }}>
+
         {/* Employee quick-switch bar */}
         <div className="flex items-center gap-2 flex-wrap">
           <button
