@@ -177,7 +177,7 @@ export function CustomerDossierPanel({ customerId, appointmentId = null, compact
             const submission = submissions.find((s) => s.request_id === r.id);
             return (
               <div key={r.id} className="rounded-xl border border-border p-3">
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                   <div>
                     <p className="text-sm font-medium text-foreground">{template?.title || submission?.rendered_snapshot?.title || "Formulier"}</p>
                     <p className="text-xs text-muted-foreground flex items-center gap-1">
@@ -192,7 +192,7 @@ export function CustomerDossierPanel({ customerId, appointmentId = null, compact
                       </p>
                     )}
                   </div>
-                  <div className="flex gap-1">
+                  <div className="flex flex-wrap items-center gap-1">
                     {canSend && r.status === "completed" && !compact && (
                       <Button variant="ghost" size="sm" onClick={() => markReissue(r.template_id)}>
                         Opnieuw laten invullen

@@ -57,7 +57,7 @@ const MODULES = [
   { title: "Slimme wachtlijst", desc: "Klanten in de wachtrij krijgen direct een aanbod via WhatsApp.", icon: Clock, to: "/wachtlijst", cta: "Bekijken" },
   { title: "Klanten terughalen", desc: "Win klanten terug die al een tijdje niet zijn geweest.", icon: RotateCcw, to: "/herboekingen", cta: "Openen" },
   { title: "No-show recovery", desc: "Vraag automatisch een aanbetaling bij risicoklanten.", icon: Wallet, to: "/instellingen", cta: "Instellen" },
-  { title: "Aanbetalingen", desc: "Bevestig boekingen pas na (deel)betaling — minder no-shows.", icon: CreditCard, to: "/instellingen", cta: "Instellen" },
+  { title: "Aanbetalingen", desc: "Bevestig boekingen pas na (deel)betaling, zo voorkom je no-shows.", icon: CreditCard, to: "/instellingen", cta: "Instellen" },
   { title: "VIP winback", desc: "Beloon je beste klanten met een persoonlijk aanbod.", icon: Crown, to: "/marketing", cta: "Openen" },
   { title: "Verjaardag campagnes", desc: "Stuur automatisch een verjaardagsaanbod en boek extra omzet.", icon: Gift, to: "/marketing", cta: "Openen" },
 ];
@@ -185,7 +185,7 @@ export default function AutoRevenuePage() {
             text = `Aanbod aan ${name} is verlopen`;
             badge = "verlopen";
           } else if (o.status === "pending_payment") {
-            text = `${name} reageerde JA — wacht op betaling`;
+            text = `${name} reageerde JA, wacht op betaling`;
             badge = "wacht op betaling";
           } else if (o.status === "sent") {
             text = `Aanbod verstuurd naar ${name}${service}`;
@@ -257,7 +257,7 @@ export default function AutoRevenuePage() {
                   Laat GlowSuite automatisch je lege plekken vullen.
                 </h2>
                 <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-                  Wachtlijst, no-show recovery, klanten terughalen en aanbetalingen — in één systeem. Eén keer activeren, daarna draait het op de achtergrond.
+                  Wachtlijst, no-show recovery, klanten terughalen en aanbetalingen in één systeem. Eén keer activeren, daarna draait het op de achtergrond.
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row lg:flex-col gap-2 lg:items-end shrink-0">

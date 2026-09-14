@@ -305,8 +305,8 @@ export function AutoRevenueEngine({ source = "overview" }: AutoRevenueEngineProp
       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 pointer-events-none" />
       <div className="relative">
         {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div className="flex min-w-0 items-center gap-2">
             <div className="w-8 h-8 rounded-lg gradient-bg flex items-center justify-center">
               <Zap className="w-4 h-4 text-primary-foreground" />
             </div>
@@ -353,7 +353,7 @@ export function AutoRevenueEngine({ source = "overview" }: AutoRevenueEngineProp
           )}
           <p className="text-sm flex items-start gap-2">
             <span className="font-semibold">📅</span>
-            <span>Bezettingsgraad vandaag: <span className="font-semibold">{totalSlots > 0 ? Math.round((todaysAppts.length / totalSlots) * 100) : 0}%</span> — {emptySlots > 0 ? `${emptySlots} plekken te vullen` : 'volledig gevuld!'}</span>
+            <span>Bezettingsgraad vandaag: <span className="font-semibold">{totalSlots > 0 ? Math.round((todaysAppts.length / totalSlots) * 100) : 0}%</span>. {emptySlots > 0 ? `${emptySlots} plekken te vullen` : 'Volledig gevuld.'}</span>
           </p>
         </div>
 
@@ -443,7 +443,7 @@ export function AutoRevenueEngine({ source = "overview" }: AutoRevenueEngineProp
               {currentStep >= DEMO_STEPS.length && (
                 <div className="flex items-center gap-2 text-sm text-success font-medium">
                   <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
-                  <span>Voltooid — afspraken staan in je agenda!</span>
+                  <span>Voltooid. Afspraken staan in je agenda.</span>
                 </div>
               )}
             </div>
