@@ -246,12 +246,12 @@ export function CustomerAIProfile({ intel }: Props) {
           Klantstatus
         </p>
         <div className="grid grid-cols-3 gap-1.5">
-          <ScorePill label="Loyalty" value={intel.loyaltyScore} icon={Heart} tone="primary" />
+          <ScorePill label="Loyaliteit" value={intel.loyaltyScore} icon={Heart} tone="primary" />
           <ScorePill label="Risico op vertrek" value={intel.churnRisk} icon={AlertTriangle} invert tone="destructive" />
-          <ScorePill label="Spend" value={intel.spendingScore} icon={Euro} tone="success" />
-          <ScorePill label="Engage" value={intel.campaignEngagement} icon={MessageCircle} tone="primary" />
-          <ScorePill label="Attend" value={intel.attendanceScore} icon={CheckCircle2} tone="success" />
-          <ScorePill label="Rebook" value={intel.rebookingLikelihood} icon={Activity} tone="primary" />
+          <ScorePill label="Besteding" value={intel.spendingScore} icon={Euro} tone="success" />
+          <ScorePill label="Betrokkenheid" value={intel.campaignEngagement} icon={MessageCircle} tone="primary" />
+          <ScorePill label="Aanwezigheid" value={intel.attendanceScore} icon={CheckCircle2} tone="success" />
+          <ScorePill label="Herboeking" value={intel.rebookingLikelihood} icon={Activity} tone="primary" />
         </div>
       </div>
 
