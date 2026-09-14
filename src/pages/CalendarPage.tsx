@@ -986,7 +986,7 @@ export default function CalendarPage() {
             type="button"
             onClick={(e) => e.stopPropagation()}
             className={cn(
-              "h-9 px-4 rounded-full border font-medium whitespace-nowrap text-xs flex items-center gap-1.5 transition-colors hover:opacity-90",
+              "h-7 max-w-full px-2 rounded-full border font-medium whitespace-nowrap text-[10px] flex items-center gap-1 transition-colors hover:opacity-90 sm:h-9 sm:px-4 sm:text-xs sm:gap-1.5",
               current.pill
             )}
             aria-label={`Status: ${current.label}`}
@@ -1107,7 +1107,7 @@ export default function CalendarPage() {
 
       <GuidanceHint
         id="agenda-open-afspraak"
-        text="Open een afspraak om direct te zien wat er nog nodig is."
+        text="Hier zie je direct wat vandaag aandacht nodig heeft."
         className="mb-3"
       />
 
@@ -1593,42 +1593,46 @@ export default function CalendarPage() {
                               )}
                             </div>
 
-                            {/* Bottom row: drag handle • move • status • delete */}
-                            <div className="flex items-center justify-between gap-2 mt-auto pt-1">
+                            {/* Bottom row: compact, wrapping controls stay inside narrow mobile cards. */}
+                            <div className="mt-auto flex min-w-0 flex-col gap-1 pt-1 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
+                              <div className="flex min-w-0 items-center justify-between gap-1 sm:contents">
                               <button
                                 {...listeners}
                                 {...attributes}
-                                className="min-h-9 min-w-9 p-2 rounded-lg hover:bg-secondary/60 active:bg-secondary cursor-grab active:cursor-grabbing shrink-0 -ml-1 flex items-center justify-center"
+                                className="flex h-8 w-8 shrink-0 -ml-1 cursor-grab items-center justify-center rounded-lg hover:bg-secondary/60 active:cursor-grabbing active:bg-secondary sm:h-9 sm:w-9"
                                 aria-label="Sleep om te verplaatsen"
                                 onClick={(e) => e.stopPropagation()}
                                 style={{ touchAction: 'none' }}
                               >
                                 <GripVertical className="w-4 h-4 text-muted-foreground" />
                               </button>
-                              <div className="flex items-center gap-1 shrink-0">
+                              <div className="flex min-w-0 items-center gap-1 sm:shrink-0">
                                 {dossierStatuses[apt.id] && (
                                   <button
                                     onClick={(e) => { e.stopPropagation(); setDossierAppt(apt); }}
                                     aria-label="Dossier openen"
                                     title="Afspraak en dossier openen"
-                                    className="min-h-9 flex items-center"
+                                    className="flex h-8 min-w-0 items-center sm:h-9"
                                   >
                                     <DossierStatusBadge status={dossierStatuses[apt.id].status} />
                                   </button>
                                 )}
+                                <StatusPill apt={apt} />
+                              </div>
+                              </div>
+                              <div className="flex items-center justify-end gap-1 sm:shrink-0">
                                 <button
                                   onClick={(e) => { e.stopPropagation(); openMoveSheet(apt); }}
-                                  className="min-h-9 px-2 rounded-lg hover:bg-secondary/60 flex items-center gap-1 text-[11px] text-muted-foreground"
+                                  className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary/60 sm:h-9 sm:w-auto sm:px-2"
                                   aria-label="Verplaats afspraak"
                                   title="Verplaats afspraak"
                                 >
                                   <ArrowRightLeft className="w-3.5 h-3.5" />
                                   {!isMobile && <span>Verplaats</span>}
                                 </button>
-                                <StatusPill apt={apt} />
                                 <button
                                   onClick={(e) => { e.stopPropagation(); handleDelete(apt.id); }}
-                                  className="min-h-9 min-w-9 p-2 rounded-lg hover:bg-destructive/15 flex items-center justify-center"
+                                  className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-destructive/15 sm:h-9 sm:w-9"
                                   aria-label="Verwijder afspraak"
                                 >
                                   <Trash2 className="w-3.5 h-3.5 text-destructive" />

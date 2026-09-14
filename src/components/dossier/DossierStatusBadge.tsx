@@ -8,7 +8,7 @@ const STYLES: Record<DossierStatusValue, string> = {
 
 export function DossierStatusBadge({ status, title }: { status: DossierStatusValue; title?: string }) {
   return (
-    <span title={title} className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${STYLES[status]}`}>
+    <span title={title} className={`max-w-full whitespace-nowrap rounded-full border px-1.5 py-0.5 text-[10px] font-medium sm:px-2 sm:text-[11px] ${STYLES[status]}`}>
       {DOSSIER_STATUS_LABEL[status]}
     </span>
   );

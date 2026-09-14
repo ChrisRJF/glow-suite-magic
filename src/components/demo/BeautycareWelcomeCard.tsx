@@ -30,18 +30,17 @@ export function BeautycareWelcomeCard() {
   };
 
   return (
-    <section className="rounded-2xl border border-border/60 bg-card/70 p-4 sm:p-5" style={{ boxShadow: "var(--shadow-sm)" }}>
-      <h2 className="text-base font-semibold text-foreground">Welkom Danicá 👋</h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        We hebben deze demo alvast voor Beautycare Groningen ingericht. Bekijk hoe je afspraken, intakeformulieren,
-        behandelverslagen, foto's en behandeltrajecten op één plek beheert. Probeer bijvoorbeeld eerst de afspraak van
-        Sanne de Jong.
+    <section className="rounded-xl border border-border/60 bg-card/70 p-3 sm:p-4" style={{ boxShadow: "var(--shadow-sm)" }}>
+      <h2 className="text-sm font-semibold text-foreground">Welkom Danicá</h2>
+      <p className="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
+        Deze demo is alvast ingericht voor Beautycare Groningen. Bekijk hoe afspraken, intakeformulieren,
+        behandelverslagen, foto’s en behandeltrajecten op één plek samenkomen.
       </p>
-      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-        <Button variant="gradient" className="h-11 w-full sm:w-auto" onClick={() => navigate("/agenda")}>
+      <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+        <Button variant="gradient" size="sm" className="h-9 px-3" onClick={() => navigate("/agenda")}>
           <CalendarDays className="h-4 w-4" /> Start met de agenda
         </Button>
-        <Button variant="ghost" size="sm" className="h-11 w-full text-muted-foreground sm:w-auto" onClick={close}>
+        <Button variant="link" size="sm" className="h-8 px-0 text-xs text-muted-foreground" onClick={close}>
           Zelf rondkijken
         </Button>
       </div>

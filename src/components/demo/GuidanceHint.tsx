@@ -38,15 +38,15 @@ export function GuidanceHint({ id, text, className = "" }: Props) {
 
   return (
     <div
-      className={`flex items-start gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-foreground/80 ${className}`}
+      className={`flex items-center gap-2 rounded-lg border border-border/60 bg-muted/35 px-2.5 py-1.5 text-[11px] leading-snug text-muted-foreground ${className}`}
     >
-      <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+      <Lightbulb className="h-3 w-3 shrink-0 text-primary" />
       <p className="min-w-0 flex-1 break-words">{text}</p>
       <button
         type="button"
         onClick={dismiss}
         aria-label="Tip sluiten"
-        className="-mr-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary"
+        className="-mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary"
       >
         <X className="h-3.5 w-3.5" />
       </button>

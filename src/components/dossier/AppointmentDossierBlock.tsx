@@ -62,7 +62,7 @@ export function AppointmentDossierBlock({ customerId, appointmentId, serviceId, 
 
       <GuidanceHint
         id="afspraak-volgende-actie"
-        text="GlowSuite laat hier zien wat je als volgende kunt doen."
+        text="Open een afspraak en kijk wat nog nodig is."
       />
 
       {reasons ? (
