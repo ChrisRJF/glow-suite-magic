@@ -1088,7 +1088,7 @@ export default function CalendarPage() {
               variant="outline"
               onClick={() => setReflowOpen(true)}
               className="h-12 lg:h-9 rounded-2xl lg:rounded-xl text-sm min-w-0 px-3 gap-1"
-              title="Slim plannen — optimaliseer de dag"
+              title="Slim plannen: optimaliseer de dag"
             >
               <Sparkles className="w-4 h-4 shrink-0" /> <span className="truncate">Slim plannen</span>
             </Button>
@@ -1294,7 +1294,7 @@ export default function CalendarPage() {
                     <select value={form.service_id} onChange={e => setForm({...form, service_id: e.target.value})}
                       className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
                       <option value="">Selecteer behandeling</option>
-                      {services.filter(s => s.is_active).map(s => <option key={s.id} value={s.id}>{s.name} — {formatEuro(s.price)}</option>)}
+                      {services.filter(s => s.is_active).map(s => <option key={s.id} value={s.id}>{s.name} · {formatEuro(s.price)}</option>)}
                     </select>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1400,7 +1400,7 @@ export default function CalendarPage() {
                             onChange={e => { const updated = [...subAppts]; updated[idx].service_id = e.target.value; updated[idx].assigned_employee = ''; setSubAppts(updated); }}
                             className="w-full px-3 py-2 rounded-xl bg-background border border-border text-sm">
                             <option value="">Behandeling</option>
-                            {services.filter(s => s.is_active).map(s => <option key={s.id} value={s.id}>{s.name} — {formatEuro(s.price)}</option>)}
+                            {services.filter(s => s.is_active).map(s => <option key={s.id} value={s.id}>{s.name} · {formatEuro(s.price)}</option>)}
                           </select>
                           <div className="flex gap-2">
                             <button onClick={() => { const u = [...subAppts]; u[idx].assignment_mode = 'manual'; setSubAppts(u); }}
@@ -1526,7 +1526,7 @@ export default function CalendarPage() {
                       null
                     ) : isPauzeSlot && !apt ? (
                       <div className="absolute inset-x-0 top-1 h-[40px] rounded-xl bg-accent/50 border border-border/30 flex items-center justify-center z-0">
-                        <span className="text-[11px] text-muted-foreground">☕ Pauze — {selectedEmp?.name || selectedEmployee}</span>
+                        <span className="text-[11px] text-muted-foreground">☕ Pauze · {selectedEmp?.name || selectedEmployee}</span>
                       </div>
                     ) : apt ? (() => {
                       const displayEmps = getDisplayEmployees(apt);
