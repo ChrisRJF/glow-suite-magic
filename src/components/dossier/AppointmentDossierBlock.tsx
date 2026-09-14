@@ -8,6 +8,8 @@ import { useDossierStatus, DOSSIER_STATUS_LABEL } from "@/hooks/useDossierStatus
 import { useDossierAccess } from "@/hooks/useDossierAccess";
 import { useDossierOverview } from "@/hooks/useDossierOverview";
 import { AiSummaryButton } from "./AiSummaryButton";
+import { GuidanceHint } from "@/components/demo/GuidanceHint";
+
 
 interface Props {
   customerId: string;
@@ -58,6 +60,11 @@ export function AppointmentDossierBlock({ customerId, appointmentId, serviceId, 
         {entry && <DossierStatusBadge status={entry.status} />}
       </div>
 
+      <GuidanceHint
+        id="afspraak-volgende-actie"
+        text="GlowSuite laat hier zien wat je als volgende kunt doen."
+      />
+
       {reasons ? (
         <DossierCheckCard
           reasons={reasons as never}
@@ -69,6 +76,7 @@ export function AppointmentDossierBlock({ customerId, appointmentId, serviceId, 
       ) : (
         <p className="text-xs text-muted-foreground">{DOSSIER_STATUS_LABEL.af_te_ronden}</p>
       )}
+
 
       {canViewContent && (
         <AiSummaryButton
