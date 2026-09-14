@@ -165,7 +165,7 @@ export function ClinicalMediaPanel({ customerId, appointmentId = null, treatment
       ) : (
         <div className="flex flex-wrap gap-2">
           {media.map((m) => (
-            <div key={m.id} className="rounded-lg border border-border p-2 text-xs">
+            <div key={m.id} className="w-full rounded-lg border border-border p-3 text-xs sm:w-auto">
               <button className="text-left" onClick={() => openPreview(m.id)}>
                 <p className="font-medium text-foreground">{CATEGORY_LABEL[m.category] || m.category}</p>
                 <p className="text-muted-foreground">
@@ -180,14 +180,17 @@ export function ClinicalMediaPanel({ customerId, appointmentId = null, treatment
                 <p className="mt-1 font-medium text-primary">Vrijgegeven voor marketing</p>
               )}
               {canManageTemplates && (
-                <div className="mt-1 flex flex-wrap gap-2">
+                <div className="mt-2 flex flex-wrap gap-2">
                   <button
-                    className="text-muted-foreground hover:text-foreground"
+                    className="min-h-9 rounded-lg border border-border px-3 py-1.5 text-muted-foreground hover:text-foreground"
                     onClick={() => toggleMarketing(m.id, !m.marketing_approved)}
                   >
                     {m.marketing_approved ? "Marketingvrijgave intrekken" : "Vrijgeven voor marketing"}
                   </button>
-                  <button className="text-muted-foreground hover:text-foreground" onClick={() => remove(m.id)}>
+                  <button
+                    className="min-h-9 rounded-lg border border-border px-3 py-1.5 text-muted-foreground hover:text-foreground"
+                    onClick={() => remove(m.id)}
+                  >
                     Verwijderen
                   </button>
                 </div>
@@ -200,7 +203,7 @@ export function ClinicalMediaPanel({ customerId, appointmentId = null, treatment
       {preview && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/90 p-4" onClick={() => setPreview(null)}>
           <img src={preview} alt="Foto uit het dossier" className="max-h-[80vh] max-w-full rounded-xl" />
-          <button className="absolute right-4 top-4 text-muted-foreground" aria-label="Sluiten">
+          <button className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full border border-border bg-background text-muted-foreground" aria-label="Sluiten">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -208,7 +211,7 @@ export function ClinicalMediaPanel({ customerId, appointmentId = null, treatment
 
       {compare && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/90 p-4" onClick={() => setCompare(null)}>
-          <div className="grid w-full max-w-3xl grid-cols-2 gap-3">
+          <div className="grid max-h-[85vh] w-full max-w-3xl grid-cols-1 gap-3 overflow-y-auto sm:grid-cols-2">
             <div>
               <p className="mb-1 text-xs text-muted-foreground">Voor</p>
               <img src={compare.before} alt="Voorfoto" className="w-full rounded-xl" />
