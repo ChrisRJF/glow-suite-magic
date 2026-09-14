@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Route, Plus, CalendarPlus, CheckCircle2, Clock3, Circle } from "lucide-react";
 import { toast } from "sonner";
 import { useDossierAccess } from "@/hooks/useDossierAccess";
+import { GuidanceHint } from "@/components/demo/GuidanceHint";
+
 
 interface Journey {
   id: string;
