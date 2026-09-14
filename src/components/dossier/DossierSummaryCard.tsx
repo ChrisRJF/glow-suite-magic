@@ -46,9 +46,13 @@ export function DossierSummaryCard({ customerId }: { customerId: string }) {
         </span>
       </div>
 
+      <p className="text-sm font-semibold text-foreground">
+        Volgende actie: {action ? action.label : "niets, dit dossier is bij"}
+      </p>
+
       <div className="space-y-1 text-xs text-muted-foreground">
         <p>
-          Recente afspraken:{" "}
+          Laatste afspraken:{" "}
           {recent.length === 0
             ? "nog geen"
             : recent
@@ -59,10 +63,10 @@ export function DossierSummaryCard({ customerId }: { customerId: string }) {
                 .join(" · ")}
         </p>
         <p>
-          Formulieren: {completedForms.length} ingevuld, {openForms.length} openstaand
+          Formulieren: {completedForms.length} ingevuld, {openForms.length} nog invullen
         </p>
         <p>
-          Marketingtoestemming:{" "}
+          Toestemming marketing:{" "}
           {marketing ? (marketing.event === "granted" ? "gegeven" : "ingetrokken") : "niet vastgelegd"}
         </p>
         <p>
@@ -71,12 +75,10 @@ export function DossierSummaryCard({ customerId }: { customerId: string }) {
             ? `${activeJourney.name} · ${o.appointments.filter((a) => a.journey_id === activeJourney.id).length}/${activeJourney.planned_sessions ?? "?"} sessies`
             : "geen"}
         </p>
-        <p>Afgeronde behandelverslagen: {completedRecords.length}</p>
-        <p>Aandachtspunten: {o.openAlerts > 0 ? `${o.openAlerts} open` : "geen open punten"}</p>
-        <p className="font-medium text-foreground">
-          Volgende actie: {action ? action.label : "niets, dit dossier is bij"}
-        </p>
+        <p>Afgeronde verslagen: {completedRecords.length}</p>
+        <p>Aandachtspunten: {o.openAlerts > 0 ? `${o.openAlerts} open` : "geen"}</p>
       </div>
+
       <p className="text-[11px] text-muted-foreground">
         Alleen administratief overzicht uit bestaande gegevens. Geen diagnose of behandeladvies.
       </p>
