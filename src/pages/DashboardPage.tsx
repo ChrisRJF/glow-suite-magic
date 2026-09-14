@@ -20,6 +20,8 @@ import { WhyHint } from "@/components/WhyHint";
 import { AnimatedCounter } from "@/components/AnimatedCounter";
 import { PremiumOwnerMetrics } from "@/components/PremiumOwnerMetrics";
 import { useDemoMode } from "@/hooks/useDemoMode";
+import { BeautycareWelcomeCard } from "@/components/demo/BeautycareWelcomeCard";
+
 import { actionLogKey, clearLegacyDemoLocalState } from "@/lib/demoIsolation";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
@@ -128,7 +130,9 @@ export default function DashboardPage() {
       subtitle={new Date().toLocaleDateString("nl-NL", { weekday: "long", day: "numeric", month: "long" })}
     >
       <div className="space-y-5">
+        <BeautycareWelcomeCard />
         <TodayBriefing title="Vandaag aandacht nodig" showEmptyState />
+
 
         <section aria-labelledby="planning-vandaag">
           <div className="mb-3 flex items-end justify-between gap-3">

@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Route, Plus, CalendarPlus, CheckCircle2, Clock3, Circle } from "lucide-react";
 import { toast } from "sonner";
 import { useDossierAccess } from "@/hooks/useDossierAccess";
+import { GuidanceHint } from "@/components/demo/GuidanceHint";
+
 
 interface Journey {
   id: string;
@@ -102,6 +104,9 @@ export function JourneyPanel({ customerId }: { customerId: string }) {
           <Plus className="mr-1 h-3.5 w-3.5" /> Nieuw
         </Button>
       </div>
+
+      <GuidanceHint id="traject-sessies" text="Hier zie je welke sessies klaar zijn en wat de volgende stap is." />
+
 
       {adding && (
         <div className="space-y-2 rounded-xl border border-border p-3">
