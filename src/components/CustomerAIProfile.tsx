@@ -259,7 +259,7 @@ export function CustomerAIProfile({ intel }: Props) {
       <div className="rounded-2xl border border-border bg-secondary/40 p-3">
         <div className="flex items-center justify-between mb-2">
           <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">
-            Revenue
+            Omzet
           </p>
           <span
             className={cn(
