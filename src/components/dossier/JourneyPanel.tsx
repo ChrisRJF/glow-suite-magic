@@ -103,6 +103,9 @@ export function JourneyPanel({ customerId }: { customerId: string }) {
         </Button>
       </div>
 
+      <GuidanceHint id="traject-sessies" text="Hier zie je welke sessies klaar zijn en wat de volgende stap is." />
+
+
       {adding && (
         <div className="space-y-2 rounded-xl border border-border p-3">
           <Input placeholder="Naam, bijvoorbeeld Huidverbetering" value={name} onChange={(e) => setName(e.target.value)} />
