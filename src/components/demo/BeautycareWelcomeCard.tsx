@@ -31,7 +31,7 @@ export function BeautycareWelcomeCard() {
 
   return (
     <section className="rounded-2xl border border-border/60 bg-card/70 p-4 sm:p-5" style={{ boxShadow: "var(--shadow-sm)" }}>
-      <h2 className="text-base font-semibold text-foreground">Welkom Danica 👋</h2>
+      <h2 className="text-base font-semibold text-foreground">Welkom Danicá 👋</h2>
       <p className="mt-1 text-sm text-muted-foreground">
         We hebben deze demo alvast voor Beautycare Groningen ingericht. Bekijk hoe je afspraken, intakeformulieren,
         behandelverslagen, foto's en behandeltrajecten op één plek beheert. Probeer bijvoorbeeld eerst de afspraak van
