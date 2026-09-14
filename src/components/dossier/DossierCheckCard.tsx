@@ -54,23 +54,35 @@ export function DossierCheckCard({
   };
   const signals = buildPreparation(input);
   const action = nextAction(input);
+  const open = signals.filter((s) => s.tone !== "ok");
+  const done = signals.filter((s) => s.tone === "ok");
 
   return (
     <div className="space-y-3 rounded-xl border border-border p-3">
-      <p className="text-xs font-medium text-foreground">Voorbereiding</p>
-      <div className="space-y-1">
-        {signals.map((s) => (
-          <Row key={s.key} signal={s} />
-        ))}
-      </div>
-
-      <p className="flex items-center gap-1.5 text-xs font-medium text-foreground">
-        <ArrowRight className="h-3 w-3 text-primary" />
-        {action ? `Volgende actie: ${action.label}` : "Volgende actie: niets, dit dossier is compleet"}
+      <p className="flex items-start gap-1.5 text-sm font-semibold text-foreground">
+        <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+        {action ? action.label : "Alles is compleet voor deze afspraak."}
       </p>
+
+      {open.length > 0 && (
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-foreground">Nog nodig</p>
+          {open.map((s) => (
+            <Row key={s.key} signal={s} />
+          ))}
+        </div>
+      )}
+
+      {done.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          Al in orde: {done.map((s) => s.label).join(" · ")}
+        </p>
+      )}
+
       <p className="text-[11px] text-muted-foreground">
-        Administratieve controle. GlowSuite stelt geen diagnose en geeft geen behandeladvies.
+        Alleen een controle van de administratie. Geen diagnose of behandeladvies.
       </p>
     </div>
   );
 }
+

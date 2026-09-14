@@ -196,8 +196,9 @@ export default function CustomersPage() {
                    </div>
                 </div>
                 <div className="space-y-3 mb-6">
-                  <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/50"><Phone className="w-4 h-4 text-muted-foreground" /><span className="text-sm">{selectedCustomer.phone || '—'}</span></div>
-                  <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/50"><Mail className="w-4 h-4 text-muted-foreground" /><span className="text-sm">{selectedCustomer.email || '—'}</span></div>
+                  <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/50"><Phone className="w-4 h-4 text-muted-foreground" /><span className="text-sm">{selectedCustomer.phone || 'Geen telefoonnummer'}</span></div>
+                  <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/50"><Mail className="w-4 h-4 text-muted-foreground" /><span className="text-sm">{selectedCustomer.email || 'Geen e-mailadres'}</span></div>
+
                 </div>
                 {/* AI-powered customer intelligence */}
                 <div className="mb-6">
