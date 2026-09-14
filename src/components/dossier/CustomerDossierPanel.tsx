@@ -13,6 +13,8 @@ import { JourneyPanel } from "./JourneyPanel";
 import { DossierSummaryCard } from "./DossierSummaryCard";
 import { DossierSearchCard } from "./DossierSearchCard";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { GuidanceHint } from "@/components/demo/GuidanceHint";
+
 
 interface Props {
   customerId: string;
@@ -145,10 +147,15 @@ export function CustomerDossierPanel({ customerId, appointmentId = null, compact
 
       {!compact && (
         <>
+          <GuidanceHint
+            id="dossier-overzicht"
+            text="Hier vind je intake, behandelverslagen, foto's, toestemmingen en het behandeltraject bij elkaar."
+          />
           <DossierSummaryCard customerId={customerId} />
           <DossierSearchCard customerId={customerId} />
         </>
       )}
+
 
       <div className="flex items-center justify-between gap-3">
         <div>
