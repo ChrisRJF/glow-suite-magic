@@ -62,7 +62,9 @@ export function AppointmentDossierBlock({ customerId, appointmentId, serviceId, 
 
       <GuidanceHint
         step={2}
-        text="Open een afspraak. GlowSuite laat direct zien wat nog nodig is."
+        text="Hier zie je direct wat voor deze afspraak nog nodig is."
+        ctaLabel="Open klantdossier"
+        onCta={() => navigate(`/klanten?customer=${customerId}`)}
       />
 
       {reasons ? (
