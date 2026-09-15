@@ -84,3 +84,8 @@ export function resetDemoGuidance() {
   }
   emit();
 }
+
+/** Closes the guided route: dismisses every remaining step, keeps all data untouched. */
+export function finishGuidance() {
+  for (let s = 1; s <= GUIDANCE_TOTAL; s++) dismissStep(s);
+}
