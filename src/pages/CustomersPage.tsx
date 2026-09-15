@@ -34,6 +34,15 @@ export default function CustomersPage() {
     return f || "alle";
   });
 
+  // Open a specific dossier straight away when the route names a customer.
+  useEffect(() => {
+    const id = searchParams.get("customer");
+    if (!id || selectedCustomer?.id === id) return;
+    const match = customers.find((c) => c.id === id);
+    if (match) { setSelectedCustomer(match); setEditing(false); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, customers]);
+
   const customerIntel = useMemo(() => {
     return customers.map(c => {
       const custAppts = appointments.filter(a => a.customer_id === c.id && a.status !== 'geannuleerd');
