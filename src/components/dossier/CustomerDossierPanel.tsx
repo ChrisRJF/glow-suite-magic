@@ -150,7 +150,9 @@ export function CustomerDossierPanel({ customerId, appointmentId = null, compact
         <>
           <GuidanceHint
             step={3}
-            text="Hier vind je intake, verslagen, foto's en toestemmingen bij elkaar."
+            text="Hier staan intake, behandelverslagen, foto's en toestemmingen bij elkaar."
+            ctaLabel="Bekijk behandeltraject"
+            onCta={goToJourney}
           />
           <DossierSummaryCard customerId={customerId} />
           <DossierSearchCard customerId={customerId} />
@@ -260,7 +262,9 @@ export function CustomerDossierPanel({ customerId, appointmentId = null, compact
 
       {!compact && (
         <div className="space-y-5 border-t border-border pt-4">
-          <JourneyPanel customerId={customerId} />
+          <div id="behandeltraject" className="scroll-mt-24">
+            <JourneyPanel customerId={customerId} />
+          </div>
           <CustomerAlertsPanel customerId={customerId} />
           <Accordion type="multiple" className="rounded-xl border border-border px-3">
             <AccordionItem value="timeline">
