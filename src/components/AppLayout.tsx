@@ -36,11 +36,11 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
               <div className="flex items-center gap-3">
                 <h1 className="text-page-title text-balance">{title}</h1>
                 {demoMode && (
-                  <span className="inline-flex items-center rounded-lg bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary border border-primary/15">
+                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary border border-primary/15">
                     Demo omgeving
+                    <DemoGuidanceReset className="text-primary/70 hover:text-primary" />
                   </span>
                 )}
-                <DemoGuidanceReset />
               </div>
               {subtitle && <p className="text-meta leading-relaxed">{subtitle}</p>}
             </div>
@@ -59,10 +59,10 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
               <div className="min-w-0 flex-1">
                 {subtitle && <p className="text-meta leading-relaxed truncate">{subtitle}</p>}
               </div>
-              <DemoGuidanceReset />
               {demoMode && (
-                <span className="shrink-0 rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary border border-primary/15">
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary border border-primary/15">
                   Demo
+                  <DemoGuidanceReset className="text-primary/70 hover:text-primary" />
                 </span>
               )}
             </div>
