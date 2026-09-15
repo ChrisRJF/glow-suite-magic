@@ -200,9 +200,9 @@ export function CustomerDossierPanel({ customerId, appointmentId = null, compact
       </div>
 
       {canSend && templates.length > 0 && (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           {templates.map((t) => (
-            <Button key={t.id} variant="outline" size="sm" disabled={sending === t.id} onClick={() => send(t.id)}>
+            <Button className="w-full whitespace-normal sm:w-auto" key={t.id} variant="outline" size="sm" disabled={sending === t.id} onClick={() => send(t.id)}>
               <Send className="h-3.5 w-3.5 mr-1" />
               {sending === t.id ? "Versturen..." : `Verstuur ${t.title}`}
             </Button>
@@ -234,7 +234,7 @@ export function CustomerDossierPanel({ customerId, appointmentId = null, compact
                       </p>
                     )}
                   </div>
-                  <div className="flex flex-wrap items-center gap-1">
+                   <div className="flex flex-col items-stretch gap-1 sm:flex-row sm:flex-wrap sm:items-center">
                     {canSend && r.status === "completed" && !compact && (
                       <Button variant="ghost" size="sm" onClick={() => markReissue(r.template_id)}>
                         Opnieuw laten invullen

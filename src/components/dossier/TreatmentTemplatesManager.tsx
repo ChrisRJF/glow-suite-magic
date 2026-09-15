@@ -125,19 +125,19 @@ export function TreatmentTemplatesManager() {
   };
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-6 space-y-5">
+    <div className="space-y-5 rounded-2xl border border-border bg-card p-4 sm:p-6">
       <div>
         <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
-          <ClipboardList className="h-4 w-4 text-primary" /> Behandelverslagen
+           <ClipboardList className="h-4 w-4 text-primary" /> Behandelverslag aanpassen
         </h3>
         <p className="text-sm text-muted-foreground mt-1">
-          Bepaal wat de behandelaar na een behandeling vastlegt.
+           Pas de velden van het behandelverslag aan op jullie eigen werkwijze.
         </p>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row">
         <Input placeholder="Naam van het verslag" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} />
-        <Button onClick={create}>
+        <Button className="w-full sm:w-auto" onClick={create}>
           <Plus className="h-4 w-4 mr-1" /> Nieuw
         </Button>
       </div>
@@ -150,17 +150,22 @@ export function TreatmentTemplatesManager() {
         <div className="space-y-2">
           {templates.map((t) => (
             <div key={t.id} className="rounded-xl border border-border">
-              <div className="flex items-center justify-between gap-3 p-3">
-                <button className="text-left flex-1" onClick={() => setOpenId(openId === t.id ? null : t.id)}>
+               <div className="flex flex-col items-stretch gap-3 p-3 sm:flex-row sm:items-center sm:justify-between">
+                 <button className="min-w-0 flex-1 text-left" onClick={() => setOpenId(openId === t.id ? null : t.id)}>
                   <p className="text-sm font-medium text-foreground">{t.title}</p>
                   <p className="text-xs text-muted-foreground">
                     {services.find((s) => s.id === t.service_id)?.name || "Nog niet gekoppeld"}
                     {t.is_active ? "" : " · niet actief"}
                   </p>
                 </button>
-                <Button variant="ghost" size="icon" onClick={() => remove(t.id)} aria-label="Verwijderen">
-                  <Trash2 className="h-4 w-4 text-muted-foreground" />
-                </Button>
+                 <div className="flex items-center justify-between gap-2 sm:justify-end">
+                   <Button className="flex-1 sm:flex-none" variant="outline" size="sm" onClick={() => setOpenId(openId === t.id ? null : t.id)}>
+                     {openId === t.id ? "Sluiten" : "Behandelverslag aanpassen"}
+                   </Button>
+                   <Button variant="ghost" size="icon" onClick={() => remove(t.id)} aria-label="Verwijderen">
+                     <Trash2 className="h-4 w-4 text-muted-foreground" />
+                   </Button>
+                 </div>
               </div>
 
               {openId === t.id && (
@@ -186,9 +191,9 @@ export function TreatmentTemplatesManager() {
 
                   <div className="space-y-2">
                     {fields.map((f, i) => (
-                      <div key={i} className="flex flex-wrap items-center gap-2 rounded-lg border border-border p-2">
+                       <div key={i} className="flex flex-col items-stretch gap-2 rounded-lg border border-border p-2 sm:flex-row sm:flex-wrap sm:items-center">
                         <Input
-                          className="flex-1 min-w-[160px]"
+                           className="w-full min-w-0 sm:min-w-[160px] sm:flex-1"
                           value={f.label}
                           placeholder="Onderdeel"
                           onChange={(e) => {
@@ -198,7 +203,7 @@ export function TreatmentTemplatesManager() {
                           }}
                         />
                         <select
-                          className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+                           className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm sm:w-auto"
                           value={f.type}
                           onChange={(e) => {
                             const next = [...fields];
@@ -217,7 +222,7 @@ export function TreatmentTemplatesManager() {
                         </select>
                         {(f.type === "single_choice" || f.type === "multi_choice") && (
                           <Input
-                            className="min-w-[140px] flex-1"
+                             className="w-full min-w-0 sm:min-w-[140px] sm:flex-1"
                             value={(f.options ?? []).join(", ")}
                             placeholder="Opties, komma gescheiden"
                             onChange={(e) => {
@@ -241,7 +246,8 @@ export function TreatmentTemplatesManager() {
                             Verplicht
                           </label>
                         )}
-                        <Button
+                         <Button
+                           className="self-end sm:self-auto"
                           variant="ghost"
                           size="icon"
                           aria-label="Onderdeel verwijderen"
@@ -251,7 +257,8 @@ export function TreatmentTemplatesManager() {
                         </Button>
                       </div>
                     ))}
-                    <Button
+                     <Button
+                       className="w-full sm:w-auto"
                       variant="outline"
                       size="sm"
                       onClick={() => save(t.id, [...fields, { key: slugKey("", fields.length), label: "", type: "short_text", required: false }])}

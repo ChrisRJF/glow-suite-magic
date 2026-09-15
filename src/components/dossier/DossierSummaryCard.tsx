@@ -37,7 +37,7 @@ export function DossierSummaryCard({ customerId }: { customerId: string }) {
 
   return (
     <div className="space-y-2 rounded-xl border border-border p-3">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h4 className="flex items-center gap-2 text-sm font-semibold text-foreground">
           <ClipboardCheck className="h-4 w-4 text-primary" /> Dossier in het kort
         </h4>
@@ -51,7 +51,7 @@ export function DossierSummaryCard({ customerId }: { customerId: string }) {
       </p>
 
       <div className="space-y-1 text-xs text-muted-foreground">
-        <p>
+        <p className="break-words">
           Laatste afspraken:{" "}
           {recent.length === 0
             ? "nog geen"

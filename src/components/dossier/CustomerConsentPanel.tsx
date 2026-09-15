@@ -92,14 +92,15 @@ export function CustomerConsentPanel({ customerId, onChanged }: Props) {
           const value = status[s.key] ?? "not_given";
           const granted = value === "granted";
           return (
-            <div key={s.key} className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
-              <div>
+            <div key={s.key} className="flex flex-col items-stretch gap-3 rounded-lg border border-border p-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
                 <p className="text-sm font-medium text-foreground">{s.label}</p>
                 <p className="text-xs text-muted-foreground">{s.hint}</p>
                 <p className="mt-1 text-xs font-medium text-foreground">{STATUS_LABEL[value]}</p>
               </div>
               {mayManage && (
                 <Button
+                  className="w-full whitespace-normal sm:w-auto"
                   size="sm"
                   variant={granted ? "outline" : "default"}
                   disabled={busy === s.key}
@@ -120,8 +121,8 @@ export function CustomerConsentPanel({ customerId, onChanged }: Props) {
       </div>
 
       {canViewContent && (
-        <div>
-          <Button variant="ghost" size="sm" onClick={() => (events ? setEvents(null) : loadHistory())}>
+        <div className="px-0.5">
+          <Button className="w-full justify-start whitespace-normal sm:w-auto" variant="ghost" size="sm" onClick={() => (events ? setEvents(null) : loadHistory())}>
             <History className="mr-1 h-3.5 w-3.5" />
             {events ? "Historie verbergen" : "Historie bekijken"}
           </Button>

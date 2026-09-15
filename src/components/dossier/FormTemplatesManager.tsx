@@ -204,21 +204,26 @@ export function FormTemplatesManager() {
   };
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-6 space-y-5">
+    <div className="space-y-5 rounded-2xl border border-border bg-card p-4 sm:p-6">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
             <FileText className="h-4 w-4 text-primary" /> Klantformulieren
           </h3>
-          <p className="text-sm text-muted-foreground mt-1">
-            Maak intake- en toestemmingsformulieren die je klant op de telefoon invult.
+          <p className="mt-1 text-sm font-medium text-foreground">Maak je formulieren helemaal passend bij jouw kliniek.</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Voeg eigen vragen toe, pas vragen aan of verwijder vragen die je niet nodig hebt.
           </p>
         </div>
       </div>
 
-      <div className="flex gap-2">
+      <p className="rounded-lg bg-secondary/40 px-3 py-2 text-xs text-muted-foreground">
+        Tip: intake- en behandelformulieren kun je zelf aanpassen met jullie eigen vragen.
+      </p>
+
+      <div className="flex flex-col gap-2 sm:flex-row">
         <Input placeholder="Naam van het formulier" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} />
-        <Button onClick={createTemplate}>
+        <Button className="w-full sm:w-auto" onClick={createTemplate}>
           <Plus className="h-4 w-4 mr-1" /> Nieuw
         </Button>
       </div>
@@ -231,22 +236,27 @@ export function FormTemplatesManager() {
         <div className="space-y-2">
           {templates.map((t) => (
             <div key={t.id} className="rounded-xl border border-border">
-              <div className="flex items-center justify-between gap-3 p-3">
-                <button className="text-left flex-1" onClick={() => setOpenId(openId === t.id ? null : t.id)}>
+              <div className="flex flex-col items-stretch gap-3 p-3 sm:flex-row sm:items-center sm:justify-between">
+                <button className="min-w-0 flex-1 text-left" onClick={() => setOpenId(openId === t.id ? null : t.id)}>
                   <p className="text-sm font-medium text-foreground">{t.title}</p>
                   <p className="text-xs text-muted-foreground">
                     {t.current_version ? `Versie ${t.current_version} actief` : "Nog niet gepubliceerd"}
                     {t.require_signature ? " · handtekening vereist" : ""}
                   </p>
                 </button>
-                <Button variant="ghost" size="icon" onClick={() => removeTemplate(t.id)} aria-label="Verwijderen">
-                  <Trash2 className="h-4 w-4 text-muted-foreground" />
-                </Button>
+                <div className="flex items-center justify-between gap-2 sm:justify-end">
+                  <Button className="flex-1 sm:flex-none" variant="outline" size="sm" onClick={() => setOpenId(openId === t.id ? null : t.id)}>
+                    {openId === t.id ? "Sluiten" : "Formulier bewerken"}
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => removeTemplate(t.id)} aria-label="Verwijderen">
+                    <Trash2 className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                </div>
               </div>
 
               {openId === t.id && (
                 <div className="border-t border-border p-4 space-y-4">
-                  <div className="flex items-center justify-between">
+                   <div className="flex items-center justify-between gap-3">
                     <Label htmlFor={`sig-${t.id}`} className="text-sm">Handtekening vereist</Label>
                     <Switch
                       id={`sig-${t.id}`}
@@ -255,8 +265,8 @@ export function FormTemplatesManager() {
                     />
                   </div>
 
-                  <div className="flex items-center justify-between">
-                    <div>
+                   <div className="flex items-start justify-between gap-3">
+                     <div className="min-w-0">
                       <Label htmlFor={`consent-${t.id}`} className="text-sm">Legt toestemming voor foto's vast</Label>
                       <p className="text-xs text-muted-foreground">
                         Bij ondertekening wordt toestemming voor eigen kanalen vastgelegd in het dossier.
@@ -287,9 +297,9 @@ export function FormTemplatesManager() {
                       const defaultRule = f.type === "checkbox" ? "checked" : (f.options ?? [])[0] ?? "";
                       return (
                       <div key={i} className="space-y-2 rounded-lg border border-border p-2">
-                        <div className="flex flex-wrap items-center gap-2">
+                         <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:items-center">
                         <Input
-                          className="flex-1 min-w-[160px]"
+                           className="w-full min-w-0 sm:min-w-[160px] sm:flex-1"
                           value={f.label}
                           placeholder="Vraag"
                           onChange={(e) => {
@@ -299,7 +309,7 @@ export function FormTemplatesManager() {
                           }}
                         />
                         <select
-                          className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+                           className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm sm:w-auto"
                           value={f.type}
                           onChange={(e) => {
                             const next = [...draftFields];
@@ -321,7 +331,7 @@ export function FormTemplatesManager() {
                         </select>
                         {(f.type === "select" || f.type === "radio") && (
                           <Input
-                            className="min-w-[140px] flex-1"
+                             className="w-full min-w-0 sm:min-w-[140px] sm:flex-1"
                             value={(f.options ?? []).join(", ")}
                             placeholder="Opties, komma gescheiden"
                             onChange={(e) => {
@@ -343,7 +353,8 @@ export function FormTemplatesManager() {
                           />
                           Verplicht
                         </label>
-                        <Button
+                         <Button
+                           className="self-end sm:self-auto"
                           variant="ghost"
                           size="icon"
                           aria-label="Vraag verwijderen"
@@ -411,6 +422,7 @@ export function FormTemplatesManager() {
                       );
                     })}
                     <Button
+                      className="w-full sm:w-auto"
                       variant="outline"
                       size="sm"
                       onClick={() =>
@@ -447,9 +459,9 @@ export function FormTemplatesManager() {
                           return (
                             <div key={l.id} className="space-y-2 rounded-xl border border-border p-3">
                               <p className="text-xs font-medium text-foreground">{service?.name || "Behandeling"}</p>
-                              <div className="flex flex-wrap items-center gap-2">
+                              <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:items-center">
                                 <select
-                                  className="h-9 rounded-md border border-input bg-background px-2 text-xs"
+                                  className="h-9 w-full rounded-md border border-input bg-background px-2 text-xs sm:w-auto"
                                   aria-label="Wanneer opnieuw invullen"
                                   value={l.validity_mode}
                                   onChange={(e) => updateRequirement(l.id, { validity_mode: e.target.value })}
@@ -463,14 +475,14 @@ export function FormTemplatesManager() {
                                     type="number"
                                     min={1}
                                     max={60}
-                                    className="w-24"
+                                    className="w-full sm:w-24"
                                     aria-label="Aantal maanden geldig"
                                     value={l.validity_months ?? 12}
                                     onChange={(e) => updateRequirement(l.id, { validity_months: Math.max(1, Number(e.target.value) || 12) })}
                                   />
                                 )}
                                 <select
-                                  className="h-9 rounded-md border border-input bg-background px-2 text-xs"
+                                  className="h-9 w-full rounded-md border border-input bg-background px-2 text-xs sm:w-auto"
                                   aria-label="Herinnering"
                                   value={l.reminder_hours}
                                   onChange={(e) => updateRequirement(l.id, { reminder_hours: Number(e.target.value) })}
@@ -501,7 +513,7 @@ export function FormTemplatesManager() {
                     </div>
                   )}
 
-                  <Button onClick={() => publish(t)}>Publiceer versie</Button>
+                   <Button className="w-full sm:w-auto" onClick={() => publish(t)}>Publiceer versie</Button>
                   <p className="text-xs text-muted-foreground">
                     Een gepubliceerde versie blijft ongewijzigd bewaard. Wijzigingen komen in een nieuwe versie.
                   </p>
