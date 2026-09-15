@@ -1,4 +1,6 @@
-- [x] Audit Beautycare demo UX and critical click paths
-- [x] Apply direction 3 hierarchy: day agenda, attention actions, compact dossier, existing GlowSuite design
-- [x] Verify desktop/mobile flows and safety invariants
-- [x] Polish Beautycare welcome, first route, hints, and mobile appointment cards
+# Roadmap
+
+- [ ] Audit mobiele privacy- en consentkaarten en vergelijkbare dossiercontrols
+- [ ] Verduidelijk bestaande formulieraanpasbaarheid en bewerkactie
+- [ ] Verduidelijk bestaande behandelverslagconfiguratie indien aanwezig
+- [ ] Verifieer Beautycare op 390×844, Studio Nova-isolatie en typecheck
