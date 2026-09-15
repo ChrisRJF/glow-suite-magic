@@ -1085,11 +1085,11 @@ export default function CalendarPage() {
             </div>
           </div>
           {/* Eén primaire actie; slim plannen blijft secundair */}
-          <div className="grid grid-cols-2 gap-3 w-full lg:flex lg:w-auto lg:gap-2">
+          <div className="grid grid-cols-[auto_1fr] gap-2 w-full lg:flex lg:w-auto">
             <Button
-              variant="outline"
+              variant="ghost"
               onClick={() => setReflowOpen(true)}
-              className="h-12 lg:h-9 rounded-2xl lg:rounded-xl text-sm min-w-0 px-3 gap-1"
+              className="h-12 lg:h-9 rounded-2xl lg:rounded-xl text-sm min-w-0 px-3 gap-1 text-muted-foreground"
               title="Slim plannen: optimaliseer de dag"
             >
               <Sparkles className="w-4 h-4 shrink-0" /> <span className="truncate">Slim plannen</span>
