@@ -1,33 +1,17 @@
-import { useState } from "react";
+import { useSyncExternalStore } from "react";
 import { useNavigate } from "react-router-dom";
 import { CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useBeautycareDemo } from "@/hooks/useBeautycareDemo";
-
-const KEY = "glowsuite_welcome_beautycare";
+import { hideWelcome, isWelcomeHidden, subscribeGuidance } from "@/lib/demoGuidance";
 
 /** Quiet welcome block, only inside the Beautycare demo. Presentation only. */
 export function BeautycareWelcomeCard() {
   const { active } = useBeautycareDemo();
   const navigate = useNavigate();
-  const [hidden, setHidden] = useState(() => {
-    try {
-      return sessionStorage.getItem(KEY) === "1";
-    } catch {
-      return false;
-    }
-  });
+  const hidden = useSyncExternalStore(subscribeGuidance, isWelcomeHidden, () => true);
 
   if (!active || hidden) return null;
-
-  const close = () => {
-    try {
-      sessionStorage.setItem(KEY, "1");
-    } catch {
-      /* ignore */
-    }
-    setHidden(true);
-  };
 
   return (
     <section className="rounded-xl border border-border/60 bg-card/70 p-3 sm:p-4" style={{ boxShadow: "var(--shadow-sm)" }}>
@@ -40,7 +24,7 @@ export function BeautycareWelcomeCard() {
         <Button variant="gradient" size="sm" className="h-9 px-3" onClick={() => navigate("/agenda")}>
           <CalendarDays className="h-4 w-4" /> Start met de agenda
         </Button>
-        <Button variant="link" size="sm" className="h-8 px-0 text-xs text-muted-foreground" onClick={close}>
+        <Button variant="link" size="sm" className="h-8 px-0 text-xs text-muted-foreground" onClick={hideWelcome}>
           Zelf rondkijken
         </Button>
       </div>
