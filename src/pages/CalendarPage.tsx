@@ -1106,8 +1106,8 @@ export default function CalendarPage() {
       }>
 
       <GuidanceHint
-        id="agenda-open-afspraak"
-        text="Hier zie je direct wat vandaag aandacht nodig heeft."
+        step={1}
+        text="Bekijk hier je afspraken en zie meteen waar actie nodig is."
         className="mb-3"
       />
 

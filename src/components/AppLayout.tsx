@@ -39,6 +39,7 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
                     Demo omgeving
                   </span>
                 )}
+                <DemoGuidanceReset />}
               </div>
               {subtitle && <p className="text-meta leading-relaxed">{subtitle}</p>}
             </div>

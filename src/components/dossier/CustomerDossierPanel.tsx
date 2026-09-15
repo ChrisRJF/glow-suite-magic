@@ -148,8 +148,8 @@ export function CustomerDossierPanel({ customerId, appointmentId = null, compact
       {!compact && (
         <>
           <GuidanceHint
-            id="dossier-overzicht"
-            text="Hier staan intake, formulieren, verslagen en foto’s bij elkaar."
+            step={3}
+            text="Hier vind je intake, verslagen, foto's en toestemmingen bij elkaar."
           />
           <DossierSummaryCard customerId={customerId} />
           <DossierSearchCard customerId={customerId} />
