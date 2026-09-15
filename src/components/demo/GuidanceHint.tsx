@@ -58,7 +58,7 @@ export function GuidanceHint({ step, text, className = "", ctaLabel, onCta }: Pr
       {ctaLabel && onCta && (
         <button
           type="button"
-          onClick={onCta}
+          onClick={() => { dismissStep(step); onCta(); }}
           className="mt-2 flex h-9 w-full items-center justify-center rounded-lg bg-primary px-3 text-[12px] font-semibold text-primary-foreground transition-opacity hover:opacity-90"
         >
           {ctaLabel}
