@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { FileText, Send, ShieldCheck, Clock, CheckCircle2 } from "lucide-react";
@@ -53,11 +54,43 @@ const STATUS_LABEL: Record<string, string> = {
 
 export function CustomerDossierPanel({ customerId, appointmentId = null, compact = false }: Props) {
   const { canViewStatus, canViewContent, canSend, loading: accessLoading } = useDossierAccess();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [templates, setTemplates] = useState<{ id: string; title: string; current_version: number }[]>([]);
   const [requests, setRequests] = useState<RequestRow[]>([]);
   const [submissions, setSubmissions] = useState<SubmissionRow[]>([]);
   const [sending, setSending] = useState<string | null>(null);
   const [openSubmission, setOpenSubmission] = useState<string | null>(null);
+
+  const scrollToJourney = () => {
+    setTimeout(() => {
+      document.getElementById("behandeltraject")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 250);
+  };
+
+  /** Guided demo step 3: open the journey of this customer, or of a customer that has one. */
+  const goToJourney = async () => {
+    const { data: mine } = await supabase
+      .from("treatment_journeys")
+      .select("id")
+      .eq("customer_id", customerId)
+      .limit(1);
+    if (mine && mine.length > 0) return scrollToJourney();
+    const { data: other } = await supabase
+      .from("treatment_journeys")
+      .select("customer_id")
+      .order("created_at", { ascending: false })
+      .limit(1);
+    const target = (other?.[0] as { customer_id?: string } | undefined)?.customer_id;
+    if (!target) return scrollToJourney();
+    navigate(`/klanten?customer=${target}&traject=1`);
+  };
+
+  useEffect(() => {
+    if (compact) return;
+    if (searchParams.get("traject") === "1") scrollToJourney();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [compact, customerId, searchParams]);
 
   const load = async () => {
     const [t, r] = await Promise.all([
@@ -149,7 +182,9 @@ export function CustomerDossierPanel({ customerId, appointmentId = null, compact
         <>
           <GuidanceHint
             step={3}
-            text="Hier vind je intake, verslagen, foto's en toestemmingen bij elkaar."
+            text="Hier staan intake, behandelverslagen, foto's en toestemmingen bij elkaar."
+            ctaLabel="Bekijk behandeltraject"
+            onCta={goToJourney}
           />
           <DossierSummaryCard customerId={customerId} />
           <DossierSearchCard customerId={customerId} />
@@ -259,7 +294,9 @@ export function CustomerDossierPanel({ customerId, appointmentId = null, compact
 
       {!compact && (
         <div className="space-y-5 border-t border-border pt-4">
-          <JourneyPanel customerId={customerId} />
+          <div id="behandeltraject" className="scroll-mt-24">
+            <JourneyPanel customerId={customerId} />
+          </div>
           <CustomerAlertsPanel customerId={customerId} />
           <Accordion type="multiple" className="rounded-xl border border-border px-3">
             <AccordionItem value="timeline">

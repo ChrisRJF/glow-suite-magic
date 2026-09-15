@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { CustomerDossierPanel } from "./CustomerDossierPanel";
 import { TreatmentRecordPanel } from "./TreatmentRecordPanel";
 import { ClinicalMediaPanel } from "./ClinicalMediaPanel";
@@ -20,6 +21,7 @@ interface Props {
 
 /** Everything a treatment room needs for one appointment, in one calm block. */
 export function AppointmentDossierBlock({ customerId, appointmentId, serviceId, appointmentStatus }: Props) {
+  const navigate = useNavigate();
   const { canViewStatus, canViewContent, loading } = useDossierAccess();
   const { statuses, refresh } = useDossierStatus(appointmentId ? [appointmentId] : []);
   const overview = useDossierOverview(customerId);
@@ -62,7 +64,9 @@ export function AppointmentDossierBlock({ customerId, appointmentId, serviceId, 
 
       <GuidanceHint
         step={2}
-        text="Open een afspraak. GlowSuite laat direct zien wat nog nodig is."
+        text="Hier zie je direct wat voor deze afspraak nog nodig is."
+        ctaLabel="Open klantdossier"
+        onCta={() => navigate(`/klanten?customer=${customerId}`)}
       />
 
       {reasons ? (

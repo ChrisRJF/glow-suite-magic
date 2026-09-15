@@ -1107,8 +1107,25 @@ export default function CalendarPage() {
 
       <GuidanceHint
         step={1}
-        text="Bekijk hier je afspraken en zie meteen waar actie nodig is."
+        text="Bekijk een afspraak en zie meteen wat nog nodig is."
         className="mb-3"
+        ctaLabel="Open voorbeeldafspraak"
+        onCta={() => {
+          const needsAction = dayAppts.find((a: any) => {
+            const st = dossierStatuses[a.id]?.status;
+            return st && st !== 'compleet';
+          });
+          const todayPick = needsAction || dayAppts[0];
+          if (todayPick) { setDossierAppt(todayPick); return; }
+          const upcoming = [...appointments]
+            .filter((a: any) => getAppointmentDate(a) >= dateStr)
+            .sort((a: any, b: any) => getAppointmentDate(a).localeCompare(getAppointmentDate(b)))[0]
+            || [...appointments].sort((a: any, b: any) => getAppointmentDate(b).localeCompare(getAppointmentDate(a)))[0];
+          if (!upcoming) return;
+          const [y, m, d] = getAppointmentDate(upcoming).split('-').map(Number);
+          setCurrentDate(new Date(y, m - 1, d));
+          setDossierAppt(upcoming);
+        }}
       />
 
       {/* Employee selector & workload overview */}
