@@ -105,7 +105,7 @@ export function JourneyPanel({ customerId }: { customerId: string }) {
         </Button>
       </div>
 
-      <GuidanceHint id="traject-sessies" text="Volg hier alle sessies en zie meteen wat de volgende stap is." />
+      <GuidanceHint step={4} text="Volg hier alle sessies en zie wat de volgende stap is." />
 
 
       {adding && (

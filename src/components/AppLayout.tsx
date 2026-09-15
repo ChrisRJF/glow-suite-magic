@@ -4,6 +4,7 @@ import { MobileTopbar } from "./MobileTopbar";
 import { TrialBanner, ReadOnlyBanner, PastDueBanner } from "./TrialBanner";
 import { GlowSuiteLogo } from "@/components/GlowSuiteLogo";
 import { useDemoMode } from "@/hooks/useDemoMode";
+import { DemoGuidanceReset } from "@/components/demo/DemoGuidanceReset";
 import { useSubscriptionState } from "@/contexts/SubscriptionStateContext";
 
 interface AppLayoutProps {
@@ -39,6 +40,7 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
                     Demo omgeving
                   </span>
                 )}
+                <DemoGuidanceReset />
               </div>
               {subtitle && <p className="text-meta leading-relaxed">{subtitle}</p>}
             </div>
@@ -57,6 +59,7 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
               <div className="min-w-0 flex-1">
                 {subtitle && <p className="text-meta leading-relaxed truncate">{subtitle}</p>}
               </div>
+              <DemoGuidanceReset />
               {demoMode && (
                 <span className="shrink-0 rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary border border-primary/15">
                   Demo
