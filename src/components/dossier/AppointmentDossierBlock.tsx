@@ -21,6 +21,7 @@ interface Props {
 
 /** Everything a treatment room needs for one appointment, in one calm block. */
 export function AppointmentDossierBlock({ customerId, appointmentId, serviceId, appointmentStatus }: Props) {
+  const navigate = useNavigate();
   const { canViewStatus, canViewContent, loading } = useDossierAccess();
   const { statuses, refresh } = useDossierStatus(appointmentId ? [appointmentId] : []);
   const overview = useDossierOverview(customerId);
