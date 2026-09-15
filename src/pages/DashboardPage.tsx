@@ -446,14 +446,14 @@ export default function DashboardPage() {
 function DashboardKpi({ icon: Icon, label, value, trend, trendValue, onClick }: { icon: React.ElementType; label: string; value: string; trend: string; trendValue?: number; onClick: () => void }) {
   return (
     <button onClick={onClick} className="text-left p-4 sm:p-5 rounded-2xl border border-border/70 bg-card hover:border-primary/30 hover:-translate-y-0.5 transition-all" style={{ boxShadow: "var(--shadow-sm)" }}>
-      <div className="flex items-center justify-between gap-2 mb-2.5">
-        <div className="flex items-center gap-2 min-w-0">
-          <Icon className="w-4 h-4 text-primary flex-shrink-0" />
-          <span className="text-eyebrow truncate">{label}</span>
-        </div>
+      <div className="flex items-start gap-2 mb-2.5">
+        <Icon className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+        <span className="text-eyebrow leading-snug">{label}</span>
+      </div>
+      <div className="flex items-end justify-between gap-2">
+        <p className="text-metric-sm break-words">{value}</p>
         <span className={cn("text-[11px] font-semibold px-2 py-0.5 rounded-md flex-shrink-0", typeof trendValue === "number" ? trendClass(trendValue) : "text-muted-foreground bg-secondary/50")}>{trend}</span>
       </div>
-      <p className="text-metric-sm break-words">{value}</p>
     </button>
   );
 }
