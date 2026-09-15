@@ -136,10 +136,9 @@ export default function DashboardPage() {
 
         <section aria-labelledby="planning-vandaag">
           <div className="mb-3 flex items-end justify-between gap-3">
-            <div>
-              <p className="text-eyebrow">Je dag</p>
-              <h2 id="planning-vandaag" className="text-section-title mt-1">Planning vandaag</h2>
-              <p className="text-meta mt-1">
+            <div className="min-w-0">
+              <h2 id="planning-vandaag" className="text-section-title">Planning vandaag</h2>
+              <p className="text-meta mt-0.5">
                 {todaysAppts.length === 0
                   ? "Nog geen afspraken"
                   : `${todaysAppts.length} ${todaysAppts.length === 1 ? "afspraak" : "afspraken"} · ${formatEuro(omzetVandaag)} verwacht`}
