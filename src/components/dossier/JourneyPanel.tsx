@@ -7,6 +7,7 @@ import { Route, Plus, CalendarPlus, CheckCircle2, Clock3, Circle } from "lucide-
 import { toast } from "sonner";
 import { useDossierAccess } from "@/hooks/useDossierAccess";
 import { GuidanceHint } from "@/components/demo/GuidanceHint";
+import { finishGuidance } from "@/lib/demoGuidance";
 
 
 interface Journey {
@@ -105,7 +106,12 @@ export function JourneyPanel({ customerId }: { customerId: string }) {
         </Button>
       </div>
 
-      <GuidanceHint step={4} text="Volg hier alle sessies en zie wat de volgende stap is." />
+      <GuidanceHint
+        step={4}
+        text="Hier zie je welke sessies klaar zijn en wat de volgende stap is."
+        ctaLabel="Klaar, zelf rondkijken"
+        onCta={finishGuidance}
+      />
 
 
       {adding && (
