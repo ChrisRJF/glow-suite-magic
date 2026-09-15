@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { CustomerDossierPanel } from "./CustomerDossierPanel";
 import { TreatmentRecordPanel } from "./TreatmentRecordPanel";
 import { ClinicalMediaPanel } from "./ClinicalMediaPanel";
