@@ -147,7 +147,7 @@ export function TodayBriefing({ variant = "default", title, hideHeader = false, 
             <h2 className={cn(compact ? "text-sm font-semibold" : "text-section-title")}>
               {title || "Vandaag"}
             </h2>
-            {!compact && <p className="text-meta mt-0.5">Wat vandaag aandacht vraagt</p>}
+            {!compact && !title && <p className="text-meta mt-0.5">Wat vandaag aandacht vraagt</p>}
           </div>
         </div>
       )}
@@ -194,13 +194,13 @@ export function TodayBriefing({ variant = "default", title, hideHeader = false, 
                 <div className="flex-1 min-w-0">
                   <p
                     className={cn(
-                      "font-semibold leading-tight text-foreground truncate",
+                      "font-semibold leading-snug text-foreground",
                       compact ? "text-[13px]" : "text-[14px]",
                     )}
                   >
                     {it.label}
                   </p>
-                  <p className="text-[11px] text-muted-foreground/80 mt-0.5 truncate">{it.why}</p>
+                  <p className="text-[11px] text-muted-foreground/80 mt-0.5 leading-snug">{it.why}</p>
                 </div>
                 <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all flex-shrink-0" />
               </button>
