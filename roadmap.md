@@ -6,4 +6,4 @@
 - [x] Verifieer Beautycare op 390×844, Studio Nova-isolatie en typecheck
 - [x] Vervang alle publieke faviconformaten door het officiële GlowSuite-icoon
 - [x] Voeg GlowSuite-manifest en Apple touch icon toe
-- [ ] Verifieer publieke bereikbaarheid, browsericoon en typecheck
+- [x] Verifieer publieke bereikbaarheid, browsericoon en typecheck
