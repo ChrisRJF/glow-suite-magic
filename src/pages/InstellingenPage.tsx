@@ -618,7 +618,7 @@ export default function InstellingenPage() {
     { id: "klanten", label: "Klanten", icon: Users },
     { id: "integraties", label: "Integrations", icon: Plug },
     { id: "export", label: "Branding & Export", icon: Download },
-    { id: "import", label: "Data importeren", icon: FileUp },
+    { id: "import", label: "Gegevens importeren", icon: FileUp },
     { id: "rollen", label: "Team", icon: UserCog },
     { id: "demo", label: "Demo", icon: Shield },
   ].filter((tab) => {

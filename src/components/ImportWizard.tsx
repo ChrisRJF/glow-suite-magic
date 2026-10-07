@@ -945,13 +945,25 @@ export function ImportWizard() {
   const targetFields = FIELDS[type];
   const missingRequired = targetFields.filter((f) => f.required && !mapping[f.key]);
 
+  if (!roleLoading && !isAdmin) {
+    return (
+      <div className="glass-card p-4 sm:p-6">
+        <h2 className="text-xl font-semibold mb-1">Gegevens importeren</h2>
+        <p className="text-sm text-muted-foreground">Alleen de eigenaar of een beheerder kan gegevens importeren.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="glass-card p-4 sm:p-6 space-y-6 w-full max-w-full overflow-x-hidden pb-[env(safe-area-inset-bottom)]">
       <div>
-        <h2 className="text-xl font-semibold mb-1">Data importeren</h2>
+        <h2 className="text-xl font-semibold mb-1">Gegevens importeren</h2>
         <p className="text-sm text-muted-foreground">
-          Migreer klanten, afspraken, behandelingen, team en memberships vanuit Salonized, Fresha, Treatwell of Excel.
-          {demoMode ? " (Demo modus actief — import gaat naar demo data.)" : ""}
+          Stap je over vanuit andere salonsoftware? Upload je gegevens en controleer ze voordat je ze importeert.
+        </p>
+        <p className="text-xs text-muted-foreground mt-1">
+          Klanten (naam, telefoon, e-mail) en behandelingen. Je bestand wordt alleen in je browser gelezen en niet opgeslagen. Er worden geen berichten verstuurd.
+          {demoMode ? " Demo-omgeving: import gaat naar demo-gegevens." : ""}
         </p>
       </div>
 
@@ -1067,22 +1079,14 @@ export function ImportWizard() {
             <Select value={type} onValueChange={(v) => setType(v as ImportType)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {Object.entries(TYPE_LABELS).map(([k, v]) => (
-                  <SelectItem key={k} value={k}>{v}</SelectItem>
+                {SELECTABLE_TYPES.map((k) => (
+                  <SelectItem key={k} value={k}>{TYPE_LABELS[k]}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div>
-            <label className="text-sm font-medium block mb-2">Bij duplicaten</label>
-            <Select value={dupeStrategy} onValueChange={(v) => setDupeStrategy(v as DupeStrategy)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="skip">Duplicaten overslaan (aanbevolen)</SelectItem>
-                <SelectItem value="update">Bestaande bijwerken</SelectItem>
-                <SelectItem value="new-only">Alleen nieuwe importeren</SelectItem>
-              </SelectContent>
-            </Select>
+            <p className="text-xs text-muted-foreground mt-1">
+              Bestaande gegevens worden nooit overschreven. Mogelijke dubbelen worden overgeslagen.
+            </p>
           </div>
           <div className="flex justify-between flex-wrap gap-2">
             <Button variant="outline" onClick={() => setStep(1)}><ArrowLeft className="w-4 h-4" />Terug</Button>
@@ -1155,16 +1159,21 @@ export function ImportWizard() {
       {/* Step 4: Preview */}
       {step === 4 && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <p className="text-sm text-muted-foreground">
-              {rows.length} rijen ({SOURCE_LABELS[source]} → {TYPE_LABELS[type]})
-            </p>
-            <p className="text-xs">
-              <span className="text-success">{previewStats.ok} OK</span>
-              {previewStats.bad > 0 && <span className="text-destructive ml-2">{previewStats.bad} fout</span>}
-              <span className="text-muted-foreground ml-2">(eerste 20)</span>
-            </p>
-          </div>
+          <p className="text-sm text-muted-foreground">
+            {fileName} ({SOURCE_LABELS[source]} → {TYPE_LABELS[type]})
+          </p>
+          {analysis ? (
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              <SummaryCard label="Gevonden" value={analysis.total} />
+              <SummaryCard label="Nieuw" value={analysis.fresh} variant="success" />
+              <SummaryCard label="Mogelijk dubbel" value={analysis.dupes} />
+              <SummaryCard label="Gegevens ontbreken" value={analysis.missing} variant={analysis.missing ? "destructive" : undefined} />
+              <SummaryCard label="Ongeldige waarden" value={analysis.invalid} variant={analysis.invalid ? "destructive" : undefined} />
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground inline-flex items-center gap-1.5"><Loader2 className="w-3.5 h-3.5 animate-spin" />Bestand controleren…</p>
+          )}
+          <p className="text-xs text-muted-foreground">Voorbeeld van de eerste 20 regels. Mogelijke dubbelen worden overgeslagen, nooit samengevoegd of overschreven.</p>
           <div className="border border-border rounded-xl overflow-x-auto overflow-y-auto max-w-full max-h-[60vh]">
             <table className="w-full text-xs">
               <thead className="bg-secondary/50 sticky top-0">
@@ -1178,18 +1187,20 @@ export function ImportWizard() {
               </thead>
               <tbody>
                 {previewRows.map((row, i) => {
-                  const v = validateRow(row);
+                  const s = analysis?.rowStatus[i];
                   return (
                     <tr key={i} className="border-t border-border">
                       <td className="p-2 text-muted-foreground">{i + 2}</td>
                       {targetFields.filter((f) => mapping[f.key]).map((f) => (
                         <td key={f.key} className="p-2 max-w-[200px] truncate">{getValue(row, f.key)}</td>
                       ))}
-                      <td className="p-2">
-                        {v.ok ? (
-                          <span className="text-success inline-flex items-center gap-1"><CheckCircle2 className="w-3 h-3" />OK</span>
+                      <td className="p-2 whitespace-nowrap">
+                        {!s ? null : s.kind === "new" ? (
+                          <span className="text-success inline-flex items-center gap-1"><CheckCircle2 className="w-3 h-3" />Nieuw</span>
+                        ) : s.kind === "dupe" ? (
+                          <span className="text-muted-foreground">Mogelijk dubbel</span>
                         ) : (
-                          <span className="text-destructive inline-flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{v.reason}</span>
+                          <span className="text-destructive inline-flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{s.reason}</span>
                         )}
                       </td>
                     </tr>
@@ -1198,6 +1209,10 @@ export function ImportWizard() {
               </tbody>
             </table>
           </div>
+          <label className="flex items-start gap-2 text-sm cursor-pointer">
+            <input type="checkbox" className="mt-1" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} disabled={importing} />
+            <span>Ik heb de gegevens gecontroleerd en wil {analysis?.fresh ?? 0} nieuwe {type === "customers" ? "klanten" : "behandelingen"} importeren.</span>
+          </label>
           {importing && (
             <div className="space-y-2">
               <Progress value={progress} />
@@ -1208,9 +1223,9 @@ export function ImportWizard() {
             <Button variant="outline" onClick={() => setStep(3)} disabled={importing}>
               <ArrowLeft className="w-4 h-4" />Terug
             </Button>
-            <Button onClick={runImport} disabled={importing || previewStats.ok === 0} className="w-full sm:w-auto">
+            <Button onClick={runImport} disabled={importing || !confirmed || !analysis || analysis.fresh === 0} className="w-full sm:w-auto">
               {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-              <span className="truncate">{importing ? "Bezig…" : `Importeer ${rows.length} rijen`}</span>
+              <span className="truncate">{importing ? "Bezig…" : `Importeer ${analysis?.fresh ?? 0} nieuwe`}</span>
             </Button>
           </div>
         </div>
@@ -1219,34 +1234,21 @@ export function ImportWizard() {
       {/* Step 5: Summary */}
       {step === 5 && summary && (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <SummaryCard label="Geïmporteerd" value={summary.imported} variant="success" />
-            <SummaryCard label="Bijgewerkt" value={summary.updated} />
-            <SummaryCard label="Overgeslagen" value={summary.skipped} />
-            <SummaryCard label="Fouten" value={summary.errors.length} variant={summary.errors.length > 0 ? "destructive" : undefined} />
+          <div className="rounded-xl border border-border bg-card p-4 space-y-1 text-sm">
+            <p className="font-semibold text-success">{summary.imported} {type === "customers" ? "klanten" : "behandelingen"} toegevoegd</p>
+            <p className="text-muted-foreground">{summary.skipped} mogelijke dubbelen overgeslagen</p>
+            <p className={summary.errors.length > 0 ? "text-destructive" : "text-muted-foreground"}>{summary.errors.length} regels niet geïmporteerd</p>
+            <p className="text-xs text-muted-foreground pt-1">Er zijn geen berichten verstuurd. Bestaande gegevens zijn niet aangepast.</p>
           </div>
 
-          {(type === "customers" || type === "appointments") && summary.imported > 0 && (
-            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-3">
-              <div className="flex items-start gap-2">
-                <Sparkles className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                <p className="text-sm">
-                  GlowSuite heeft je klanten geanalyseerd en AI segmenten bijgewerkt.
-                </p>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <Button asChild variant="outline" size="sm">
-                  <Link to="/klanten"><Users className="w-3.5 h-3.5" />Bekijk klanten</Link>
-                </Button>
-                <Button asChild variant="outline" size="sm">
-                  <Link to="/segmenten"><Sparkles className="w-3.5 h-3.5" />AI segmenten</Link>
-                </Button>
-                <Button asChild variant="outline" size="sm">
-                  <Link to="/glowsuite-ai"><Bot className="w-3.5 h-3.5" />GlowSuite AI</Link>
-                </Button>
-              </div>
-            </div>
+          {summary.imported > 0 && (
+            <Button asChild variant="outline" size="sm">
+              <Link to={type === "customers" ? "/klanten" : "/behandelingen"}>
+                {type === "customers" ? "Bekijk klanten" : "Bekijk behandelingen"}
+              </Link>
+            </Button>
           )}
+
 
           {summary.errors.length > 0 && (
             <>
