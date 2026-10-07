@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoMode } from "@/hooks/useDemoMode";
+import { useUserRole } from "@/hooks/useUserRole";
 
 type ImportType = "customers" | "services" | "appointments" | "employees" | "memberships";
 type SourceSystem = "salonized" | "fresha" | "treatwell" | "other";
@@ -50,14 +51,11 @@ const SOURCE_LABELS: Record<SourceSystem, string> = {
 };
 
 const FIELDS: Record<ImportType, { key: string; label: string; required?: boolean }[]> = {
+  // Privacy: only plain contact fields. No notes, health data or consent flags.
   customers: [
     { key: "name", label: "Naam", required: true },
     { key: "email", label: "E-mail" },
     { key: "phone", label: "Telefoon" },
-    { key: "birthday", label: "Geboortedatum" },
-    { key: "notes", label: "Notities" },
-    { key: "total_spent", label: "Totaal besteed" },
-    { key: "tags", label: "Tags" },
   ],
   services: [
     { key: "name", label: "Naam", required: true },
@@ -273,7 +271,11 @@ export function ImportWizard() {
   const [source, setSource] = useState<SourceSystem>("other");
   const [type, setType] = useState<ImportType>("customers");
   const [mapping, setMapping] = useState<Record<string, string>>({});
-  const [dupeStrategy, setDupeStrategy] = useState<DupeStrategy>("skip");
+  // Duplicates are always skipped: no automatic overwrite or merge.
+  const dupeStrategy: DupeStrategy = "skip";
+  const { isAdmin, loading: roleLoading } = useUserRole();
+  const [confirmed, setConfirmed] = useState(false);
+  const [existing, setExisting] = useState<{ emails: Set<string>; phones: Set<string>; names: Set<string> } | null>(null);
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [progressLabel, setProgressLabel] = useState("");
@@ -415,15 +417,60 @@ export function ImportWizard() {
     return { ok: true };
   };
 
-  const previewStats = useMemo(() => {
-    let ok = 0;
-    let bad = 0;
-    for (const r of previewRows) {
-      if (validateRow(r).ok) ok++;
-      else bad++;
-    }
-    return { ok, bad };
-  }, [previewRows, mapping, type]);
+  // Load existing keys for duplicate detection in the preview (own account + active mode only, via RLS)
+  useEffect(() => {
+    if (step !== 4 || !user) return;
+    let active = true;
+    setExisting(null);
+    setConfirmed(false);
+    (async () => {
+      if (type === "customers") {
+        const { data } = await supabase.from("customers").select("name, email, phone").eq("user_id", user.id).eq("is_demo", demoMode);
+        if (!active) return;
+        setExisting({
+          emails: new Set((data ?? []).map((c: any) => (c.email ?? "").toLowerCase()).filter(Boolean)),
+          phones: new Set((data ?? []).map((c: any) => c.phone ?? "").filter(Boolean)),
+          names: new Set((data ?? []).map((c: any) => (c.name ?? "").toLowerCase().trim()).filter(Boolean)),
+        });
+      } else {
+        const { data } = await supabase.from("services").select("name").eq("user_id", user.id).eq("is_demo", demoMode);
+        if (!active) return;
+        setExisting({ emails: new Set(), phones: new Set(), names: new Set((data ?? []).map((s: any) => (s.name ?? "").toLowerCase().trim())) });
+      }
+    })();
+    return () => { active = false; };
+  }, [step, type, user, demoMode]);
+
+  const analysis = useMemo(() => {
+    if (!existing) return null;
+    const emails = new Set(existing.emails);
+    const phones = new Set(existing.phones);
+    const names = new Set(existing.names);
+    let fresh = 0, dupes = 0, missing = 0, invalid = 0;
+    const rowStatus: { kind: "new" | "dupe" | "error"; reason?: string }[] = [];
+    rows.forEach((row, i) => {
+      const v = validateRow(row);
+      let st: { kind: "new" | "dupe" | "error"; reason?: string };
+      if (!v.ok) {
+        const isMissing = /ontbreekt|vereist/i.test(v.reason ?? "");
+        if (isMissing) missing++; else invalid++;
+        st = { kind: "error", reason: v.reason };
+      } else if (type === "customers") {
+        const e = getValue(row, "email").toLowerCase();
+        const p = normalizePhone(getValue(row, "phone")) ?? "";
+        const n = (getValue(row, "name") || e || p).toLowerCase().trim();
+        const dupe = (e && emails.has(e)) || (p && phones.has(p)) || (!e && !p && names.has(n));
+        if (dupe) { dupes++; st = { kind: "dupe" }; }
+        else { fresh++; st = { kind: "new" }; if (e) emails.add(e); if (p) phones.add(p); names.add(n); }
+      } else {
+        const n = getValue(row, "name").toLowerCase().trim();
+        if (names.has(n)) { dupes++; st = { kind: "dupe" }; }
+        else { fresh++; st = { kind: "new" }; names.add(n); }
+      }
+      if (i < 20) rowStatus.push(st);
+    });
+    return { total: rows.length, fresh, dupes, missing, invalid, rowStatus };
+  }, [existing, rows, mapping, type]);
 
   const undoBatch = async (batchId: string) => {
     if (!user) return;
