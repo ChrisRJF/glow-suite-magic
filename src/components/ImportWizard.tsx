@@ -467,6 +467,7 @@ export function ImportWizard() {
       toast.error("Niet ingelogd.");
       return;
     }
+    if (!isAdmin || !confirmed || !SELECTABLE_TYPES.includes(type)) return;
     setImporting(true);
     setProgress(0);
     setProgressLabel("Voorbereiden…");
@@ -644,23 +645,7 @@ export function ImportWizard() {
             const k = name.toLowerCase().trim();
             const existingId = serviceByName.get(k);
             if (existingId) {
-              if (dupeStrategy === "skip" || dupeStrategy === "new-only") {
-                skipped++;
-                continue;
-              }
-              const { error } = await supabase
-                .from("services")
-                .update({
-                  name,
-                  duration_minutes: parseNumber(getValue(row, "duration_minutes")) ?? 30,
-                  price: parseNumber(getValue(row, "price")) ?? 0,
-                  category: getValue(row, "category") || null,
-                  description: getValue(row, "description") || null,
-                })
-                .eq("id", existingId)
-                .eq("user_id", user.id);
-              if (error) errors.push({ row: rowNum, reason: "Kon dienst niet bijwerken", fix: error.message, original: row });
-              else updated++;
+              skipped++;
               continue;
             }
             const { data, error } = await supabase
