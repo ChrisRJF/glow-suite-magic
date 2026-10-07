@@ -609,44 +609,16 @@ export function ImportWizard() {
             const name = getValue(row, "name") || getValue(row, "email") || getValue(row, "phone");
             const email = getValue(row, "email").toLowerCase() || null;
             const phone = normalizePhone(getValue(row, "phone"));
+            const nameKey = name.toLowerCase().trim();
             const existingId =
-              (email && customerByEmail.get(email)) || (phone && customerByPhone.get(phone)) || null;
+              (email && customerByEmail.get(email)) ||
+              (phone && customerByPhone.get(phone)) ||
+              (!email && !phone && customerByName.get(nameKey)) ||
+              null;
             if (existingId) {
-              if (dupeStrategy === "skip" || dupeStrategy === "new-only") {
-                skipped++;
-                continue;
-              }
-              // update
-              const notes = [
-                getValue(row, "notes"),
-                getValue(row, "birthday") ? `Geboortedatum: ${getValue(row, "birthday")}` : "",
-                getValue(row, "tags") ? `Tags: ${getValue(row, "tags")}` : "",
-              ].filter(Boolean).join(" | ");
-              const updPayload: any = {
-                name,
-                email,
-                phone,
-                notes: notes || null,
-              };
-              const ts = parseNumber(getValue(row, "total_spent"));
-              if (ts !== null) updPayload.total_spent = ts;
-              const { error } = await supabase
-                .from("customers")
-                .update(updPayload)
-                .eq("id", existingId)
-                .eq("user_id", user.id);
-              if (error) {
-                errors.push({ row: rowNum, reason: "Kon klant niet bijwerken", fix: error.message, original: row });
-              } else {
-                updated++;
-              }
+              skipped++;
               continue;
             }
-            const notes = [
-              getValue(row, "notes"),
-              getValue(row, "birthday") ? `Geboortedatum: ${getValue(row, "birthday")}` : "",
-              getValue(row, "tags") ? `Tags: ${getValue(row, "tags")}` : "",
-            ].filter(Boolean).join(" | ");
             const { data, error } = await supabase
               .from("customers")
               .insert({
@@ -655,19 +627,17 @@ export function ImportWizard() {
                 name,
                 email,
                 phone,
-                notes: notes || null,
-                total_spent: parseNumber(getValue(row, "total_spent")) ?? 0,
               })
               .select("id")
               .single();
             if (error || !data) {
-              errors.push({ row: rowNum, reason: "Kon klant niet aanmaken", fix: error?.message ?? "", original: row });
+              errors.push({ row: rowNum, reason: "Kon klant niet aanmaken", fix: "Controleer de gegevens in deze regel", original: row });
               continue;
             }
             track("customers", data.id);
             if (email) customerByEmail.set(email, data.id);
             if (phone) customerByPhone.set(phone, data.id);
-            customerByName.set(name.toLowerCase().trim(), data.id);
+            customerByName.set(nameKey, data.id);
             imported++;
           } else if (type === "services") {
             const name = getValue(row, "name");
