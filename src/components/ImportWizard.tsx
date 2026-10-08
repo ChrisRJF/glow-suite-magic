@@ -200,8 +200,13 @@ function parseTime(raw: string): string | null {
 function parseNumber(raw: any): number | null {
   if (raw === null || raw === undefined || raw === "") return null;
   const s = String(raw).replace(/[^\d.,-]/g, "").replace(/\./g, "").replace(",", ".");
+  if (!/\d/.test(s)) return null;
   const n = Number(s);
   return isNaN(n) ? null : n;
+}
+
+function isNonNumeric(raw: string): boolean {
+  return raw.trim() !== "" && parseNumber(raw) === null;
 }
 
 function parseBool(raw: any): boolean {
