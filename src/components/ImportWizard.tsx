@@ -392,6 +392,8 @@ export function ImportWizard() {
     if (type === "services") {
       const name = getValue(row, "name");
       if (!name) return { ok: false, reason: "Naam ontbreekt", fix: "Vul behandelingsnaam in" };
+      if (isNonNumeric(getValue(row, "price"))) return { ok: false, reason: "Ongeldige prijs", fix: "Gebruik een bedrag, bv. 85,00" };
+      if (isNonNumeric(getValue(row, "duration_minutes"))) return { ok: false, reason: "Ongeldige duur", fix: "Gebruik minuten, bv. 60" };
       const price = parseNumber(getValue(row, "price"));
       if (price !== null && price < 0) return { ok: false, reason: "Prijs negatief", fix: "Prijs moet ≥ 0 zijn" };
       const dur = parseNumber(getValue(row, "duration_minutes"));
