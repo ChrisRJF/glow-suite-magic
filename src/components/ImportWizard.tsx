@@ -34,6 +34,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 type ImportType = "customers" | "services" | "appointments" | "employees" | "memberships";
 type SourceSystem = "salonized" | "fresha" | "treatwell" | "other";
 type DupeStrategy = "skip" | "update" | "new-only";
+const SELECTABLE_TYPES: ImportType[] = ["customers", "services"];
 
 const TYPE_LABELS: Record<ImportType, string> = {
   customers: "Klanten",
