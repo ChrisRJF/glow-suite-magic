@@ -6,6 +6,8 @@ PASS=0; FAIL=0
 q()  { $DB -c "set role service_role; $1" 2>&1 | tail -n1; }
 qr() { $DB -c "set role $1; $2" 2>&1 | tail -n1; }
 qs() { $DB -c "$1" 2>&1 | tail -n1; }
+qa() { $DB -c "set role service_role; $1" 2>&1; }
+qsa() { $DB -c "$1" 2>&1; }
 ok()  { if [ "$2" = "$3" ]; then PASS=$((PASS+1)); echo "PASS $1"; else FAIL=$((FAIL+1)); echo "FAIL $1 | expected [$3] got [$2]"; fi; }
 has() { if printf '%s' "$2" | grep -q -- "$3"; then PASS=$((PASS+1)); echo "PASS $1"; else FAIL=$((FAIL+1)); echo "FAIL $1 | expected [$3] in [$2]"; fi; }
 H() { printf '%064x' "$1"; }
@@ -30,8 +32,8 @@ ok "sent is terminal"                  "$(fin $SA $(H 1) failed)" "f"
 ok "retry after sent -> exists:sent"   "$(claim $SA $(H 1) $(H 100))" "exists:sent"
 ok "bad state refused"                 "$(fin $SB $(H 1) claimed)" "f"
 ok "full phone refused as mask"        "$(fin $SB $(H 1) sent "'+31612345678'")" "f"
-ok "unknown is terminal"               "$(fin $SB $(H 1) unknown; fin $SB $(H 1) sent)" "f"
-ok "check constraint blocks raw phone" "$(qs "update wa_send_claims set to_masked='+31612345678' where tenant_id='$SB'" | grep -c violates)" "1"
+ok "unknown is terminal"               "$(fin $SB $(H 1) unknown >/dev/null; fin $SB $(H 1) sent)" "f"
+ok "check constraint blocks raw phone" "$(qsa "update wa_send_claims set to_masked='+31612345678' where tenant_id='$SB'" | grep -c violates)" "1"
 
 echo "-- concurrency: two real connections, same key"
 $DB -c "set role service_role; begin; select public.wa_claim_send('$SA','$(H 10)','$(H 110)','$C','reminder'); select pg_sleep(2); commit;" > /tmp/r8c_s1 2>&1 &
@@ -62,10 +64,10 @@ echo "-- nonces"
 ok "nonce first use"                   "$(q "select public.wa_remember_nonce('reminder-scheduler','$(NX 1)', now()+interval '10 minutes');")" "t"
 ok "nonce replay"                      "$(q "select public.wa_remember_nonce('reminder-scheduler','$(NX 1)', now()+interval '10 minutes');")" "f"
 ok "same nonce other caller independent" "$(q "select public.wa_remember_nonce('auto-rebook','$(NX 1)', now()+interval '10 minutes');")" "t"
-has "unknown caller rejected"          "$(q "select public.wa_remember_nonce('evil','$(NX 2)', now()+interval '10 minutes');")" "violates check"
-has "bad nonce rejected"               "$(q "select public.wa_remember_nonce('auto-rebook','XYZ', now()+interval '10 minutes');")" "violates check"
-has "expiry too far rejected"          "$(q "select public.wa_remember_nonce('auto-rebook','$(NX 3)', now()+interval '2 days');")" "invalid_nonce_expiry"
-has "expiry in past rejected"          "$(q "select public.wa_remember_nonce('auto-rebook','$(NX 3)', now()-interval '1 minute');")" "invalid_nonce_expiry"
+has "unknown caller rejected"          "$(qa "select public.wa_remember_nonce('evil','$(NX 2)', now()+interval '10 minutes');")" "violates check"
+has "bad nonce rejected"               "$(qa "select public.wa_remember_nonce('auto-rebook','XYZ', now()+interval '10 minutes');")" "violates check"
+has "expiry too far rejected"          "$(qa "select public.wa_remember_nonce('auto-rebook','$(NX 3)', now()+interval '2 days');")" "invalid_nonce_expiry"
+has "expiry in past rejected"          "$(qa "select public.wa_remember_nonce('auto-rebook','$(NX 3)', now()-interval '1 minute');")" "invalid_nonce_expiry"
 $DB -c "set role service_role; begin; select public.wa_remember_nonce('customer-forms','$(NX 9)', now()+interval '10 minutes'); select pg_sleep(1.5); commit;" >/dev/null 2>&1 &
 P1=$!; sleep 0.4
 R=$(q "select public.wa_remember_nonce('customer-forms','$(NX 9)', now()+interval '10 minutes');"); wait $P1
@@ -95,8 +97,8 @@ qs "insert into wa_send_claims(tenant_id,claim_key,fingerprint,state,customer_id
  ('$SA','$(H 72)','$(H 72)','unknown','$C','reminder',now()-interval '431 days'),
  ('$SA','$(H 73)','$(H 73)','sent','$C','reminder',now()-interval '10 days')" >/dev/null
 qs "insert into wa_service_nonces values ('auto-rebook','$(NX 80)', now()-interval '1 second')" >/dev/null
-has "retention below 30 refused"       "$(q "select public.wa_send_purge(7);")" "retention_too_short"
-has "retention null refused"           "$(q "select public.wa_send_purge(null);")" "retention_too_short"
+has "retention below 30 refused"       "$(qa "select public.wa_send_purge(7);")" "retention_too_short"
+has "retention null refused"           "$(qa "select public.wa_send_purge(null);")" "retention_too_short"
 ok "purge counts"                      "$(q "select public.wa_send_purge(400)::text;")" '{"claims": 2, "nonces": 1}'
 ok "old unknown kept for review"       "$(qs "select count(*) from wa_send_claims where claim_key='$(H 71)'")" "1"
 ok "recent sent kept"                  "$(qs "select count(*) from wa_send_claims where claim_key='$(H 73)'")" "1"
