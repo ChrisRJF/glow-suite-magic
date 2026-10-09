@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
     const { data: existing } = await admin
       .from("audit_logs")
       .select("id")
-      .eq("event_type", "welcome_email_sent")
+      .eq("action", "welcome_email_sent")
       .eq("user_id", user.id)
       .limit(1)
       .maybeSingle();
@@ -139,8 +139,8 @@ Deno.serve(async (req) => {
       const errText = await res.text();
       await admin.from("audit_logs").insert({
         user_id: user.id,
-        event_type: "welcome_email_failed",
-        metadata: { status: res.status, error: errText },
+        action: "welcome_email_failed",
+        details: { status: res.status },
       });
       return new Response(JSON.stringify({ error: "send_failed" }), {
         status: 200,
@@ -150,8 +150,8 @@ Deno.serve(async (req) => {
 
     await admin.from("audit_logs").insert({
       user_id: user.id,
-      event_type: "welcome_email_sent",
-      metadata: { email: user.email },
+      action: "welcome_email_sent",
+      details: {},
     });
 
     return new Response(JSON.stringify({ sent: true }), {
