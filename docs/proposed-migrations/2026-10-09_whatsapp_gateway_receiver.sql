@@ -1,7 +1,7 @@
 -- PROPOSED, NOT APPLIED. Lives outside supabase/migrations on purpose.
 -- Matches Gateway docs/glowsuite-dispatch-contract.md v1 (sections 3 and 5)
 -- plus supabase/functions/_shared/inactive/CONTRACT-ADDENDUM.md.
--- NOT tested against any database. Apply only after separate approval, and
+-- Round 7: tested ONLY in a throwaway local PostgreSQL 17 (src/test/sql/run-local-pg.sh). Apply only after separate approval, and
 -- first in a separate, empty test database (see bottom of file).
 
 -- Tenant allow-list. Gateway tenant_id is external; salon_id is GlowSuite's own.
@@ -92,6 +92,8 @@ declare
   _code int := 200;
   _reason text := null;
   _n int;
+  _cur_rank int;
+  _new_rank int;
 begin
   select * into _link from gateway_tenant_links where tenant_id = _tenant_id;
   if not found or not _link.enabled or not (_action_type = any(_link.allowed_action_types)) then
@@ -124,6 +126,9 @@ begin
     select * into _msg from whatsapp_outbound_messages
       where salon_id = _link.salon_id and outbound_ref = _outbound_ref
       for update;
+    -- Round 7 fix: CASE inside an ELSIF condition broke PL/pgSQL parsing (THEN).
+    _cur_rank := coalesce(array_position(array['sent','delivered','read'], _msg.status), 0);
+    _new_rank := coalesce(array_position(array['sent','delivered','read'], _status), 0);
     if not found then
       _result := 'business_rejected'; _code := 422; _reason := 'unknown_outbound_ref';
     elsif _status = 'failed' then
@@ -140,9 +145,7 @@ begin
       end if;
     elsif _msg.status = 'failed' and _status = 'sent' then
       _result := 'accepted_noop'; _code := 202;
-    elsif _msg.status = 'failed'
-       or coalesce(case _msg.status when 'sent' then 1 when 'delivered' then 2 when 'read' then 3 end, 0)
-          < case _status when 'sent' then 1 when 'delivered' then 2 when 'read' then 3 end then
+    elsif _msg.status = 'failed' or _cur_rank < _new_rank then
       update whatsapp_outbound_messages set status = _status, updated_at = now()
         where salon_id = _link.salon_id and outbound_ref = _outbound_ref;
     else
@@ -167,7 +170,7 @@ create or replace function public.gateway_receipts_retention(_keep_days int defa
 returns int language plpgsql security definer set search_path = public as $$
 declare _n int;
 begin
-  if _keep_days < 400 then raise exception 'retention must be >= 400 days'; end if;
+  if _keep_days is null or _keep_days < 400 then  /* round 7: null refused */ raise exception 'retention must be >= 400 days'; end if;
   delete from gateway_command_receipts where created_at < now() - make_interval(days => _keep_days);
   get diagnostics _n = row_count;
   return _n;
