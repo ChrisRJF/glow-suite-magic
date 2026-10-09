@@ -1,6 +1,9 @@
 -- PROPOSED, NOT APPLIED. Lives outside supabase/migrations on purpose.
 -- Matches Gateway docs/glowsuite-dispatch-contract.md v1 (sections 3 and 5)
 -- plus supabase/functions/_shared/inactive/CONTRACT-ADDENDUM.md.
+-- Round 7.2: every SECURITY DEFINER body uses schema-qualified names only and pins
+-- search_path = pg_catalog, public, pg_temp (pg_temp LAST, so a session temp table can never
+-- shadow a public table; qualification makes this belt-and-braces).
 -- Round 7: tested ONLY in a throwaway local PostgreSQL 17 (src/test/sql/run-local-pg.sh). Apply only after separate approval, and
 -- first in a separate, empty test database (see bottom of file).
 
@@ -22,7 +25,7 @@ grant select on public.gateway_tenant_links to authenticated;
 -- active user_access row; revoked/ambiguous/missing -> NULL -> no rows.
 -- Role gate: management info (links) only eigenaar/admin; delivery status also manager.
 create or replace function public.gateway_tenant_role_allows(_salon uuid, _roles public.app_role[])
-returns boolean language plpgsql stable security definer set search_path = public as $$
+returns boolean language plpgsql stable security definer set search_path = pg_catalog, public, pg_temp as $$
 declare _uid uuid := auth.uid(); _t uuid;
 begin
   if _uid is null or _salon is null then return false; end if;
@@ -30,9 +33,9 @@ begin
   if _t is null or _t <> _salon then return false; end if;
   if _uid = _salon then  -- the owner of this salon
     return 'eigenaar'::public.app_role = any(_roles)
-       and exists (select 1 from user_roles where user_id = _uid and role = 'eigenaar');
+       and exists (select 1 from public.user_roles where user_id = _uid and role = 'eigenaar');
   end if;
-  return exists (select 1 from user_access ua
+  return exists (select 1 from public.user_access ua
     where ua.member_user_id = _uid and ua.owner_user_id = _salon
       and ua.status = 'active' and ua.role = any(_roles));
 end $$;
@@ -91,8 +94,8 @@ create policy "salon staff read own outbound status" on public.whatsapp_outbound
 
 -- Send-time STOP check (future whatsapp-send wiring). refs = ref under every active key version.
 create or replace function public.whatsapp_is_opted_out(_salon uuid, _refs text[])
-returns boolean language sql stable security definer set search_path = public as $$
-  select exists (select 1 from whatsapp_opt_outs where salon_id = _salon and contact_ref = any(_refs))
+returns boolean language sql stable security definer set search_path = pg_catalog, public, pg_temp as $$
+  select exists (select 1 from public.whatsapp_opt_outs where salon_id = _salon and contact_ref = any(_refs))
 $$;
 revoke all on function public.whatsapp_is_opted_out(uuid, text[]) from public, anon, authenticated;
 grant execute on function public.whatsapp_is_opted_out(uuid, text[]) to service_role;
@@ -106,11 +109,11 @@ create or replace function public.gateway_process_command(
   _idempotency_key text, _tenant_id text, _action_type text, _request_hash text,
   _contact_ref text default null, _outbound_ref text default null, _status text default null
 ) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = pg_catalog, public, pg_temp as $$
 declare
-  _link gateway_tenant_links%rowtype;
-  _existing gateway_command_receipts%rowtype;
-  _msg whatsapp_outbound_messages%rowtype;
+  _link public.gateway_tenant_links%rowtype;
+  _existing public.gateway_command_receipts%rowtype;
+  _msg public.whatsapp_outbound_messages%rowtype;
   _inserted int;
   _result text := 'applied';
   _code int := 200;
@@ -119,9 +122,24 @@ declare
   _cur_rank int;
   _new_rank int;
 begin
-  select * into _link from gateway_tenant_links where tenant_id = _tenant_id;
+  select * into _link from public.gateway_tenant_links where tenant_id = _tenant_id;
   if not found or not _link.enabled or not (_action_type = any(_link.allowed_action_types)) then
     return jsonb_build_object('result','tenant_not_authorized','code',403);
+  end if;
+  -- Round 7.2: a key that already has a COMMITTED receipt is answered first, so changed
+  -- (even invalid) content on a used key is always 409 and is never re-executed. Only
+  -- reached after tenant authorization (403 above), so an unauthorized tenant learns
+  -- nothing about other salons' keys. Plain read, no lock: the race is still closed by
+  -- the insert-first ON CONFLICT path below.
+  if _idempotency_key ~ '^[0-9a-f]{64}$' then
+    select * into _existing from public.gateway_command_receipts where idempotency_key = _idempotency_key;
+    if found then
+      if _existing.request_hash = _request_hash and _existing.tenant_id = _tenant_id
+         and _existing.action_type = _action_type then
+        return jsonb_build_object('result','duplicate','code',200,'stored_code',_existing.response_code);
+      end if;
+      return jsonb_build_object('result','conflict','code',409);
+    end if;
   end if;
   -- Round 7.1: malformed business input -> 422 BEFORE any write, so no receipt and no
   -- effect (consistent with confirmation 422). The Gateway may retry with the same key
@@ -151,50 +169,51 @@ begin
     return jsonb_build_object('result','business_rejected','code',422,'reason','confirmation_not_enabled');
   end if;
 
-  insert into gateway_command_receipts(idempotency_key, tenant_id, salon_id, action_type, request_hash, status, response_code)
+  insert into public.gateway_command_receipts(idempotency_key, tenant_id, salon_id, action_type, request_hash, status, response_code)
   values (_idempotency_key, _tenant_id, _link.salon_id, _action_type, _request_hash, 'processing', 0)
   on conflict (idempotency_key) do nothing;
   get diagnostics _inserted = row_count;
 
   if _inserted = 0 then
-    select * into _existing from gateway_command_receipts where idempotency_key = _idempotency_key;
-    if _existing.request_hash = _request_hash and _existing.tenant_id = _tenant_id then
+    select * into _existing from public.gateway_command_receipts where idempotency_key = _idempotency_key;
+    if _existing.request_hash = _request_hash and _existing.tenant_id = _tenant_id
+       and _existing.action_type = _action_type then
       return jsonb_build_object('result','duplicate','code',200,'stored_code',_existing.response_code);
     end if;
     return jsonb_build_object('result','conflict','code',409);
   end if;
 
   if _action_type = 'opt_out_signal' then
-    insert into whatsapp_opt_outs(salon_id, contact_ref) values (_link.salon_id, _contact_ref)
+    insert into public.whatsapp_opt_outs(salon_id, contact_ref) values (_link.salon_id, _contact_ref)
       on conflict do nothing;
     get diagnostics _n = row_count;
     if _n = 0 then _result := 'accepted_noop'; _code := 202; end if;
 
   elsif _action_type = 'delivery_status_record' then
-    select * into _msg from whatsapp_outbound_messages
+    select * into _msg from public.whatsapp_outbound_messages
       where salon_id = _link.salon_id and outbound_ref = _outbound_ref
       for update;
     -- Round 7 fix: CASE inside an ELSIF condition broke PL/pgSQL parsing (THEN).
-    _cur_rank := coalesce(array_position(array['sent','delivered','read'], _msg.status), 0);
+    _cur_rank := coalesce(array_position(array['sent','delivered','read']::text[], _msg.status), 0);
     _new_rank := coalesce(array_position(array['sent','delivered','read'], _status), 0);
     if not found then
       _result := 'business_rejected'; _code := 422; _reason := 'unknown_outbound_ref';
     elsif _status = 'failed' then
       if _msg.status in ('delivered','read') then
-        update whatsapp_outbound_messages
+        update public.whatsapp_outbound_messages
           set failed_attempts = failed_attempts + 1, last_failed_at = now(), status_conflict = true, updated_at = now()
           where salon_id = _link.salon_id and outbound_ref = _outbound_ref;
       elsif _msg.status = 'failed' then
         _result := 'accepted_noop'; _code := 202;
       else
-        update whatsapp_outbound_messages
+        update public.whatsapp_outbound_messages
           set status = 'failed', failed_attempts = failed_attempts + 1, last_failed_at = now(), updated_at = now()
           where salon_id = _link.salon_id and outbound_ref = _outbound_ref;
       end if;
     elsif _msg.status = 'failed' and _status = 'sent' then
       _result := 'accepted_noop'; _code := 202;
     elsif _msg.status = 'failed' or _cur_rank < _new_rank then
-      update whatsapp_outbound_messages set status = _status, updated_at = now()
+      update public.whatsapp_outbound_messages set status = _status, updated_at = now()
         where salon_id = _link.salon_id and outbound_ref = _outbound_ref;
     else
       _result := 'accepted_noop'; _code := 202;
@@ -204,7 +223,7 @@ begin
     _result := 'accepted_noop'; _code := 202;  -- metadata only; nothing stored, no body
   end if;
 
-  update gateway_command_receipts
+  update public.gateway_command_receipts
     set status = _result, response_code = _code,
         response_body_min = jsonb_strip_nulls(jsonb_build_object('code', _result, 'reason', _reason))
     where idempotency_key = _idempotency_key;
@@ -215,11 +234,11 @@ grant execute on function public.gateway_process_command(text,text,text,text,tex
 
 -- Retention: never deletes receipts younger than 400 days.
 create or replace function public.gateway_receipts_retention(_keep_days int default 400)
-returns int language plpgsql security definer set search_path = public as $$
+returns int language plpgsql security definer set search_path = pg_catalog, public, pg_temp as $$
 declare _n int;
 begin
   if _keep_days is null or _keep_days < 400 then  /* round 7: null refused */ raise exception 'retention must be >= 400 days'; end if;
-  delete from gateway_command_receipts where created_at < now() - make_interval(days => _keep_days);
+  delete from public.gateway_command_receipts where created_at < now() - make_interval(days => _keep_days);
   get diagnostics _n = row_count;
   return _n;
 end $$;

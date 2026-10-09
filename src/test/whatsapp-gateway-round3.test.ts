@@ -318,7 +318,7 @@ describe("13. everything stays inactive", () => {
   });
   it("SQL proposal: receipt inserted before effect, retention >= 400, no advisory-lock shortcut", () => {
     const sql = readFileSync("docs/proposed-migrations/2026-10-09_whatsapp_gateway_receiver.sql", "utf8");
-    expect(sql.indexOf("'processing', 0)")).toBeLessThan(sql.indexOf("insert into whatsapp_opt_outs"));
+    expect(sql.indexOf("'processing', 0)")).toBeLessThan(sql.indexOf("insert into public.whatsapp_opt_outs"));
     expect(sql).toMatch(/_keep_days < 400/);
     expect(sql).not.toMatch(/pg_advisory_xact_lock/);
     expect(sql).not.toMatch(/when 'failed' then 4/);
