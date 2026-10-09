@@ -100,7 +100,7 @@ ok "sent->delivered" "$(d tenant-test-a out-a-1 delivered)" "applied:200"
 ok "delivered->read" "$(d tenant-test-a out-a-1 read)" "applied:200"
 ok "late delivered after read -> noop" "$(d tenant-test-a out-a-1 delivered)" "accepted_noop:202"
 ok "late sent after read -> noop" "$(d tenant-test-a out-a-1 sent)" "accepted_noop:202"
-ok "failed after read keeps read, flags conflict" "$(d tenant-test-a out-a-1 failed; st $SA out-a-1)" "$(printf 'applied:200\nread:1:t' | tail -n1)"
+ok "failed after read -> applied (flag only)" "$(d tenant-test-a out-a-1 failed)" "applied:200"
 ok "  state after failed-after-read" "$(st $SA out-a-1)" "read:1:t"
 d tenant-test-a out-a-2 delivered >/dev/null
 d tenant-test-a out-a-2 failed >/dev/null
