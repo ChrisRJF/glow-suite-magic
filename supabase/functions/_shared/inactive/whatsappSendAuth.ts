@@ -7,7 +7,7 @@ export type CallerIdentity =
   | { kind: "service" } // JWT verified server-side with role=service_role
   | { kind: "user"; userId: string };
 
-export type TenantRole = "eigenaar" | "admin" | "medewerker" | "financieel" | null;
+export type TenantRole = "eigenaar" | "manager" | "admin" | "medewerker" | "financieel" | "receptie" | null;
 
 export interface SendAuthInput {
   identity: CallerIdentity;
