@@ -172,7 +172,7 @@ U_ADMIN_A=a0000000-0000-0000-0000-00000000000a; U_MGR_A=a0000000-0000-0000-0000-
 U_EMP_A=a0000000-0000-0000-0000-00000000000c; U_REVOKED_A=a0000000-0000-0000-0000-00000000000d
 U_ADMIN_B=b0000000-0000-0000-0000-00000000000a; U_AMBIG=c0000000-0000-0000-0000-00000000000a
 U_NONE=d0000000-0000-0000-0000-00000000000a; U_FAKEOWN=e0000000-0000-0000-0000-00000000000a
-qs "insert into user_roles(user_id,role) values ('$SA','eigenaar'),('$SB','eigenaar'),('$U_ADMIN_A','admin'),('$U_MGR_A','manager'),('$U_EMP_A','medewerker'),('$U_REVOKED_A','admin'),('$U_ADMIN_B','admin'),('$U_AMBIG','admin');
+qs "insert into user_roles(user_id,role) values ('$U_ADMIN_A','admin'),('$U_MGR_A','manager'),('$U_EMP_A','medewerker'),('$U_REVOKED_A','admin'),('$U_ADMIN_B','admin'),('$U_AMBIG','admin');
  insert into user_access(owner_user_id,member_user_id,email,role,status) values
  ('$SA','$U_ADMIN_A','a@x.test','admin','active'),('$SA','$U_MGR_A','m@x.test','manager','active'),('$SA','$U_EMP_A','e@x.test','medewerker','active'),
  ('$SA','$U_REVOKED_A','r@x.test','admin','revoked'),('$SB','$U_ADMIN_B','b@x.test','admin','active'),
