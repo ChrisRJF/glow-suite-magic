@@ -140,6 +140,7 @@ Deno.serve(async (req) => {
       await admin.from("audit_logs").insert({
         user_id: user.id,
         action: "welcome_email_failed",
+        target_type: "user",
         details: { status: res.status },
       });
       return new Response(JSON.stringify({ error: "send_failed" }), {
@@ -151,6 +152,7 @@ Deno.serve(async (req) => {
     await admin.from("audit_logs").insert({
       user_id: user.id,
       action: "welcome_email_sent",
+      target_type: "user",
       details: {},
     });
 
