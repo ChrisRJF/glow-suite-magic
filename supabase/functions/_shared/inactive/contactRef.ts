@@ -71,6 +71,7 @@ export function parseKeyRing(raw: unknown): KeyRingResult {
   return { ok: true, ring: { current: o.current, keys } };
 }
 
+export const MAX_PHONE_INPUT_CHARS = 40;
 const ALLOWED = /^[0-9+ \-.()]+$/; // ASCII space, hyphen, dot, parentheses only
 
 /**
@@ -80,7 +81,9 @@ const ALLOWED = /^[0-9+ \-.()]+$/; // ASCII space, hyphen, dot, parentheses only
  * Refuses: tabs, NBSP, letters, NL landlines without country code, short/long numbers.
  */
 export function normalizeE164(input: unknown): string | null {
-  if (typeof input !== "string" || !ALLOWED.test(input)) return null;
+  if (typeof input !== "string") return null;
+  if (input.length > MAX_PHONE_INPUT_CHARS) return null; // checked BEFORE separators are stripped
+  if (!ALLOWED.test(input)) return null;
   const plusCount = (input.match(/\+/g) ?? []).length;
   if (plusCount > 1 || (plusCount === 1 && !input.startsWith("+"))) return null;
   const s = input.replace(/[ \-.()]/g, "");
@@ -120,7 +123,7 @@ export function parseContactRef(ref: unknown): { version: string; digest: string
 
 export type SendStopCheck =
   | { blocked: false }
-  | { blocked: true; reason: "stopped" | "number_not_normalisable" | "no_contact_ref_keys" | "tenant_not_mapped" };
+  | { blocked: true; reason: "stopped" | "number_not_normalisable" | "no_contact_ref_keys" | "invalid_contact_ref_keys" | "tenant_not_mapped" | "stop_lookup_failed" };
 
 /**
  * Send-time check. Computes the ref under EVERY valid key version so older
@@ -134,16 +137,25 @@ export async function checkStopBeforeSend(
   isOptedOut: (refs: string[]) => Promise<boolean>,
 ): Promise<SendStopCheck> {
   if (!gatewayTenantId) return { blocked: true, reason: "tenant_not_mapped" };
-  const versions = Object.entries(keys ?? {}).filter(
-    ([v, k]) => KEY_VERSION_RE.test(v) && k instanceof Uint8Array && k.length >= MIN_KEY_BYTES,
-  );
-  if (versions.length === 0) return { blocked: true, reason: "no_contact_ref_keys" };
+  if (!keys || typeof keys !== "object" || Array.isArray(keys)) return { blocked: true, reason: "no_contact_ref_keys" };
+  const entries = Object.entries(keys);
+  if (entries.length === 0) return { blocked: true, reason: "no_contact_ref_keys" };
+  // Every supplied version must be valid; one bad entry blocks the whole send
+  // (never continue with only the remaining valid keys).
+  for (const [v, k] of entries) {
+    if (!KEY_VERSION_RE.test(v) || !(k instanceof Uint8Array) || k.length < MIN_KEY_BYTES) {
+      return { blocked: true, reason: "invalid_contact_ref_keys" };
+    }
+  }
   if (!normalizeE164(phone)) return { blocked: true, reason: "number_not_normalisable" };
   const refs: string[] = [];
-  for (const [v, k] of versions) {
-    const r = await computeContactRef(k!, v, gatewayTenantId, phone);
-    if (r) refs.push(r);
+  for (const [v, k] of entries) {
+    const r = await computeContactRef(k as Uint8Array, v, gatewayTenantId, phone);
+    if (!r) return { blocked: true, reason: "invalid_contact_ref_keys" };
+    refs.push(r);
   }
-  if (refs.length === 0) return { blocked: true, reason: "no_contact_ref_keys" };
-  return (await isOptedOut(refs)) ? { blocked: true, reason: "stopped" } : { blocked: false };
+  let stopped: unknown;
+  try { stopped = await isOptedOut(refs); } catch { return { blocked: true, reason: "stop_lookup_failed" }; }
+  if (stopped !== false) return stopped === true ? { blocked: true, reason: "stopped" } : { blocked: true, reason: "stop_lookup_failed" };
+  return { blocked: false };
 }
