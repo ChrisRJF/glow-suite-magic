@@ -117,7 +117,8 @@ ok "duplicate callback (same key) -> duplicate" "$(cmd $(K $N) tenant-test-a del
 ok "unknown outbound ref -> 422" "$(d tenant-test-a out-nope delivered)" "business_rejected:422:unknown_outbound_ref"
 ok "other salon's message -> 422" "$(d tenant-test-a out-b-1 delivered)" "business_rejected:422:unknown_outbound_ref"
 ok "  salon B message untouched" "$(st $SB out-b-1)" "sent:0:f"
-ok "bogus status -> noop, unchanged" "$(d tenant-test-a out-a-2 exploded; st $SA out-a-2 | tail -n1)" "read:1:t"
+ok "bogus status -> noop" "$(d tenant-test-a out-a-2 exploded)" "accepted_noop:202"
+ok "  bogus status: state unchanged" "$(st $SA out-a-2)" "read:1:t"
 
 echo "-- 7. retention"
 qs "insert into gateway_command_receipts(idempotency_key,tenant_id,salon_id,action_type,request_hash,status,response_code,created_at) values
