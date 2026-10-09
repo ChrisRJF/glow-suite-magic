@@ -4299,6 +4299,27 @@ export type Database = {
         }
         Relationships: []
       }
+      tenant_feature_flags: {
+        Row: {
+          history_csv_import_enabled: boolean
+          history_csv_preview_enabled: boolean
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          history_csv_import_enabled?: boolean
+          history_csv_preview_enabled?: boolean
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          history_csv_import_enabled?: boolean
+          history_csv_preview_enabled?: boolean
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       testimonials: {
         Row: {
           city: string | null
@@ -5532,6 +5553,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      history_import_access: { Args: never; Returns: Json }
       import_historical_entries: {
         Args: { _batch_id: string; _entries: Json }
         Returns: Json
