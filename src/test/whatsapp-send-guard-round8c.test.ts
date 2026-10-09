@@ -75,7 +75,7 @@ function signed(caller: string, rawBody: string, o: { key?: Uint8Array; keyId?: 
 }
 async function svc(caller: ServiceCaller = "reminder-scheduler"): Promise<Identity> {
   const r = await verifyServiceRequest(signed(caller, "{}"), vdeps());
-  if (!r.ok) throw new Error(r.reason); return r.identity;
+  if (r.ok === false) throw new Error(r.reason); return r.identity;
 }
 const jwtOk = async (t: string) => (t.startsWith("valid.") ? { sub: t.slice(6) } : null);
 async function user(u: string): Promise<Identity> { return identityFromVerifiedJwt(`Bearer valid.${u}`, jwtOk); }
