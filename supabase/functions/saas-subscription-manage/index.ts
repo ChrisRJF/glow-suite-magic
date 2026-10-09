@@ -1,6 +1,7 @@
 // Manage active SaaS subscription: cancel (at period end), reactivate, change plan.
 // Authenticated endpoint — uses caller's JWT to identify user.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { isBillingLockedForUser, isBillingLockedForEmail, billingLockedResponse } from "../_shared/billingGuard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -80,6 +81,7 @@ Deno.serve(async (req) => {
     }
 
     const admin = createClient(supabaseUrl, serviceKey);
+    if (await isBillingLockedForUser(admin, user.id)) return billingLockedResponse(corsHeaders);
     const { data: sub } = await admin
       .from("subscriptions")
       .select("*")
