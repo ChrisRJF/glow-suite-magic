@@ -135,7 +135,7 @@ export async function verifyServiceRequest(r: SignedRequest, d: ServiceVerifyDep
 /** The ONLY service entry: the executed body is parsed from the exact signed bytes. */
 export async function handleServiceSend(r: SignedRequest, v: ServiceVerifyDeps, d: Deps): Promise<Result> {
   const auth = await verifyServiceRequest(r, v);
-  if (!auth.ok) return no(401, auth.reason);
+  if (auth.ok === false) return no(401, auth.reason);
   let body: unknown;
   try { body = JSON.parse(r.rawBody); } catch { return no(400, "invalid_json"); }
   if (!body || typeof body !== "object" || Array.isArray(body)) return no(400, "invalid_json");
