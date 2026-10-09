@@ -104,7 +104,7 @@ export function HistoricalImport() {
   };
 
   const runImport = async () => {
-    if (!confirmed || ready.length === 0) return;
+    if (!canImport || !confirmed || ready.length === 0) return;
     setBusy(true);
     const batchId = crypto.randomUUID();
     const entries = await Promise.all(ready.map(async (r) => {
