@@ -4,7 +4,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "fs";
 import {
-  computeContactRef, normalizeE164, parseContactRef, checkStopBeforeSend,
+  computeContactRef, normalizeE164, parseContactRef, checkStopBeforeSend, decodeBase64Strict,
 } from "../../supabase/functions/_shared/inactive/contactRef";
 import { nextDeliveryState, type DeliveryState, type DeliveryStatus } from "../../supabase/functions/_shared/inactive/deliveryStatus";
 import {
@@ -13,8 +13,9 @@ import {
 } from "../../supabase/functions/_shared/inactive/gatewayReceiver";
 import { evaluateWhatsAppConsent } from "../../supabase/functions/_shared/inactive/whatsappConsent";
 
-const MASTER_V1 = "fictief-contact-ref-key-v1-0123456789abcdef";
-const MASTER_V2 = "fictief-contact-ref-key-v2-0123456789abcdef";
+// Round 6: master keys are raw bytes decoded from Base64 (fictitious test keys).
+const MASTER_V1 = decodeBase64Strict("AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=")!;
+const MASTER_V2 = decodeBase64Strict("ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8=")!;
 const SALON_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const SALON_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const PHONE = "+31612345678"; // fictitious
@@ -138,7 +139,7 @@ describe("A. contact_ref derivation", () => {
     expect(parseContactRef(r)).toMatchObject({ version: "v1" });
   });
   it("short master key refused", async () => {
-    expect(await computeContactRef("short", "v1", "tenant_a", PHONE)).toBeNull();
+    expect(await computeContactRef(new Uint8Array(31), "v1", "tenant_a", PHONE)).toBeNull();
   });
 });
 

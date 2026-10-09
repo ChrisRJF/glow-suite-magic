@@ -18,9 +18,11 @@ Compared options:
 Definition:
 
 ```text
-normalised = strict E.164 with "+" (rules in contactRef.ts normalizeE164; ambiguous -> no ref)
-tenant_key = HMAC-SHA256(CONTACT_REF_KEY[v], "glowsuite-contact-ref:v1:" + tenant_id)
-contact_ref = "c1." + v + "." + hex(HMAC-SHA256(tenant_key, normalised))
+normalised = strict E.164 with "+" (Gateway round-5 rules, see contactRef.ts normalizeE164; ambiguous -> no ref)
+tenant_key = HMAC-SHA256(master_key_bytes[v], "glowsuite-contact-ref:v1:" + gateway_tenant_id)
+contact_ref = "c1." + v + "." + lowercase_hex(HMAC-SHA256(tenant_key, normalised))
+key config  = {"current":"1","keys":{"1":"<canonical Base64, >= 32 raw bytes>"}}
+gateway_tenant_id = verified external Gateway tenant id from an authorised mapping, never the internal salon id; missing mapping -> refuse
 ```
 
 - `CONTACT_REF_KEY` is a separate secret from the request signing key, held by
