@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { CustomerAIProfile } from "@/components/CustomerAIProfile";
 import { CustomerDossierPanel } from "@/components/dossier/CustomerDossierPanel";
 import { CustomerTreatmentHistory } from "@/components/dossier/CustomerTreatmentHistory";
+import { HistoricalEntries } from "@/components/dossier/HistoricalEntries";
 import { ClinicalMediaPanel } from "@/components/dossier/ClinicalMediaPanel";
 import type { Tables } from "@/integrations/supabase/types";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -219,6 +220,7 @@ export default function CustomersPage() {
                 <div className="mt-6 space-y-6 border-t border-border pt-4">
                   <CustomerDossierPanel customerId={selectedCustomer.id} />
                   <CustomerTreatmentHistory customerId={selectedCustomer.id} />
+                  <HistoricalEntries customerId={selectedCustomer.id} />
                   <ClinicalMediaPanel customerId={selectedCustomer.id} />
                 </div>
               </>
