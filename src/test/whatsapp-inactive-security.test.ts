@@ -64,14 +64,14 @@ const KEY_NEW = "k2", KEY_OLD = "k1";
 const SECRET_NEW = "fictief-nieuw-geheim-0123456789abcdef0123";
 const SECRET_OLD = "fictief-oud-geheim-0123456789abcdef012345";
 const NOW = 1_791_575_000;
-const cfg = { enabled: true, keys: { [KEY_NEW]: SECRET_NEW, [KEY_OLD]: SECRET_OLD } };
+const cfg = { enabled: true, keys: { [KEY_NEW]: SECRET_NEW, [KEY_OLD]: SECRET_OLD }, contactRefVersions: ["v1"] };
 const IK = "a".repeat(64);
 const ALL: ActionType[] = ["opt_out_signal", "inbound_message_record", "delivery_status_record", "confirmation_token_received"];
 
 const cmd = (o: Record<string, unknown> = {}) => ({
   contract_version: 1, idempotency_key: IK, tenant_id: "tenant_test", action_type: "opt_out_signal",
   provider_event_id: "msg:wamid.TEST", occurred_at: "2026-10-09T20:00:00Z",
-  data: { channel: "whatsapp", contact_ref: "ref_hash_abcdef0123456789" }, ...o,
+  data: { channel: "whatsapp", contact_ref: "c1.v1." + "d".repeat(64) }, ...o,
 });
 
 /** Simulated store mirroring the proposed SQL function semantics. */
@@ -116,7 +116,7 @@ describe("receiver: flag and configuration", () => {
     expect(m.store.resolveTenant).not.toHaveBeenCalled();
   });
   it("missing keys deny all", async () => {
-    expect((await handleGatewayCommand({ enabled: true, keys: {} }, memStore().store, await req(cmd()), NOW)).body.code).toBe("bad_signature");
+    expect((await handleGatewayCommand({ enabled: true, keys: {}, contactRefVersions: ["v1"] }, memStore().store, await req(cmd()), NOW)).body.code).toBe("bad_signature");
   });
   it("wrong method/path 404", async () => {
     expect((await handleGatewayCommand(cfg, memStore().store, await req(cmd(), { method: "GET" }), NOW)).status).toBe(404);
@@ -132,7 +132,7 @@ describe("receiver: signature, rotation, timestamp, body", () => {
     expect((await handleGatewayCommand(cfg, memStore().store, await req(cmd(), { keyId: KEY_OLD }), NOW)).body.code).toBe("applied");
   });
   it("removed key rejected", async () => {
-    const c2 = { enabled: true, keys: { [KEY_NEW]: SECRET_NEW } };
+    const c2 = { enabled: true, keys: { [KEY_NEW]: SECRET_NEW }, contactRefVersions: ["v1"] };
     expect((await handleGatewayCommand(c2, memStore().store, await req(cmd(), { keyId: KEY_OLD }), NOW)).status).toBe(401);
   });
   it("key id swapped into other key's signature rejected", async () => {
@@ -172,7 +172,7 @@ describe("receiver: strict schema and privacy", () => {
   it("STOP with raw phone number as contact_ref rejected", async () =>
     expect(await bad({ data: { channel: "whatsapp", contact_ref: "31600000000" } })).toBe("invalid_command"));
   it("STOP with extra fields (e.g. text) rejected", async () =>
-    expect(await bad({ data: { channel: "whatsapp", contact_ref: "ref_hash_abcdef0123456789", text: "STOP" } })).toBe("invalid_command"));
+    expect(await bad({ data: { channel: "whatsapp", contact_ref: "c1.v1." + "d".repeat(64), text: "STOP" } })).toBe("invalid_command"));
   it("inbound record carrying a body rejected (metadata only)", async () =>
     expect(await bad({ action_type: "inbound_message_record", data: { body: "boek mij morgen 10:00" } })).toBe("invalid_command"));
   it("status event with unknown status rejected", async () =>
@@ -222,7 +222,7 @@ describe("receiver: atomic idempotency", () => {
   it("same key, different content = 409 conflict, no effect", async () => {
     const m = memStore();
     await handleGatewayCommand(cfg, m.store, await req(cmd()), NOW);
-    const other = cmd({ data: { channel: "whatsapp", contact_ref: "ref_hash_zzzzzz0123456789" } });
+    const other = cmd({ data: { channel: "whatsapp", contact_ref: "c1.v1." + "e".repeat(64) } });
     expect((await handleGatewayCommand(cfg, m.store, await req(other), NOW)).status).toBe(409);
     expect(m.effects).toHaveLength(1);
   });
