@@ -31,6 +31,7 @@ export interface UserSubscription {
   past_due_since: string | null;
   payment_failure_email_sent_at: string | null;
   retry_attempted_at: string | null;
+  free_period_starts_at?: string | null;
 }
 
 export function useSubscriptionPlans() {
