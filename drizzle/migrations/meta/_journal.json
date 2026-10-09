@@ -15,6 +15,13 @@
       "when": 1791551143576,
       "tag": "0001_subscription_free_period",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791551432578,
+      "tag": "0002_lock_subscription_writes",
+      "breakpoints": true
     }
   ]
 }

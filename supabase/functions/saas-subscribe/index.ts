@@ -1,6 +1,7 @@
 // SaaS subscription checkout — creates Mollie customer + first payment with mandate
 // On webhook: activate Mollie subscription for monthly recurring billing
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { isBillingLockedForUser, isBillingLockedForEmail, billingLockedResponse } from "../_shared/billingGuard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -81,6 +82,7 @@ Deno.serve(async (req) => {
     }
 
     const admin = createClient(supabaseUrl, serviceKey);
+    if (await isBillingLockedForUser(admin, user.id)) return billingLockedResponse(corsHeaders);
 
     // Get plan
     const { data: plan, error: planErr } = await admin
