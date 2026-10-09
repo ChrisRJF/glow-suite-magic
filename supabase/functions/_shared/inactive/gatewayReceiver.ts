@@ -6,6 +6,8 @@
 // Not imported by any entrypoint. Nothing here sends messages or creates
 // appointments, payments, clients or medical records.
 
+import { parseContactRef } from "./contactRef.ts";
+
 export const CONTRACT_VERSION = 1;
 export const COMMAND_PATH = "/api/integrations/whatsapp-gateway/v1/commands";
 export const MAX_SKEW_SECONDS = 300;
@@ -25,6 +27,8 @@ export interface ReceiverConfig {
   enabled: boolean;
   /** key_id -> secret. Current + previous key during rotation grace. */
   keys: Record<string, string | undefined>;
+  /** Active contact_ref key versions (see CONTRACT-ADDENDUM.md). */
+  contactRefVersions: string[];
 }
 
 export interface TenantLink {
@@ -103,7 +107,6 @@ const r = (status: number, code: string, extra: Record<string, unknown> = {}): R
 const HEX64 = /^[0-9a-f]{64}$/;
 const REF = /^[A-Za-z0-9_-]{16,128}$/;
 const TOKEN = /^[A-Za-z0-9._-]{16,512}$/;
-const PHONEISH = /^\+?\d{8,15}$/;
 const TOP_KEYS = ["contract_version", "idempotency_key", "tenant_id", "action_type", "provider_event_id", "occurred_at", "data"];
 
 function onlyKeys(o: Record<string, unknown>, allowed: string[]): boolean {
@@ -111,15 +114,16 @@ function onlyKeys(o: Record<string, unknown>, allowed: string[]): boolean {
 }
 
 /** Strict schema per action. Returns null for invalid. Never accepts free text. */
-export function parseEffect(action: ActionType, data: unknown, providerEventId: string, occurredAt: string): Effect | null {
+export function parseEffect(action: ActionType, data: unknown, providerEventId: string, occurredAt: string, contactRefVersions: string[] = []): Effect | null {
   if (!data || typeof data !== "object" || Array.isArray(data)) return null;
   const d = data as Record<string, unknown>;
   switch (action) {
     case "opt_out_signal":
       // contact_ref must be a hashed / GlowSuite-issued ref, never a phone number.
       if (!onlyKeys(d, ["channel", "contact_ref"]) || d.channel !== "whatsapp") return null;
-      if (typeof d.contact_ref !== "string" || !REF.test(d.contact_ref) || PHONEISH.test(d.contact_ref)) return null;
-      return { kind: "opt_out", channel: "whatsapp", contactRef: d.contact_ref };
+      const ref = parseContactRef(d.contact_ref);
+      if (!ref || !contactRefVersions.includes(ref.version)) return null;
+      return { kind: "opt_out", channel: "whatsapp", contactRef: d.contact_ref as string };
     case "delivery_status_record":
       if (!onlyKeys(d, ["outbound_ref", "status"])) return null;
       if (typeof d.outbound_ref !== "string" || !REF.test(d.outbound_ref)) return null;
@@ -170,12 +174,15 @@ export async function handleGatewayCommand(
   if (typeof p.provider_event_id !== "string" || !p.provider_event_id || p.provider_event_id.length > 256) return r(400, "invalid_command", { reason: "provider_event_id" });
   if (typeof p.occurred_at !== "string" || Number.isNaN(Date.parse(p.occurred_at))) return r(400, "invalid_command", { reason: "occurred_at" });
   const action = p.action_type as ActionType;
-  const effect = parseEffect(action, p.data, p.provider_event_id, p.occurred_at);
+  const effect = parseEffect(action, p.data, p.provider_event_id, p.occurred_at, cfg.contactRefVersions);
   if (!effect) return r(400, "invalid_command", { reason: "data" });
 
   // 4. Tenant allow-list. GlowSuite resolves its own salon id.
   const link = await store.resolveTenant(p.tenant_id);
   if (!link || !link.enabled || !link.allowedActionTypes.includes(action)) return r(403, "tenant_not_authorized");
+
+  // Confirmation tokens are not executed until real validation exists.
+  if (effect.kind === "confirmation_token") return r(422, "business_rejected", { reason: "confirmation_not_enabled" });
 
   // 5. Atomic receipt + business effect.
   const receipt: ReceiptKey = {
