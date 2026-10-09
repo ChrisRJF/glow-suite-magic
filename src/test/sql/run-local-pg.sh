@@ -17,6 +17,8 @@ trap 'AS pg_ctl -D "$BASE/data" -m immediate stop >/dev/null 2>&1 || true; rm -r
 export PSQLX="psql -X -q -v ON_ERROR_STOP=1 -h $BASE/sock -U testsuper"
 AS $PSQLX -d postgres -c "create database gs_round7_test" >/dev/null
 cp "$HERE/round7-mocks.sql" "$HERE/round7-tests.sql" "$ROOT/docs/proposed-migrations/2026-10-09_whatsapp_gateway_receiver.sql" "$BASE/"
+# Append the existing production current_tenant_id() verbatim (read-only source copy).
+sed -n '2,47p' "$ROOT/supabase/migrations/20260910153038_758d466d-6cc1-4ffa-98de-4fda73aaaf68.sql" >> "$BASE/round7-mocks.sql"
 chown $RUNUID "$BASE"/*.sql
 echo "== isolation =="
 AS $PSQLX -d gs_round7_test -At -c "select 'socket_dir='||current_setting('unix_socket_directories')||' listen='''||current_setting('listen_addresses')||''' db='||current_database()||' tables_in_public='||(select count(*) from pg_tables where schemaname='public')"
