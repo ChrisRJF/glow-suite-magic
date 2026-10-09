@@ -170,7 +170,7 @@ create or replace function public.gateway_receipts_retention(_keep_days int defa
 returns int language plpgsql security definer set search_path = public as $$
 declare _n int;
 begin
-  if _keep_days is null or _keep_days < 400 then  -- round 7: null no longer slips through raise exception 'retention must be >= 400 days'; end if;
+  if _keep_days is null or _keep_days < 400 then  /* round 7: null refused */ raise exception 'retention must be >= 400 days'; end if;
   delete from gateway_command_receipts where created_at < now() - make_interval(days => _keep_days);
   get diagnostics _n = row_count;
   return _n;
