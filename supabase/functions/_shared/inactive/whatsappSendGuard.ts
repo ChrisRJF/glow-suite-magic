@@ -192,7 +192,7 @@ export async function guardedSend(identity: Identity, req: SendRequest, d: Deps)
   // Claim bound to the full intended send.
   const slot = typeof req.idempotency_key === "string" && /^[A-Za-z0-9_.:-]{8,128}$/.test(req.idempotency_key)
     ? `k:${req.idempotency_key}`
-    : `n:${kind}|${appointmentId ?? "-"}|${customer.id}|${typeof req.reminder_type === "string" ? req.reminder_type : "-"}|${await d.hmac("content", req.message)}`;
+    : `n:${kind}|${appointmentId ?? "-"}|${customer.id}|${typeof req.reminder_type === "string" ? req.reminder_type : "-"}${appointmentId ? "" : "|" + (await d.hmac("content", req.message))}`;
   const key = await d.hmac("claim", `${tenantId}|${slot}`);
   const contentFp = await d.hmac("content", req.message);
   const fingerprint = await d.hmac("fp", [tenantId, kind, purpose, customer.id, appointmentId ?? "-", dest, contentFp].join("|"));
