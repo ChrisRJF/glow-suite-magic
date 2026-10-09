@@ -13,7 +13,7 @@ import { handleGatewayCommand, signV1, COMMAND_PATH, type ReceiverStore } from "
 const K1 = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=";
 const K2 = "ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8=";
 const RING = JSON.stringify({ current: "2", keys: { "1": K1, "2": K2 } });
-const ring = () => { const r = parseKeyRing(RING); if (!r.ok) throw new Error(r.reason); return r.ring; };
+const ring = () => { const r = parseKeyRing(RING); if (r.ok === false) throw new Error(r.reason); return r.ring; };
 
 const VECTORS = [
   { tenant: "tenant-test-a", phone: "+31612345678", v: "1", hex: "54d32dc70c302bac4fa8614b919383d124e6cba859dc9ec71ea94a9c670bf5d1" },
