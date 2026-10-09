@@ -17,8 +17,31 @@ create table if not exists public.gateway_tenant_links (
 alter table public.gateway_tenant_links enable row level security;
 revoke all on public.gateway_tenant_links from anon, authenticated;
 grant select on public.gateway_tenant_links to authenticated;
-create policy "salon reads own gateway link" on public.gateway_tenant_links
-  for select to authenticated using (salon_id = auth.uid());
+-- Round 7.1: GlowSuite tenant = owner's user id. public.current_tenant_id() (existing,
+-- unchanged) returns it for an owner (role eigenaar) or for a member with exactly ONE
+-- active user_access row; revoked/ambiguous/missing -> NULL -> no rows.
+-- Role gate: management info (links) only eigenaar/admin; delivery status also manager.
+create or replace function public.gateway_tenant_role_allows(_salon uuid, _roles public.app_role[])
+returns boolean language plpgsql stable security definer set search_path = public as $$
+declare _uid uuid := auth.uid(); _t uuid;
+begin
+  if _uid is null or _salon is null then return false; end if;
+  _t := public.current_tenant_id();
+  if _t is null or _t <> _salon then return false; end if;
+  if _uid = _salon then  -- the owner of this salon
+    return 'eigenaar'::public.app_role = any(_roles)
+       and exists (select 1 from user_roles where user_id = _uid and role = 'eigenaar');
+  end if;
+  return exists (select 1 from user_access ua
+    where ua.member_user_id = _uid and ua.owner_user_id = _salon
+      and ua.status = 'active' and ua.role = any(_roles));
+end $$;
+revoke all on function public.gateway_tenant_role_allows(uuid, public.app_role[]) from public, anon;
+grant execute on function public.gateway_tenant_role_allows(uuid, public.app_role[]) to authenticated, service_role;
+
+create policy "salon managers read own gateway link" on public.gateway_tenant_links
+  for select to authenticated
+  using (public.gateway_tenant_role_allows(salon_id, array['eigenaar','admin']::public.app_role[]));
 
 -- Receipts. Global PK on idempotency_key; tenant mismatch on the same key is a conflict.
 -- Retention >= 400 days, enforced by gateway_receipts_retention().
@@ -62,8 +85,9 @@ create table if not exists public.whatsapp_outbound_messages (
 alter table public.whatsapp_outbound_messages enable row level security;
 revoke all on public.whatsapp_outbound_messages from anon, authenticated;
 grant select on public.whatsapp_outbound_messages to authenticated;
-create policy "salon reads own outbound" on public.whatsapp_outbound_messages
-  for select to authenticated using (salon_id = auth.uid());
+create policy "salon staff read own outbound status" on public.whatsapp_outbound_messages
+  for select to authenticated
+  using (public.gateway_tenant_role_allows(salon_id, array['eigenaar','admin','manager']::public.app_role[]));
 
 -- Send-time STOP check (future whatsapp-send wiring). refs = ref under every active key version.
 create or replace function public.whatsapp_is_opted_out(_salon uuid, _refs text[])
@@ -98,6 +122,30 @@ begin
   select * into _link from gateway_tenant_links where tenant_id = _tenant_id;
   if not found or not _link.enabled or not (_action_type = any(_link.allowed_action_types)) then
     return jsonb_build_object('result','tenant_not_authorized','code',403);
+  end if;
+  -- Round 7.1: malformed business input -> 422 BEFORE any write, so no receipt and no
+  -- effect (consistent with confirmation 422). The Gateway may retry with the same key
+  -- after correcting its input. Reasons are codes only; never echo the input.
+  if _idempotency_key is null or _idempotency_key !~ '^[0-9a-f]{64}$' then
+    return jsonb_build_object('result','business_rejected','code',422,'reason','invalid_idempotency_key');
+  end if;
+  if _request_hash is null or _request_hash !~ '^[0-9a-f]{64}$' then
+    return jsonb_build_object('result','business_rejected','code',422,'reason','invalid_request_hash');
+  end if;
+  if _action_type = 'opt_out_signal' then
+    if _contact_ref is null then
+      return jsonb_build_object('result','business_rejected','code',422,'reason','missing_contact_ref');
+    elsif _contact_ref !~ '^c1\.[a-z0-9]{1,16}\.[0-9a-f]{64}$' then
+      return jsonb_build_object('result','business_rejected','code',422,'reason','invalid_contact_ref');
+    end if;
+  end if;
+  if _action_type = 'delivery_status_record' then
+    if _outbound_ref is null or length(_outbound_ref) = 0 or length(_outbound_ref) > 128 then
+      return jsonb_build_object('result','business_rejected','code',422,'reason','invalid_outbound_ref');
+    end if;
+    if _status is null or _status not in ('sent','delivered','read','failed') then
+      return jsonb_build_object('result','business_rejected','code',422,'reason','invalid_status');
+    end if;
   end if;
   if _action_type = 'confirmation_token_received' then
     return jsonb_build_object('result','business_rejected','code',422,'reason','confirmation_not_enabled');

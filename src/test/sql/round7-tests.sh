@@ -53,12 +53,18 @@ $DB -c "set role service_role; begin; select public.gateway_process_command('$(K
 ok "rollback: no receipt" "$(qs "select count(*) from gateway_command_receipts where idempotency_key='$(K 20)'")" "0"
 ok "rollback: no effect"  "$(qs "select count(*) from whatsapp_opt_outs where contact_ref='$REF_C'")" "0"
 # In-function DB error (invalid contact_ref violates CHECK) -> whole call rolled back
-R=$(QFN=qa cmd $(K 21) tenant-test-a opt_out_signal $(H 21) "'not-a-ref'")
-has "invalid contact_ref -> error raised" "$R" "violates check constraint"
+ok "invalid contact_ref -> 422" "$(cmd $(K 21) tenant-test-a opt_out_signal $(H 21) "'not-a-ref'")" "business_rejected:422:invalid_contact_ref"
 ok  "invalid contact_ref: no receipt" "$(qs "select count(*) from gateway_command_receipts where idempotency_key='$(K 21)'")" "0"
-R=$(QFN=qa cmd $(K 22) tenant-test-a opt_out_signal $(H 22))
-has "null contact_ref -> error raised" "$R" "null value"
+ok "missing contact_ref -> 422" "$(cmd $(K 22) tenant-test-a opt_out_signal $(H 22))" "business_rejected:422:missing_contact_ref"
 ok  "null contact_ref: no receipt" "$(qs "select count(*) from gateway_command_receipts where idempotency_key='$(K 22)'")" "0"
+# Real DB error inside the function (test-only trigger) -> receipt + effect rolled back
+qs "create function public.r7_fail() returns trigger language plpgsql as \$f\$ begin raise exception 'r7 forced failure'; end \$f\$; create trigger r7_fail before insert on whatsapp_opt_outs for each row execute function public.r7_fail();" >/dev/null
+has "forced DB error surfaces" "$(QFN=qa cmd $(K 24) tenant-test-a opt_out_signal $(H 24) "'$REF_C'")" "r7 forced failure"
+ok  "forced DB error: no receipt" "$(qs "select count(*) from gateway_command_receipts where idempotency_key='$(K 24)'")" "0"
+ok  "forced DB error: no effect"  "$(qs "select count(*) from whatsapp_opt_outs where contact_ref='$REF_C'")" "0"
+qs "drop trigger r7_fail on whatsapp_opt_outs; drop function public.r7_fail();" >/dev/null
+ok  "retry after forced error applies" "$(cmd $(K 24) tenant-test-a opt_out_signal $(H 24) "'$REF_C'")" "applied:200"
+qs "delete from whatsapp_opt_outs where contact_ref='$REF_C'; delete from gateway_command_receipts where idempotency_key='$(K 24)'" >/dev/null
 # Killed mid-transaction
 $DB -c "set application_name='r7victim'; set role service_role; begin; select public.gateway_process_command('$(K 23)','tenant-test-a','opt_out_signal','$(H 23)','$REF_C'); select pg_sleep(10); commit;" >/dev/null 2>&1 &
 P1=$!; sleep 0.7
@@ -75,8 +81,8 @@ ok "disallowed action -> 403" "$(cmd $(K 32) tenant-test-b inbound_message_recor
 ok "unknown action -> 403"   "$(cmd $(K 33) tenant-test-a drop_everything $(H 33))" "tenant_not_authorized:403"
 ok "confirmation -> 422"     "$(cmd $(K 34) tenant-test-a confirmation_token_received $(H 34))" "business_rejected:422:confirmation_not_enabled"
 ok "no receipts for rejected" "$(qs "select count(*) from gateway_command_receipts where idempotency_key in ('$(K 30)','$(K 31)','$(K 32)','$(K 33)','$(K 34)')")" "0"
-R=$(QFN=qa cmd BAD tenant-test-a inbound_message_record $(H 35)); has "malformed idempotency key refused" "$R" "check constraint"
-R=$(QFN=qa cmd $(K 36) tenant-test-a inbound_message_record XYZ); has "malformed request hash refused" "$R" "check constraint"
+ok "malformed idempotency key -> 422" "$(cmd BAD tenant-test-a inbound_message_record $(H 35))" "business_rejected:422:invalid_idempotency_key"
+ok "malformed request hash -> 422" "$(cmd $(K 36) tenant-test-a inbound_message_record XYZ)" "business_rejected:422:invalid_request_hash"
 for role in anon authenticated test_intruder; do
   has "$role cannot execute process_command" "$($DB -c "set role $role; select public.gateway_process_command('$(K 40)','tenant-test-a','opt_out_signal','$(H 40)','$REF_A');" 2>&1)" "permission denied"
   has "$role cannot execute is_opted_out" "$($DB -c "set role $role; select public.whatsapp_is_opted_out('$SA', array['$REF_A']);" 2>&1)" "permission denied"
@@ -86,7 +92,7 @@ for role in anon authenticated test_intruder; do
   has "$role cannot write opt-outs" "$($DB -c "set role $role; insert into whatsapp_opt_outs values ('$SA','$REF_A');" 2>&1)" "permission denied"
 done
 has "anon cannot read tenant links" "$($DB -c "set role anon; select count(*) from gateway_tenant_links;" 2>&1)" "permission denied"
-ok "authenticated as salon A sees only own link" "$($DB -c "set request.jwt.claim.sub='$SA'; set role authenticated; select string_agg(tenant_id,',') from gateway_tenant_links;" | tail -n1)" "tenant-test-a"
+ok "owner A sees only own link" "$($DB -c "set request.jwt.claim.sub='$SA'; set role authenticated; select string_agg(tenant_id,',') from gateway_tenant_links;" | tail -n1)" "tenant-test-a"
 ok "authenticated without uid sees nothing" "$($DB -c "set role authenticated; select count(*) from gateway_tenant_links;" | tail -n1)" "0"
 has "authenticated cannot update own link" "$($DB -c "set request.jwt.claim.sub='$SA'; set role authenticated; update gateway_tenant_links set enabled=false;" 2>&1)" "permission denied"
 ok "security definer functions pin search_path" "$(qs "select count(*) from pg_proc where proname in ('gateway_process_command','whatsapp_is_opted_out','gateway_receipts_retention') and prosecdef and proconfig::text like '%search_path=public%'")" "3"
@@ -117,7 +123,7 @@ ok "duplicate callback (same key) -> duplicate" "$(cmd $(K $N) tenant-test-a del
 ok "unknown outbound ref -> 422" "$(d tenant-test-a out-nope delivered)" "business_rejected:422:unknown_outbound_ref"
 ok "other salon's message -> 422" "$(d tenant-test-a out-b-1 delivered)" "business_rejected:422:unknown_outbound_ref"
 ok "  salon B message untouched" "$(st $SB out-b-1)" "sent:0:f"
-ok "bogus status -> noop" "$(d tenant-test-a out-a-2 exploded)" "accepted_noop:202"
+ok "bogus status -> 422" "$(d tenant-test-a out-a-2 exploded)" "business_rejected:422:invalid_status"
 ok "  bogus status: state unchanged" "$(st $SA out-a-2)" "read:1:t"
 
 echo "-- 7. retention"
@@ -133,6 +139,67 @@ ok "opt-outs untouched by cleanup" "$(qs "select count(*) from whatsapp_opt_outs
 ok "outbound untouched by cleanup" "$(qs "select md5(string_agg(t::text,'' order by outbound_ref)) from whatsapp_outbound_messages t")" "$OUT_BEFORE"
 ok "unrelated table untouched" "$(qs "select count(*) from unrelated_sentinel")" "1"
 has "retention null refused" "$(qa "select public.gateway_receipts_retention(null)")" "retention must be >= 400 days"
+
+echo "-- 7.1 invalid status from every state"
+qs "insert into whatsapp_outbound_messages(salon_id,outbound_ref,status) values ('$SA','st-none',null),('$SA','st-sent','sent'),('$SA','st-delivered','delivered'),('$SA','st-read','read'),('$SA','st-failed','failed')" >/dev/null
+for stt in none sent delivered read failed; do
+  for bad in exploded SENT "" ; do
+    BEFORE=$(qs "select coalesce(status,'NULL')||updated_at from whatsapp_outbound_messages where outbound_ref='st-$stt'")
+    N=$(( $(cat /tmp/r7_n) + 1 )); echo $N > /tmp/r7_n
+    ok "[$stt] status '$bad' -> 422" "$(cmd $(K $N) tenant-test-a delivery_status_record $(H $N) null "'st-$stt'" "'$bad'")" "business_rejected:422:invalid_status"
+    ok "[$stt] '$bad' state unchanged" "$(qs "select coalesce(status,'NULL')||updated_at from whatsapp_outbound_messages where outbound_ref='st-$stt'")" "$BEFORE"
+    ok "[$stt] '$bad' no receipt" "$(qs "select count(*) from gateway_command_receipts where idempotency_key='$(K $N)'")" "0"
+  done
+done
+N=$(( $(cat /tmp/r7_n) + 1 )); echo $N > /tmp/r7_n
+ok "null status -> 422" "$(cmd $(K $N) tenant-test-a delivery_status_record $(H $N) null "'st-failed'")" "business_rejected:422:invalid_status"
+ok "missing outbound ref -> 422" "$(cmd $(K $((N+5000))) tenant-test-a delivery_status_record $(H $((N+5000))) null null "'read'")" "business_rejected:422:invalid_outbound_ref"
+ok "no stored invalid status anywhere" "$(qs "select count(*) from whatsapp_outbound_messages where status is not null and status not in ('sent','delivered','read','failed')")" "0"
+
+echo "-- 7.1 STOP refs"
+for bad in "c1.1.short" "c1.UPPER.$(printf 'a%.0s' {1..64})" "c2.1.$(printf 'a%.0s' {1..64})" "+31612345678" "c1.1.$(printf 'A%.0s' {1..64})"; do
+  N=$(( $(cat /tmp/r7_n) + 1 )); echo $N > /tmp/r7_n
+  R=$(QFN=qa cmd $(K $N) tenant-test-a opt_out_signal $(H $N) "'$bad'")
+  ok "bad ref '${bad:0:12}' -> 422" "$(printf '%s' "$R" | tail -n1)" "business_rejected:422:invalid_contact_ref"
+  if printf '%s' "$R" | grep -q -- "$bad"; then FAIL=$((FAIL+1)); echo "FAIL bad ref echoed in response"; else PASS=$((PASS+1)); echo "PASS bad ref not echoed"; fi
+  ok "  no receipt" "$(qs "select count(*) from gateway_command_receipts where idempotency_key='$(K $N)'")" "0"
+done
+ok "no invalid ref stored as STOP" "$(qs "select count(*) from whatsapp_opt_outs where contact_ref !~ '^c1\.[a-z0-9]{1,16}\.[0-9a-f]{64}\$'")" "0"
+ok "same key retried with valid ref after 422 applies" "$(cmd $(K $N) tenant-test-a opt_out_signal $(H $N) "'c1.1.$(printf 'd%.0s' {1..64})'")" "applied:200"
+
+echo "-- 7.1 tenant model / roles (fictitious users)"
+U_ADMIN_A=a0000000-0000-0000-0000-00000000000a; U_MGR_A=a0000000-0000-0000-0000-00000000000b
+U_EMP_A=a0000000-0000-0000-0000-00000000000c; U_REVOKED_A=a0000000-0000-0000-0000-00000000000d
+U_ADMIN_B=b0000000-0000-0000-0000-00000000000a; U_AMBIG=c0000000-0000-0000-0000-00000000000a
+U_NONE=d0000000-0000-0000-0000-00000000000a; U_FAKEOWN=e0000000-0000-0000-0000-00000000000a
+qs "insert into user_roles(user_id,role) values ('$U_ADMIN_A','admin'),('$U_MGR_A','manager'),('$U_EMP_A','medewerker'),('$U_REVOKED_A','admin'),('$U_ADMIN_B','admin'),('$U_AMBIG','admin');
+ insert into user_access(owner_user_id,member_user_id,email,role,status) values
+ ('$SA','$U_ADMIN_A','a@x.test','admin','active'),('$SA','$U_MGR_A','m@x.test','manager','active'),('$SA','$U_EMP_A','e@x.test','medewerker','active'),
+ ('$SA','$U_REVOKED_A','r@x.test','admin','revoked'),('$SB','$U_ADMIN_B','b@x.test','admin','active'),
+ ('$SA','$U_AMBIG','g1@x.test','admin','active'),('$SB','$U_AMBIG','g2@x.test','admin','active');" >/dev/null
+see() { $DB -c "set request.jwt.claim.sub='$1'; set role authenticated; select coalesce(string_agg(distinct $2,',' order by $2),'-') from $3;" 2>&1 | tail -n1; }
+ok "owner A: link"            "$(see $SA tenant_id gateway_tenant_links)" "tenant-test-a"
+ok "owner A: outbound only A" "$(see $SA salon_id::text whatsapp_outbound_messages)" "$SA"
+ok "owner B: link B only"     "$(see $SB tenant_id gateway_tenant_links)" "tenant-test-b"
+ok "admin A: link A"          "$(see $U_ADMIN_A tenant_id gateway_tenant_links)" "tenant-test-a"
+ok "admin A: outbound A"      "$(see $U_ADMIN_A salon_id::text whatsapp_outbound_messages)" "$SA"
+ok "manager A: no link (mgmt)" "$(see $U_MGR_A tenant_id gateway_tenant_links)" "-"
+ok "manager A: outbound A"    "$(see $U_MGR_A salon_id::text whatsapp_outbound_messages)" "$SA"
+ok "medewerker A: no link"    "$(see $U_EMP_A tenant_id gateway_tenant_links)" "-"
+ok "medewerker A: no outbound" "$(see $U_EMP_A salon_id::text whatsapp_outbound_messages)" "-"
+ok "revoked admin A: no link" "$(see $U_REVOKED_A tenant_id gateway_tenant_links)" "-"
+ok "revoked admin A: no outbound" "$(see $U_REVOKED_A salon_id::text whatsapp_outbound_messages)" "-"
+ok "admin B: never salon A"   "$(see $U_ADMIN_B salon_id::text whatsapp_outbound_messages)" "$SB"
+ok "ambiguous member: nothing" "$(see $U_AMBIG tenant_id gateway_tenant_links)" "-"
+ok "ambiguous member: no outbound" "$(see $U_AMBIG salon_id::text whatsapp_outbound_messages)" "-"
+ok "no link at all: nothing"  "$(see $U_NONE tenant_id gateway_tenant_links)" "-"
+ok "unknown uid with no role: nothing" "$(see $U_FAKEOWN salon_id::text whatsapp_outbound_messages)" "-"
+has "role helper not callable by anon" "$($DB -c "set role anon; select public.gateway_tenant_role_allows('$SA', array['admin']::app_role[]);" 2>&1)" "permission denied"
+ok "helper: admin A asking for salon B -> false" "$($DB -c "set request.jwt.claim.sub='$U_ADMIN_A'; set role authenticated; select public.gateway_tenant_role_allows('$SB', array['admin']::app_role[]);" | tail -n1)" "f"
+ok "helper: null salon -> false" "$($DB -c "set request.jwt.claim.sub='$SA'; set role authenticated; select public.gateway_tenant_role_allows(null, array['eigenaar']::app_role[]);" | tail -n1)" "f"
+has "admin A still cannot read receipts/opt-outs" "$($DB -c "set request.jwt.claim.sub='$U_ADMIN_A'; set role authenticated; select count(*) from whatsapp_opt_outs;" 2>&1)" "permission denied"
+ok "salon B outbound untouched overall" "$(qs "select status from whatsapp_outbound_messages where salon_id='$SB'")" "sent"
+ok "salon B has no opt-outs" "$(qs "select count(*) from whatsapp_opt_outs where salon_id='$SB'")" "0"
 
 echo "== RESULT: $PASS passed, $FAIL failed =="
 [ "$FAIL" -eq 0 ]
