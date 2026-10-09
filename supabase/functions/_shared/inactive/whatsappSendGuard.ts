@@ -166,7 +166,7 @@ export async function guardedSend(identity: Identity, req: SendRequest, d: Deps)
     typeof req.idempotency_key === "string" ? req.idempotency_key : await d.hash(req.message)].join("|");
   const key = await d.hash(natural);
   const claim = await d.claim(key, tenantId);
-  if (!claim.created) {
+  if (claim.created === false) {
     // sent: already delivered to provider. claimed/unknown: outcome uncertain, never auto-resend.
     if (claim.state === "failed") return no(409, "previous_attempt_failed_needs_new_key");
     return no(409, claim.state === "sent" ? "duplicate" : "outcome_unknown");
