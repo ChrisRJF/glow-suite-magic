@@ -93,10 +93,10 @@ Deno.serve(async (req) => {
     try {
       const { data: subRow } = await admin
         .from("subscriptions")
-        .select("id, trial_ends_at, status")
+        .select("id, trial_ends_at, status, free_period_starts_at")
         .eq("user_id", userId)
         .maybeSingle();
-      if (subRow && subRow.status === "trialing") {
+      if (subRow && subRow.status === "trialing" && !subRow.free_period_starts_at) {
         const base = subRow.trial_ends_at ? new Date(subRow.trial_ends_at) : new Date();
         base.setDate(base.getDate() + 30);
         await admin

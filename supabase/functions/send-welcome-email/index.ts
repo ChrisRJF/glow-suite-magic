@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
     const { data: existing } = await admin
       .from("audit_logs")
       .select("id")
-      .eq("event_type", "welcome_email_sent")
+      .eq("action", "welcome_email_sent")
       .eq("user_id", user.id)
       .limit(1)
       .maybeSingle();
@@ -87,9 +87,16 @@ Deno.serve(async (req) => {
     // Get trial end + name
     const { data: sub } = await admin
       .from("subscriptions")
-      .select("trial_ends_at")
+      .select("trial_ends_at, free_period_starts_at")
       .eq("user_id", user.id)
       .maybeSingle();
+
+    // Agreed free period: communication is handled personally, no automatic welcome mail.
+    if (sub?.free_period_starts_at) {
+      return new Response(JSON.stringify({ skipped: "free_period" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const { data: profile } = await admin
       .from("profiles")
@@ -132,8 +139,9 @@ Deno.serve(async (req) => {
       const errText = await res.text();
       await admin.from("audit_logs").insert({
         user_id: user.id,
-        event_type: "welcome_email_failed",
-        metadata: { status: res.status, error: errText },
+        action: "welcome_email_failed",
+        target_type: "user",
+        details: { status: res.status },
       });
       return new Response(JSON.stringify({ error: "send_failed" }), {
         status: 200,
@@ -143,8 +151,9 @@ Deno.serve(async (req) => {
 
     await admin.from("audit_logs").insert({
       user_id: user.id,
-      event_type: "welcome_email_sent",
-      metadata: { email: user.email },
+      action: "welcome_email_sent",
+      target_type: "user",
+      details: {},
     });
 
     return new Response(JSON.stringify({ sent: true }), {
