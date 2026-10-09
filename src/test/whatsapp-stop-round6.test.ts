@@ -162,7 +162,9 @@ describe("14-17. isolation", () => {
   });
   it("16. old whatsapp-inbound stays disabled", () => {
     const src = readFileSync(join(FUNCS, "whatsapp-inbound/index.ts"), "utf8");
-    expect(src).not.toMatch(/from\(["']whatsapp|insert\(|twilio/i);
+    expect(src).toMatch(/endpoint_disabled/);
+    expect(src).toMatch(/status: 410/);
+    expect(src).not.toMatch(/\.from\(|insert\(|createClient|fetch\(/);
   });
   it("17. whatsapp-send and reminders do not use the new STOP code", () => {
     expect(readFileSync(join(FUNCS, "whatsapp-send/index.ts"), "utf8")).not.toMatch(/contactRef|checkStopBeforeSend/);
