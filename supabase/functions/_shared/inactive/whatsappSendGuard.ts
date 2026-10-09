@@ -263,7 +263,7 @@ export async function guardedSend(identity: Identity, req: SendRequest, d: Deps)
 
   // Key shape is validated before any read: an invalid explicit key is refused, never replaced.
   const slot = deriveSlot(identity, kind, req, appointmentId);
-  if (!slot.ok) return no(slot.reason === "kind_not_allowed_for_caller" ? 403 : 422, slot.reason);
+  if (slot.ok === false) return no(slot.reason === "kind_not_allowed_for_caller" ? 403 : 422, slot.reason);
 
   const appt = appointmentId ? await d.appointment(appointmentId) : null;
   if (appointmentId && !appt) return no(403, "appointment_not_found");
@@ -308,7 +308,7 @@ export async function guardedSend(identity: Identity, req: SendRequest, d: Deps)
   if (stopped) return no(409, "customer_stopped");
   try { pref = await d.preferenceWhatsappOptOut(tenantId, customer.id); } catch { return no(503, "consent_lookup_failed"); }
   if (pref !== true && pref !== false && pref !== null) return no(503, "consent_lookup_failed");
-  const c = evaluateWhatsAppConsent({ purpose, tenantId, customer, stoppedInTenant: stopped, preferenceWhatsappOptOut: pref });
+  const c = evaluateWhatsAppConsent({ purpose, tenantId, customer, stoppedInTenant: false, preferenceWhatsappOptOut: pref as boolean | null });
   if (c.allowed === false) return no(409, c.reason);
   if (req.test !== true) {
     try { enabled = await d.whatsappEnabled(tenantId); } catch { return no(503, "settings_lookup_failed"); }
