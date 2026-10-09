@@ -145,7 +145,7 @@ export function HistoricalImport() {
 
       <label className="flex items-center gap-2 text-sm cursor-pointer rounded-xl border border-dashed border-border p-3">
         <Upload className="h-4 w-4" /> CSV-bestand kiezen
-        <input type="file" accept=".csv" className="hidden" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />
+        <input type="file" accept=".csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) onFile(f); }} />
       </label>
 
       {headers.length > 0 && data.length > 0 && (
