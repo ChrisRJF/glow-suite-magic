@@ -50,7 +50,7 @@ describe("consent (explicit, fail closed)", () => {
   it("unknown owner blocked", () => expect(ev({ ...c, user_id: null, whatsapp_opt_in: true }).allowed).toBe(false));
   it("marketing needs separate consent", () => {
     expect(ev({ ...c, whatsapp_opt_in: true }, { purpose: "marketing" }).allowed).toBe(false);
-    expect(ev({ ...c, whatsapp_opt_in: true, marketing_opt_in: true }, { purpose: "marketing" }).allowed).toBe(true);
+    expect(ev({ ...c, whatsapp_opt_in: true, marketing_consent: true }, { purpose: "marketing" }).allowed).toBe(true);
   });
   it("explicit true allowed for transactional", () => expect(ev({ ...c, whatsapp_opt_in: true }).allowed).toBe(true));
   it("STOP keywords exact only", () => {
