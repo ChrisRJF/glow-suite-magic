@@ -9,9 +9,12 @@ import { DirectCheckoutDialog } from "@/components/DirectCheckoutDialog";
 import { useSubscriptionPlans, startMollieCheckout } from "@/hooks/useSubscription";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
+import { useSubscriptionState } from "@/contexts/SubscriptionStateContext";
+import { FreePeriodNotice } from "@/components/FreePeriodNotice";
 
 export default function PricingPage() {
   const { plans, loading } = useSubscriptionPlans();
+  const { sub } = useSubscriptionState();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [demoOpen, setDemoOpen] = useState(false);
@@ -54,6 +57,14 @@ export default function PricingPage() {
       setBusy(null);
     }
   };
+
+  if (sub?.free_period_starts_at) {
+    return (
+      <div className="min-h-screen bg-background px-4 py-16">
+        <FreePeriodNotice sub={sub} />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

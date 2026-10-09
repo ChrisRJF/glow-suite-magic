@@ -25,6 +25,7 @@ import {
   ArrowUpRight,
 } from "lucide-react";
 import { useSubscriptionState } from "@/contexts/SubscriptionStateContext";
+import { FreePeriodNotice } from "@/components/FreePeriodNotice";
 import {
   manageSubscription,
   startMollieCheckout,
@@ -165,6 +166,14 @@ export default function MijnAbonnementPage() {
         <div className="flex items-center justify-center py-20">
           <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
         </div>
+      </AppLayout>
+    );
+  }
+
+  if (sub?.free_period_starts_at) {
+    return (
+      <AppLayout title="Mijn abonnement">
+        <FreePeriodNotice sub={sub} />
       </AppLayout>
     );
   }
