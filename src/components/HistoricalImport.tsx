@@ -45,12 +45,21 @@ export function HistoricalImport() {
     setBatches(Array.from(m.values()).sort((a, b) => b.importedAt.localeCompare(a.importedAt)));
   };
 
+  // Server-side access per tenant: preview (check only) and import (write) are separate flags.
+  const [access, setAccess] = useState<{ demo: boolean; preview: boolean; import: boolean } | null>(null);
   useEffect(() => {
-    if (!demoMode || !isAdmin) return;
-    loadBatches();
-    supabase.from("customers").select("id, name, email, phone").eq("is_demo", true)
+    if (!isAdmin) return;
+    supabase.rpc("history_import_access" as never).then(({ data }) => setAccess((data as never) || { demo: false, preview: false, import: false }));
+  }, [isAdmin, demoMode]);
+  const canPreview = !!access?.preview;
+  const canImport = !!access?.import;
+
+  useEffect(() => {
+    if (!access || !isAdmin || !canPreview) return;
+    if (canImport) loadBatches();
+    supabase.from("customers").select("id, name, email, phone").eq("is_demo", access.demo)
       .then(({ data }) => setCustomers((data as CustomerLite[]) || []));
-  }, [demoMode, isAdmin]);
+  }, [access, isAdmin, canPreview, canImport]);
 
   const fields = HISTORICAL_FIELDS[kind];
   const get = (r: Record<string, string>, k: string) => (map[k] ? String(r[map[k]] ?? "").trim() : "");
@@ -72,9 +81,9 @@ export function HistoricalImport() {
   const invalid = rows.filter((r) => r.error);
   const missingRequired = fields.filter((f) => f.required && !map[f.key]);
 
-  if (!isAdmin) return null;
+  if (!isAdmin || !access) return null;
 
-  if (!demoMode) {
+  if (!canPreview) {
     return (
       <div className="rounded-2xl border border-border p-4 opacity-70">
         <p className="text-sm font-semibold flex items-center gap-2"><History className="h-4 w-4" /> Historische dossiers uit Salonized</p>
@@ -95,7 +104,7 @@ export function HistoricalImport() {
   };
 
   const runImport = async () => {
-    if (!confirmed || ready.length === 0) return;
+    if (!canImport || !confirmed || ready.length === 0) return;
     setBusy(true);
     const batchId = crypto.randomUUID();
     const entries = await Promise.all(ready.map(async (r) => {
@@ -132,7 +141,11 @@ export function HistoricalImport() {
     <div className="rounded-2xl border border-border p-4 space-y-4">
       <div>
         <p className="text-sm font-semibold flex items-center gap-2"><History className="h-4 w-4 text-primary" /> Historische dossiers uit Salonized</p>
-        <p className="text-xs text-muted-foreground mt-1">Alleen in de demo. Oude afspraken en verslagen worden alleen-lezen bewaard met de originele datum. Er wordt niets geboekt of verstuurd.</p>
+        <p className="text-xs text-muted-foreground mt-1">
+          {canImport
+            ? "Oude afspraken en verslagen worden alleen-lezen bewaard met de originele datum. Er wordt niets geboekt of verstuurd."
+            : "CSV controleren. Je bestand wordt alleen in je browser gelezen en niet opgeslagen of verstuurd. Er wordt niets toegevoegd."}
+        </p>
       </div>
 
       <div className="flex gap-2">
@@ -193,13 +206,22 @@ export function HistoricalImport() {
                   );
                 })}
               </div>
-              <label className="flex items-start gap-2 text-sm">
-                <input type="checkbox" className="mt-1" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
-                Ik heb de klantkoppelingen gecontroleerd. Importeer {ready.length} {label} als historische, alleen-lezen gegevens.
-              </label>
-              <Button onClick={runImport} disabled={busy || !confirmed || ready.length === 0}>
-                {busy && <Loader2 className="h-4 w-4 animate-spin mr-2" />} Importeren
-              </Button>
+              {(toCheck.length > 0 || unmatched.length > 0 || invalid.length > 0) && (
+                <p className="text-xs text-warning">Let op: {toCheck.length + unmatched.length} regels zonder zekere klantkoppeling en {invalid.length} ongeldige regels. Onduidelijke koppelingen worden nooit automatisch gekozen.</p>
+              )}
+              {canImport ? (
+                <>
+                  <label className="flex items-start gap-2 text-sm">
+                    <input type="checkbox" className="mt-1" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
+                    Ik heb de klantkoppelingen gecontroleerd. Importeer {ready.length} {label} als historische, alleen-lezen gegevens.
+                  </label>
+                  <Button onClick={runImport} disabled={busy || !confirmed || ready.length === 0}>
+                    {busy && <Loader2 className="h-4 w-4 animate-spin mr-2" />} Importeren
+                  </Button>
+                </>
+              ) : (
+                <p className="rounded-xl bg-secondary/50 p-3 text-sm">Je kunt je Salonized-bestand alvast controleren. Importeren wordt na controle vrijgegeven.</p>
+              )}
             </>
           )}
         </>
