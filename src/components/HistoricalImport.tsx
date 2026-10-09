@@ -45,12 +45,21 @@ export function HistoricalImport() {
     setBatches(Array.from(m.values()).sort((a, b) => b.importedAt.localeCompare(a.importedAt)));
   };
 
+  // Server-side access per tenant: preview (check only) and import (write) are separate flags.
+  const [access, setAccess] = useState<{ demo: boolean; preview: boolean; import: boolean } | null>(null);
   useEffect(() => {
-    if (!demoMode || !isAdmin) return;
-    loadBatches();
-    supabase.from("customers").select("id, name, email, phone").eq("is_demo", true)
+    if (!isAdmin) return;
+    supabase.rpc("history_import_access" as never).then(({ data }) => setAccess((data as never) || { demo: false, preview: false, import: false }));
+  }, [isAdmin, demoMode]);
+  const canPreview = !!access?.preview;
+  const canImport = !!access?.import;
+
+  useEffect(() => {
+    if (!access || !isAdmin || !canPreview) return;
+    if (canImport) loadBatches();
+    supabase.from("customers").select("id, name, email, phone").eq("is_demo", access.demo)
       .then(({ data }) => setCustomers((data as CustomerLite[]) || []));
-  }, [demoMode, isAdmin]);
+  }, [access, isAdmin, canPreview, canImport]);
 
   const fields = HISTORICAL_FIELDS[kind];
   const get = (r: Record<string, string>, k: string) => (map[k] ? String(r[map[k]] ?? "").trim() : "");
@@ -72,9 +81,9 @@ export function HistoricalImport() {
   const invalid = rows.filter((r) => r.error);
   const missingRequired = fields.filter((f) => f.required && !map[f.key]);
 
-  if (!isAdmin) return null;
+  if (!isAdmin || !access) return null;
 
-  if (!demoMode) {
+  if (!canPreview) {
     return (
       <div className="rounded-2xl border border-border p-4 opacity-70">
         <p className="text-sm font-semibold flex items-center gap-2"><History className="h-4 w-4" /> Historische dossiers uit Salonized</p>
