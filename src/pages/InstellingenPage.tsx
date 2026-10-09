@@ -10,6 +10,7 @@ import {
   UserCog, AlertTriangle, Plus, Trash2, Facebook, Instagram, ExternalLink, Sparkles, PlayCircle, FileUp,
 } from "lucide-react";
 import { ImportWizard } from "@/components/ImportWizard";
+import { HistoricalImport } from "@/components/HistoricalImport";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -1390,7 +1391,7 @@ export default function InstellingenPage() {
           </div>
         )}
 
-        {activeTab === "import" && <ImportWizard />}
+        {activeTab === "import" && <div className="space-y-6"><ImportWizard /><HistoricalImport /></div>}
 
         {/* User Roles - Enhanced with add/remove */}
         {activeTab === "rollen" && (
