@@ -2321,6 +2321,74 @@ export type Database = {
         }
         Relationships: []
       }
+      historical_dossier_entries: {
+        Row: {
+          customer_id: string
+          employee_name: string | null
+          id: string
+          import_batch_id: string | null
+          imported_at: string
+          imported_by: string
+          is_demo: boolean
+          kind: string
+          note: string | null
+          occurred_on: string
+          occurred_time: string | null
+          price: number | null
+          service_name: string | null
+          source: string
+          source_hash: string
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          customer_id: string
+          employee_name?: string | null
+          id?: string
+          import_batch_id?: string | null
+          imported_at?: string
+          imported_by: string
+          is_demo?: boolean
+          kind: string
+          note?: string | null
+          occurred_on: string
+          occurred_time?: string | null
+          price?: number | null
+          service_name?: string | null
+          source?: string
+          source_hash: string
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          customer_id?: string
+          employee_name?: string | null
+          id?: string
+          import_batch_id?: string | null
+          imported_at?: string
+          imported_by?: string
+          is_demo?: boolean
+          kind?: string
+          note?: string | null
+          occurred_on?: string
+          occurred_time?: string | null
+          price?: number | null
+          service_name?: string | null
+          source?: string
+          source_hash?: string
+          status?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "historical_dossier_entries_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       import_batch_items: {
         Row: {
           batch_id: string
@@ -5461,6 +5529,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      import_historical_entries: {
+        Args: { _batch_id: string; _entries: Json }
+        Returns: Json
+      }
       increment_whatsapp_usage: {
         Args: { _failed: number; _sent: number; _user_id: string }
         Returns: undefined
@@ -5488,6 +5560,10 @@ export type Database = {
           _tenant_id: string
         }
         Returns: Json
+      }
+      rollback_historical_import: {
+        Args: { _batch_id: string }
+        Returns: number
       }
       set_auto_rebook: { Args: { _enabled: boolean }; Returns: undefined }
       set_noshow_prevention: {
