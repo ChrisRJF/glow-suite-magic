@@ -3,6 +3,7 @@ import Papa from "papaparse";
 import { History, Loader2, Undo2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useDemoMode } from "@/hooks/useDemoMode";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -11,6 +12,7 @@ import {
   type CustomerLite, type HistoricalKind, type MatchResult,
 } from "@/lib/historicalImport";
 
+interface Batch { id: string; kind: string; importedAt: string; count: number }
 interface Row { idx: number; raw: Record<string, string>; date: string | null; error?: string; match: MatchResult }
 
 /**
@@ -30,8 +32,22 @@ export function HistoricalImport() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ inserted: number; skipped: number; rejected: number; batchId: string } | null>(null);
 
+  const [batches, setBatches] = useState<Batch[]>([]);
+  const [undoTarget, setUndoTarget] = useState<Batch | null>(null);
+
+  const loadBatches = async () => {
+    const { data } = await (supabase as any).from("historical_dossier_entries").select("import_batch_id, kind, imported_at").not("import_batch_id", "is", null);
+    const m = new Map<string, Batch>();
+    for (const r of (data || []) as { import_batch_id: string; kind: string; imported_at: string }[]) {
+      const b = m.get(r.import_batch_id) || { id: r.import_batch_id, kind: r.kind, importedAt: r.imported_at, count: 0 };
+      b.count++; m.set(r.import_batch_id, b);
+    }
+    setBatches(Array.from(m.values()).sort((a, b) => b.importedAt.localeCompare(a.importedAt)));
+  };
+
   useEffect(() => {
     if (!demoMode || !isAdmin) return;
+    loadBatches();
     supabase.from("customers").select("id, name, email, phone").eq("is_demo", true)
       .then(({ data }) => setCustomers((data as CustomerLite[]) || []));
   }, [demoMode, isAdmin]);
@@ -100,12 +116,14 @@ export function HistoricalImport() {
     const r = res as unknown as { inserted: number; skipped: number; rejected: number };
     setResult({ ...r, batchId });
     setData([]); setConfirmed(false);
+    loadBatches();
   };
 
-  const undo = async () => {
-    if (!result) return;
-    const { error } = await supabase.rpc("rollback_historical_import" as never, { _batch_id: result.batchId } as never);
-    if (error) toast.error("Ongedaan maken mislukt."); else { toast.success("Import ongedaan gemaakt"); setResult(null); }
+  const undo = async (b: Batch) => {
+    const { data: n, error } = await supabase.rpc("rollback_historical_import" as never, { _batch_id: b.id } as never);
+    if (error) { toast.error("Ongedaan maken mislukt."); return; }
+    toast.success(`Import ongedaan gemaakt: ${n} records verwijderd`);
+    setResult(null); loadBatches();
   };
 
   const label = kind === "appointment" ? "afspraken" : "verslagen";
@@ -127,7 +145,7 @@ export function HistoricalImport() {
 
       <label className="flex items-center gap-2 text-sm cursor-pointer rounded-xl border border-dashed border-border p-3">
         <Upload className="h-4 w-4" /> CSV-bestand kiezen
-        <input type="file" accept=".csv" className="hidden" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />
+        <input type="file" accept=".csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) onFile(f); }} />
       </label>
 
       {headers.length > 0 && data.length > 0 && (
@@ -190,9 +208,33 @@ export function HistoricalImport() {
       {result && (
         <div className="rounded-xl bg-secondary/50 p-3 text-sm space-y-2">
           <p>{result.inserted} {label} toegevoegd · {result.skipped} al eerder geïmporteerd · {result.rejected} afgewezen</p>
-          <Button size="sm" variant="outline" onClick={undo}><Undo2 className="h-4 w-4 mr-1" /> Import ongedaan maken</Button>
+          {result.inserted === 0 && <p className="text-xs text-muted-foreground">Er is niets nieuws toegevoegd. Eerdere imports kun je hieronder ongedaan maken.</p>}
         </div>
       )}
+      {batches.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-sm font-semibold">Eerdere historische imports</p>
+          {batches.map((b) => (
+            <div key={b.id} className="flex items-center justify-between gap-2 rounded-xl border border-border p-3">
+              <p className="text-sm">
+                {b.kind === "appointment" ? "Afspraken" : "Verslagen"} · {new Date(b.importedAt).toLocaleString("nl-NL", { dateStyle: "medium", timeStyle: "short" })}
+                <span className="block text-xs text-muted-foreground">{b.count} records</span>
+              </p>
+              <Button size="sm" variant="outline" onClick={() => setUndoTarget(b)}><Undo2 className="h-4 w-4 mr-1" /> Import ongedaan maken</Button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={!!undoTarget}
+        onOpenChange={(o) => !o && setUndoTarget(null)}
+        title="Import ongedaan maken?"
+        description={undoTarget ? `De import van ${new Date(undoTarget.importedAt).toLocaleString("nl-NL", { dateStyle: "medium", timeStyle: "short" })} (${undoTarget.kind === "appointment" ? "afspraken" : "verslagen"}) wordt teruggedraaid. ${undoTarget.count} records worden verwijderd. Klanten en andere dossiergegevens blijven staan.` : ""}
+        confirmLabel={undoTarget ? `${undoTarget.count} records verwijderen` : "Verwijderen"}
+        destructive
+        onConfirm={async () => { if (undoTarget) await undo(undoTarget); }}
+      />
     </div>
   );
 }
