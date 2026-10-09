@@ -250,7 +250,7 @@ export function WhatsAppConnectionCard() {
           <h2 className="text-lg font-semibold">WhatsApp</h2>
           <div className="flex items-center gap-2 mt-1 text-sm">
             {connected ? (
-              <><CheckCircle2 className="w-4 h-4 text-success" /><span className="text-success">Ingeschakeld</span></>
+              <><CheckCircle2 className="w-4 h-4 text-success" /><span className="text-success">Ingeschakeld (niet hetzelfde als verbonden)</span></>
             ) : (
               <><AlertCircle className="w-4 h-4 text-warning" /><span className="text-warning">Uitgeschakeld</span></>
             )}
@@ -329,7 +329,13 @@ export function WhatsAppConnectionCard() {
       {/* Status (salon-friendly) */}
       <div className="border-t border-border pt-4 space-y-1">
         <p className="text-sm font-medium mb-2">Status</p>
-        <Checkline ok={true} text="WhatsApp klaar voor gebruik" />
+        {/* Never claim readiness without a proven production sender. The
+            sandbox sender is not a production connection. */}
+        {isSandbox ? (
+          <Checkline ok={false} warn text="Nog geen goedgekeurde WhatsApp-verbinding" />
+        ) : (
+          <Checkline ok={!!lastSent} warn={!lastSent} text={lastSent ? "Afzendnummer ingesteld, laatste bericht aangeboden" : "Afzendnummer ingesteld, nog niet bevestigd"} />
+        )}
         {lastSent && (
           <Checkline ok={true} text={`Laatste verzonden: ${new Date(lastSent.created_at).toLocaleString("nl-NL")}`} />
         )}
