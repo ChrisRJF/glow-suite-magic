@@ -29,6 +29,13 @@
       "when": 1791553824436,
       "tag": "0003_history_import_tenant_flags",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791553927480,
+      "tag": "0004_lock_tenant_feature_flags",
+      "breakpoints": true
     }
   ]
 }
