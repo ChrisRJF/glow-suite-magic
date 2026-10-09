@@ -13,8 +13,8 @@
 const enc = new TextEncoder();
 const hex = (b: ArrayBuffer) => [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, "0")).join("");
 
-async function hmac(key: string | Uint8Array, msg: string): Promise<ArrayBuffer> {
-  const raw = typeof key === "string" ? enc.encode(key) : key;
+async function hmac(key: string | ArrayBuffer, msg: string): Promise<ArrayBuffer> {
+  const raw: BufferSource = typeof key === "string" ? enc.encode(key) : key;
   const k = await crypto.subtle.importKey("raw", raw, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   return crypto.subtle.sign("HMAC", k, enc.encode(msg));
 }
@@ -43,7 +43,7 @@ export async function computeContactRef(
 ): Promise<string | null> {
   const e164 = normalizeE164(phone);
   if (!e164 || !masterKey || masterKey.length < 32 || !/^[a-z0-9]{1,16}$/.test(keyVersion) || !tenantId) return null;
-  const tenantKey = new Uint8Array(await hmac(masterKey, `glowsuite-contact-ref:v1:${tenantId}`));
+  const tenantKey = await hmac(masterKey, `glowsuite-contact-ref:v1:${tenantId}`);
   return `c1.${keyVersion}.${hex(await hmac(tenantKey, e164))}`;
 }
 
