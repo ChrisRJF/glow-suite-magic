@@ -15,6 +15,25 @@ export function TrialBanner() {
   if (!sub) return null;
   // expired handled by TrialExpiredModal — no banner needed
   if (isReadOnly) return null;
+
+  // Agreed free period (e.g. preparation + free month). Informational only:
+  // no checkout button until a tested SaaS checkout exists.
+  if (sub.free_period_starts_at && sub.status === "trialing") {
+    const beforeStart = Date.now() < new Date(sub.free_period_starts_at).getTime();
+    const fmt = (iso: string) =>
+      new Date(iso).toLocaleDateString("nl-NL", { day: "numeric", month: "long", timeZone: "Europe/Amsterdam" });
+    return (
+      <div className="px-4 py-2.5 text-sm flex items-center justify-center gap-2 border-b bg-primary/5 border-primary/20 text-center">
+        <Sparkles className="w-4 h-4 shrink-0" />
+        <span className="font-medium leading-tight">
+          {beforeStart
+            ? `Je account staat klaar voor ${fmt(sub.free_period_starts_at)}. Je gratis gebruiksmaand begint dan.`
+            : `Je gebruikt GlowSuite gratis tot ${fmt(sub.trial_ends_at)}.`}
+        </span>
+      </div>
+    );
+  }
+
   if (daysLeft === null) return null;
   if (dismissed && daysLeft > 4) return null;
 

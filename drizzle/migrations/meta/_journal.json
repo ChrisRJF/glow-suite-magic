@@ -8,6 +8,13 @@
       "when": 1791547011831,
       "tag": "0000_historical_dossier_entries",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791551143576,
+      "tag": "0001_subscription_free_period",
+      "breakpoints": true
     }
   ]
 }
