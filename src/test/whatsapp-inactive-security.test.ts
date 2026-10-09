@@ -250,7 +250,7 @@ describe("proposed SQL stays a proposal", () => {
   it("has contract tables and atomic function", () => {
     expect(sql).toMatch(/gateway_command_receipts/);
     expect(sql).toMatch(/gateway_tenant_links/);
-    expect(sql).toMatch(/pg_advisory_xact_lock/);
+    expect(sql).toMatch(/on conflict \(idempotency_key\) do nothing/);
     expect(sql).toMatch(/'conflict','code',409/);
   });
   it("is not in supabase/migrations", () => {
