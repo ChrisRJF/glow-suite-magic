@@ -95,7 +95,7 @@ has "anon cannot read tenant links" "$($DB -c "set role anon; select count(*) fr
 ok "owner A sees only own link" "$($DB -c "set request.jwt.claim.sub='$SA'; set role authenticated; select string_agg(tenant_id,',') from gateway_tenant_links;" | tail -n1)" "tenant-test-a"
 ok "authenticated without uid sees nothing" "$($DB -c "set role authenticated; select count(*) from gateway_tenant_links;" | tail -n1)" "0"
 has "authenticated cannot update own link" "$($DB -c "set request.jwt.claim.sub='$SA'; set role authenticated; update gateway_tenant_links set enabled=false;" 2>&1)" "permission denied"
-ok "security definer functions pin search_path" "$(qs "select count(*) from pg_proc where proname in ('gateway_process_command','whatsapp_is_opted_out','gateway_receipts_retention') and prosecdef and proconfig::text like '%search_path=public%'")" "3"
+ok "security definer functions pin search_path (pg_temp last)" "$(qs "select count(*) from pg_proc where proname in ('gateway_tenant_role_allows','gateway_process_command','whatsapp_is_opted_out','gateway_receipts_retention') and prosecdef and proconfig::text like '%search_path=pg_catalog, public, pg_temp%'")" "4"
 ok "is_opted_out scoped per salon (A yes)" "$(q "select public.whatsapp_is_opted_out('$SA', array['$REF_A'])")" "t"
 ok "is_opted_out scoped per salon (B no)"  "$(q "select public.whatsapp_is_opted_out('$SB', array['$REF_A'])")" "f"
 
@@ -200,6 +200,71 @@ ok "helper: null salon -> false" "$($DB -c "set request.jwt.claim.sub='$SA'; set
 has "admin A still cannot read receipts/opt-outs" "$($DB -c "set request.jwt.claim.sub='$U_ADMIN_A'; set role authenticated; select count(*) from whatsapp_opt_outs;" 2>&1)" "permission denied"
 ok "salon B outbound untouched overall" "$(qs "select status from whatsapp_outbound_messages where salon_id='$SB'")" "sent"
 ok "salon B has no opt-outs" "$(qs "select count(*) from whatsapp_opt_outs where salon_id='$SB'")" "0"
+
+echo "-- 7.2 temp tables / search_path"
+TA="set request.jwt.claim.sub='$U_EMP_A'; set role authenticated;"
+# authenticated may create temp tables (PUBLIC has TEMP by default, as in Supabase)
+SHADOW="create temp table user_access(owner_user_id uuid, member_user_id uuid, status text, role public.app_role);
+ insert into user_access values ('$SA','$U_EMP_A','active','admin'),('$SB','$U_EMP_A','active','admin');
+ create temp table user_roles(user_id uuid, role public.app_role); insert into user_roles values ('$U_EMP_A','eigenaar');"
+ok "temp user_access/user_roles: no link"     "$($DB -c "$TA $SHADOW select count(*) from gateway_tenant_links;" 2>&1 | tail -n1)" "0"
+ok "temp user_access: no outbound"            "$($DB -c "$TA $SHADOW select count(*) from whatsapp_outbound_messages;" 2>&1 | tail -n1)" "0"
+ok "temp user_access: helper false for B"     "$($DB -c "$TA $SHADOW select public.gateway_tenant_role_allows('$SB', array['admin']::public.app_role[]);" 2>&1 | tail -n1)" "f"
+ok "temp user_access: current_tenant_id unchanged" "$($DB -c "$TA $SHADOW select public.current_tenant_id();" 2>&1 | tail -n1)" "$SA"
+ok "temp + search_path=pg_temp,public: helper false" "$($DB -c "$TA $SHADOW set search_path=pg_temp,public; select public.gateway_tenant_role_allows('$SA', array['admin']::public.app_role[]);" 2>&1 | tail -n1)" "f"
+ok "custom search_path: admin B still B only" "$($DB -c "set request.jwt.claim.sub='$U_ADMIN_B'; set role authenticated; set search_path=pg_temp,public; select string_agg(distinct salon_id::text,',') from public.whatsapp_outbound_messages;" 2>&1 | tail -n1)" "$SB"
+SR="set role service_role;"
+LINKS="create temp table gateway_tenant_links(tenant_id text, salon_id uuid, enabled boolean, allowed_action_types text[]);
+ insert into gateway_tenant_links values ('tenant-evil','$SA',true,array['opt_out_signal']),('tenant-test-off','$SA',true,array['opt_out_signal']);"
+ok "temp gateway_tenant_links: fake tenant 403" "$($DB -c "$SR $LINKS set search_path=pg_temp,public; select (r->>'code') from public.gateway_process_command('$(K 7201)','tenant-evil','opt_out_signal','$(H 7201)','$REF_B') r;" 2>&1 | tail -n1)" "403"
+ok "temp gateway_tenant_links: disabled stays 403" "$($DB -c "$SR $LINKS select (r->>'code') from public.gateway_process_command('$(K 7202)','tenant-test-off','opt_out_signal','$(H 7202)','$REF_B') r;" 2>&1 | tail -n1)" "403"
+OPTS="create temp table whatsapp_opt_outs(salon_id uuid, contact_ref text); insert into whatsapp_opt_outs values ('$SB','$REF_A');"
+ok "temp whatsapp_opt_outs: B not opted out" "$($DB -c "$SR $OPTS set search_path=pg_temp,public; select public.whatsapp_is_opted_out('$SB', array['$REF_A']);" 2>&1 | tail -n1)" "f"
+ok "temp whatsapp_opt_outs: STOP lands in real table" "$($DB -c "$SR $OPTS select (r->>'result') from public.gateway_process_command('$(K 7203)','tenant-test-b','opt_out_signal','$(H 7203)','$REF_A') r;" 2>&1 | tail -n1)" "applied"
+ok "  real B opt-out exists" "$(qs "select count(*) from whatsapp_opt_outs where salon_id='$SB' and contact_ref='$REF_A'")" "1"
+qs "delete from whatsapp_opt_outs where salon_id='$SB'" >/dev/null
+RCPT="create temp table gateway_command_receipts(idempotency_key text, tenant_id text, request_hash text, action_type text, response_code int); insert into gateway_command_receipts values ('$(K 7204)','tenant-test-a','$(H 7204)','opt_out_signal',200);"
+ok "temp receipts: cannot fake a duplicate" "$($DB -c "$SR $RCPT set search_path=pg_temp,public; select (r->>'result') from public.gateway_process_command('$(K 7204)','tenant-test-a','inbound_message_record','$(H 7204)') r;" 2>&1 | tail -n1)" "accepted_noop"
+for role in anon test_intruder; do
+  has "$role via temp objects: still denied" "$($DB -c "set role $role; create temp table user_access(x int); select public.gateway_process_command('$(K 7205)','tenant-test-a','opt_out_signal','$(H 7205)','$REF_A');" 2>&1)" "permission denied"
+done
+ok "no unqualified table refs in definer bodies" "$(qs "select count(*) from pg_proc where proname in ('gateway_tenant_role_allows','gateway_process_command','whatsapp_is_opted_out','gateway_receipts_retention') and prosrc ~* '(from|into|update|join)\s+(user_access|user_roles|gateway_[a-z_]+|whatsapp_[a-z_]+)'")" "0"
+
+echo "-- 7.2 idempotency key reuse"
+R1="c1.1.$(printf 'e%.0s' {1..64})"; R2="c1.1.$(printf 'f%.0s' {1..64})"
+ok "first STOP applied"                 "$(cmd $(K 7300) tenant-test-a opt_out_signal $(H 7300) "'$R1'")" "applied:200"
+ok "same key, changed STOP ref -> 409"  "$(cmd $(K 7300) tenant-test-a opt_out_signal $(H 7301) "'$R2'")" "conflict:409"
+ok "  changed ref not stored"           "$(qs "select count(*) from whatsapp_opt_outs where contact_ref='$R2'")" "0"
+ok "same key, other action_type -> 409 (same hash)" "$(cmd $(K 7300) tenant-test-a inbound_message_record $(H 7300))" "conflict:409"
+ok "same key, other tenant -> 409"      "$(cmd $(K 7300) tenant-test-b opt_out_signal $(H 7300) "'$R1'")" "conflict:409"
+ok "same key, invalid new ref -> 409"   "$(cmd $(K 7300) tenant-test-a opt_out_signal $(H 7302) "'bad'")" "conflict:409"
+ok "same key, missing ref -> 409"       "$(cmd $(K 7300) tenant-test-a opt_out_signal $(H 7303))" "conflict:409"
+ok "same key, unauthorized tenant -> 403 (no key oracle)" "$(cmd $(K 7300) tenant-nope opt_out_signal $(H 7300) "'$R1'")" "tenant_not_authorized:403"
+ok "same key, identical -> duplicate"   "$(cmd $(K 7300) tenant-test-a opt_out_signal $(H 7300) "'$R1'")" "duplicate:200"
+ok "receipt unchanged"                  "$(qs "select status||':'||response_code||':'||action_type from gateway_command_receipts where idempotency_key='$(K 7300)'")" "applied:200:opt_out_signal"
+N=$(( $(cat /tmp/r7_n) + 1 )); echo $N > /tmp/r7_n
+cmd $(K 7310) tenant-test-a delivery_status_record $(H 7310) null "'out-a-3'" "'read'" >/dev/null
+ok "same key, changed delivery status -> 409" "$(cmd $(K 7310) tenant-test-a delivery_status_record $(H 7311) null "'out-a-3'" "'failed'")" "conflict:409"
+ok "  status not changed by reuse"      "$(st $SA out-a-3)" "read:1:f"
+ok "same key, invalid status -> 409"    "$(cmd $(K 7310) tenant-test-a delivery_status_record $(H 7312) null "'out-a-3'" "'exploded'")" "conflict:409"
+ok "new key, invalid ref -> 422"        "$(cmd $(K 7320) tenant-test-a opt_out_signal $(H 7320) "'bad'")" "business_rejected:422:invalid_contact_ref"
+ok "new key, invalid status -> 422"     "$(cmd $(K 7321) tenant-test-a delivery_status_record $(H 7321) null "'out-a-3'" "'x'")" "business_rejected:422:invalid_status"
+ok "  no receipts for new invalid"      "$(qs "select count(*) from gateway_command_receipts where idempotency_key in ('$(K 7320)','$(K 7321)')")" "0"
+# 422 from a receipt-time business rejection (unknown outbound ref) IS stored, so reuse -> 409
+cmd $(K 7330) tenant-test-a delivery_status_record $(H 7330) null "'out-nope'" "'read'" >/dev/null
+ok "stored 422 then changed content -> 409" "$(cmd $(K 7330) tenant-test-a delivery_status_record $(H 7331) null "'out-a-1'" "'read'")" "conflict:409"
+# Concurrency: valid uncommitted + changed content on same key, two real connections
+$DB -c "set role service_role; begin; select public.gateway_process_command('$(K 7340)','tenant-test-a','opt_out_signal','$(H 7340)','c1.1.$(printf '1%.0s' {1..64})'); select pg_sleep(1.5); commit;" >/dev/null 2>&1 &
+P1=$!; sleep 0.4
+R=$($DB -c "set role service_role; select (r->>'result') from public.gateway_process_command('$(K 7340)','tenant-test-a','opt_out_signal','$(H 7341)','c1.1.$(printf '2%.0s' {1..64})') r;" | tail -n1)
+wait $P1
+ok "concurrent changed STOP ref -> conflict" "$R" "conflict"
+ok "  only first effect stored" "$(qs "select count(*) from whatsapp_opt_outs where contact_ref in ('c1.1.$(printf '1%.0s' {1..64})','c1.1.$(printf '2%.0s' {1..64})')")" "1"
+$DB -c "set role service_role; begin; select public.gateway_process_command('$(K 7350)','tenant-test-a','opt_out_signal','$(H 7350)','c1.1.$(printf '3%.0s' {1..64})'); select pg_sleep(1.5); commit;" >/dev/null 2>&1 &
+P1=$!; sleep 0.4
+R=$($DB -c "set role service_role; select (r->>'result') from public.gateway_process_command('$(K 7350)','tenant-test-a','opt_out_signal','$(H 7350)','c1.1.$(printf '3%.0s' {1..64})') r;" | tail -n1)
+wait $P1
+ok "concurrent identical -> duplicate" "$R" "duplicate"
 
 echo "== RESULT: $PASS passed, $FAIL failed =="
 [ "$FAIL" -eq 0 ]
