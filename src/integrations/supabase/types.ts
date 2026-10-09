@@ -4224,6 +4224,7 @@ export type Database = {
           day14_sent_at: string | null
           day3_sent_at: string | null
           day7_sent_at: string | null
+          free_period_starts_at: string | null
           id: string
           last_payment_id: string | null
           mollie_customer_id: string | null
@@ -4251,6 +4252,7 @@ export type Database = {
           day14_sent_at?: string | null
           day3_sent_at?: string | null
           day7_sent_at?: string | null
+          free_period_starts_at?: string | null
           id?: string
           last_payment_id?: string | null
           mollie_customer_id?: string | null
@@ -4278,6 +4280,7 @@ export type Database = {
           day14_sent_at?: string | null
           day3_sent_at?: string | null
           day7_sent_at?: string | null
+          free_period_starts_at?: string | null
           id?: string
           last_payment_id?: string | null
           mollie_customer_id?: string | null
