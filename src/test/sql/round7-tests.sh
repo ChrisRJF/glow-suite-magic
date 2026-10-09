@@ -4,6 +4,7 @@ set -uo pipefail
 DB="$PSQLX -d gs_round7_test -At"
 PASS=0; FAIL=0
 q()  { $DB -c "set role service_role; $1" 2>&1 | tail -n1; }
+qa() { $DB -c "set role service_role; $1" 2>&1; }       # full output (for error assertions)
 qs() { $DB -c "$1" 2>&1 | tail -n1; }   # as test superuser (setup/inspection only)
 ok() { if [ "$2" = "$3" ]; then PASS=$((PASS+1)); echo "PASS $1"; else FAIL=$((FAIL+1)); echo "FAIL $1 | expected [$3] got [$2]"; fi; }
 has() { if printf '%s' "$2" | grep -q -- "$3"; then PASS=$((PASS+1)); echo "PASS $1"; else FAIL=$((FAIL+1)); echo "FAIL $1 | expected to contain [$3] got [$2]"; fi; }
@@ -13,7 +14,7 @@ REF_A="c1.1.$(printf 'a%.0s' {1..64})"
 REF_B="c1.1.$(printf 'b%.0s' {1..64})"
 SA=11111111-1111-1111-1111-111111111111; SB=22222222-2222-2222-2222-222222222222
 cmd() { # key tenant action hash contact outbound status
-  q "select (r->>'result')||':'||(r->>'code')||coalesce(':'||(r->>'reason'),'') from public.gateway_process_command('$1','$2','$3','$4',${5:-null},${6:-null},${7:-null}) r;"
+  ${QFN:-q} "select (r->>'result')||':'||(r->>'code')||coalesce(':'||(r->>'reason'),'') from public.gateway_process_command('$1','$2','$3','$4',${5:-null},${6:-null},${7:-null}) r;"
 }
 $DB -f "$BASE/round7-tests.sql" >/dev/null
 
@@ -52,10 +53,10 @@ $DB -c "set role service_role; begin; select public.gateway_process_command('$(K
 ok "rollback: no receipt" "$(qs "select count(*) from gateway_command_receipts where idempotency_key='$(K 20)'")" "0"
 ok "rollback: no effect"  "$(qs "select count(*) from whatsapp_opt_outs where contact_ref='$REF_C'")" "0"
 # In-function DB error (invalid contact_ref violates CHECK) -> whole call rolled back
-R=$(cmd $(K 21) tenant-test-a opt_out_signal $(H 21) "'not-a-ref'")
+R=$(QFN=qa cmd $(K 21) tenant-test-a opt_out_signal $(H 21) "'not-a-ref'")
 has "invalid contact_ref -> error raised" "$R" "violates check constraint"
 ok  "invalid contact_ref: no receipt" "$(qs "select count(*) from gateway_command_receipts where idempotency_key='$(K 21)'")" "0"
-R=$(cmd $(K 22) tenant-test-a opt_out_signal $(H 22))
+R=$(QFN=qa cmd $(K 22) tenant-test-a opt_out_signal $(H 22))
 has "null contact_ref -> error raised" "$R" "null value"
 ok  "null contact_ref: no receipt" "$(qs "select count(*) from gateway_command_receipts where idempotency_key='$(K 22)'")" "0"
 # Killed mid-transaction
@@ -74,8 +75,8 @@ ok "disallowed action -> 403" "$(cmd $(K 32) tenant-test-b inbound_message_recor
 ok "unknown action -> 403"   "$(cmd $(K 33) tenant-test-a drop_everything $(H 33))" "tenant_not_authorized:403"
 ok "confirmation -> 422"     "$(cmd $(K 34) tenant-test-a confirmation_token_received $(H 34))" "business_rejected:422:confirmation_not_enabled"
 ok "no receipts for rejected" "$(qs "select count(*) from gateway_command_receipts where idempotency_key in ('$(K 30)','$(K 31)','$(K 32)','$(K 33)','$(K 34)')")" "0"
-R=$(cmd BAD tenant-test-a inbound_message_record $(H 35)); has "malformed idempotency key refused" "$R" "check constraint"
-R=$(cmd $(K 36) tenant-test-a inbound_message_record XYZ); has "malformed request hash refused" "$R" "check constraint"
+R=$(QFN=qa cmd BAD tenant-test-a inbound_message_record $(H 35)); has "malformed idempotency key refused" "$R" "check constraint"
+R=$(QFN=qa cmd $(K 36) tenant-test-a inbound_message_record XYZ); has "malformed request hash refused" "$R" "check constraint"
 for role in anon authenticated test_intruder; do
   has "$role cannot execute process_command" "$($DB -c "set role $role; select public.gateway_process_command('$(K 40)','tenant-test-a','opt_out_signal','$(H 40)','$REF_A');" 2>&1)" "permission denied"
   has "$role cannot execute is_opted_out" "$($DB -c "set role $role; select public.whatsapp_is_opted_out('$SA', array['$REF_A']);" 2>&1)" "permission denied"
@@ -94,8 +95,9 @@ ok "is_opted_out scoped per salon (B no)"  "$(q "select public.whatsapp_is_opted
 
 echo "-- 6. delivery statuses"
 qs "insert into whatsapp_outbound_messages(salon_id,outbound_ref,status) values ('$SA','out-a-1','sent'),('$SA','out-a-2','sent'),('$SA','out-a-3','sent'),('$SB','out-b-1','sent')" >/dev/null
-st() { qs "select status||':'||failed_attempts||':'||status_conflict from whatsapp_outbound_messages where salon_id='$1' and outbound_ref='$2'"; }
-n=100; d() { n=$((n+1)); cmd $(K $n) "$1" delivery_status_record $(H $n) null "'$2'" "'$3'"; }
+st() { qs "select status||':'||failed_attempts||':'||(case when status_conflict then 't' else 'f' end) from whatsapp_outbound_messages where salon_id='$1' and outbound_ref='$2'"; }
+echo 100 > /tmp/r7_n
+d() { local n=$(( $(cat /tmp/r7_n) + 1 )); echo $n > /tmp/r7_n; cmd $(K $n) "$1" delivery_status_record $(H $n) null "'$2'" "'$3'"; }
 ok "sent->delivered" "$(d tenant-test-a out-a-1 delivered)" "applied:200"
 ok "delivered->read" "$(d tenant-test-a out-a-1 read)" "applied:200"
 ok "late delivered after read -> noop" "$(d tenant-test-a out-a-1 delivered)" "accepted_noop:202"
@@ -110,9 +112,8 @@ ok "sent->failed" "$(st $SA out-a-3)" "failed:1:f"
 ok "duplicate failed -> noop" "$(d tenant-test-a out-a-3 failed)" "accepted_noop:202"
 ok "delivered after failed -> applied" "$(d tenant-test-a out-a-3 delivered)" "applied:200"
 ok "  state: delivered, history kept" "$(st $SA out-a-3)" "delivered:1:f"
-N=$((n+1)); cmd $(K $N) tenant-test-a delivery_status_record $(H $N) null "'out-a-2'" "'read'" >/dev/null
+N=$(( $(cat /tmp/r7_n) + 1 )); echo $N > /tmp/r7_n; cmd $(K $N) tenant-test-a delivery_status_record $(H $N) null "'out-a-2'" "'read'" >/dev/null
 ok "duplicate callback (same key) -> duplicate" "$(cmd $(K $N) tenant-test-a delivery_status_record $(H $N) null "'out-a-2'" "'read'")" "duplicate:200"
-n=$((N+1))
 ok "unknown outbound ref -> 422" "$(d tenant-test-a out-nope delivered)" "business_rejected:422:unknown_outbound_ref"
 ok "other salon's message -> 422" "$(d tenant-test-a out-b-1 delivered)" "business_rejected:422:unknown_outbound_ref"
 ok "  salon B message untouched" "$(st $SB out-b-1)" "sent:0:f"
@@ -123,14 +124,14 @@ qs "insert into gateway_command_receipts(idempotency_key,tenant_id,salon_id,acti
  ('$(K 900)','tenant-test-a','$SA','opt_out_signal','$(H 900)','applied',200, now()-interval '399 days'),
  ('$(K 901)','tenant-test-a','$SA','opt_out_signal','$(H 901)','applied',200, now()-interval '401 days')" >/dev/null
 OPT_BEFORE=$(qs "select count(*) from whatsapp_opt_outs"); OUT_BEFORE=$(qs "select md5(string_agg(t::text,'' order by outbound_ref)) from whatsapp_outbound_messages t")
-has "retention < 400 refused" "$(q "select public.gateway_receipts_retention(399)")" "retention must be >= 400 days"
+has "retention < 400 refused" "$(qa "select public.gateway_receipts_retention(399)")" "retention must be >= 400 days"
 ok "retention 400 deletes only the 401-day record" "$(q "select public.gateway_receipts_retention(400)")" "1"
 ok "399-day receipt kept" "$(qs "select count(*) from gateway_command_receipts where idempotency_key='$(K 900)'")" "1"
 ok "duplicate within retention still recognised" "$(cmd $(K 900) tenant-test-a opt_out_signal $(H 900) "'$REF_A'")" "duplicate:200"
 ok "opt-outs untouched by cleanup" "$(qs "select count(*) from whatsapp_opt_outs")" "$OPT_BEFORE"
 ok "outbound untouched by cleanup" "$(qs "select md5(string_agg(t::text,'' order by outbound_ref)) from whatsapp_outbound_messages t")" "$OUT_BEFORE"
 ok "unrelated table untouched" "$(qs "select count(*) from unrelated_sentinel")" "1"
-has "retention null refused or noop" "$(q "select coalesce(public.gateway_receipts_retention(null)::text,'null')")" "null"
+has "retention null refused" "$(qa "select public.gateway_receipts_retention(null)")" "retention must be >= 400 days"
 
 echo "== RESULT: $PASS passed, $FAIL failed =="
 [ "$FAIL" -eq 0 ]
