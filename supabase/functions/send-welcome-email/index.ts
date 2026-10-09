@@ -87,9 +87,16 @@ Deno.serve(async (req) => {
     // Get trial end + name
     const { data: sub } = await admin
       .from("subscriptions")
-      .select("trial_ends_at")
+      .select("trial_ends_at, free_period_starts_at")
       .eq("user_id", user.id)
       .maybeSingle();
+
+    // Agreed free period: communication is handled personally, no automatic welcome mail.
+    if (sub?.free_period_starts_at) {
+      return new Response(JSON.stringify({ skipped: "free_period" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const { data: profile } = await admin
       .from("profiles")
