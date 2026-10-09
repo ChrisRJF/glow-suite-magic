@@ -156,7 +156,7 @@ export async function guardedSend(identity: Identity, req: SendRequest, d: Deps)
   if (stopped) return no(409, "customer_stopped");
   if (customer) {
     const c = evaluateWhatsAppConsent({ purpose: KIND_PURPOSE[kind], tenantId, customer, stoppedInTenant: stopped });
-    if (!c.allowed) return no(409, c.reason);
+    if (c.allowed === false) return no(409, c.reason);
   }
   if (!test && !(await d.whatsappEnabled(tenantId))) return no(409, "whatsapp_disabled");
 

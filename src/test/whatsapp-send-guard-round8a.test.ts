@@ -25,7 +25,7 @@ function world(opts: { customers?: CustomerRow[]; stopped?: string[]; transport?
   };
   const claims = new Map<string, ClaimState>();
   const transport = vi.fn(opts.transport ?? (async () => ({ accepted: true, sid: "SM_fake" })));
-  const finalize = vi.fn(async (k: string, s: ClaimState) => { if (opts.finalizeFails) throw new Error("db down"); claims.set(k, s); });
+  const finalize = vi.fn(async (k: string, s: ClaimState, _log?: unknown) => { if (opts.finalizeFails) throw new Error("db down"); claims.set(k, s); });
   const deps: Deps = {
     roleInTenant: async (u, t) => (roles[u]?.[0] === t ? (roles[u][1] as never) : null),
     tenantOfUser: async (u) => roles[u]?.[0] ?? null,
