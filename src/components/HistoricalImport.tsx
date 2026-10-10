@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 import Papa from "papaparse";
 import { History, Loader2, Undo2, Upload } from "lucide-react";
 import { toast } from "sonner";
