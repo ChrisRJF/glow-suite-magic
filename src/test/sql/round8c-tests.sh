@@ -104,5 +104,21 @@ ok "old unknown kept for review"       "$(qs "select count(*) from wa_send_claim
 ok "recent sent kept"                  "$(qs "select count(*) from wa_send_claims where claim_key='$(H 73)'")" "1"
 ok "live nonces kept"                  "$(qs "select count(*) from wa_service_nonces where expires_at > now()")" "3"
 
+echo "-- retention 8D (min 400 days; uncertain +30)"
+for v in 0 -1 30 399; do has "retention $v refused" "$(qa "select public.wa_send_purge($v);")" "retention_too_short"; done
+qs "delete from wa_send_claims" >/dev/null
+ins() { qs "insert into wa_send_claims(tenant_id,claim_key,fingerprint,state,customer_id,kind,created_at) values ('$SA','$(H $1)','$(H $1)','$2','$C','reminder',now()-interval '$3')" >/dev/null; }
+ins 201 sent '399 days'; ins 202 sent '400 days' ; ins 203 sent '401 days'; ins 204 failed '401 days'
+ins 205 unknown '401 days'; ins 206 claimed '429 days'; ins 207 unknown '431 days'; ins 208 claimed '431 days'
+ins 209 failed '399 days'
+qs "update wa_send_claims set created_at = now()-interval '400 days'+interval '1 hour' where claim_key='$(H 202)'" >/dev/null
+ok "purge(400) removes exactly 401d sent/failed + 431d uncertain" "$(q "select (public.wa_send_purge(400)->>'claims');")" "4"
+for k in 201 202 205 206 209; do ok "kept $k" "$(qs "select count(*) from wa_send_claims where claim_key='$(H $k)'")" "1"; done
+for k in 203 204 207 208; do ok "removed $k" "$(qs "select count(*) from wa_send_claims where claim_key='$(H $k)'")" "0"; done
+ok "old key (399d, sent) still blocks resend" "$(claim $SA $(H 201) $(H 201))" "exists:sent"
+ok "old uncertain key (429d) still blocks resend" "$(claim $SA $(H 206) $(H 206))" "exists:claimed"
+ok "longer retention keeps more" "$(qs "insert into wa_send_claims(tenant_id,claim_key,fingerprint,state,customer_id,kind,created_at) values ('$SA','$(H 210)','$(H 210)','sent','$C','reminder',now()-interval '450 days')" >/dev/null; q "select (public.wa_send_purge(500)->>'claims');")" "0"
+ok "after expiry the key is claimable again (documented limit)" "$(claim $SA $(H 203) $(H 203))" "created"
+
 echo "== $PASS passed, $FAIL failed =="
 [ "$FAIL" -eq 0 ]
