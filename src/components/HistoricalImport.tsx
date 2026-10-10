@@ -75,7 +75,7 @@ export function HistoricalImport() {
   const fields = HISTORICAL_FIELDS[kind];
   const get = (r: Record<string, string>, k: string) => (map[k] ? String(r[map[k]] ?? "").trim() : "");
 
-  const rows: Row[] = useMemo(() => data.map((r, idx) => {
+  const rows: Row[] = useMemo(() => (customersError ? [] : data).map((r, idx) => {
     const date = parseDate(get(r, "date"));
     let error: string | undefined;
     if (!date) error = "Ongeldige of ontbrekende datum";
@@ -83,7 +83,7 @@ export function HistoricalImport() {
     else if (kind === "appointment" && get(r, "time") && !parseTime(get(r, "time"))) error = "Ongeldige tijd";
     return { idx, raw: r, date, error, match: matchCustomer({ name: get(r, "customer_name"), email: get(r, "customer_email"), phone: get(r, "customer_phone") }, customers) };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [data, map, customers, kind]);
+  }), [data, map, customers, kind, customersError]);
 
   const customerFor = (r: Row) => (r.match.status === "matched" ? r.match.customerId : manual[r.idx] || null);
   const ready = rows.filter((r) => !r.error && customerFor(r));
@@ -116,6 +116,7 @@ export function HistoricalImport() {
 
   const runImport = async () => {
     if (!canImport || !confirmed || ready.length === 0) return;
+    if (customersError) { toast.error("Niet alle klanten konden worden geladen. Probeer het opnieuw."); return; }
     setBusy(true);
     const batchId = crypto.randomUUID();
     const entries = await Promise.all(ready.map(async (r) => {
