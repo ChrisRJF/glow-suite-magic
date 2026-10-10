@@ -4,7 +4,7 @@
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"; ROOT="$(cd "$HERE/../.." && pwd)"
 D="$ROOT/docs/prepared-patches/atomic-appointment-move/public-slug"
-BASE=/tmp/glowsuite-pg-slug; RUNUID=4712; PASS=0; FAIL=0
+BASE=/tmp/glowsuite-pg-slug; RUNUID=4711; PASS=0; FAIL=0
 rm -rf "$BASE"; mkdir -p "$BASE/data" "$BASE/sock"; cp "$D"/*.sql "$BASE/"; chown -R $RUNUID:$RUNUID "$BASE"; chmod 700 "$BASE/sock"
 AS() { env -i PATH="$PATH" HOME=/tmp setpriv --reuid=$RUNUID --regid=$RUNUID --clear-groups "$@"; }
 AS initdb -D "$BASE/data" -U t -A trust -E UTF8 --locale=C >"$BASE/init.log" 2>&1 || { cat "$BASE/init.log"; exit 1; }
