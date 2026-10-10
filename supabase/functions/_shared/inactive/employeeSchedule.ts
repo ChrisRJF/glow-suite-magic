@@ -276,3 +276,32 @@ export function busyFromAppointments(date: string, rows: Array<{ appointment_dat
 export function normalizeBusyEmployees<T extends { employee_id: string | null }>(rows: T[], knownIds: Set<string>): T[] {
   return rows.map((r) => ({ ...r, employee_id: r.employee_id && knownIds.has(r.employee_id) ? r.employee_id : null }));
 }
+
+/** Anonymous slot keys used when employees are not shown publicly (hidden or none configured). */
+export const AUTO_KEY_PREFIX = "auto-";
+export function isAutoKey(key: string | null | undefined): boolean {
+  return typeof key === "string" && key.startsWith(AUTO_KEY_PREFIX);
+}
+
+/**
+ * Availability per service. Public staff: keyed by real employee id (unchanged). Otherwise keyed
+ * by anonymous "auto-N" (N = stable position in the staff list, same across services), so the
+ * client can count real simultaneous capacity without ever seeing ids or names.
+ */
+export function availabilitySlots(
+  staff: ScheduleEmployee[],
+  day: DayContext,
+  services: Array<{ id: string; name: string; duration_minutes: number }>,
+  opts: { publicStaff: boolean; step?: number },
+): Record<string, Record<string, string[]>> {
+  const slots: Record<string, Record<string, string[]>> = {};
+  for (const svc of services) {
+    slots[svc.id] = {};
+    staff.forEach((emp, i) => {
+      if (!canDoService(emp, svc)) return;
+      const times = startTimes(emp, day, svc.duration_minutes, opts.step ?? 15);
+      if (times.length) slots[svc.id][opts.publicStaff ? emp.id : `${AUTO_KEY_PREFIX}${i + 1}`] = times;
+    });
+  }
+  return slots;
+}
