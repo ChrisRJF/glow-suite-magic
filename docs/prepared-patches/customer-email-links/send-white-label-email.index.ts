@@ -10,13 +10,15 @@ const GATEWAY_URL = "https://connector-gateway.lovable.dev/resend";
 const admin = createClient(URL_, SERVICE, { auth: { persistSession: false, autoRefreshToken: false } });
 const one = async (q: PromiseLike<{ data: any; error: any }>) => { const { data, error } = await q; if (error) throw error; return data; };
 
-let currentJwt = ""; // set per request below; only used by tenantForUser of the same request
-
-const handler = createCustomerEmailHandler({
+// Deps are built per request so the verified JWT never leaks across concurrent requests.
+const handlerFor = (req: Request) => {
+  const m = /^Bearer\s+(.+)$/i.exec(req.headers.get("Authorization") ?? "");
+  const currentJwt = m ? m[1].trim() : "";
+  return createCustomerEmailHandler({
   serviceRoleKey: SERVICE,
   // Fresh query every call; error -> throw -> blocked.
   readStopSwitch: () => one(admin.from("customer_email_controls").select("sending_enabled").eq("id", true).maybeSingle()),
-  verifyUser: async (jwt) => { currentJwt = jwt; const { data, error } = await admin.auth.getUser(jwt); return error ? null : data.user?.id ?? null; },
+  verifyUser: async (jwt) => { const { data, error } = await admin.auth.getUser(jwt); return error ? null : data.user?.id ?? null; },
   // Existing trusted rule current_tenant_id(), evaluated as the verified user.
   tenantForUser: async () => {
     const c = createClient(URL_, ANON, { global: { headers: { Authorization: `Bearer ${currentJwt}` } }, auth: { persistSession: false } });
@@ -43,5 +45,6 @@ const handler = createCustomerEmailHandler({
     return { ok: r.ok, id: j?.id || j?.data?.id || null };
   },
 });
+};
 
-Deno.serve(handler);
+Deno.serve((req) => handlerFor(req)(req));
