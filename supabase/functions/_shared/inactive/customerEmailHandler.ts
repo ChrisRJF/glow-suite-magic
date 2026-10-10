@@ -88,7 +88,7 @@ export function createCustomerEmailHandler(deps: HandlerDeps) {
     // 2. Authorization: identity, tenant and role from server data; body.user_id never trusted alone.
     const access = body.preview_only ? { mode: "preview" as const } : { mode: "send" as const, recipientEmail: body.recipient_email };
     const auth = await authorizeEmailRequest(req.headers.get("Authorization"), body.user_id, deps, access);
-    if (!auth.ok) return json({ error: auth.error }, auth.status);
+    if ("error" in auth) return json({ error: auth.error }, auth.status);
     const tenantId = auth.tenantId;
 
     try {
