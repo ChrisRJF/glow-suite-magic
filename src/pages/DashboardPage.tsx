@@ -24,6 +24,7 @@ import { BeautycareWelcomeCard } from "@/components/demo/BeautycareWelcomeCard";
 
 import { actionLogKey, clearLegacyDemoLocalState } from "@/lib/demoIsolation";
 import { cn } from "@/lib/utils";
+import { countNewCustomersThisWeek } from "@/lib/calendarWeek";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 
