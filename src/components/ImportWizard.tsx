@@ -568,6 +568,14 @@ export function ImportWizard() {
           ? supabase.from("membership_plans").select("id, name").eq("user_id", user.id).eq("is_demo", demoMode)
           : Promise.resolve({ data: [] as any[] }),
       ]);
+      if (existingCustomersRes.error) {
+        // Partial customer list: never dedupe or auto-link against it. Abort before any writes.
+        await supabase.from("import_batches").update({ status: "failed" }).eq("id", batchId);
+        toast.error("Niet alle klanten konden worden geladen. Probeer het opnieuw.");
+        setImporting(false);
+        setProgressLabel("");
+        return;
+      }
       const existingCustomers = existingCustomersRes.data ?? [];
       const existingServices = existingServicesRes.data ?? [];
       const existingEmployees = existingEmployeesRes.data ?? [];
@@ -1180,6 +1188,9 @@ export function ImportWizard() {
           <p className="text-sm text-muted-foreground">
             {fileName} ({SOURCE_LABELS[source]} → {TYPE_LABELS[type]})
           </p>
+          {loadError && (
+            <p className="text-sm text-destructive">Niet alle klanten konden worden geladen. Probeer het opnieuw.</p>
+          )}
           {analysis ? (
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
               <SummaryCard label="Gevonden" value={analysis.total} />
