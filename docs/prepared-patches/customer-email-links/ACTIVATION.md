@@ -54,3 +54,8 @@ Any holder of the service-role key can still send as any salon. Limits applied: 
 2. Confirm the roles allowed to preview and send: eigenaar, admin, manager.
 3. Old test src/test/email-template-link-coverage.test.ts already fails (missing `emailStrings`) and asserts the old subdomain/.ics links; remove it together with patch 1.
 4. No test booking in production: verify patch 1 with a preview_only request by the owner of a demo salon.
+
+## Update: stop switch and send rights
+- CUSTOMER_EMAIL_PAUSED: only the exact value `false` allows sending; `true`, missing or invalid blocks all customer emails. The secret must be set to `false` before patch 1 deploys, otherwise all emails stop.
+- Preview: eigenaar, admin, manager (own salon). Manual send: eigenaar, admin only, recipient must be a stored customer of the salon (`recipientAllowed`). Trusted automations (service key) unchanged.
+- Unproven: that changing the secret takes effect without a redeploy. The code reads it per request, but platform behaviour for running instances has not been tested. Verify on a non-production function before relying on it.

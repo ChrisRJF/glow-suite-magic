@@ -102,9 +102,9 @@ export function allowedLinksIn(a: TemplateActions): string[] {
 }
 
 /**
- * Safe stop: CUSTOMER_EMAIL_PAUSED secret (no redeploy needed). Fail-closed only on the
- * explicit value "true"; anything else keeps sending so automations are not blocked by typos.
+ * Safe stop: CUSTOMER_EMAIL_PAUSED. Sending is allowed only on the explicit value "false".
+ * "true", missing, empty or any other value blocks (fail-closed). Read per request, never cached.
  */
 export function customerEmailPaused(envValue: string | undefined): boolean {
-  return (envValue ?? "").trim().toLowerCase() === "true";
+  return (envValue ?? "").trim().toLowerCase() !== "false";
 }
