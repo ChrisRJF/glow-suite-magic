@@ -19,6 +19,7 @@ const ALLOWED_PATHS: RegExp[] = [
   /^\/boeken\/[a-z0-9-]+$/,
   /^\/mijn-afspraak\/[0-9a-f-]{36}$/i,
   /^\/afspraak\/[0-9a-f-]{36}(?:\/(?:bevestigen|annuleren))?$/i,
+  /^\/abonnementen\/[a-z0-9-]+$/,
   /^\/route-contact$/,
   /^\/salonvoorwaarden$/,
 ];

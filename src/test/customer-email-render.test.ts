@@ -58,7 +58,7 @@ describe("customer email render links (inactive, fictief)", () => {
   });
   it("all internal links pass the main-domain allowlist", () => {
     for (const k of TEMPLATE_KEYS) for (const u of allowedLinksIn(templateActions(k, full))) {
-      if (u.startsWith("https://glowsuite.nl/")) expect(isAllowedCustomerUrl(u) || u.includes("/abonnementen/")).toBe(true);
+      if (u.startsWith("https://glowsuite.nl/")) expect(isAllowedCustomerUrl(u)).toBe(true);
     }
   });
   it("pause switch only on explicit true", () => {
