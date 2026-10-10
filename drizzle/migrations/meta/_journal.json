@@ -36,6 +36,13 @@
       "when": 1791553927480,
       "tag": "0004_lock_tenant_feature_flags",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791650435090,
+      "tag": "0005_employee_weekly_schedule",
+      "breakpoints": true
     }
   ]
 }
