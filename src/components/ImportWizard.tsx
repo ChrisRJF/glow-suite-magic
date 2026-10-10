@@ -610,7 +610,7 @@ export function ImportWizard() {
         if (!name && !email && !phone) return null;
         const { data, error } = await supabase
           .from("customers")
-          .insert({ user_id: user.id, is_demo: demoMode, name: name || email || phone, email: e || null, phone: p || null })
+          .insert({ user_id: user.id, is_demo: demoMode, name: name || email || phone, email: e || null, phone: phone ? normalizePhone(phone) : null })
           .select("id")
           .single();
         if (error || !data) return null;
@@ -709,7 +709,7 @@ export function ImportWizard() {
             track("customers", data.id);
             importIndex.add(data.id, name, email, phone);
             if (email) customerByEmail.set(email, data.id);
-            if (phone) customerByPhone.set(dupKey(phone), data.id);
+            { const pk = dupKey(phone); if (pk) customerByPhone.set(pk, data.id); }
             customerByName.set(nameKey, data.id);
             imported++;
           } else if (type === "services") {
