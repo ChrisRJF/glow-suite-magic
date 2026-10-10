@@ -1,3 +1,4 @@
+import { summarizeSchedule } from "@/lib/employeeScheduleSummary";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -347,10 +348,19 @@ export default function EmployeesPage() {
                       )}
                     </div>
                     {e.role && <div className="text-xs text-muted-foreground truncate">{e.role}</div>}
+                    {(() => {
+                      const sum = summarizeSchedule(e as any);
+                      if (sum.kind === "schedule") return (
+                        <div className="mt-1.5 space-y-0.5 text-[11px] text-foreground/80 tabular-nums">
+                          {sum.lines.length ? sum.lines.map((l) => <div key={l}>{l}</div>) : <div className="text-muted-foreground">Geen vaste werktijden</div>}
+                        </div>
+                      );
+                      if (sum.kind === "invalid") return <div className="mt-1.5 text-[11px] text-destructive">Werktijden ongeldig, niet online boekbaar</div>;
+                      return (<>
                     <div className="flex gap-1 mt-1.5 flex-wrap">
                       {DAY_LABELS.map((lbl, i) => {
                         const day = i + 1;
-                        const active = (e.working_days || []).includes(day);
+                        const active = sum.days.includes(day);
                         return (
                           <span
                             key={day}
@@ -364,6 +374,9 @@ export default function EmployeesPage() {
                         );
                       })}
                     </div>
+                        <div className="mt-1 text-[10.5px] text-muted-foreground">Tijden volgen de openingstijden van de salon</div>
+                      </>);
+                    })()}
                   </div>
                   <div className="flex flex-col gap-1">
                     <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => openEdit(e)}>
@@ -528,7 +541,7 @@ export default function EmployeesPage() {
                                 <Input type="time" aria-label={`Begintijd ${lbl}`} value={d.start} onChange={(ev) => setScheduleDay(day, { ...d, start: ev.target.value })} className={cn("h-10", invalid && "border-destructive")} />
                                 <span className="text-xs text-muted-foreground">tot</span>
                                 <Input type="time" aria-label={`Eindtijd ${lbl}`} value={d.end} onChange={(ev) => setScheduleDay(day, { ...d, end: ev.target.value })} className={cn("h-10", invalid && "border-destructive")} />
-                                <Button type="button" variant="ghost" size="sm" className="shrink-0 text-xs" onClick={() => copyScheduleDay(day)}>Kopieer</Button>
+                                <Button type="button" variant="ghost" size="sm" className="shrink-0 text-xs" onClick={() => copyScheduleDay(day)}>Tijden kopiëren naar werkdagen</Button>
                               </div>
                             ) : (
                               <p className="text-xs text-muted-foreground flex-1">Niet beschikbaar</p>
@@ -537,7 +550,7 @@ export default function EmployeesPage() {
                           </div>
                         );
                       })}
-                      <p className="text-xs text-muted-foreground">"Kopieer" zet deze tijden op alle andere actieve werkdagen. Pauzes, verlof en uitzonderingen blijven gelden.</p>
+                      <p className="text-xs text-muted-foreground">"Tijden kopiëren naar werkdagen" overschrijft de tijden van alle andere actieve werkdagen. Pauzes, verlof en uitzonderingen blijven gelden.</p>
                     </div>
                   ) : (<>
                   <Label className="text-xs">Werkdagen</Label>

@@ -1,3 +1,4 @@
+import { indexAppointmentsByCustomer } from "@/lib/customerAppointmentIndex";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { useCustomers, useAppointments } from "@/hooks/useSupabaseData";
@@ -50,9 +51,10 @@ export default function CustomersPage() {
   }, [searchParams, customers]);
 
   const customerIntel = useMemo(() => {
+    const byCustomer = indexAppointmentsByCustomer(appointments);
     return customers.map(c => {
-      const custAppts = appointments.filter(a => a.customer_id === c.id && a.status !== 'geannuleerd');
-      const lastAppt = custAppts.sort((a, b) => new Date(b.appointment_date).getTime() - new Date(a.appointment_date).getTime())[0];
+      const custAppts = byCustomer.get(c.id) ?? [];
+      const lastAppt = custAppts[0];
       const daysSinceLast = lastAppt ? Math.floor((Date.now() - new Date(lastAppt.appointment_date).getTime()) / 86400000) : 999;
       const avgSpend = custAppts.length > 0 ? custAppts.reduce((s, a) => s + (Number(a.price) || 0), 0) / custAppts.length : 0;
       const isVip = c.is_vip || ((Number(c.total_spent) || 0) > 500 && custAppts.length >= 5);
