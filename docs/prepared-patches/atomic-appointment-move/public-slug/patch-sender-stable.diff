@@ -1,0 +1,7 @@
+--- a/supabase/functions/send-white-label-email/index.ts
++++ b/supabase/functions/send-white-label-email/index.ts
+@@ function uniqueSalonSlug
+-  const hasStableSlug = Boolean(args.requested || args.publicSlug);
++  // Inactive proposal: suffix rule depends only on the caller-provided slug,
++  // so filling settings.public_slug does not change any From address.
++  const hasStableSlug = Boolean(args.requested);
