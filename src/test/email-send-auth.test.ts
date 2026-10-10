@@ -19,7 +19,7 @@ describe("send-white-label-email authorization (inactive)", () => {
     expect(await authorizeEmailRequest("Bearer nope", SALON_A, deps())).toMatchObject({ ok: false, status: 401 });
   });
   it("allows owner for own salon", async () => {
-    expect(await authorizeEmailRequest("Bearer ownerA", SALON_A, deps())).toMatchObject({ ok: true, tenantId: SALON_A });
+    expect(await authorizeEmailRequest("Bearer ownerA", SALON_A, deps(), { mode: "preview" })).toMatchObject({ ok: true, tenantId: SALON_A });
   });
   it("allows manager to preview own salon", async () => {
     expect((await authorizeEmailRequest("Bearer staffA", SALON_A, deps(), { mode: "preview" })).ok).toBe(true);
