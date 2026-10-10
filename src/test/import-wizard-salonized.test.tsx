@@ -84,7 +84,7 @@ function buildFixture(): { rows: R[]; expect: { fresh: number; dupes: number; co
   for (let i = 0; i < 10; i++) rows.push(["", "", "", "", "alleen notitie"]);
   for (let i = 0; i < 20; i++) rows.push([`Alleen Naam ${i}`, "", "", "", ""]);
   for (let i = 0; i < 5; i++) rows.push([`Alleen Naam ${i}`, "", "", "", "naam herhaald"]);
-  const singles = 15902 - rows.length;
+  const singles = (Number(process.env.FX_TOTAL) || 15902) - rows.length;
   for (let i = 0; i < singles; i++) {
     const mode = i % 3;
     rows.push([`Enkel ${i}`, mode !== 1 ? `  S${i}@Voorbeeld.test ` : "", mode !== 2 ? `06${30000000 + i}` : "", "", ""]);
