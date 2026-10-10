@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 import Papa from "papaparse";
 import { History, Loader2, Undo2, Upload } from "lucide-react";
 import { toast } from "sonner";
@@ -57,7 +58,7 @@ export function HistoricalImport() {
   useEffect(() => {
     if (!access || !isAdmin || !canPreview) return;
     if (canImport) loadBatches();
-    supabase.from("customers").select("id, name, email, phone").eq("is_demo", access.demo)
+    fetchAllRows((from, to) => supabase.from("customers").select("id, name, email, phone").eq("is_demo", access.demo).order("id").range(from, to))
       .then(({ data }) => setCustomers((data as CustomerLite[]) || []));
   }, [access, isAdmin, canPreview, canImport]);
 

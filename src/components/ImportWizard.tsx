@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 import { Link } from "react-router-dom";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
@@ -433,7 +434,7 @@ export function ImportWizard() {
     setConfirmed(false);
     (async () => {
       if (type === "customers") {
-        const { data } = await supabase.from("customers").select("name, email, phone").eq("user_id", user.id).eq("is_demo", demoMode);
+        const { data } = await fetchAllRows((from, to) => supabase.from("customers").select("id, name, email, phone").eq("user_id", user.id).eq("is_demo", demoMode).order("id").range(from, to));
         if (!active) return;
         setExisting({
           emails: new Set((data ?? []).map((c: any) => (c.email ?? "").toLowerCase()).filter(Boolean)),
@@ -553,7 +554,7 @@ export function ImportWizard() {
 
       // Pre-load existing for dedupe
       const [existingCustomersRes, existingServicesRes, existingEmployeesRes, plansRes] = await Promise.all([
-        supabase.from("customers").select("id, name, email, phone, total_spent, notes").eq("user_id", user.id).eq("is_demo", demoMode),
+        fetchAllRows((from, to) => supabase.from("customers").select("id, name, email, phone, total_spent, notes").eq("user_id", user.id).eq("is_demo", demoMode).order("id").range(from, to)),
         supabase.from("services").select("id, name, price, duration_minutes").eq("user_id", user.id).eq("is_demo", demoMode),
         supabase.from("employees").select("id, name, email").eq("user_id", user.id).eq("is_demo", demoMode),
         type === "memberships"
