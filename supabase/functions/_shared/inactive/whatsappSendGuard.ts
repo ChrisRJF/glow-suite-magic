@@ -360,7 +360,9 @@ export async function guardedSend(identity: Identity, req: SendRequest, d: Deps)
     let p: PrepareResult;
     try { p = await d.prepare({ tenantId, kind, purpose, message: req.message, params: params as string[] }); }
     catch { return no(503, "template_lookup_failed"); }
-    if (!p || p.ok !== true) return no((p?.status ?? 503) as Status, p?.reason ?? "template_lookup_failed");
+    if (!p) return no(503, "template_lookup_failed");
+    if (p.ok === false) return no(p.status, p.reason);
+    if (p.ok !== true) return no(503, "template_lookup_failed");
     prepared = p.payload;
   }
 
