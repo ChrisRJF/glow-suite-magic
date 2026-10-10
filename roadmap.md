@@ -1,5 +1,9 @@
 # Roadmap
 
+- [ ] Sprint 3: dagelijks menu eerst met behoud van rollen, routes en uitklapstaat
+- [ ] Sprint 3: snelle start via bestaande salonopslag en afronding, neutrale statusinformatie
+- [ ] Sprint 3: synthetische regressietests en lokale layoutcontrole, niets publiceren
+
 - [x] Audit mobiele privacy- en consentkaarten en vergelijkbare dossiercontrols
 - [x] Verduidelijk bestaande formulieraanpasbaarheid en bewerkactie
 - [x] Verduidelijk bestaande behandelverslagconfiguratie indien aanwezig
