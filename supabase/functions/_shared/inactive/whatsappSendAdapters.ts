@@ -259,7 +259,7 @@ export function buildDeps(db: Db, env: AdapterEnv, io: { fetch: typeof fetch; no
       if (cfg.category !== (purpose === "marketing" ? "MARKETING" : "UTILITY")) return { ok: false, status: 422, reason: "template_category_mismatch" };
       if (params.length !== cfg.params) return { ok: false, status: 422, reason: "template_params_mismatch" };
       const s = await resolveMetaSender(meta, tenantId, appId, cfg.category, io.now());
-      if (!s.ok) return s;
+      if (s.ok !== true) return { ok: false, status: s.status, reason: s.reason };
       const res = await timed(`${graph}/${s.conn.waba_id}/message_templates?name=${encodeURIComponent(cfg.name)}&fields=name,status,language,category,components&limit=25`,
         { method: "GET", headers: { Authorization: `Bearer ${s.token}` } });
       if (!res.ok) throw new Error("template_lookup_failed");
