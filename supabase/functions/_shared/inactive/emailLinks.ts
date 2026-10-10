@@ -26,8 +26,9 @@ const ALLOWED_PATHS: RegExp[] = [
 export type CustomerEmailLinks = {
   bookingUrl?: string;
   manageUrl?: string;
-  contactUrl: string;
-  termsUrl: string;
+  /** Generic pages are never presented as salon-specific route or terms. */
+  contactUrl?: undefined;
+  termsUrl?: undefined;
   calendarUrl?: undefined;
 };
 
@@ -42,8 +43,8 @@ export function buildCustomerEmailLinks(args: { publicSlug: unknown; bookingToke
   return {
     bookingUrl: slug ? `${PUBLIC_BASE}/boeken/${slug}` : undefined,
     manageUrl: token ? `${PUBLIC_BASE}/mijn-afspraak/${token}` : undefined,
-    contactUrl: `${PUBLIC_BASE}/route-contact`,
-    termsUrl: `${PUBLIC_BASE}/salonvoorwaarden`,
+    contactUrl: undefined,
+    termsUrl: undefined,
     calendarUrl: undefined,
   };
 }
