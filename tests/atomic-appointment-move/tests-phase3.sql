@@ -88,8 +88,7 @@ SELECT public.create_appointment_atomic(:'C1',:'SVC','2026-10-16','10:00',ARRAY[
 RESET ROLE;
 SELECT t_ok((:'r'::jsonb->>'code')='created' AND (SELECT count(*)=2 FROM sub_appointments WHERE parent_appointment_id=(:'r'::jsonb->>'appointment_id')::uuid), 'C08 group with two sub appointments');
 SET LOCAL ROLE authenticated;
-SELECT public.create_appointment_atomic(:'C1',:'SVC','2026-10-16','11:00',ARRAY[:'EA']::uuid[],'','manual',NULL,NULL,'[{"person_name":"Anna","service_id":"a0000000-0000-0000-0000-000000000060"},{"person_name":"Cas","service_id":"a0000000-0000-0000-0000-0000000000f2"}]')::text AS dbg \gset
-\echo DBG :dbg
+SELECT public.create_appointment_atomic(:'C1',:'SVC','2026-10-16','13:00',ARRAY[:'EA']::uuid[],'','manual',NULL,NULL,'[{"person_name":"Anna","service_id":"a0000000-0000-0000-0000-000000000060"},{"person_name":"Cas","service_id":"a0000000-0000-0000-0000-0000000000f2"}]')::text AS dbg \gset
 SELECT t_ok((:'dbg'::jsonb->>'code')='invalid_input', 'C08 bad sub line refused');
 RESET ROLE;
 SELECT t_ok((SELECT count(*)=1 FROM appointments WHERE customer_id=:'C1') AND (SELECT count(*)=2 FROM sub_appointments), 'C08 refused group left nothing behind');
