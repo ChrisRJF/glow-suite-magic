@@ -3,7 +3,7 @@ import { findDuplicateGroups, normalizePhone, searchAfterUpdate, type DupCustome
 
 const mk = (i: number, o: Partial<DupCustomer> = {}): DupCustomer => ({
   id: `c-${String(i).padStart(5, "0")}`, name: `Fictief ${i}`, email: `fictief${i}@voorbeeld.test`,
-  phone: `06${String(10000000 + i)}`, created_at: `2026-01-01T00:00:${String(i % 60).padStart(2, "0")}Z`, ...o,
+  phone: `06${String(10000000 + i)}`, created_at: new Date(Date.UTC(2026, 0, 1) + i * 1000).toISOString(), ...o,
 });
 
 describe("rename keeps customer visible", () => {
