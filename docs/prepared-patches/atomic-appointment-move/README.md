@@ -82,3 +82,8 @@ Status: proposal only. Nothing applied, nothing deployed, nothing in `src/` chan
 - Do not drop the guard while an old frontend or old public-booking is live.
 - Disabling the flag never re-opens a legacy path: the RPCs return `disabled`, direct writes stay
   blocked by the guard, online booking is not affected by the agenda flag (F05).
+
+## Stap 1 als één transactie (beveiligingsfix)
+- Het SQL-bestand bevat bewust geen BEGIN/COMMIT: de Lovable-migratietool (Drizzle) en de Supabase CLI zetten elk migratiebestand al in één transactie. Een eigen COMMIT zou die transactie te vroeg afsluiten.
+- Handmatig alleen: `psql -1 -v ON_ERROR_STOP=1 -f 2026-10-10_atomic_appointment_move.sql`.
+- Het script weigert te draaien buiten één transactie (transactie-lokale markering) en controleert vóór de commit via `has_function_privilege` en `pg_proc.proacl` dat PUBLIC, anon, authenticated en service_role niets mogen uitvoeren en dat `atomic_agenda_enabled` uit staat. Elke fout draait kolom en functies volledig terug.
