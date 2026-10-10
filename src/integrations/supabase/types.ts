@@ -1766,6 +1766,7 @@ export type Database = {
           status_until: string | null
           updated_at: string
           user_id: string
+          weekly_schedule: Json | null
           working_days: number[]
         }
         Insert: {
@@ -1790,6 +1791,7 @@ export type Database = {
           status_until?: string | null
           updated_at?: string
           user_id: string
+          weekly_schedule?: Json | null
           working_days?: number[]
         }
         Update: {
@@ -1814,6 +1816,7 @@ export type Database = {
           status_until?: string | null
           updated_at?: string
           user_id?: string
+          weekly_schedule?: Json | null
           working_days?: number[]
         }
         Relationships: []
@@ -5562,6 +5565,7 @@ export type Database = {
         Args: { _failed: number; _sent: number; _user_id: string }
         Returns: undefined
       }
+      is_valid_weekly_schedule: { Args: { _s: Json }; Returns: boolean }
       lookup_referral_owner: { Args: { _code: string }; Returns: string }
       prevent_live_demo_reset: { Args: { _user_id: string }; Returns: boolean }
       process_paid_webshop_order_stock: {
