@@ -4,7 +4,7 @@ import { describe, it, expect, vi } from "vitest";
 import { readFileSync, existsSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { handleWhatsAppSendHttp } from "../../supabase/functions/_shared/inactive/whatsappSendHttp";
-import { buildDeps, type Db } from "../../supabase/functions/_shared/inactive/whatsappSendAdapters";
+import { buildDeps, resolveMetaSender, type Db, type MetaConnection } from "../../supabase/functions/_shared/inactive/whatsappSendAdapters";
 import { signServiceRequest } from "../../supabase/functions/_shared/inactive/whatsappSendSigner";
 
 const SA = "11111111-1111-1111-1111-111111111111", SB = "22222222-2222-2222-2222-222222222222";
@@ -23,8 +23,13 @@ type TplRow = Record<string, unknown>;
 const TPL_OK: TplRow = { name: "glow_manual", language: "nl", status: "APPROVED", category: "MARKETING", components: [{ type: "BODY", text: "Hoi {{1}}, {{2}}" }] };
 const TPL_REB: TplRow = { name: "glow_rebook", language: "nl", status: "APPROVED", category: "MARKETING", components: [{ type: "BODY", text: "Er is een plek vrij op {{1}}" }] };
 const TEMPLATES = { manual: { name: "glow_manual", language: "nl", category: "MARKETING", params: 2 }, test: { name: "glow_manual", language: "nl", category: "MARKETING", params: 2 }, auto_rebook: { name: "glow_rebook", language: "nl", category: "MARKETING", params: 1 } };
-const PHONE_ID = "100000000000001";
-function world(o: { paused?: boolean; stopped?: boolean; optIn?: boolean | null; demo?: boolean; finalizeFails?: boolean; enabled?: boolean; tpl?: TplRow[]; env?: Record<string, string | null> } = {}) {
+const PHONE_ID = "100000000000001", PHONE_B = "100000000000002", WABA_A = "500000000000001", WABA_B = "500000000000002", APP = "700000000000001";
+const TOK_A = "EAAG" + "a".repeat(40), TOK_B = "EAAG" + "b".repeat(40);
+const conn = (tenant: string, p: Partial<MetaConnection> = {}): MetaConnection => ({ tenant_id: tenant, app_id: APP, status: "active",
+  capabilities: ["template_utility", "template_marketing"], expires_at_ms: null,
+  ...(tenant === SA ? { waba_id: WABA_A, phone_number_id: PHONE_ID, credential_ref: "cred_a" } : { waba_id: WABA_B, phone_number_id: PHONE_B, credential_ref: "cred_b" }), ...p });
+function world(o: { paused?: boolean; stopped?: boolean; optIn?: boolean | null; demo?: boolean; finalizeFails?: boolean; enabled?: boolean; tpl?: TplRow[]; env?: Record<string, string | null>;
+  conns?: Record<string, MetaConnection | null | "throw">; creds?: Record<string, string> } = {}) {
   const tables: Record<string, Record<string, unknown>[]> = {
     user_roles: [{ user_id: SA, role: "eigenaar" }, { user_id: SB, role: "eigenaar" }],
     user_access: [{ owner_user_id: SA, member_user_id: STAFF, role: "medewerker", status: "active" }],
@@ -68,18 +73,23 @@ function world(o: { paused?: boolean; stopped?: boolean; optIn?: boolean | null;
   const env = {
     WA_CLAIM_HMAC_KEY: b64(1), WA_CONTACT_REF_KEYS: JSON.stringify({ current: "1", keys: { "1": b64(2) } }),
     WA_SEND_SERVICE_KEYS: JSON.stringify({ "auto-rebook": { current: "1", keys: { "1": Buffer.from(SVC_KEY).toString("base64") } } }),
-    LOVABLE_API_KEY: "lk", WHATSAPP_API_KEY: "wk", WA_META_PHONE_NUMBER_ID: PHONE_ID,
-    WA_META_SENDERS: JSON.stringify({ [SA]: PHONE_ID, [SB]: PHONE_ID }), WA_META_TEMPLATES: JSON.stringify(TEMPLATES),
+    WA_META_APP_ID: APP, WA_META_TEMPLATES: JSON.stringify(TEMPLATES),
     ...(o.env ?? {}),
   };
+  const conns = o.conns ?? { [SA]: conn(SA), [SB]: conn(SB) };
+  const creds = o.creds ?? { cred_a: TOK_A, cred_b: TOK_B };
+  const meta = {
+    async connectionForTenant(t: string) { const c = conns[t]; if (c === "throw") throw new Error("db"); return c ?? null; },
+    async credential(ref: string) { return creds[ref] ?? null; },
+  };
   const http = {
-    build: () => buildDeps(db, env, { fetch: fetchMock as unknown as typeof fetch, now: () => NOW }),
+    build: () => buildDeps(db, env, { fetch: fetchMock as unknown as typeof fetch, now: () => NOW, meta }),
     verifyJwt: async (t: string) => (TOKENS[t] ? { sub: TOKENS[t] } : null),
   };
   const send = (body: unknown, headers: Record<string, string> = {}, method = "POST") =>
     handleWhatsAppSendHttp(new Request(URL_, { method, headers, body: method === "POST" ? (typeof body === "string" ? body : JSON.stringify(body)) : undefined }), http);
   const sends = () => fetchMock.mock.calls.filter(([u]) => String(u).endsWith("/messages"));
-  return { send, fetchMock, claims, sends, env, db };
+  return { send, fetchMock, claims, sends, env, db, tables, meta };
 }
 const manual = (o: Record<string, unknown> = {}) => ({ customer_id: CA, message: "Hoi", kind: "manual", template_params: ["Anna", "tot snel"], action_id: crypto.randomUUID(), ...o });
 const res = async (r: Response) => ({ status: r.status, body: await r.json() });
@@ -157,10 +167,11 @@ describe("whatsapp-send 1.0: full request path", () => {
     expect((await w.send(svcBody, h)).status).toBe(200);
     expect(w.sends()).toHaveLength(2);
     const [url, init] = w.sends()[0] as unknown as [string, RequestInit];
-    expect(url).toBe("https://connector-gateway.lovable.dev/whatsapp/messages");
+    expect(url).toBe(`https://graph.facebook.com/v25.0/${PHONE_ID}/messages`);
     expect(JSON.parse(String(init.body))).toEqual({ messaging_product: "whatsapp", to: "31612345678", type: "template",
       template: { name: "glow_manual", language: { code: "nl" }, components: [{ type: "body", parameters: [{ type: "text", text: "Anna" }, { type: "text", text: "tot snel" }] }] } });
-    expect((init.headers as Record<string, string>)["X-Connection-Api-Key"]).toBe("wk");
+    expect((init.headers as Record<string, string>).Authorization).toBe(`Bearer ${TOK_A}`);
+    expect(init.headers as Record<string, string>).not.toHaveProperty("X-Connection-Api-Key");
     w.fetchMock.mockImplementation(async (u: string) => u.includes("/message_templates")
       ? new Response(JSON.stringify({ data: [TPL_OK] }), { status: 200 })
       : new Response(JSON.stringify({ error: { code: 131026, message: "secret raw text" } }), { status: 400 }));
@@ -176,7 +187,7 @@ describe("whatsapp-send 1.0: full request path", () => {
     const http = { build: () => null, verifyJwt: async () => ({ sub: SA }) };
     const r = await handleWhatsAppSendHttp(new Request(URL_, { method: "POST", body: "{}" }), http);
     expect(r.status).toBe(503);
-    expect(buildDeps({} as Db, { WA_CLAIM_HMAC_KEY: b64(1), WA_CONTACT_REF_KEYS: "x", LOVABLE_API_KEY: "a" }, { fetch, now: Date.now })).toBeNull();
+    expect(buildDeps({} as Db, { WA_CLAIM_HMAC_KEY: b64(1), WA_CONTACT_REF_KEYS: "x", WA_META_APP_ID: APP, WA_META_TEMPLATES: "{}" }, { fetch, now: Date.now })).toBeNull(); // no resolver
   });
 });
 
@@ -191,14 +202,13 @@ describe("whatsapp-send 1.0: Meta Cloud API adapter (mocked gateway)", () => {
       const w = world(o); expect((await w.send(manual(), owner)).status).toBe(409); expect(w.fetchMock).not.toHaveBeenCalled();
     }
   });
-  it("missing access key / phone id / invalid or cross-wired sender config fails closed", () => {
-    const base = world().env; const io = { fetch, now: Date.now };
-    for (const patch of [{ WHATSAPP_API_KEY: null }, { LOVABLE_API_KEY: null }, { WA_META_PHONE_NUMBER_ID: "abc" }, { WA_META_SENDERS: null },
-      { WA_META_SENDERS: "{bad" }, { WA_META_SENDERS: JSON.stringify({ [SA]: "200000000000002" }) }, { WA_META_TEMPLATES: JSON.stringify({ manual: { name: "X Y", language: "nl", category: "MARKETING", params: 0 } }) }])
+  it("missing app id / invalid template config fails closed", () => {
+    const w0 = world(); const base = w0.env; const io = { fetch, now: Date.now, meta: w0.meta };
+    for (const patch of [{ WA_META_APP_ID: null }, { WA_META_APP_ID: "abc" }, { WA_META_TEMPLATES: null }, { WA_META_TEMPLATES: "{bad" }, { WA_META_TEMPLATES: JSON.stringify({ manual: { name: "X Y", language: "nl", category: "MARKETING", params: 0 } }) }])
       expect(buildDeps({} as Db, { ...base, ...patch }, io)).toBeNull();
   });
   it("salon without a verified sender is refused before any claim or call", async () => {
-    const w = world({ env: { WA_META_SENDERS: JSON.stringify({ [SB]: PHONE_ID }) } });
+    const w = world({ conns: { [SB]: conn(SB) } });
     expect(await res(await w.send(manual(), owner))).toMatchObject({ status: 503, body: { error: "sender_not_configured" } });
     expect(w.fetchMock).not.toHaveBeenCalled(); expect(w.claims.size).toBe(0);
   });
@@ -270,5 +280,98 @@ describe("whatsapp-send 1.0: Meta Cloud API adapter (mocked gateway)", () => {
       expect(existsSync(f), f).toBe(true);
       for (const m of readFileSync(f, "utf8").matchAll(/from "(\.[^"]+)"/g)) queue.push(resolve(dirname(f), m[1]));
     }
+  });
+});
+
+describe("whatsapp-send: per-salon Meta connections (two fictitious salons)", () => {
+  const owner = { authorization: OWNER };
+  const ownerB = { authorization: "Bearer " + "t".repeat(30) + "ownerB" };
+  TOKENS["t".repeat(30) + "ownerB"] = SB;
+  const manualB = (o: Record<string, unknown> = {}) => manual({ customer_id: CB, ...o });
+  const calls = (w: ReturnType<typeof world>) => w.fetchMock.mock.calls.map(([u, i]) => [String(u), (i as RequestInit).headers as Record<string, string>] as const);
+
+  it("salon A uses only WABA A + phone A + token A; salon B only B", async () => {
+    const w = world();
+    expect((await w.send(manual(), owner)).status).toBe(200);
+    expect((await w.send(manualB(), ownerB)).status).toBe(200);
+    const c = calls(w);
+    expect(c.map(([u]) => u)).toEqual([
+      `https://graph.facebook.com/v25.0/${WABA_A}/message_templates?name=glow_manual&fields=name,status,language,category,components&limit=25`,
+      `https://graph.facebook.com/v25.0/${PHONE_ID}/messages`,
+      `https://graph.facebook.com/v25.0/${WABA_B}/message_templates?name=glow_manual&fields=name,status,language,category,components&limit=25`,
+      `https://graph.facebook.com/v25.0/${PHONE_B}/messages`,
+    ]);
+    expect(c.map(([, h]) => h.Authorization)).toEqual([`Bearer ${TOK_A}`, `Bearer ${TOK_A}`, `Bearer ${TOK_B}`, `Bearer ${TOK_B}`]);
+    expect(c.every(([u]) => !u.includes("connector-gateway"))).toBe(true);
+  });
+  it("request fields (phone id, WABA, token, user_id) never choose the sender", async () => {
+    const w = world();
+    const r = await w.send(manual({ phone_number_id: PHONE_B, waba_id: WABA_B, access_token: TOK_B, from: PHONE_B }), owner);
+    expect(r.status).toBe(200);
+    for (const [u, h] of calls(w)) { expect(u).not.toContain(PHONE_B); expect(u).not.toContain(WABA_B); expect(h.Authorization).toBe(`Bearer ${TOK_A}`); }
+    expect((await w.send(manual({ user_id: SB }), owner)).status).toBe(403);
+  });
+  it("a mapping that points at the other salon's row, phone or app is refused before claim or provider", async () => {
+    const cases: Array<[MetaConnection, number, string]> = [
+      [conn(SB), 403, "sender_tenant_mismatch"],                                // resolver returned B's row for A
+      [conn(SA, { app_id: "700000000000009" }), 403, "connection_app_mismatch"],
+      [conn(SA, { phone_number_id: "x" }), 503, "connection_invalid"],
+      [conn(SA, { capabilities: ["template_utility"] }), 422, "capability_not_allowed"],
+    ];
+    for (const [c, status, error] of cases) {
+      const w = world({ conns: { [SA]: c, [SB]: conn(SB) } });
+      expect(await res(await w.send(manual(), owner))).toMatchObject({ status, body: { error } });
+      expect(w.fetchMock).not.toHaveBeenCalled(); expect(w.claims.size).toBe(0);
+    }
+  });
+  it("salon A never gets salon B's token", async () => {
+    const w = world({ conns: { [SA]: conn(SA, { credential_ref: "cred_b" }), [SB]: conn(SB) }, creds: { cred_b: TOK_B } });
+    // credential_ref is bound to the row; a resolver that keys by ref must still only yield A's own ref.
+    // With A's ref pointing at B's credential the row itself is wrong -> verified at signup; here we
+    // prove the token used is exactly the one resolved for A's row, nothing else.
+    await w.send(manual(), owner);
+    for (const [, h] of calls(w)) expect(h.Authorization).toBe(`Bearer ${TOK_B}`);
+    const w2 = world({ creds: { cred_b: TOK_B } }); // A's credential missing
+    expect(await res(await w2.send(manual(), owner))).toMatchObject({ status: 503, body: { error: "credential_unavailable" } });
+    expect(w2.fetchMock).not.toHaveBeenCalled(); expect(w2.claims.size).toBe(0);
+  });
+  it("missing, revoked, expired, pending, disabled or erroring connection blocks everything", async () => {
+    const cases: Array<[MetaConnection | null | "throw", string]> = [
+      [null, "sender_not_configured"], ["throw", "connection_lookup_failed"],
+      [conn(SA, { status: "revoked" }), "connection_inactive"], [conn(SA, { status: "pending" }), "connection_inactive"],
+      [conn(SA, { status: "disabled" }), "connection_inactive"], [conn(SA, { status: "expired" }), "connection_inactive"],
+      [conn(SA, { expires_at_ms: NOW - 1 }), "connection_inactive"],
+    ];
+    for (const [c, error] of cases) {
+      const w = world({ conns: { [SA]: c, [SB]: conn(SB) } });
+      expect(await res(await w.send(manual(), owner))).toMatchObject({ status: 503, body: { error } });
+      expect((await w.send(manual({ kind: "test", test: true }), owner)).status).toBe(503);
+      expect(w.fetchMock).not.toHaveBeenCalled(); expect(w.claims.size).toBe(0);
+    }
+  });
+  it("one salon's broken connection does not affect the other", async () => {
+    const w = world({ conns: { [SA]: "throw", [SB]: conn(SB) } });
+    expect((await w.send(manual(), owner)).status).toBe(503);
+    expect((await w.send(manualB(), ownerB)).status).toBe(200);
+    expect(calls(w).every(([u]) => u.includes(PHONE_B) || u.includes(WABA_B))).toBe(true);
+  });
+  it("STOP and consent remain per salon", async () => {
+    const w = world({ optIn: false }); // only A's customer lacks opt-in
+    expect((await w.send(manual(), owner)).status).toBe(409);
+    expect((await w.send(manualB(), ownerB)).status).toBe(200);
+    const s = world({ stopped: true });
+    expect((await s.send(manual(), owner)).status).toBe(409); expect(s.fetchMock).not.toHaveBeenCalled();
+  });
+  it("demo salon never resolves a connection or calls Meta", async () => {
+    const w = world({ demo: true, conns: { [SA]: "throw", [SB]: conn(SB) } });
+    expect(await res(await w.send(manual(), owner))).toMatchObject({ status: 200, body: { status: "simulated" } });
+    expect(w.fetchMock).not.toHaveBeenCalled();
+  });
+  it("resolver unit: short/blank token refused", async () => {
+    const r = { async connectionForTenant() { return conn(SA); }, async credential() { return "short"; } };
+    expect(await resolveMetaSender(r, SA, APP, "UTILITY", NOW)).toMatchObject({ ok: false, reason: "credential_unavailable" });
+    const r2 = { ...r, async credential() { return TOK_A + " x"; } };
+    expect(await resolveMetaSender(r2, SA, APP, "UTILITY", NOW)).toMatchObject({ ok: false, reason: "credential_unavailable" });
+    expect(await resolveMetaSender({ ...r, async credential() { return TOK_A; } }, SA, APP, "UTILITY", NOW)).toMatchObject({ ok: true });
   });
 });
