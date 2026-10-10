@@ -442,8 +442,10 @@ export default function BookingPage() {
     const perEmp = liveSlots?.[selectedService || ""] || {};
     return Array.from(new Set(Object.values(perEmp).flat())).sort();
   }, [liveStaff, liveSlots, selectedService]);
+  // No public employee selection (hidden or none): automatic placement over anonymous capacity keys.
+  const anonymousStaff = liveStaff && !(publicData?.employees || []).length;
   const staffName = (key: string | null | undefined) =>
-    (liveStaff ? publicData?.employees.find((e) => e.id === key)?.name : key) || key || "";
+    (anonymousStaff && isAutoKey(key) ? t("booking.assignment.autoLabel") : liveStaff ? publicData?.employees.find((e) => e.id === key)?.name : key) || key || "";
 
   const rules = usePaymentRules({
     deposit_new_client: publicData?.salon.booking_rules.deposit_new_client ?? settingsRow?.deposit_new_client ?? true,
@@ -495,7 +497,15 @@ export default function BookingPage() {
     setGroupMembers((prev) => prev.map((member) => (member.id === id ? { ...member, ...updates } : member)));
   };
 
+  // Anonymous keys are never sent: the server picks a real employee itself.
+  const toServerEmployee = (key: string | null | undefined) => (!key || isAutoKey(key) ? null : key);
+
   const getEmployeesForService = (serviceId: string): Array<{ key: string; name: string; role: string }> => {
+    if (anonymousStaff) {
+      return Object.keys(liveSlots?.[serviceId] || {})
+        .filter(isAutoKey)
+        .map((key) => ({ key, name: t("booking.assignment.autoLabel"), role: "" }));
+    }
     if (liveStaff) {
       return (publicData?.employees || [])
         .filter((e) => !e.service_ids || e.service_ids.includes(serviceId))
@@ -727,7 +737,7 @@ export default function BookingPage() {
                 name: member.name,
                 service_id: member.serviceId,
                 time: placement?.time || selectedTime,
-                employee: placement?.employee || member.assignedEmployee || null,
+                employee: toServerEmployee(placement?.employee || member.assignedEmployee),
               };
             })
           : [];
@@ -739,7 +749,7 @@ export default function BookingPage() {
           date: selectedDate,
           time: selectedPlacements[0]?.time || selectedTime,
           service_id: selectedService,
-          employee: selectedPlacements[0]?.employee || mainAssignedEmployee || null,
+          employee: toServerEmployee(selectedPlacements[0]?.employee || mainAssignedEmployee),
           group_members: groupPayload,
           payment: { required: Boolean(paymentDecision?.required), amount: paymentDecision?.amount || 0, type: paymentDecision?.type || "deposit", method: selectedMethod },
           notes: "",
@@ -897,7 +907,7 @@ export default function BookingPage() {
           <span className="text-[11px] text-muted-foreground">{assignmentMode === "manual" ? t("booking.assignment.manualLabel") : t("booking.assignment.autoLabel")}</span>
         </div>
 
-        <div className="flex gap-2">
+        {!anonymousStaff && <div className="flex gap-2">
           <button
             onClick={() => {
               onAssignmentModeChange("manual");
