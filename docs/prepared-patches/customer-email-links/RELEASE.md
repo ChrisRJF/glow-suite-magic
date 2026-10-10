@@ -4,7 +4,7 @@ Replaces the CUSTOMER_EMAIL_PAUSED secret approach (no secret needed). Each step
 
 ## Files
 - Migration: `docs/proposed-migrations/2026-10-10_customer_email_controls.sql`
-- Modules (move unchanged from `supabase/functions/_shared/inactive/` to `supabase/functions/_shared/`, then change the imports in the handler from `"../emailTranslations.ts"` to `"./emailTranslations.ts"`): `customerEmailHandler.ts`, `customerEmailTemplates.ts`, `customerEmailRender.ts`, `emailSendAuth.ts`, `emailLinks.ts`
+- Modules (move unchanged from `supabase/functions/_shared/inactive/` to `supabase/functions/_shared/`, then change the imports in `customerEmailHandler.ts` and `customerEmailTemplates.ts` from `"../emailTranslations.ts"` to `"./emailTranslations.ts"`): `customerEmailHandler.ts`, `customerEmailTemplates.ts`, `customerEmailRender.ts`, `emailSendAuth.ts`, `emailLinks.ts`
 - Function: copy `docs/prepared-patches/customer-email-links/send-white-label-email.index.ts` over `supabase/functions/send-white-label-email/index.ts`
 - Remove `src/test/email-template-link-coverage.test.ts` (asserts the old broken links)
 - Tests: `src/test/customer-email-handler.test.ts` + 4 existing files (78/78), `bash src/test/sql/run-local-pg-email-stop.sh` (8/8)
