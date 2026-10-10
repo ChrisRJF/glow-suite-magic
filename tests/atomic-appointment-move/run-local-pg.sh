@@ -20,7 +20,7 @@ AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/fixture.sql"
 AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/2026-10-10_atomic_appointment_move.sql -f $BASE/2026-10-10_atomic_appointment_move.sql"
 echo "proposal applied twice"
 for F in tests.sql tests-phase2.sql tests-phase3.sql; do
-  AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/$F 2>&1" | grep -E "PASS|FAIL|ERROR" | sed 's/^psql:[^:]*:[0-9]*: NOTICE:  //'
+  AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/$F 2>&1" | grep -E "PASS|FAIL|ERROR|DBG" | sed 's/^psql:[^:]*:[0-9]*: NOTICE:  //'
 done
 
 # Race: two sessions move different appointments into overlapping EA slots (Fri 16 Oct)
@@ -35,7 +35,7 @@ N=$(AS $P -d gs_move -c "select count(*) from appointments where id in ('a100000
 AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/2026-10-10_appointment_slot_guard.sql -f $BASE/2026-10-10_appointment_slot_guard.sql" >/dev/null
 echo "guard applied twice"
 for F in tests-guard.sql tests.sql tests-phase2.sql tests-phase3.sql; do
-  AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/$F 2>&1" | grep -E "PASS|FAIL|ERROR" | sed 's/^psql:[^:]*:[0-9]*: NOTICE:  //' | sed "s/^PASS: /PASS: [guard] /"
+  AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/$F 2>&1" | grep -E "PASS|FAIL|ERROR|DBG" | sed 's/^psql:[^:]*:[0-9]*: NOTICE:  //' | sed "s/^PASS: /PASS: [guard] /"
 done
 
 # ---- fase 2 races: s1 holds its transaction 2 s, s2 starts 0.5 s later ----
