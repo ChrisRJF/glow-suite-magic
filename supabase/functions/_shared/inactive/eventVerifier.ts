@@ -31,7 +31,6 @@ export const REMINDER_WINDOWS_MS: Record<string, [number, number]> = {
   "24h": [2 * 3600e3, 30 * 3600e3],  // start - now in (2h, 30h]
   "2h": [0, 4 * 3600e3],             // start - now in (0, 4h]
 };
-const H = 3600e3;
 export const CANCELLED_APPOINTMENT = "geannuleerd"; // value written by _shared/cancelAppointment.ts
 
 export interface EventCheckInput {
@@ -97,4 +96,3 @@ export async function verifyBusinessEvent(i: EventCheckInput, resolve: EventReso
   }
 }
 
-export const _H = H;
