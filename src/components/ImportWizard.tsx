@@ -284,6 +284,7 @@ export function ImportWizard() {
   const [confirmed, setConfirmed] = useState(false);
   const [existing, setExisting] = useState<{ emails: Set<string>; phones: Set<string>; names: Set<string> } | null>(null);
   const [importing, setImporting] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [progress, setProgress] = useState(0);
   const [progressLabel, setProgressLabel] = useState("");
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -432,10 +433,16 @@ export function ImportWizard() {
     let active = true;
     setExisting(null);
     setConfirmed(false);
+    setLoadError(false);
     (async () => {
       if (type === "customers") {
-        const { data } = await fetchAllRows((from, to) => supabase.from("customers").select("id, name, email, phone").eq("user_id", user.id).eq("is_demo", demoMode).order("id").range(from, to));
+        const { data, error } = await fetchAllRows((from, to) => supabase.from("customers").select("id, name, email, phone").eq("user_id", user.id).eq("is_demo", demoMode).order("id").range(from, to));
         if (!active) return;
+        if (error) {
+          // Never run duplicate checks against a partial customer list.
+          setLoadError(true);
+          return;
+        }
         setExisting({
           emails: new Set((data ?? []).map((c: any) => (c.email ?? "").toLowerCase()).filter(Boolean)),
           phones: new Set((data ?? []).map((c: any) => c.phone ?? "").filter(Boolean)),
