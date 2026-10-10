@@ -275,7 +275,7 @@ describe("2. internal authentication", () => {
   });
   it("verified caller limited to its own kinds", async () => {
     expect(await guardedSend(await svc(), { ...reminder, kind: "campaign" }, world().deps)).toMatchObject({ status: 403, reason: "kind_not_allowed_for_caller" });
-    expect(await guardedSend(await svc("automation-scheduler"), reminder, world().deps)).toMatchObject({ reason: "kind_not_allowed_for_caller" });
+    expect(await guardedSend(await svc("automation-scheduler"), { ...reminder, kind: "review" }, world().deps)).toMatchObject({ reason: "kind_not_allowed_for_caller" });
   });
 });
 
