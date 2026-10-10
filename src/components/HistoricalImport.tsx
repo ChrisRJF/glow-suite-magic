@@ -160,6 +160,10 @@ export function HistoricalImport() {
         </p>
       </div>
 
+      {customersError && (
+        <p className="text-sm text-destructive">Niet alle klanten konden worden geladen. Probeer het opnieuw.</p>
+      )}
+
       <div className="flex gap-2">
         {(["treatment_note", "appointment"] as HistoricalKind[]).map((k) => (
           <Button key={k} size="sm" variant={kind === k ? "default" : "outline"} onClick={() => { setKind(k); setData([]); setHeaders([]); setResult(null); }}>
