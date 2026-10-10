@@ -41,7 +41,8 @@ function world(o: { paused?: boolean; stopped?: boolean; optIn?: boolean | null;
     settings: [{ user_id: SA, is_demo: !!o.demo, demo_mode: false }, { user_id: SB, is_demo: false, demo_mode: false }],
     whatsapp_settings: [{ user_id: SA, enabled: o.enabled ?? true }, { user_id: SB, enabled: true }],
     tenant_feature_flags: [{ tenant_id: SA, whatsapp_sending_paused: o.paused ?? false }, { tenant_id: SB, whatsapp_sending_paused: false }],
-    gateway_tenant_links: [{ tenant_id: GW_A, salon_id: SA, enabled: true, allowed_action_types: ["opt_out_signal"] }],
+    gateway_tenant_links: [{ tenant_id: GW_A, salon_id: SA, enabled: true, allowed_action_types: ["opt_out_signal"] },
+      { tenant_id: "99999999-0000-0000-0000-00000000000b", salon_id: SB, enabled: true, allowed_action_types: ["opt_out_signal"] }],
     rebook_actions: [{ id: REB, user_id: SA, customer_id: CA, appointment_id: null, reversed_at: null }],
   };
   const claims = new Map<string, { fp: string; state: string }>();
