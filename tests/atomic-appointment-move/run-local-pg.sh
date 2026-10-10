@@ -22,11 +22,7 @@ echo "proposal applied twice"
 AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/tests.sql 2>&1" | grep -E "PASS|FAIL|ERROR" | sed 's/^psql:[^:]*:[0-9]*: NOTICE:  //'
 
 # Race: two sessions move different appointments into overlapping EA slots (Fri 16 Oct)
-RACE='SELECT set_config($$request.jwt.claim.sub$$,$$11111111-1111-1111-1111-111111111111$$,false); SET ROLE authenticated;'
-AS bash -c "$P -d gs_move -c \"BEGIN; $RACE SELECT 's1:'||(public.move_appointment_atomic('a1000000-0000-0000-0000-000000000006','2026-10-16','10:00','e0000000-0000-0000-0000-00000000000a')->>'code'); SELECT pg_sleep(2); COMMIT;\" > $BASE/s1.out 2>&1 &
-sleep 0.5
-$P -d gs_move -c \"BEGIN; $RACE SELECT 's2:'||(public.move_appointment_atomic('a1000000-0000-0000-0000-000000000007','2026-10-16','10:30','e0000000-0000-0000-0000-00000000000a')->>'code'); COMMIT;\" > $BASE/s2.out 2>&1
-wait"
+AS bash -c "$P -d gs_move -f $BASE/race-s1.sql > $BASE/s1.out 2>&1 & sleep 0.5; $P -d gs_move -f $BASE/race-s2.sql > $BASE/s2.out 2>&1; wait"
 S1=$(grep -h 's1:' "$BASE/s1.out" || true); S2=$(grep -h 's2:' "$BASE/s2.out" || true)
 echo "race $S1 $S2"
 if [ "$S1" = "s1:moved" ] && [ "$S2" = "s2:conflict" ]; then echo "PASS: R01 concurrent overlapping moves: only one succeeds"; else echo "FAIL: R01 race"; fi
