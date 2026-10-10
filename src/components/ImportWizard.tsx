@@ -282,7 +282,7 @@ export function ImportWizard() {
   const dupeStrategy: DupeStrategy = "skip";
   const { isAdmin, loading: roleLoading } = useUserRole();
   const [confirmed, setConfirmed] = useState(false);
-  const [existing, setExisting] = useState<{ emails: Set<string>; phones: Set<string>; names: Set<string> } | null>(null);
+  const [existing, setExisting] = useState<{ emails: Set<string>; phones: Set<string>; names: Set<string>; customers?: any[] } | null>(null);
   const [importing, setImporting] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -443,11 +443,7 @@ export function ImportWizard() {
           setLoadError(true);
           return;
         }
-        setExisting({
-          emails: new Set((data ?? []).map((c: any) => (c.email ?? "").toLowerCase()).filter(Boolean)),
-          phones: new Set((data ?? []).map((c: any) => c.phone ?? "").filter(Boolean)),
-          names: new Set((data ?? []).map((c: any) => (c.name ?? "").toLowerCase().trim()).filter(Boolean)),
-        });
+        setExisting({ emails: new Set(), phones: new Set(), names: new Set(), customers: data ?? [] });
       } else {
         const { data } = await supabase.from("services").select("name").eq("user_id", user.id).eq("is_demo", demoMode);
         if (!active) return;
@@ -459,10 +455,9 @@ export function ImportWizard() {
 
   const analysis = useMemo(() => {
     if (!existing) return null;
-    const emails = new Set(existing.emails);
-    const phones = new Set(existing.phones);
     const names = new Set(existing.names);
-    let fresh = 0, dupes = 0, missing = 0, invalid = 0;
+    const idx = type === "customers" ? new CustomerImportIndex(existing.customers ?? []) : null;
+    let fresh = 0, dupes = 0, missing = 0, invalid = 0, conflicts = 0;
     const rowStatus: { kind: "new" | "dupe" | "error"; reason?: string }[] = [];
     rows.forEach((row, i) => {
       const v = validateRow(row);
@@ -471,13 +466,14 @@ export function ImportWizard() {
         const isMissing = /ontbreekt|vereist/i.test(v.reason ?? "");
         if (isMissing) missing++; else invalid++;
         st = { kind: "error", reason: v.reason };
-      } else if (type === "customers") {
-        const e = getValue(row, "email").toLowerCase();
-        const p = normalizePhone(getValue(row, "phone")) ?? "";
-        const n = (getValue(row, "name") || e || p).toLowerCase().trim();
-        const dupe = (e && emails.has(e)) || (p && phones.has(p)) || (!e && !p && names.has(n));
-        if (dupe) { dupes++; st = { kind: "dupe" }; }
-        else { fresh++; st = { kind: "new" }; if (e) emails.add(e); if (p) phones.add(p); names.add(n); }
+      } else if (idx) {
+        const name = getValue(row, "name") || getValue(row, "email") || getValue(row, "phone");
+        const e = getValue(row, "email") || null;
+        const p = getValue(row, "phone") || null;
+        const d = idx.decide(name, e, p);
+        if (d.kind === "dupe") { dupes++; st = { kind: "dupe" }; }
+        else if (d.kind === "conflict") { conflicts++; st = { kind: "error", reason: `Conflict: ${d.reason}` }; }
+        else { fresh++; st = { kind: "new" }; idx.add(`row-${i}`, name, e, p); }
       } else {
         const n = getValue(row, "name").toLowerCase().trim();
         if (names.has(n)) { dupes++; st = { kind: "dupe" }; }
@@ -485,7 +481,7 @@ export function ImportWizard() {
       }
       if (i < 20) rowStatus.push(st);
     });
-    return { total: rows.length, fresh, dupes, missing, invalid, rowStatus };
+    return { total: rows.length, fresh, dupes, conflicts, missing, invalid, rowStatus };
   }, [existing, rows, mapping, type]);
 
   const undoBatch = async (batchId: string) => {
@@ -582,12 +578,13 @@ export function ImportWizard() {
       const existingEmployees = existingEmployeesRes.data ?? [];
       const existingPlans = plansRes.data ?? [];
 
+      const importIndex = new CustomerImportIndex(existingCustomers);
       const customerByEmail = new Map<string, string>();
-      const customerByPhone = new Map<string, string>();
+      const customerByPhone = new Map<string, string>(); // keyed by normalised phone, same rule as preview
       const customerByName = new Map<string, string>();
       existingCustomers.forEach((c: any) => {
-        if (c.email) customerByEmail.set(c.email.toLowerCase(), c.id);
-        if (c.phone) customerByPhone.set(c.phone, c.id);
+        const e = dupNormEmail(c.email); if (e) customerByEmail.set(e, c.id);
+        const p = dupKey(c.phone); if (p) customerByPhone.set(p, c.id);
         if (c.name) customerByName.set(c.name.toLowerCase().trim(), c.id);
       });
       const serviceByName = new Map<string, string>();
@@ -680,16 +677,16 @@ export function ImportWizard() {
         try {
           if (type === "customers") {
             const name = getValue(row, "name") || getValue(row, "email") || getValue(row, "phone");
-            const email = getValue(row, "email").toLowerCase() || null;
+            const email = getValue(row, "email").toLowerCase().trim() || null;
             const phone = normalizePhone(getValue(row, "phone"));
             const nameKey = name.toLowerCase().trim();
-            const existingId =
-              (email && customerByEmail.get(email)) ||
-              (phone && customerByPhone.get(phone)) ||
-              (!email && !phone && customerByName.get(nameKey)) ||
-              null;
-            if (existingId) {
+            const decision = importIndex.decide(name, email, phone);
+            if (decision.kind === "dupe") {
               skipped++;
+              continue;
+            }
+            if (decision.kind === "conflict") {
+              errors.push({ row: rowNum, reason: `Conflict: ${decision.reason}`, fix: "Handmatig beoordelen; niet geïmporteerd", original: row });
               continue;
             }
             const { data, error } = await supabase
@@ -708,8 +705,9 @@ export function ImportWizard() {
               continue;
             }
             track("customers", data.id);
+            importIndex.add(data.id, name, email, phone);
             if (email) customerByEmail.set(email, data.id);
-            if (phone) customerByPhone.set(phone, data.id);
+            if (phone) customerByPhone.set(dupKey(phone), data.id);
             customerByName.set(nameKey, data.id);
             imported++;
           } else if (type === "services") {
@@ -909,7 +907,8 @@ export function ImportWizard() {
           row_id: it.row_id,
         }));
         for (let i = 0; i < payload.length; i += 500) {
-          await supabase.from("import_batch_items").insert(payload.slice(i, i + 500));
+          const { error: itemsErr } = await supabase.from("import_batch_items").insert(payload.slice(i, i + 500));
+          if (itemsErr) throw new Error("Importregistratie onvolledig; terugdraaien is mogelijk niet volledig. Neem contact op met support.");
         }
       }
 
@@ -1193,10 +1192,11 @@ export function ImportWizard() {
             <p className="text-sm text-destructive">Niet alle klanten konden worden geladen. Probeer het opnieuw.</p>
           )}
           {analysis ? (
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
               <SummaryCard label="Gevonden" value={analysis.total} />
-              <SummaryCard label="Nieuw" value={analysis.fresh} variant="success" />
-              <SummaryCard label="Mogelijk dubbel" value={analysis.dupes} />
+              <SummaryCard label="Wordt geïmporteerd" value={analysis.fresh} variant="success" />
+              <SummaryCard label="Dubbel (overgeslagen)" value={analysis.dupes} />
+              <SummaryCard label="Conflict (handmatig)" value={analysis.conflicts} variant={analysis.conflicts ? "destructive" : undefined} />
               <SummaryCard label="Gegevens ontbreken" value={analysis.missing} variant={analysis.missing ? "destructive" : undefined} />
               <SummaryCard label="Ongeldige waarden" value={analysis.invalid} variant={analysis.invalid ? "destructive" : undefined} />
             </div>
