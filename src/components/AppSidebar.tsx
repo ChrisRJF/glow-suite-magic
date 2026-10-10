@@ -157,7 +157,11 @@ export function AppSidebar() {
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-          return Object.fromEntries(Object.entries(parsed).filter(([, value]) => typeof value === "boolean"));
+          const saved: Record<string, boolean> = {};
+          for (const [title, value] of Object.entries(parsed)) {
+            if (typeof value === "boolean") saved[title] = value;
+          }
+          return saved;
         }
       }
       const legacy = JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY) || "{}");
