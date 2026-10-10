@@ -96,8 +96,8 @@ export function TodayBriefing({ variant = "default", title, hideHeader = false, 
         key: "quiet",
         icon: Sparkles,
         label: `Rustige ${dayName}`,
-        why: `${todaysAppts.length} ${todaysAppts.length === 1 ? "afspraak" : "afspraken"} vandaag. Goed moment voor een actie.`,
-        onClick: () => navigate("/marketing"),
+        why: `${todaysAppts.length} ${todaysAppts.length === 1 ? "afspraak" : "afspraken"} vandaag. Bekijk je agenda.`,
+        onClick: () => navigate("/agenda"),
         tone: "success",
       });
     }
