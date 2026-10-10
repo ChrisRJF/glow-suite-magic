@@ -541,7 +541,7 @@ export default function EmployeesPage() {
                                 <Input type="time" aria-label={`Begintijd ${lbl}`} value={d.start} onChange={(ev) => setScheduleDay(day, { ...d, start: ev.target.value })} className={cn("h-10", invalid && "border-destructive")} />
                                 <span className="text-xs text-muted-foreground">tot</span>
                                 <Input type="time" aria-label={`Eindtijd ${lbl}`} value={d.end} onChange={(ev) => setScheduleDay(day, { ...d, end: ev.target.value })} className={cn("h-10", invalid && "border-destructive")} />
-                                <Button type="button" variant="ghost" size="sm" className="shrink-0 text-xs" onClick={() => copyScheduleDay(day)}>Tijden kopiëren naar werkdagen</Button>
+                                <Button type="button" variant="ghost" size="sm" className="shrink text-xs whitespace-normal h-auto py-1 leading-tight" onClick={() => copyScheduleDay(day)}>Tijden kopiëren naar werkdagen</Button>
                               </div>
                             ) : (
                               <p className="text-xs text-muted-foreground flex-1">Niet beschikbaar</p>
