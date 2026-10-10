@@ -241,6 +241,9 @@ function autoDetect(headers: string[], type: ImportType): Record<string, string>
   return map;
 }
 
+// Customers are saved in chunks; each chunk is registered for undo before the next starts.
+export const CUSTOMER_CHUNK = 200;
+
 type Step = 0 | 1 | 2 | 3 | 4 | 5;
 
 interface ImportError {
@@ -491,11 +494,15 @@ export function ImportWizard() {
     if (!confirm("Weet je zeker dat je deze import wilt terugdraaien? Rijen uit deze import worden verwijderd.")) return;
     setUndoing(batchId);
     try {
-      const { data: items } = await supabase
+      // Page through all items (backend returns max 1.000 per request); never undo half silently.
+      const { data: items, error: itemsLoadErr } = await fetchAllRows((from, to) => supabase
         .from("import_batch_items")
-        .select("table_name, row_id")
+        .select("id, table_name, row_id")
         .eq("batch_id", batchId)
-        .eq("user_id", user.id);
+        .eq("user_id", user.id)
+        .order("id")
+        .range(from, to));
+      if (itemsLoadErr) throw new Error("Niet alle importregels konden worden geladen. Probeer het opnieuw.");
       const byTable = new Map<string, string[]>();
       (items ?? []).forEach((it: any) => {
         const arr = byTable.get(it.table_name) ?? [];
@@ -663,6 +670,39 @@ export function ImportWizard() {
         });
       }
 
+      type PendingCustomer = { rowNum: number; row: Record<string, any>; name: string; email: string | null; phone: string | null };
+      const pendingCustomers: PendingCustomer[] = [];
+      const flushCustomers = async () => {
+        if (pendingCustomers.length === 0) return;
+        const chunk = pendingCustomers.splice(0, pendingCustomers.length);
+        const { data, error } = await supabase
+          .from("customers")
+          .insert(chunk.map((c) => ({ user_id: user.id, is_demo: demoMode, name: c.name, email: c.email, phone: c.phone })))
+          .select("id");
+        if (error || !data || data.length !== chunk.length) {
+          // A multi-row insert is all-or-nothing: none of these rows were saved.
+          chunk.forEach((c) => errors.push({ row: c.rowNum, reason: "Kon klant niet aanmaken", fix: "Opnieuw importeren; reeds opgeslagen klanten worden overgeslagen", original: c.row }));
+          return;
+        }
+        const ids = data.map((d: any) => d.id as string);
+        const { error: itemsErr } = await supabase
+          .from("import_batch_items")
+          .insert(ids.map((id) => ({ batch_id: batchId, user_id: user.id, table_name: "customers", row_id: id })));
+        if (itemsErr) {
+          // Never leave customers that cannot be undone: remove this chunk and stop.
+          await supabase.from("customers").delete().in("id", ids).eq("user_id", user.id);
+          throw new Error("Importregistratie mislukt; deze reeks is teruggedraaid. Probeer opnieuw.");
+        }
+        ids.forEach((id, k) => {
+          const c = chunk[k];
+          if (c.email) customerByEmail.set(c.email, id);
+          const pk = dupKey(c.phone); if (pk) customerByPhone.set(pk, id);
+          customerByName.set(c.name.toLowerCase().trim(), id);
+        });
+        imported += ids.length;
+        await supabase.from("import_batches").update({ imported_count: imported, skipped_count: skipped, failed_count: errors.length }).eq("id", batchId!);
+      };
+
       setProgressLabel(`Importeren 0/${total}…`);
 
       for (let i = 0; i < rows.length; i++) {
@@ -691,27 +731,11 @@ export function ImportWizard() {
               errors.push({ row: rowNum, reason: `Conflict: ${decision.reason}`, fix: "Handmatig beoordelen; niet geïmporteerd", original: row });
               continue;
             }
-            const { data, error } = await supabase
-              .from("customers")
-              .insert({
-                user_id: user.id,
-                is_demo: demoMode,
-                name,
-                email,
-                phone,
-              })
-              .select("id")
-              .single();
-            if (error || !data) {
-              errors.push({ row: rowNum, reason: "Kon klant niet aanmaken", fix: "Controleer de gegevens in deze regel", original: row });
-              continue;
-            }
-            track("customers", data.id);
-            importIndex.add(data.id, name, email, phone);
-            if (email) customerByEmail.set(email, data.id);
-            { const pk = dupKey(phone); if (pk) customerByPhone.set(pk, data.id); }
-            customerByName.set(nameKey, data.id);
-            imported++;
+            // Queue; saved in batches of CUSTOMER_CHUNK and registered for undo right away.
+            importIndex.add(`pending-${i}`, name, email, phone);
+            void nameKey;
+            pendingCustomers.push({ rowNum, row, name, email, phone });
+            if (pendingCustomers.length >= CUSTOMER_CHUNK) await flushCustomers();
           } else if (type === "services") {
             const name = getValue(row, "name");
             const k = name.toLowerCase().trim();
@@ -896,9 +920,12 @@ export function ImportWizard() {
             imported++;
           }
         } catch (rowErr: any) {
+          if (String(rowErr?.message ?? "").startsWith("Importregistratie")) throw rowErr;
           errors.push({ row: rowNum, reason: "Onverwachte fout", fix: rowErr?.message ?? "", original: row });
         }
       }
+
+      await flushCustomers();
 
       // Persist tracked items in batches
       if (trackedItems.length > 0) {
