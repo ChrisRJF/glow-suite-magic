@@ -28,6 +28,7 @@ export function HistoricalImport() {
   const [data, setData] = useState<Record<string, string>[]>([]);
   const [map, setMap] = useState<Record<string, string>>({});
   const [customers, setCustomers] = useState<CustomerLite[]>([]);
+  const [customersError, setCustomersError] = useState(false);
   const [manual, setManual] = useState<Record<number, string>>({});
   const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -58,8 +59,17 @@ export function HistoricalImport() {
   useEffect(() => {
     if (!access || !isAdmin || !canPreview) return;
     if (canImport) loadBatches();
+    setCustomersError(false);
     fetchAllRows((from, to) => supabase.from("customers").select("id, name, email, phone").eq("is_demo", access.demo).order("id").range(from, to))
-      .then(({ data }) => setCustomers((data as CustomerLite[]) || []));
+      .then(({ data, error }) => {
+        if (error) {
+          setCustomers([]);
+          setCustomersError(true);
+          toast.error("Niet alle klanten konden worden geladen. Probeer het opnieuw.");
+          return;
+        }
+        setCustomers((data as CustomerLite[]) || []);
+      });
   }, [access, isAdmin, canPreview, canImport]);
 
   const fields = HISTORICAL_FIELDS[kind];
