@@ -21,7 +21,7 @@ SNAP="select md5(string_agg(p.oid::regprocedure::text||coalesce(p.proacl::text,'
 TSNAP="select md5(string_agg(table_name||'.'||column_name||':'||data_type||coalesce(column_default,''),'|' order by 1)) from information_schema.columns where table_schema='public'"
 NEWF="select count(*) from pg_proc where pronamespace='public'::regnamespace and proname in ('amsterdam_wall_to_utc','minutes_to_wall_time','appointment_busy_candidates','appointment_slot_check','move_appointment_atomic','create_appointment_atomic','create_public_booking_atomic')"
 COL="select count(*) from information_schema.columns where table_name='tenant_feature_flags' and column_name='atomic_agenda_enabled'"
-F0=$(AS $P -d gs_move -c "$SNAP"); T0=$(AS $P -d gs_move -c "$TSNAP"); D0=$(AS $P -d gs_move -c "select md5(string_agg(t::text,'|' order by t::text)) from tenant_feature_flags t")
+F0=$(AS $P -d gs_move -c "$SNAP"); T0=$(AS $P -d gs_move -c "$TSNAP"); D0=$(AS $P -d gs_move -c "select md5(string_agg((to_jsonb(t)-'atomic_agenda_enabled')::text,'|' order by (to_jsonb(t)-'atomic_agenda_enabled')::text)) from tenant_feature_flags t")
 ok() { if [ "$2" = "$3" ]; then echo "PASS: $1"; else echo "FAIL: $1 (got '$2' want '$3')"; fi; }
 # T01 autocommit run refused, nothing created
 AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $M" >/dev/null 2>&1 && echo "FAIL: T01 autocommit allowed" || echo "PASS: T01 run outside one transaction refused"
@@ -59,7 +59,7 @@ ok "T06 flag off for every salon and default false" "$(AS $P -d gs_move -c "sele
 F1=$(AS $P -d gs_move -c "select md5(string_agg(p.oid::regprocedure::text||coalesce(p.proacl::text,'-')||md5(p.prosrc),'|' order by 1)) from pg_proc p where pronamespace='public'::regnamespace and proname not in ('amsterdam_wall_to_utc','minutes_to_wall_time','appointment_busy_candidates','appointment_slot_check','move_appointment_atomic','create_appointment_atomic','create_public_booking_atomic')")
 ok "T07 existing functions (source + ACL) unchanged" "$F1" "$F0"
 ok "T07 existing table columns unchanged" "$(AS $P -d gs_move -c "select md5(string_agg(table_name||'.'||column_name||':'||data_type||coalesce(column_default,''),'|' order by 1)) from information_schema.columns where table_schema='public' and not (table_name='tenant_feature_flags' and column_name='atomic_agenda_enabled')")" "$T0"
-ok "T07 existing flag rows unchanged apart from new column" "$(AS $P -d gs_move -c "select md5(string_agg((to_jsonb(t)-'atomic_agenda_enabled')::text,'|' order by t::text)) from tenant_feature_flags t")" "$(AS $P -d gs_move -c "select '$D0'" )"
+ok "T07 existing flag rows unchanged apart from new column" "$(AS $P -d gs_move -c "select md5(string_agg((to_jsonb(t)-'atomic_agenda_enabled')::text,'|' order by (to_jsonb(t)-'atomic_agenda_enabled')::text)) from tenant_feature_flags t")" "$D0"
 AS $P -d gs_move -c "select 1" >/dev/null
 # (T05 already applied step 1 once inside a held transaction)
 # apply the proposal; a second apply must be REFUSED unless replacement is explicitly reviewed
