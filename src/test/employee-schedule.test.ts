@@ -141,3 +141,45 @@ describe("legacy / unknown employee ids in existing appointments", () => {
     expect(resolveBooking(staff, ctx("2026-10-12"), [{ service: cut, time: "10:00", employee: "Bas" }])).toEqual({ ok: false, reason: "unknown_employee" });
   });
 });
+
+import { availabilitySlots, isAutoKey } from "../../supabase/functions/_shared/inactive/employeeSchedule";
+
+describe("no public employee selection (automatic placement)", () => {
+  const salonWide: ScheduleEmployee = { id: "__salon__", weekly_schedule: null, working_days: [1, 2, 3, 4, 5, 6, 7], services: [] };
+  const toServer = (k: string) => (isAutoKey(k) ? null : k);
+
+  it("salon without employees: anonymous salon-wide slots, booking completes", () => {
+    const slots = availabilitySlots([salonWide], ctx("2026-10-12"), [cut], { publicStaff: false });
+    expect(Object.keys(slots["svc-cut"])).toEqual(["auto-1"]);
+    expect(slots["svc-cut"]["auto-1"]).toContain("10:00");
+    const r = resolveBooking([salonWide], ctx("2026-10-12"), [{ service: cut, time: "10:00", employee: toServer("auto-1") }]);
+    expect(r.ok && r.rows[0].employee).toBe("__salon__");
+  });
+
+  it("hidden employees: response has no employee ids, automatic booking completes on a real employee", () => {
+    const slots = availabilitySlots([anna, bram], ctx("2026-10-13"), [cut], { publicStaff: false });
+    const text = JSON.stringify(slots);
+    expect(text).not.toContain("emp-anna");
+    expect(text).not.toContain("emp-bram");
+    const key = Object.keys(slots["svc-cut"]).find((k) => slots["svc-cut"][k].includes("15:00"))!;
+    expect(key).toBe("auto-2");
+    const r = resolveBooking([anna, bram], ctx("2026-10-13"), [{ service: cut, time: "15:00", employee: toServer(key) }]);
+    expect(r.ok && r.rows[0].employee).toBe("emp-bram");
+  });
+
+  it("public employees stay keyed by employee id", () => {
+    const slots = availabilitySlots([anna, bram], ctx("2026-10-12"), [cut], { publicStaff: true });
+    expect(Object.keys(slots["svc-cut"]).sort()).toEqual(["emp-anna", "emp-bram"]);
+  });
+
+  it("group booking cannot use more simultaneous capacity than available", () => {
+    const busy = [{ employee_id: "emp-anna", start: 600, end: 660 }];
+    const slots = availabilitySlots([anna, bram], ctx("2026-10-12", { busy }), [cut], { publicStaff: false });
+    const freeAt10 = Object.keys(slots["svc-cut"]).filter((k) => slots["svc-cut"][k].includes("10:00"));
+    expect(freeAt10).toHaveLength(1);
+    const two = resolveBooking([anna, bram], ctx("2026-10-12", { busy }), [{ service: cut, time: "10:00", employee: null }, { service: cut, time: "10:00", employee: null }]);
+    expect(two.ok).toBe(false);
+    const solo = resolveBooking([salonWide], ctx("2026-10-12"), [{ service: cut, time: "10:00", employee: null }, { service: cut, time: "10:00", employee: null }]);
+    expect(solo.ok).toBe(false);
+  });
+});
