@@ -12,6 +12,7 @@
 //   tenant_feature_flags.whatsapp_sending_paused (2026-10-10_whatsapp_sending_paused_flag.sql)
 //   wa_claim_send / wa_finalize_send / wa_remember_nonce (2026-10-10_whatsapp_send_claims_nonces.sql)
 //   gateway_tenant_links / whatsapp_is_opted_out (2026-10-09_whatsapp_gateway_receiver.sql)
+//   whatsapp_meta_connections (2026-10-10_whatsapp_meta_connections.sql): per-salon WABA + phone id
 // While those are missing every send fails closed (503), which is the intended first state.
 
 import type { ClaimResult, ClaimState, CustomerRow, Deps, MinimalLog, Role, ServiceCaller, ServiceKeyConfig, ServiceVerifyDeps } from "./whatsappSendGuard.ts";
@@ -34,37 +35,61 @@ export interface AdapterEnv {
   WA_CONTACT_REF_KEYS?: string | null;
   /** {"<caller>":{"current":"1","keys":{"1":"<Base64>"}}} one entry per internal caller */
   WA_SEND_SERVICE_KEYS?: string | null;
-  LOVABLE_API_KEY?: string | null;
-  /** Linked Lovable WhatsApp (Meta Cloud API) connection key. Server-only. */
-  WHATSAPP_API_KEY?: string | null;
-  /** phone_number_id of the linked connection (get_connection_configuration). Digits only. */
-  WA_META_PHONE_NUMBER_ID?: string | null;
-  /** {"<salon uuid>":"<phone_number_id>"}: verified sender per salon. Unlisted salon = refused. */
-  WA_META_SENDERS?: string | null;
+  /** Meta app id this deployment is authorised as. A connection made via another app = refused. */
+  WA_META_APP_ID?: string | null;
   /** {"<kind>":{"name","language","category":"UTILITY|MARKETING","params":n}}. Must exist AND be APPROVED at Meta. */
   WA_META_TEMPLATES?: string | null;
 }
 
-// Transport: Meta WhatsApp Cloud API through the Lovable WhatsApp connector gateway (documented:
-// POST /messages, GET /message_templates; gateway injects phone-number/WABA ids and pins Graph v25.0).
-export const META_GATEWAY = "https://connector-gateway.lovable.dev/whatsapp";
+// Transport: official Meta WhatsApp Cloud API (Graph), called directly with the salon's OWN token.
+//   POST {GRAPH}/{version}/{phone_number_id}/messages      (Authorization: Bearer <token>)
+//   GET  {GRAPH}/{version}/{waba_id}/message_templates
+// No global Lovable connector key anywhere in this route. Version pinned; re-check against
+// Meta's changelog before activation (developers.facebook.com/docs/graph-api/changelog).
+export const META_GRAPH = "https://graph.facebook.com";
 export const META_GRAPH_VERSION = "v25.0";
-const PHONE_ID = /^\d{5,20}$/;
+const META_ID = /^\d{5,20}$/;
 const TEMPLATE_NAME = /^[a-z0-9_]{1,512}$/;
 const LANG = /^[a-z]{2,3}(_[A-Z]{2})?$/;
 export interface TemplateCfg { name: string; language: string; category: "UTILITY" | "MARKETING"; params: number }
 
-export function parseSenders(raw: unknown, connectionPhoneId: string): Record<string, string> | null {
-  if (typeof raw !== "string" || !raw) return null;
-  let j: unknown; try { j = JSON.parse(raw); } catch { return null; }
-  if (!j || typeof j !== "object" || Array.isArray(j)) return null;
-  const out: Record<string, string> = {};
-  for (const [salon, id] of Object.entries(j as Record<string, unknown>)) {
-    if (!/^[0-9a-f-]{36}$/.test(salon) || typeof id !== "string" || !PHONE_ID.test(id)) return null;
-    out[salon] = id;
-  }
-  // One linked connection = one number. Any entry pointing elsewhere = misconfigured -> deny all.
-  return Object.values(out).every((id) => id === connectionPhoneId) ? out : null;
+/** Server-side record of one salon's Meta connection. Never contains the token itself. */
+export interface MetaConnection {
+  tenant_id: string;
+  waba_id: string;
+  phone_number_id: string;
+  status: "active" | "pending" | "revoked" | "expired" | "disabled";
+  app_id: string;
+  credential_ref: string;
+  /** e.g. ["template_utility","template_marketing"] */
+  capabilities: string[];
+  expires_at_ms?: number | null;
+}
+export interface MetaResolvers {
+  /** Looks up by verified tenant only. 0 rows -> null; error/ambiguous -> throw. */
+  connectionForTenant(tenantId: string): Promise<MetaConnection | null>;
+  /** Resolves credential_ref -> access token for exactly this connection. Unknown -> null. */
+  credential(ref: string, conn: MetaConnection): Promise<string | null>;
+}
+type Resolved = { ok: true; conn: MetaConnection; token: string } | { ok: false; status: number; reason: string };
+
+/** Fail-closed validation of a resolved connection for this tenant + purpose. */
+export async function resolveMetaSender(r: MetaResolvers, tenantId: string, expectedAppId: string, category: "UTILITY" | "MARKETING", nowMs: number): Promise<Resolved> {
+  let c: MetaConnection | null;
+  try { c = await r.connectionForTenant(tenantId); } catch { return { ok: false, status: 503, reason: "connection_lookup_failed" }; }
+  if (!c) return { ok: false, status: 503, reason: "sender_not_configured" };
+  if (c.tenant_id !== tenantId) return { ok: false, status: 403, reason: "sender_tenant_mismatch" };
+  if (typeof c.waba_id !== "string" || !META_ID.test(c.waba_id) || typeof c.phone_number_id !== "string" || !META_ID.test(c.phone_number_id) ||
+    typeof c.credential_ref !== "string" || !/^[A-Za-z0-9_.:-]{1,128}$/.test(c.credential_ref) || !Array.isArray(c.capabilities))
+    return { ok: false, status: 503, reason: "connection_invalid" };
+  if (c.status !== "active") return { ok: false, status: 503, reason: "connection_inactive" };
+  if (c.expires_at_ms != null && !(Number.isFinite(c.expires_at_ms) && c.expires_at_ms > nowMs)) return { ok: false, status: 503, reason: "connection_inactive" };
+  if (c.app_id !== expectedAppId) return { ok: false, status: 403, reason: "connection_app_mismatch" };
+  if (!c.capabilities.includes(`template_${category.toLowerCase()}`)) return { ok: false, status: 422, reason: "capability_not_allowed" };
+  let token: string | null;
+  try { token = await r.credential(c.credential_ref, c); } catch { return { ok: false, status: 503, reason: "credential_unavailable" }; }
+  if (typeof token !== "string" || token.length < 20 || /\s/.test(token)) return { ok: false, status: 503, reason: "credential_unavailable" };
+  return { ok: true, conn: c, token };
 }
 export function parseTemplates(raw: unknown): Record<string, TemplateCfg> | null {
   if (typeof raw !== "string" || !raw) return null;
@@ -126,15 +151,15 @@ async function one(db: Db, table: string, cols: string, eq: Record<string, strin
 export interface BuiltDeps { deps: Deps; service: ServiceVerifyDeps }
 
 /** null = configuration missing/invalid -> the HTTP layer answers 503 before any read. */
-export function buildDeps(db: Db, env: AdapterEnv, io: { fetch: typeof fetch; now(): number; timeoutMs?: number; log?: (e: Record<string, unknown>) => void }): BuiltDeps | null {
+export function buildDeps(db: Db, env: AdapterEnv, io: { fetch: typeof fetch; now(): number; timeoutMs?: number; log?: (e: Record<string, unknown>) => void; meta?: MetaResolvers }): BuiltDeps | null {
   const claimKey = key32(env.WA_CLAIM_HMAC_KEY);
-  const phoneId = env.WA_META_PHONE_NUMBER_ID;
-  if (!claimKey || !env.WA_CONTACT_REF_KEYS || !env.LOVABLE_API_KEY || !env.WHATSAPP_API_KEY) return null;
-  if (typeof phoneId !== "string" || !PHONE_ID.test(phoneId)) return null;
-  const senders = parseSenders(env.WA_META_SENDERS, phoneId);
+  const appId = env.WA_META_APP_ID;
+  if (!claimKey || !env.WA_CONTACT_REF_KEYS || !io.meta) return null;
+  if (typeof appId !== "string" || !META_ID.test(appId)) return null;
   const templates = parseTemplates(env.WA_META_TEMPLATES);
-  if (!senders || !templates) return null;
-  const gwHeaders = { Authorization: `Bearer ${env.LOVABLE_API_KEY}`, "X-Connection-Api-Key": env.WHATSAPP_API_KEY };
+  if (!templates) return null;
+  const meta = io.meta;
+  const graph = `${META_GRAPH}/${META_GRAPH_VERSION}`;
   async function timed(url: string, init: RequestInit): Promise<Response> {
     const ctl = new AbortController();
     const t = setTimeout(() => ctl.abort(), io.timeoutMs ?? 10_000);
@@ -144,7 +169,7 @@ export function buildDeps(db: Db, env: AdapterEnv, io: { fetch: typeof fetch; no
   // wa_claim_send also stores customer_id + kind, which the guard's claim(tenant,key,fp) does not
   // pass. Captured from this request's own customer()/fingerprint calls. buildDeps() MUST be
   // called once per request (never shared across concurrent requests).
-  const ctx: { customer: string | null; kind: string | null } = { customer: null, kind: null };
+  const ctx: { customer: string | null; kind: string | null; sender: { tenant: string; phone: string; token: string } | null } = { customer: null, kind: null, sender: null };
 
   const isStopped = makeGatewayIsStopped({
     contactRefConfig: env.WA_CONTACT_REF_KEYS,
@@ -228,15 +253,15 @@ export function buildDeps(db: Db, env: AdapterEnv, io: { fetch: typeof fetch; no
     // Sender + template checks before the claim. No free text: the 24h customer-service window
     // cannot be established server-side (no verified inbound store), so only approved templates go out.
     async prepare({ tenantId, kind, purpose, params }) {
-      const sender = senders[tenantId];
-      if (!sender) return { ok: false, status: 503, reason: "sender_not_configured" };
-      if (sender !== phoneId) return { ok: false, status: 403, reason: "sender_tenant_mismatch" };
+      ctx.sender = null;
       const cfg = templates[kind];
       if (!cfg) return { ok: false, status: 422, reason: "free_text_window_unverified" };
       if (cfg.category !== (purpose === "marketing" ? "MARKETING" : "UTILITY")) return { ok: false, status: 422, reason: "template_category_mismatch" };
       if (params.length !== cfg.params) return { ok: false, status: 422, reason: "template_params_mismatch" };
-      const res = await timed(`${META_GATEWAY}/message_templates?name=${encodeURIComponent(cfg.name)}&fields=name,status,language,category,components&limit=25`,
-        { method: "GET", headers: gwHeaders });
+      const s = await resolveMetaSender(meta, tenantId, appId, cfg.category, io.now());
+      if (!s.ok) return s;
+      const res = await timed(`${graph}/${s.conn.waba_id}/message_templates?name=${encodeURIComponent(cfg.name)}&fields=name,status,language,category,components&limit=25`,
+        { method: "GET", headers: { Authorization: `Bearer ${s.token}` } });
       if (!res.ok) throw new Error("template_lookup_failed");
       const j = await res.json() as { data?: Array<Record<string, unknown>> };
       if (!Array.isArray(j?.data)) throw new Error("template_lookup_failed");
@@ -249,13 +274,18 @@ export function buildDeps(db: Db, env: AdapterEnv, io: { fetch: typeof fetch; no
       if (body.length !== 1 || placeholders(body[0].text) !== cfg.params) return { ok: false, status: 422, reason: "template_format_mismatch" };
       // Headers/buttons with variables are not supported yet: refuse rather than send half-filled.
       if (comps.some((c) => c.type !== "BODY" && c.type !== "FOOTER" && placeholders(c.text) > 0)) return { ok: false, status: 422, reason: "template_format_mismatch" };
-      return { ok: true, payload: { name: cfg.name, language: cfg.language, params } };
+      ctx.sender = { tenant: tenantId, phone: s.conn.phone_number_id, token: s.token };
+      // Token stays in ctx only; payload carries the phone id so transport can cross-check it.
+      return { ok: true, payload: { name: cfg.name, language: cfg.language, params, tenant: tenantId, phone_number_id: s.conn.phone_number_id } };
     },
     async transport(toE164, _body, prepared) {
-      const p = prepared as { name?: string; language?: string; params?: string[] } | undefined;
+      const p = prepared as { name?: string; language?: string; params?: string[]; tenant?: string; phone_number_id?: string } | undefined;
       if (!p?.name || !p.language || !Array.isArray(p.params)) return { accepted: false, code: 0 }; // never free text
-      const res = await timed(`${META_GATEWAY}/messages`, {
-        method: "POST", headers: { ...gwHeaders, "Content-Type": "application/json" },
+      const snd = ctx.sender;
+      // Sender must be the one resolved for this same tenant in this same request.
+      if (!snd || snd.tenant !== p.tenant || snd.phone !== p.phone_number_id) return { accepted: false, code: 0 };
+      const res = await timed(`${graph}/${snd.phone}/messages`, {
+        method: "POST", headers: { Authorization: `Bearer ${snd.token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ messaging_product: "whatsapp", to: toE164.replace(/^\+/, ""), type: "template",
           template: { name: p.name, language: { code: p.language },
             components: p.params.length ? [{ type: "body", parameters: p.params.map((text) => ({ type: "text", text })) }] : [] } }),
