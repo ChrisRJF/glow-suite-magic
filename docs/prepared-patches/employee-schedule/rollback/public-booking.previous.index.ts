@@ -3,7 +3,6 @@ import { z } from "https://esm.sh/zod@3.23.8";
 import { createVivaOrder, vivaCheckoutUrl, isVivaConfigured } from "../_shared/viva.ts";
 import { getDefaultMessageTemplate, normalizeMessageLang, renderMessage, intlLocale } from "../_shared/messageTranslations.ts";
 import { decideDeposit } from "../_shared/depositDecision.ts";
-import { amsterdamToUtc, utcToAmsterdam, busyFromAppointments, normalizeBusyEmployees, resolveBooking, availabilitySlots, startTimes, canDoService, type ScheduleEmployee } from "../_shared/employeeSchedule.ts";
 import { appendConfirmationBlock, buildConfirmationLink, claimReminderDispatch } from "../_shared/reminderEngine.ts";
 
 const corsHeaders = {
@@ -11,18 +10,16 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Real employees are loaded per salon (getSalon). No fixed sample staff.
-const SALON_WIDE = "__salon__"; // virtual employee for salons that have no employees configured
+const EMPLOYEES = [
+  { id: "bas", name: "Bas", role: "Kapper" },
+  { id: "roos", name: "Roos", role: "Kapster" },
+  { id: "lisa", name: "Lisa", role: "Allround stylist" },
+  { id: "emma", name: "Emma", role: "Junior stylist" },
+];
 
 const RequestSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("get_salon"), slug: z.string().trim().min(1).max(120) }),
   z.object({ action: z.literal("get_booking"), slug: z.string().trim().min(1).max(120), booking_token: z.string().uuid() }),
-  z.object({
-    action: z.literal("get_availability"),
-    slug: z.string().trim().min(1).max(120),
-    date: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/),
-    service_ids: z.array(z.string().uuid()).min(1).max(9),
-  }),
   z.object({ action: z.literal("lookup_customer"), slug: z.string().trim().min(1).max(120), email: z.string().trim().email().max(255) }),
   z.object({
     action: z.literal("create_booking"),
@@ -57,12 +54,9 @@ const RequestSchema = z.discriminatedUnion("action", [
 
 type ServiceRow = { id: string; name: string; duration_minutes: number; price: number; color?: string | null; description?: string | null; translations?: Record<string, { name?: string; description?: string; category?: string }> | null; category?: string | null; user_id: string };
 
-type EmployeeRow = ScheduleEmployee & { name: string; role: string | null; photo_url: string | null };
-
 type SalonContext = {
   settings: any;
   services: ServiceRow[];
-  employees: EmployeeRow[];
 };
 
 function json(body: unknown, status = 200) {
@@ -104,18 +98,7 @@ async function getSalon(supabase: ReturnType<typeof createClient>, slug: string)
     .order("name", { ascending: true });
 
   if (serviceError) throw serviceError;
-
-  // Only active employees of THIS salon, in the same demo/live mode as the salon.
-  const { data: employees, error: employeeError } = await supabase
-    .from("employees")
-    .select("id, name, role, photo_url, is_active, status, status_from, status_until, working_days, breaks, break_start, break_end, weekly_schedule, services, sort_order")
-    .eq("user_id", settings.user_id)
-    .eq("is_active", true)
-    .eq("is_demo", Boolean(settings.is_demo || settings.demo_mode))
-    .order("sort_order", { ascending: true });
-  if (employeeError) throw employeeError;
-
-  return { settings, services: services || [], employees: (employees || []) as EmployeeRow[] };
+  return { settings, services: services || [] };
 }
 
 function safeSalonPayload(ctx: SalonContext) {
@@ -160,20 +143,12 @@ function safeSalonPayload(ctx: SalonContext) {
       category: service.category || null,
       translations: service.translations || {},
     })),
-    employees: ctx.settings.public_employees_enabled === false ? [] : ctx.employees.map((e) => ({
-      id: e.id,
-      name: e.name,
-      role: e.role || "",
-      photo_url: e.photo_url || null,
-      service_ids: ctx.services.filter((svc) => canDoService(e, svc)).map((svc) => svc.id),
-    })),
-    availability_version: 2,
+    employees: ctx.settings.public_employees_enabled === false ? [] : EMPLOYEES,
   };
 }
 
-// Europe/Amsterdam wall-clock time -> UTC, correct in summer and winter time.
 function combineDateTime(date: string, time: string) {
-  return amsterdamToUtc(date, time);
+  return new Date(`${date}T${time}:00+01:00`);
 }
 
 function overlaps(startA: Date, endA: Date, startB: Date, endB: Date) {
@@ -193,62 +168,33 @@ async function sendWhiteLabelEmail(supabase: ReturnType<typeof createClient>, bo
   if (error) console.error("White-label email failed", error.message);
 }
 
-function scheduleStaff(ctx: SalonContext): ScheduleEmployee[] {
-  if (ctx.employees.length) return ctx.employees;
-  // Salon without employees: one salon-wide calendar, opening hours only (previous behaviour).
-  return [{ id: SALON_WIDE, weekly_schedule: null, working_days: [1, 2, 3, 4, 5, 6, 7], services: [] }];
-}
-
-function todayAmsterdam() {
-  return utcToAmsterdam(new Date());
-}
-
-async function loadDay(supabase: ReturnType<typeof createClient>, ctx: SalonContext, date: string) {
-  const userId = ctx.settings.user_id;
-  // Local-day bounds in UTC (DST-safe), widened by a day so long treatments are never missed.
-  const from = new Date(amsterdamToUtc(date, "00:00").getTime() - 24 * 3600000).toISOString();
-  const to = new Date(amsterdamToUtc(date, "23:59").getTime() + 60000).toISOString();
-  const [{ data: existing, error }, { data: exceptions, error: exError }] = await Promise.all([
-    supabase.from("appointments")
-      .select("appointment_date, end_time, employee_id, status")
-      .eq("user_id", userId)
-      .gte("appointment_date", from)
-      .lte("appointment_date", to)
-      .not("status", "in", "(geannuleerd,cancelled)"),
-    supabase.from("employee_availability_exceptions")
-      .select("employee_id, type, start_date, end_date, start_time, end_time, days_of_week")
-      .eq("user_id", userId)
-      .lte("start_date", date),
-  ]);
+async function assertAvailability(supabase: ReturnType<typeof createClient>, userId: string, date: string, bookings: Array<{ time: string; duration: number; employee: string | null }>) {
+  const dayStart = `${date}T00:00:00+01:00`;
+  const dayEnd = `${date}T23:59:59+01:00`;
+  const { data: existing, error } = await supabase
+    .from("appointments")
+    .select("appointment_date, end_time, employee_id, status")
+    .eq("user_id", userId)
+    .gte("appointment_date", dayStart)
+    .lte("appointment_date", dayEnd)
+    .not("status", "in", "(geannuleerd,cancelled)");
   if (error) throw error;
-  if (exError) throw exError;
-  const ids = new Set(ctx.employees.map((e) => e.id));
-  const now = todayAmsterdam();
-  return {
-    date,
-    opening: ctx.settings.opening_hours || null,
-    // Appointments of unknown employees (other salon / deleted) are treated as salon-wide blocks.
-    // Unknown, former, sample (e.g. "Bas") or missing employee ids block the whole salon.
-    busy: busyFromAppointments(date, normalizeBusyEmployees((existing || []) as any[], ids)),
-    exceptions: ((exceptions || []) as any[]).filter((ex: any) => ids.has(ex.employee_id)),
-    notBefore: date === now.date ? now.minutes + 15 : undefined,
-  };
-}
 
-/** Server-side availability decision. Returns the rows with verified employee ids, or null. */
-async function assertAvailability(supabase: ReturnType<typeof createClient>, ctx: SalonContext, date: string, bookings: Array<{ time: string; service: ServiceRow; employee: string | null }>): Promise<{ ids: Array<string | null> } | { code: "slot_unavailable" | "booking_page_outdated" }> {
-  if (date < todayAmsterdam().date) return { code: "slot_unavailable" };
-  // A requested employee must be a real employee id of this salon. Old booking pages send names
-  // (e.g. "Bas"): refuse explicitly instead of silently picking someone else.
-  const known = new Set(ctx.settings.public_employees_enabled === false ? [] : ctx.employees.map((e) => e.id));
-  if (bookings.some((b) => b.employee && !known.has(b.employee))) return { code: "booking_page_outdated" };
-  const day = await loadDay(supabase, ctx, date);
-  const result = resolveBooking(scheduleStaff(ctx), day, bookings.map((b) => ({ service: b.service, time: b.time, employee: b.employee })));
-  if (!result.ok) return { code: "slot_unavailable" };
-  return { ids: result.rows.map((r) => (r.employee === SALON_WIDE ? null : r.employee)) };
+  for (const booking of bookings) {
+    const start = combineDateTime(date, booking.time);
+    const end = new Date(start.getTime() + booking.duration * 60000);
+    const sameEmployee = (existing || []).filter((item: any) => !booking.employee || !item.employee_id || item.employee_id === booking.employee);
+    const taken = sameEmployee.some((item: any) => {
+      const itemStart = new Date(item.appointment_date);
+      const [h, m] = String(item.end_time || "00:00").split(":").map(Number);
+      const itemEnd = new Date(itemStart);
+      itemEnd.setHours(h || itemStart.getHours(), m || itemStart.getMinutes(), 0, 0);
+      return overlaps(start, end, itemStart, itemEnd);
+    });
+    if (taken) return false;
+  }
+  return true;
 }
-
-const OUTDATED_MSG = "Deze boekingspagina is verouderd. Vernieuw de pagina en kies opnieuw een medewerker en tijd.";
 
 async function createMolliePayment(args: { req: Request; supabase: ReturnType<typeof createClient>; amount: number; paymentType: string; method: string; appointmentId: string; customerId: string; salonId: string; salonOwnerId: string; settingsId: string; bookingToken: string; isDemo: boolean }) {
   if (args.isDemo) {
@@ -301,28 +247,13 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    const rawBody = await req.json();
-    // Lets the admin app confirm the server enforces weekly schedules before showing the editor.
-    if (rawBody && rawBody.action === "get_capabilities") return json({ availability_version: 2 });
-    const parsed = RequestSchema.safeParse(rawBody);
+    const parsed = RequestSchema.safeParse(await req.json());
     if (!parsed.success) return json({ error: "Ongeldige invoer", details: parsed.error.flatten().fieldErrors }, 400);
 
     const ctx = await getSalon(supabase, parsed.data.slug);
     if (!ctx) return json({ error: "Deze boekingspagina bestaat niet." }, 404);
 
     if (parsed.data.action === "get_salon") return json(safeSalonPayload(ctx));
-
-    if (parsed.data.action === "get_availability") {
-      const { date, service_ids } = parsed.data;
-      if (date < todayAmsterdam().date) return json({ date, slots: {} });
-      const day = await loadDay(supabase, ctx, date);
-      const staff = scheduleStaff(ctx);
-      // Hidden employees or no employees: anonymous keys only, never ids or names.
-      const publicStaff = ctx.settings.public_employees_enabled !== false && ctx.employees.length > 0;
-      const svcs = service_ids.map((id) => ctx.services.find((s) => s.id === id)).filter(Boolean) as ServiceRow[];
-      const slots = availabilitySlots(staff, day, svcs, { publicStaff });
-      return json({ date, slots });
-    }
 
     if (parsed.data.action === "get_booking") {
       const { data: appointment, error: appointmentError } = await supabase
@@ -382,14 +313,8 @@ Deno.serve(async (req) => {
       }),
     ];
 
-    const assigned = await assertAvailability(supabase, ctx, data.date, bookingRows);
-    if ("code" in assigned) {
-      return assigned.code === "booking_page_outdated"
-        ? json({ error: OUTDATED_MSG, code: "booking_page_outdated" }, 409)
-        : json({ error: "Deze tijd is niet (meer) beschikbaar. Kies een nieuw moment.", code: "slot_unavailable" }, 409);
-    }
-    // From here on only server-verified employee ids are used.
-    bookingRows.forEach((row, i) => { row.employee = assigned.ids[i]; });
+    const available = await assertAvailability(supabase, ctx.settings.user_id, data.date, bookingRows.map((row) => ({ time: row.time, duration: row.service.duration_minutes, employee: row.employee })));
+    if (!available) return json({ error: "Deze tijd is net volgeboekt. Kies een nieuw moment.", code: "slot_unavailable" }, 409);
 
     const email = data.customer.email.toLowerCase();
     const { data: existingCustomer } = await supabase
@@ -516,8 +441,8 @@ Deno.serve(async (req) => {
       };
     });
 
-    const stillAvailable = await assertAvailability(supabase, ctx, data.date, bookingRows);
-    if ("code" in stillAvailable || stillAvailable.ids.some((id, i) => id !== bookingRows[i].employee)) return json({ error: "Deze tijd is net volgeboekt. Kies een nieuw moment.", code: "slot_unavailable" }, 409);
+    const stillAvailable = await assertAvailability(supabase, ctx.settings.user_id, data.date, bookingRows.map((row) => ({ time: row.time, duration: row.service.duration_minutes, employee: row.employee })));
+    if (!stillAvailable) return json({ error: "Deze tijd is net volgeboekt. Kies een nieuw moment.", code: "slot_unavailable" }, 409);
 
     const { data: appointments, error: appointmentError } = await supabase
       .from("appointments")
@@ -531,16 +456,6 @@ Deno.serve(async (req) => {
       }
       console.error("appointment insert error", appointmentError);
       return json({ error: "Boeking kon niet worden opgeslagen. Probeer het opnieuw of kies een ander tijdstip." }, 500);
-    }
-
-    // Link verified employees so the internal calendar shows the booking in the right column.
-    const links = (appointments || []).filter((a: any) => a.employee_id).map((a: any, i: number) => ({
-      appointment_id: a.id, employee_id: a.employee_id, user_id: ctx.settings.user_id,
-      is_demo: Boolean(ctx.settings.is_demo || ctx.settings.demo_mode), is_primary: true,
-    }));
-    if (links.length) {
-      const { error: linkError } = await supabase.from("appointment_employees").insert(links);
-      if (linkError) console.error("appointment_employees link failed", linkError.message);
     }
 
     if (rebookAction && appointments?.[0]) {
@@ -719,9 +634,8 @@ Deno.serve(async (req) => {
 
     if (primaryAppointment) {
       const salonSlug = ctx.settings.public_slug || slugify(ctx.settings.salon_name || "salon");
-      // No .ics link: no calendar endpoint exists. The booking_token identifies the appointment
-      // for the manage link; the secure renderer builds links from server data only.
-      const employeeName = ctx.employees.find((e) => e.id === primaryAppointment.employee_id)?.name || null;
+      const serviceSlug = slugify(mainService.name || "service");
+      const calendarUrl = `https://${salonSlug}.glowsuite.nl/calendar/${serviceSlug}/booking_confirmation.ics?date=${encodeURIComponent(data.date)}&time=${encodeURIComponent(data.time)}&duration=${encodeURIComponent(String(mainService.duration_minutes || 30))}&ref=${encodeURIComponent(primaryAppointment.booking_reference || primaryAppointment.id)}`;
       await sendWhiteLabelEmail(supabase, {
         user_id: ctx.settings.user_id,
         salon_slug: salonSlug,
@@ -729,8 +643,6 @@ Deno.serve(async (req) => {
         recipient_email: email,
         recipient_name: data.customer.name,
         template_key: "booking_confirmation",
-        appointment_id: primaryAppointment.id,
-        booking_token: primaryAppointment.booking_token,
         idempotency_key: `booking-confirmation-${primaryAppointment.id}`,
         language: preferredLanguage || undefined,
         template_data: {
@@ -739,12 +651,10 @@ Deno.serve(async (req) => {
           appointment_date: primaryAppointment.appointment_date,
           date: data.date,
           time: data.time,
-          employee: employeeName,
+          employee: primaryAppointment.employee_id,
           reference: primaryAppointment.booking_reference,
           total_amount: serverPayment.required ? serverPayment.amount : Number(mainService.price || 0),
-          booking_token: primaryAppointment.booking_token,
-          // Valid manage page on the main domain (current renderer would otherwise fall back to a salon subdomain).
-          manage_url: primaryAppointment.booking_token ? `https://glowsuite.nl/mijn-afspraak/${primaryAppointment.booking_token}` : undefined,
+          calendar_url: calendarUrl,
         },
       });
 
