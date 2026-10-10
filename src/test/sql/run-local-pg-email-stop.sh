@@ -5,9 +5,9 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../../.." && pwd)"
 BASE=/tmp/glowsuite-pg-email-stop
-RUNUID=$(id -u nobody)
-rm -rf "$BASE"; mkdir -p "$BASE/data" "$BASE/sock"; chown -R $RUNUID:$(id -g nobody) "$BASE"; chmod 700 "$BASE/sock"
-AS() { env -i PATH="$PATH" HOME=/tmp setpriv --reuid=$RUNUID --regid=$(id -g nobody) --clear-groups "$@"; }
+RUNUID=4711
+rm -rf "$BASE"; mkdir -p "$BASE/data" "$BASE/sock"; chown -R $RUNUID:$RUNUID "$BASE"; chmod 700 "$BASE/sock"
+AS() { env -i PATH="$PATH" HOME=/tmp setpriv --reuid=$RUNUID --regid=$RUNUID --clear-groups "$@"; }
 AS initdb -D "$BASE/data" -U testsuper -A trust >/dev/null
 AS pg_ctl -D "$BASE/data" -l "$BASE/log" -o "-c listen_addresses='' -k $BASE/sock" -w start >/dev/null
 trap 'AS pg_ctl -D "$BASE/data" -m immediate stop >/dev/null 2>&1 || true; rm -rf "$BASE"' EXIT
