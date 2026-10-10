@@ -104,19 +104,21 @@ function xlsxBytes() {
 const card = (label: string) => Number(screen.getByText(label).parentElement!.textContent!.replace(label, "").replace(/\D/g, ""));
 
 async function toPreview(file: File) {
-  render(<ImportWizard />); console.log("rendered");
+  render(<ImportWizard />);
   const input = document.querySelector('input[type="file"]') as HTMLInputElement;
   fireEvent.change(input, { target: { files: [file] } });
   fireEvent.click(await screen.findByRole("button", { name: /Volgende/ }));
   fireEvent.click(await screen.findByRole("button", { name: /Auto-detecteer kolommen/ }));
-  fireEvent.click(await screen.findByRole("button", { name: /Preview/ })); console.log("to preview");
+  fireEvent.click(await screen.findByRole("button", { name: /Preview/ }));
 }
 const waitPreview = () => screen.findByText("Wordt geïmporteerd", {}, { timeout: 30000 });
 async function startImport() {
   fireEvent.click(screen.getByRole("checkbox"));
   fireEvent.click(screen.getByRole("button", { name: /Importeer \d+ nieuwe/ }));
 }
-const csvFile = () => new File([CSV], "salonized-fictief.csv", { type: "text/csv" });
+// jsdom File lacks text()/arrayBuffer(); provide a minimal File-like object.
+const fakeFile = (name: string, content: string | ArrayBuffer) => ({ name, text: async () => content as string, arrayBuffer: async () => content as ArrayBuffer }) as unknown as File;
+const csvFile = () => fakeFile("salonized-fictief.csv", CSV);
 const customers = () => (db.customers ?? []).filter((c) => c.user_id === USER);
 
 beforeEach(() => {
@@ -163,7 +165,7 @@ describe("ImportWizard Salonized re-import (synthetic)", () => {
   }, 180000);
 
   it("XLSX gives the same preview counts as CSV", async () => {
-    await toPreview(new File([xlsxBytes()], "salonized-fictief.xlsx"));
+    await toPreview(fakeFile("salonized-fictief.xlsx", xlsxBytes()));
     await waitPreview();
     expect(card("Wordt geïmporteerd")).toBe(FX.expect.fresh);
     expect(card("Dubbel (overgeslagen)")).toBe(FX.expect.dupes);
