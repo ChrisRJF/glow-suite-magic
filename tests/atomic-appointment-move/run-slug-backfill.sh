@@ -45,7 +45,7 @@ done
 ok "salon with own slug: old name address no longer stored (reported)" "$(Q -c "select count(*) from settings where public_slug='cafe-noir'")" "0"
 
 # 4. conflicts stop everything
-reset "insert into settings(salon_name) values ('Studio Een'),('studio één'),('Ander');"
+Q $F -f $BASE/01_dry_run.sql > /tmp/dryerr.txt; reset "insert into settings(salon_name) values ('Studio Een'),('studio één'),('Ander');"
 ok "similar names: dry run STOP" "$(Q $F -f $BASE/01_dry_run.sql | grep -o 'verdict=.*')" "verdict=STOP"
 ok "similar names: backfill stops" "$(Q -1 -v expected=3 $F -f $BASE/02_backfill.sql | grep -c 'same link')" "1"
 ok "similar names: 0 written" "$(Q -c "select count(public_slug) from settings")" "0"
