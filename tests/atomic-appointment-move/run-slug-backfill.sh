@@ -7,9 +7,9 @@ D="$ROOT/docs/prepared-patches/atomic-appointment-move/public-slug"
 BASE=/tmp/glowsuite-pg-slug; RUNUID=4712; PASS=0; FAIL=0
 rm -rf "$BASE"; mkdir -p "$BASE/data" "$BASE/sock"; cp "$D"/*.sql "$BASE/"; chown -R $RUNUID:$RUNUID "$BASE"; chmod 700 "$BASE/sock"
 AS() { env -i PATH="$PATH" HOME=/tmp setpriv --reuid=$RUNUID --regid=$RUNUID --clear-groups "$@"; }
-AS initdb -D "$BASE/data" -U t -A trust -E UTF8 --locale=C >/dev/null
-AS pg_ctl -D "$BASE/data" -l "$BASE/log" -o "-c listen_addresses='' -k $BASE/sock" -w start >/dev/null
-trap 'AS pg_ctl -D "$BASE/data" -m immediate stop >/dev/null 2>&1; rm -rf "$BASE"; echo "SUMMARY: pass=$PASS fail=$FAIL"; [ $FAIL -eq 0 ] && [ $PASS -gt 0 ]' EXIT
+AS initdb -D "$BASE/data" -U t -A trust -E UTF8 --locale=C >"$BASE/init.log" 2>&1 || { cat "$BASE/init.log"; exit 1; }
+AS pg_ctl -D "$BASE/data" -l "$BASE/log" -o "-c listen_addresses='' -k $BASE/sock" -w start >/dev/null || { cat "$BASE/log"; exit 1; }
+trap 'AS pg_ctl -D "$BASE/data" -m immediate stop >/dev/null 2>&1; rm -rf "$BASE"; echo "SUMMARY: pass=$PASS fail=$FAIL"; { [ $FAIL -eq 0 ] && [ $PASS -gt 0 ]; } || exit 1' EXIT
 Q() { AS psql -X -q -At -h "$BASE/sock" -U t -d postgres -v ON_ERROR_STOP=1 "$@" 2>&1; }
 ok() { if [ "$2" = "$3" ]; then echo "PASS $1"; PASS=$((PASS+1)); else echo "FAIL $1: got [$2] want [$3]"; FAIL=$((FAIL+1)); fi; }
 F="-f $BASE/00_slug_function.sql"
