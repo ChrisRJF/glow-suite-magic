@@ -15,7 +15,7 @@ function runImport(store: (Row & { id: string })[], rows: Row[]) {
   }
   return r;
 }
-const phoneVariants = (n: number) => [`06${n}`, `+316${String(n).slice(1)}`, `00316${String(n).slice(1)}`, `+31 (0)6 ${String(n).slice(1)}`];
+const phoneVariants = (n: number) => [`06${n}`, `+316${n}`, `00316${n}`, `+31 (0)6 ${n}`];
 
 describe("customer import dedupe", () => {
   it("06 / +31 / 0031 / +31(0)6 and email case are the same contact", () => {
