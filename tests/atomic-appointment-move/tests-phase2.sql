@@ -75,6 +75,7 @@ SELECT t_ok((SELECT appointment_date='2026-10-16 08:00Z' AND start_time='10:00' 
 SELECT t_ok((SELECT count(*)=1 FROM appointment_employees WHERE appointment_id=(:'r'::jsonb->'appointments'->0->>'id')::uuid AND is_primary), 'B01 employee link in same transaction');
 SET LOCAL ROLE service_role;
 SELECT t_ok((public.create_public_booking_atomic('salon-een','2026-10-16','[{"time":"10:30","service_id":"a0000000-0000-0000-0000-000000000060","employee_id":"e0000000-0000-0000-0000-00000000000a"}]',:'common')->>'code')='conflict', 'B02 partial overlap with other start time refused');
+RESET ROLE;
 SELECT t_ok((SELECT count(*)=1 FROM appointments WHERE start_time IN ('10:00','10:30') AND appointment_date::date='2026-10-16'), 'B02 nothing inserted for refused booking');
 ROLLBACK;
 
