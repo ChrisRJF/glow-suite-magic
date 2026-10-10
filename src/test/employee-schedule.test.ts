@@ -116,3 +116,28 @@ describe("Dutch local time (summer and winter time)", () => {
       .toEqual([{ employee_id: "emp-anna", start: 600, end: 660 }]);
   });
 });
+
+import { normalizeBusyEmployees } from "../../supabase/functions/_shared/inactive/employeeSchedule";
+
+describe("legacy / unknown employee ids in existing appointments", () => {
+  const staff = [anna, bram];
+  const known = new Set(["emp-anna", "emp-bram"]);
+  const rows = (employee_id: string | null) => [{ appointment_date: "2026-10-12T08:00:00Z", end_time: "11:00", employee_id }]; // 10:00-11:00 local
+  for (const legacy of ["Bas", "Roos", "emp-deleted", null]) {
+    it(`appointment with employee ${legacy ?? "NULL"} blocks every employee`, () => {
+      const busy = busyFromAppointments("2026-10-12", normalizeBusyEmployees(rows(legacy), known));
+      expect(busy[0].employee_id).toBeNull();
+      expect(resolveBooking(staff, ctx("2026-10-12", { busy }), [{ service: cut, time: "10:00", employee: "emp-anna" }]).ok).toBe(false);
+      expect(resolveBooking(staff, ctx("2026-10-12", { busy }), [{ service: cut, time: "10:30", employee: null }]).ok).toBe(false);
+      expect(resolveBooking(staff, ctx("2026-10-12", { busy }), [{ service: cut, time: "11:00", employee: null }]).ok).toBe(true);
+    });
+  }
+  it("known employee only blocks that employee", () => {
+    const busy = busyFromAppointments("2026-10-12", normalizeBusyEmployees(rows("emp-anna"), known));
+    const r = resolveBooking(staff, ctx("2026-10-12", { busy }), [{ service: cut, time: "10:00", employee: null }]);
+    expect(r.ok && r.rows[0].employee).toBe("emp-bram");
+  });
+  it("an old page sending a name is refused, never silently reassigned", () => {
+    expect(resolveBooking(staff, ctx("2026-10-12"), [{ service: cut, time: "10:00", employee: "Bas" }])).toEqual({ ok: false, reason: "unknown_employee" });
+  });
+});
