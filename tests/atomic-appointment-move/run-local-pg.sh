@@ -3,6 +3,11 @@
 # Applies the PROPOSED atomic move RPC to a fictional fixture and runs the tests,
 # including a two-session race. Never touches the project database.
 set -euo pipefail
+LOG=$(mktemp /tmp/atomic-move-log.XXXXXX); exec > >(tee "$LOG") 2>&1
+finish() { local rc=$?; AS pg_ctl -D "$BASE/data" -m immediate stop >/dev/null 2>&1 || true; rm -rf "$BASE"; sleep 0.2
+  local np nf; np=$(grep -c '^PASS' "$LOG" || true); nf=$(grep -cE '^FAIL|ERROR' "$LOG" || true)
+  echo "SUMMARY: pass=$np fail=$nf"; rm -f "$LOG"
+  if [ "$rc" -ne 0 ] || [ "$nf" -ne 0 ] || [ "$np" -eq 0 ]; then exit 1; fi; exit 0; }
 HERE="$(cd "$(dirname "$0")" && pwd)"; ROOT="$(cd "$HERE/../.." && pwd)"
 BASE=/tmp/glowsuite-pg-atomic-move; RUNUID=4711
 rm -rf "$BASE"; mkdir -p "$BASE/data" "$BASE/sock"
@@ -11,7 +16,7 @@ chown -R $RUNUID:$RUNUID "$BASE"; chmod 700 "$BASE/sock"
 AS() { env -i PATH="$PATH" HOME=/tmp setpriv --reuid=$RUNUID --regid=$RUNUID --clear-groups "$@"; }
 AS initdb -D "$BASE/data" -U testsuper -A trust >/dev/null
 AS pg_ctl -D "$BASE/data" -l "$BASE/log" -o "-c listen_addresses='' -k $BASE/sock" -w start >/dev/null
-trap 'AS pg_ctl -D "$BASE/data" -m immediate stop >/dev/null 2>&1 || true; rm -rf "$BASE"' EXIT
+trap finish EXIT
 P="psql -X -q -At -h $BASE/sock -U testsuper"
 AS $P -d postgres -c "create database gs_move" >/dev/null
 AS $P -d gs_move -c "select 'isolated: listen='''||current_setting('listen_addresses')||''' db='||current_database()"

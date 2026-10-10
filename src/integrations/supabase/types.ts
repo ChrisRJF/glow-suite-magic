@@ -4304,18 +4304,21 @@ export type Database = {
       }
       tenant_feature_flags: {
         Row: {
+          atomic_agenda_enabled: boolean
           history_csv_import_enabled: boolean
           history_csv_preview_enabled: boolean
           tenant_id: string
           updated_at: string
         }
         Insert: {
+          atomic_agenda_enabled?: boolean
           history_csv_import_enabled?: boolean
           history_csv_preview_enabled?: boolean
           tenant_id: string
           updated_at?: string
         }
         Update: {
+          atomic_agenda_enabled?: boolean
           history_csv_import_enabled?: boolean
           history_csv_preview_enabled?: boolean
           tenant_id?: string
@@ -5430,6 +5433,24 @@ export type Database = {
       }
     }
     Functions: {
+      amsterdam_wall_to_utc: {
+        Args: { _date: string; _time: string }
+        Returns: string
+      }
+      appointment_busy_candidates: {
+        Args: {
+          _end: string
+          _fallback_minutes: number
+          _start: string
+          _ts: string
+        }
+        Returns: {
+          e: number
+          kind: string
+          local_date: string
+          s: number
+        }[]
+      }
       appointment_dossier_status: {
         Args: { _appointment_ids: string[] }
         Returns: {
@@ -5437,6 +5458,21 @@ export type Database = {
           reasons: Json
           status: string
         }[]
+      }
+      appointment_slot_check: {
+        Args: {
+          _date: string
+          _e: number
+          _employee_id: string
+          _exclude_id: string
+          _is_demo: boolean
+          _opening: Json
+          _s: number
+          _service_id: string
+          _service_name: string
+          _tenant: string
+        }
+        Returns: string
       }
       auto_rebook_candidates: {
         Args: { _max_customers?: number; _offset?: number }
@@ -5504,6 +5540,25 @@ export type Database = {
         Args: { _token_hash: string }
         Returns: Json
       }
+      create_appointment_atomic: {
+        Args: {
+          _customer_id: string
+          _date: string
+          _employee_ids: string[]
+          _journey_id: string
+          _journey_session: number
+          _notes: string
+          _service_id: string
+          _source: string
+          _sub_appointments: Json
+          _time: string
+        }
+        Returns: Json
+      }
+      create_public_booking_atomic: {
+        Args: { _common: Json; _date: string; _lines: Json; _slug: string }
+        Returns: Json
+      }
       current_account_is_demo: { Args: never; Returns: boolean }
       current_consent_status: {
         Args: { _consent_type?: string; _customer_id: string; _scope: string }
@@ -5567,6 +5622,17 @@ export type Database = {
       }
       is_valid_weekly_schedule: { Args: { _s: Json }; Returns: boolean }
       lookup_referral_owner: { Args: { _code: string }; Returns: string }
+      minutes_to_wall_time: { Args: { _m: number }; Returns: string }
+      move_appointment_atomic: {
+        Args: {
+          _appointment_id: string
+          _expected_updated_at: string
+          _target_date: string
+          _target_employee_id: string
+          _target_start: string
+        }
+        Returns: Json
+      }
       prevent_live_demo_reset: { Args: { _user_id: string }; Returns: boolean }
       process_paid_webshop_order_stock: {
         Args: { _order_id: string }
