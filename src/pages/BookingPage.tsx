@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
+import { isAutoKey } from "@/lib/employeeSchedule";
 import { useParams } from "react-router-dom";
 import { services as fallbackServices, formatEuro } from "@/lib/data";
 import { Button } from "@/components/ui/button";
@@ -933,7 +934,7 @@ export default function BookingPage() {
           >
             <Zap className="w-3 h-3 inline mr-1" />{t("booking.assignment.autoPlacement")}
           </button>
-        </div>
+        </div>}
 
         {assignmentMode === "manual" ? (
           <select
