@@ -109,3 +109,24 @@ describe("time conversion and reminders (fictional times)", () => {
     expect(reminderDue("2026-10-22T09:00:00+00:00", null, new Date("2026-10-21T09:00:00Z"), "24h").reason).toBe("unknown_time");
   });
 });
+
+import { isAgendaGateOn } from "../../docs/prepared-patches/atomic-appointment-move/moveAppointmentCore";
+
+describe("feature gate and server refusals", () => {
+  it("unknown or missing flag values are off", () => {
+    for (const v of [undefined, null, {}, { atomic_agenda_enabled: null }, { atomic_agenda_enabled: "true" }, { atomic_agenda_enabled: 1 }, "x"]) {
+      expect(isAgendaGateOn(v)).toBe(false);
+    }
+    expect(isAgendaGateOn({ atomic_agenda_enabled: true })).toBe(true);
+  });
+  it("server says disabled (flag off on server) => blocked with message, no retry path", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: { ok: false, code: "disabled" }, error: null });
+    const r = await guardedMove(apt, target, { enabled: true, rpc });
+    expect(r).toMatchObject({ ok: false, code: "disabled" });
+    expect(rpc).toHaveBeenCalledTimes(1);
+  });
+  it("no execute permission (not activated) => unavailable", async () => {
+    const r = await guardedMove(apt, target, { enabled: true, rpc: async () => ({ data: null, error: { code: "42501" } }) });
+    expect(r.code).toBe("unavailable");
+  });
+});
