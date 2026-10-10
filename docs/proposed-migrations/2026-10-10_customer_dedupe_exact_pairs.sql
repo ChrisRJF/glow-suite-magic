@@ -72,6 +72,7 @@ SECURITY DEFINER SET search_path = public AS $$
 DECLARE _batch uuid; _planned int; _name_diff int; _consent_diff int; _bigger int;
 BEGIN
   INSERT INTO customer_merge_batches(tenant_id) VALUES (_tenant) RETURNING id INTO _batch;
+  DROP TABLE IF EXISTS pg_temp._g, pg_temp._k;
   CREATE TEMP TABLE _g ON COMMIT DROP AS
     SELECT c.*, lower(trim(c.email)) AS ne, _dedupe_norm_phone(c.phone) AS np,
            lower(regexp_replace(trim(c.name), '\s+', ' ', 'g')) AS nn
