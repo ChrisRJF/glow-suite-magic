@@ -14,11 +14,13 @@ $$ SELECT nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
 
 CREATE TYPE public.app_role AS ENUM ('eigenaar','admin','medewerker','financieel','manager','receptie');
 CREATE TABLE public.user_roles (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid NOT NULL, role public.app_role NOT NULL, created_at timestamptz NOT NULL DEFAULT now());
-CREATE TABLE public.settings (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid NOT NULL, opening_hours jsonb, is_demo boolean NOT NULL DEFAULT false, demo_mode boolean, created_at timestamptz NOT NULL DEFAULT now());
-CREATE TABLE public.services (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid NOT NULL, name text NOT NULL, duration_minutes int NOT NULL, is_demo boolean NOT NULL DEFAULT false);
+CREATE TABLE public.settings (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid NOT NULL, opening_hours jsonb, is_demo boolean NOT NULL DEFAULT false, demo_mode boolean, public_slug text, created_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE public.services (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid NOT NULL, name text NOT NULL, duration_minutes int NOT NULL, price numeric DEFAULT 0, is_demo boolean NOT NULL DEFAULT false);
 CREATE TABLE public.employees (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid NOT NULL, name text NOT NULL, working_days int[] NOT NULL DEFAULT '{1,2,3,4,5}', break_start time, break_end time, services jsonb NOT NULL DEFAULT '[]', is_active boolean NOT NULL DEFAULT true, is_demo boolean NOT NULL DEFAULT false, breaks jsonb NOT NULL DEFAULT '[]', status text NOT NULL DEFAULT 'werkzaam', status_from date, status_until date, weekly_schedule jsonb);
 CREATE TABLE public.employee_availability_exceptions (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid NOT NULL, employee_id uuid NOT NULL, type text NOT NULL, start_date date NOT NULL, end_date date, start_time time, end_time time, days_of_week int[], is_demo boolean NOT NULL DEFAULT false, created_at timestamptz NOT NULL DEFAULT now());
-CREATE TABLE public.appointments (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid NOT NULL, customer_id uuid, service_id uuid, appointment_date timestamptz NOT NULL, status text NOT NULL DEFAULT 'gepland', notes text, employee_id text, start_time time, end_time time, booking_group_id uuid, is_demo boolean NOT NULL DEFAULT false, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE public.appointments (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid NOT NULL, customer_id uuid, service_id uuid, appointment_date timestamptz NOT NULL, status text NOT NULL DEFAULT 'gepland', notes text, employee_id text, start_time time, end_time time, booking_group_id uuid, is_demo boolean NOT NULL DEFAULT false, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
+  booking_token uuid NOT NULL DEFAULT gen_random_uuid() UNIQUE, price numeric, payment_status text, payment_required boolean, deposit_amount numeric, source text, payment_type text, accepted_glowsuite_terms boolean, accepted_salon_terms boolean, accepted_terms_at timestamptz);
+CREATE TABLE public.customers (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid NOT NULL, name text);
 CREATE UNIQUE INDEX idx_appointments_unique_employee_start ON public.appointments (user_id, employee_id, appointment_date) WHERE employee_id IS NOT NULL AND status <> ALL (ARRAY['geannuleerd','cancelled']) AND booking_group_id IS NULL;
 CREATE TABLE public.appointment_employees (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid NOT NULL, appointment_id uuid NOT NULL, employee_id uuid NOT NULL, is_primary boolean NOT NULL DEFAULT false, is_demo boolean NOT NULL DEFAULT false, created_at timestamptz NOT NULL DEFAULT now(), UNIQUE (appointment_id, employee_id));
 ALTER TABLE public.appointments ENABLE ROW LEVEL SECURITY;
@@ -97,3 +99,20 @@ INSERT INTO public.appointment_employees (user_id, appointment_id, employee_id, 
  ('11111111-1111-1111-1111-111111111111','a1000000-0000-0000-0000-000000000005','e0000000-0000-0000-0000-00000000000b',false),
  ('11111111-1111-1111-1111-111111111111','a1000000-0000-0000-0000-000000000006','e0000000-0000-0000-0000-00000000000a',true),
  ('11111111-1111-1111-1111-111111111111','a1000000-0000-0000-0000-000000000007','e0000000-0000-0000-0000-00000000000a',true);
+
+-- fase 2 additions (fictional)
+UPDATE public.settings SET public_slug='salon-een' WHERE user_id='11111111-1111-1111-1111-111111111111';
+UPDATE public.settings SET public_slug='salon-twee' WHERE user_id='22222222-2222-2222-2222-222222222222';
+INSERT INTO public.customers (id, user_id, name) VALUES
+ ('c0000000-0000-0000-0000-000000000001','11111111-1111-1111-1111-111111111111','Test Klant'),
+ ('c0000000-0000-0000-0000-000000000002','22222222-2222-2222-2222-222222222222','Andere Klant');
+-- legacy calendar row (wall clock stored as UTC): Tue 13 Oct 15:00 local, EA
+-- and an ambiguous row (start_time matches neither reading): Thu 22 Oct, readings 11:00 local or 09:00, no employee
+INSERT INTO public.appointments (id, user_id, service_id, appointment_date, start_time, end_time, employee_id, status) VALUES
+ ('a1000000-0000-0000-0000-000000000009','11111111-1111-1111-1111-111111111111','a0000000-0000-0000-0000-000000000060','2026-10-13 15:00Z','15:00','16:00','e0000000-0000-0000-0000-00000000000a','gepland'),
+ ('a1000000-0000-0000-0000-000000000010','11111111-1111-1111-1111-111111111111','a0000000-0000-0000-0000-000000000060','2026-10-22 09:00Z','10:00','11:00',NULL,'gepland');
+INSERT INTO public.appointment_employees (user_id, appointment_id, employee_id, is_primary) VALUES
+ ('11111111-1111-1111-1111-111111111111','a1000000-0000-0000-0000-000000000009','e0000000-0000-0000-0000-00000000000a',true);
+-- test helper: current version of a row (tests run as authenticated without table grants)
+CREATE FUNCTION public.t_upd(uuid) RETURNS timestamptz LANGUAGE sql STABLE SECURITY DEFINER AS $$ SELECT updated_at FROM public.appointments WHERE id = $1 $$;
+GRANT EXECUTE ON FUNCTION public.t_upd(uuid) TO authenticated;
