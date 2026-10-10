@@ -1,49 +1,56 @@
-# Atomic appointment move (prepared, inactive)
+# Atomic appointment move + atomic online booking (prepared, inactive, fase 2)
 
-Status: proposal only. Nothing applied to the database, nothing in `src/` changed.
+Status: proposal only. Nothing applied to the database, no Edge Function deployed, nothing in `src/` changed.
 
 ## Files
-- `docs/proposed-migrations/2026-10-10_atomic_appointment_move.sql`: RPC `public.move_appointment_atomic`.
-- `moveAppointmentRpc.ts`: inactive client adapter + Dutch messages.
-- `calendarPage.applyMove.patch.md`: how `applyMove` in `CalendarPage.tsx` becomes one RPC call.
-- `tests/atomic-appointment-move/`: throwaway PostgreSQL fixture + tests (`bash tests/atomic-appointment-move/run-local-pg.sh`).
+- `docs/proposed-migrations/2026-10-10_atomic_appointment_move.sql`: helpers `amsterdam_wall_to_utc`,
+  `appointment_busy_candidates`, `appointment_slot_check`; RPCs `move_appointment_atomic` (v2) and
+  `create_public_booking_atomic`.
+- `moveAppointmentCore.ts` / `moveAppointmentRpc.ts`: inactive client adapter, fail closed.
+- `calendarPage.applyMove.patch.md`: one `applyMove`, legacy path removed.
+- `public-booking.create.patch.md`: booking insert through the atomic RPC.
+- `tests/atomic-appointment-move/`: `run-local-pg.sh` (throwaway PostgreSQL, socket only, no TCP),
+  `fixture.sql`, `tests.sql` (original), `tests-phase2.sql`, race scripts, `adapter.test.ts`
+  (`bunx vitest run --config tests/atomic-appointment-move/vitest.config.ts`).
 
-## What the RPC guarantees (tested locally)
-- One transaction: appointment date/start/end, `appointments.employee_id` and the primary
-  `appointment_employees` link change together or not at all (simulated link failure test).
-- Authorisation = the existing appointments RLS rule (owner, active demo/live mode) plus role
-  eigenaar/admin/manager/receptie. medewerker/financieel denied. Unknown and foreign rows both answer `not_found`.
-- Employee identified only by UUID of the same salon and mode; inactive, unqualified, absent employees refused.
-  Legacy `Medewerker: <naam>` notes are never resolved by name (`legacy_assignment_requires_choice`).
-- Same availability rules as public-booking v2 (`employeeSchedule.ts`).
-- Amsterdam local time to UTC incl. DST; non-existent local times refused.
-- Advisory lock per salon + target day; two overlapping concurrent moves: one wins, one gets `conflict`.
-- `SECURITY DEFINER`, `search_path = ''`, all names schema-qualified, EXECUTE only for `authenticated`.
+## What is fixed in this version
+1. Shared lock. Both RPCs take `pg_advisory_xact_lock('appointment_slot:<tenant>:<local date>')`, then
+   re-check with the same `appointment_slot_check` and write inside the same transaction. Booking
+   lines of a group are checked and inserted one by one under the lock (each line sees the earlier
+   ones); any refusal rolls back all lines and links.
+2. Time storage. New writes from both RPCs: `appointment_date` = real UTC, `start_time`/`end_time` =
+   Amsterdam wall clock. Reading: a row is `canonical` if its Amsterdam clock equals `start_time`,
+   `legacy` if its UTC clock equals `start_time` (old calendar rows), otherwise `ambiguous`.
+   Ambiguous rows block both readings; an ambiguous row itself cannot be moved (`ambiguous_time`).
+   The DST gap and the repeated hour on the last Sunday of October are refused. No bulk conversion;
+   a legacy row becomes canonical only when it is moved.
+3. No legacy fallback. Gate off, RPC missing, network error => move blocked with a message.
+4. Version required. `_expected_updated_at` has no default; NULL => `missing_version`; compared after
+   the row lock and before the no-op check. The RPC returns the stored `updated_at` (after triggers).
 
-## Known differences / open points (must be reviewed before approval)
-1. **Online booking is not serialised with this lock.** public-booking reads availability and inserts
-   without a lock; only `idx_appointments_unique_employee_start` (same employee, exact same start)
-   protects it. A move and a booking with overlapping but different start times can both succeed.
-   Fix needs a separate public-booking change (take the same advisory lock) — not in scope.
-2. **Mixed time storage.** The calendar today writes `appointment_date` as `YYYY-MM-DDTHH:MM:00`
-   without zone (stored as UTC = wall clock), public-booking writes real UTC. The RPC writes real UTC
-   and reads other appointments by `start_time` (wall clock) and the Amsterdam date; within 09:00-18:00
-   both conventions give the same date. Reminders for calendar-created appointments are likely 1-2 h off
-   today — separate finding, not changed.
-3. Busy end time: `end_time`, else service duration, else 30 min (public-booking uses `end_time` or 30).
-   Slightly stricter, never looser.
-4. Moving to "no employee" only checks opening hours and salon-wide blocks (as today's calendar).
-   `max_bookings_simultaneous` and `buffer_minutes` are not enforced (public-booking does not either).
-5. Appointments with more than one linked employee are refused (current code would silently delete
-   the extra links).
-6. Group bookings (`booking_group_id`) are moved per appointment, as today.
-7. Staff accounts (non-owner members) cannot move, same as today's RLS.
-8. Trigger `trg_invalidate_reminders_on_reschedule` still runs inside the same transaction (DB only, no messages sent).
+## Still open (reason for NO-GO on live)
+- **Direct agenda create** (`CalendarPage` inserts) does not take the lock and still writes wall clock
+  as UTC. A new agenda appointment can still overlap a parallel online booking or move. Needs its own
+  RPC (same pattern) before the lock guarantee is complete.
+- Other writers of `appointments` (dossier edit, waitlist conversion, auto-rebook, imports, smart reflow)
+  were not reviewed and do not take the lock.
+- **Reminders**: scheduler and `sendAppointmentReminder` select by `appointment_date` instant and show
+  `start_time`. Legacy calendar rows are 1-2 h off in the 24h/2h window; canonical rows are correct.
+  The calendar shows the date via `appointment_date.slice(0,10)`: a canonical row between 00:00 and
+  02:00 local shows on the previous day. Read-side fix = `appointmentLocalSlot` (prepared, not used yet).
+- RLS still allows salon users a direct `appointments.update`; the RPC is the only path in the prepared
+  frontend, not a database-enforced one.
+- Not enforced (as today): `max_bookings_simultaneous`, `buffer_minutes`. Multi-employee appointments
+  cannot be moved.
+- Booking RPC was tested against a fixture with the columns the Edge Function writes; the live table
+  may have extra NOT NULL columns or triggers (booking_reference, reminders). Check with schema
+  metadata before applying.
 
-## Release order (each step needs separate approval)
-1. Apply the RPC migration. The live frontend keeps using the old (non-atomic) path; nothing changes for users.
-2. Activate the adapter in the frontend behind a feature gate (e.g. `tenant_feature_flags`), for all
-   move paths at once: day view, columns, mouse drag, touch drag + sheet confirm, "Verplaats afspraak".
-   Same server validation for every path; the client `findConflict` becomes only a quick hint.
-3. Rollback = switch the gate off (frontend returns to the old path); the RPC can stay, it has no side effects when unused.
-4. Later, separately: public-booking takes the same lock (point 1).
+## Rollout (each step separate written approval)
+1. Schema: apply the migration. Nothing calls it yet; no user impact.
+   Rollback: `DROP FUNCTION` of the five new functions (no data involved).
+2. Backend: deploy `public-booking` with the RPC patch. Rollback: redeploy the current version
+   (keep a copy first, like `docs/prepared-patches/employee-schedule/rollback/`).
+3. Frontend: activate the move adapter + gate per tenant in `tenant_feature_flags`.
+   Rollback: gate off => moves are BLOCKED (not legacy). Full rollback = republish previous frontend.
+4. Before calling the lock guarantee complete: agenda create through an RPC with the same lock.
