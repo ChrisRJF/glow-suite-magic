@@ -10,6 +10,7 @@ const fail = { customersPage: 0, itemsInsertCall: 0 };
 const counters = { customersRangeCalls: 0, itemsInsertCalls: 0, customerInsertCalls: 0 };
 let uid = 0;
 const USER = "00000000-0000-0000-0000-00000000fake";
+const authValue = vi.hoisted(() => ({ user: { id: "00000000-0000-0000-0000-00000000fake" } }));
 
 function q(table: string) {
   const st: any = { filters: [] as ((r: any) => boolean)[], op: "select", range: null, single: false, payload: null, limit: null };
@@ -57,7 +58,7 @@ function q(table: string) {
 }
 
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { from: (t: string) => q(t) } }));
-vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: USER } }) }));
+vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => authValue }));
 vi.mock("@/hooks/useDemoMode", () => ({ useDemoMode: () => ({ demoMode: false }) }));
 vi.mock("@/hooks/useUserRole", () => ({ useUserRole: () => ({ isAdmin: true, loading: false }) }));
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() }));
