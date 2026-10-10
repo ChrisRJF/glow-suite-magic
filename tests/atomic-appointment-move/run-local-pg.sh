@@ -20,7 +20,7 @@ AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/fixture.sql"
 AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/2026-10-10_atomic_appointment_move.sql -f $BASE/2026-10-10_atomic_appointment_move.sql"
 echo "proposal applied twice"
 for F in tests.sql tests-phase2.sql; do
-  AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/$F 2>&1" | grep -E "PASS|FAIL|ERROR" | sed 's/^psql:[^:]*:[0-9]*: NOTICE:  //'
+  AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/$F 2>&1" | grep -E "PASS|FAIL|ERROR|DBG" | sed 's/^psql:[^:]*:[0-9]*: NOTICE:  //'
 done
 
 # Race: two sessions move different appointments into overlapping EA slots (Fri 16 Oct)

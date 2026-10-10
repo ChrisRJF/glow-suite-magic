@@ -29,7 +29,9 @@ SET LOCAL ROLE authenticated;
 SELECT public.move_appointment_atomic(:'A1','2026-10-12','11:00',:'EA',:'v0')::text AS r \gset
 SELECT t_ok((:'r'::jsonb->>'code')='moved' AND (:'r'::jsonb->>'updated_at')::timestamptz > :'v0'::timestamptz, 'V05 move returns new version');
 SELECT t_ok((public.move_appointment_atomic(:'A1','2026-10-12','13:00',:'EA',:'v0')->>'code')='stale', 'V05 second move with old version refused');
-SELECT t_ok((public.move_appointment_atomic(:'A1','2026-10-12','13:00',:'EA',(:'r'::jsonb->>'updated_at')::timestamptz)->>'code')='moved', 'V05 second move with new version ok');
+SELECT public.move_appointment_atomic(:'A1','2026-10-12','13:00',:'EA',(:'r'::jsonb->>'updated_at')::timestamptz)::text AS r2, public.t_upd(:'A1')::text AS u, (:'r'::jsonb->>'updated_at') AS ru \gset
+\echo DBG :r2 :u :ru
+SELECT t_ok((:'r2'::jsonb->>'code')='moved', 'V05 second move with new version ok');
 ROLLBACK;
 BEGIN; SET LOCAL ROLE authenticated;
 DO $$ BEGIN
