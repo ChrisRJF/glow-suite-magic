@@ -228,8 +228,8 @@ async function loadDay(supabase: ReturnType<typeof createClient>, ctx: SalonCont
     date,
     opening: ctx.settings.opening_hours || null,
     // Appointments of unknown employees (other salon / deleted) are treated as salon-wide blocks.
-    busy: busyFromAppointments(date, (existing || []).map((r: any) => ({ ...r, employee_id: r.employee_id && ids.has(r.employee_id) ? r.employee_id : (ctx.employees.length ? r.employee_id : null) }))),
-    exceptions: (exceptions || []).filter((ex: any) => ids.has(ex.employee_id)),
+    busy: busyFromAppointments(date, ((existing || []) as any[]).map((r: any) => ({ ...r, employee_id: r.employee_id && ids.has(r.employee_id) ? r.employee_id : (ctx.employees.length ? r.employee_id : null) }))),
+    exceptions: ((exceptions || []) as any[]).filter((ex: any) => ids.has(ex.employee_id)),
     notBefore: date === now.date ? now.minutes + 15 : undefined,
   };
 }
