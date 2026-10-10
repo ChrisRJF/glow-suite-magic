@@ -1002,7 +1002,7 @@ export function ImportWizard() {
 
   if (!roleLoading && !isAdmin) {
     return (
-      <div className="glass-card p-4 sm:p-6">
+      <div className="glass-card w-full min-w-0 max-w-full break-words p-4 sm:p-6">
         <h2 className="text-xl font-semibold mb-1">Gegevens importeren</h2>
         <p className="text-sm text-muted-foreground">Alleen de eigenaar of een beheerder kan gegevens importeren.</p>
       </div>
@@ -1010,7 +1010,7 @@ export function ImportWizard() {
   }
 
   return (
-    <div className="glass-card p-4 sm:p-6 space-y-6 w-full max-w-full overflow-x-hidden pb-[env(safe-area-inset-bottom)]">
+    <div className="glass-card p-4 sm:p-6 space-y-6 w-full min-w-0 max-w-full break-words">
       <div>
         <h2 className="text-xl font-semibold mb-1">Gegevens importeren</h2>
         <p className="text-sm text-muted-foreground">
@@ -1023,11 +1023,11 @@ export function ImportWizard() {
       </div>
 
       {/* Stepper */}
-      <div className="flex items-center gap-2 overflow-x-auto max-w-full pb-2 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
+      <div aria-label="Importstappen" className="flex w-full min-w-0 items-center gap-2 overflow-x-auto max-w-full pb-2 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
         {["Upload", "Bron", "Type", "Mapping", "Preview", "Klaar"].map((label, i) => (
-          <div key={i} className="flex items-center gap-1.5 sm:gap-2">
+          <div key={i} aria-current={i === step ? "step" : undefined} ref={(node) => { if (node && i === step) node.parentElement?.scrollTo?.({ left: Math.max(0, node.offsetLeft - node.parentElement.offsetLeft - 8) }); }} className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             <div
-              className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-semibold ${
+              className={`w-6 h-6 sm:w-7 sm:h-7 shrink-0 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-semibold ${
                 i <= step ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
               }`}
             >
@@ -1047,7 +1047,11 @@ export function ImportWizard() {
           <div
             onDrop={onDrop}
             onDragOver={(e) => e.preventDefault()}
-            className="border-2 border-dashed border-border rounded-xl p-6 sm:p-10 text-center cursor-pointer hover:bg-secondary/30 transition w-full max-w-full"
+            role="button"
+            tabIndex={0}
+            aria-label="CSV of XLSX kiezen"
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInputRef.current?.click(); } }}
+            className="border-2 border-dashed border-border rounded-xl p-4 sm:p-10 text-center cursor-pointer hover:bg-secondary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition w-full min-w-0 max-w-full"
             onClick={() => fileInputRef.current?.click()}
           >
             <Upload className="w-8 h-8 sm:w-10 sm:h-10 mx-auto text-muted-foreground mb-3" />
@@ -1101,9 +1105,9 @@ export function ImportWizard() {
       {/* Step 1: Source */}
       {step === 1 && (
         <div className="space-y-4">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <FileSpreadsheet className="w-4 h-4" />
-            <span className="truncate">{fileName} • {rows.length} rijen</span>
+          <div className="flex min-w-0 items-start gap-2 text-sm text-muted-foreground">
+            <FileSpreadsheet className="w-4 h-4 shrink-0 mt-0.5" />
+            <span className="min-w-0 [overflow-wrap:anywhere]">{fileName} • {rows.length} rijen</span>
           </div>
           <div>
             <label className="text-sm font-medium block mb-2">Bron systeem</label>
@@ -1145,7 +1149,7 @@ export function ImportWizard() {
           </div>
           <div className="flex justify-between flex-wrap gap-2">
             <Button variant="outline" onClick={() => setStep(1)}><ArrowLeft className="w-4 h-4" />Terug</Button>
-            <Button onClick={goToMapping}>Auto-detecteer kolommen<ArrowRight className="w-4 h-4" /></Button>
+            <Button onClick={goToMapping} className="h-auto min-h-10 max-w-full whitespace-normal text-left">Auto-detecteer kolommen<ArrowRight className="w-4 h-4 shrink-0" /></Button>
           </div>
         </div>
       )}
@@ -1156,8 +1160,8 @@ export function ImportWizard() {
           <p className="text-sm text-muted-foreground">
             Controleer de kolomtoewijzing. Auto-detectie vond {Object.keys(detected).length} velden.
           </p>
-          <div className="border border-border rounded-xl overflow-x-auto overflow-y-auto max-w-full max-h-[60vh]">
-            <table className="w-full text-sm min-w-[300px]">
+          <div className="w-full min-w-0 border border-border rounded-xl overflow-x-auto overflow-y-auto max-w-full max-h-[60vh]">
+            <table className="w-full table-fixed text-sm min-w-[300px]">
               <thead className="bg-secondary/50 sticky top-0">
                 <tr>
                   <th className="text-left p-3">GlowSuite veld</th>
@@ -1183,7 +1187,7 @@ export function ImportWizard() {
                           })
                         }
                       >
-                        <SelectTrigger><SelectValue placeholder="— niet toewijzen —" /></SelectTrigger>
+                        <SelectTrigger className="min-w-0 [&>span]:truncate"><SelectValue placeholder="— niet toewijzen —" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="__none__">— niet toewijzen —</SelectItem>
                           {headers.map((h) => (
@@ -1215,7 +1219,7 @@ export function ImportWizard() {
       {step === 4 && (
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            {fileName} ({SOURCE_LABELS[source]} → {TYPE_LABELS[type]})
+            <span className="[overflow-wrap:anywhere]">{fileName}</span> ({SOURCE_LABELS[source]} → {TYPE_LABELS[type]})
           </p>
           {loadError && (
             <p className="text-sm text-destructive">Niet alle klanten konden worden geladen. Probeer het opnieuw.</p>

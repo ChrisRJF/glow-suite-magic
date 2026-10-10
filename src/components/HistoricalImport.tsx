@@ -96,8 +96,8 @@ export function HistoricalImport() {
 
   if (!canPreview) {
     return (
-      <div className="rounded-2xl border border-border p-4 opacity-70">
-        <p className="text-sm font-semibold flex items-center gap-2"><History className="h-4 w-4" /> Historische dossiers uit Salonized</p>
+      <div className="w-full min-w-0 max-w-full break-words rounded-2xl border border-border p-4 opacity-70">
+        <p className="text-sm font-semibold flex items-start gap-2"><History className="h-4 w-4 shrink-0 mt-0.5" /> Historische dossiers uit Salonized</p>
         <p className="text-xs text-muted-foreground mt-1">Binnenkort beschikbaar. Deze import wordt eerst gecontroleerd met een echte Salonized-export.</p>
       </div>
     );
@@ -150,9 +150,9 @@ export function HistoricalImport() {
   const label = kind === "appointment" ? "afspraken" : "verslagen";
 
   return (
-    <div className="rounded-2xl border border-border p-4 space-y-4">
+    <div className="w-full min-w-0 max-w-full break-words rounded-2xl border border-border p-4 space-y-4">
       <div>
-        <p className="text-sm font-semibold flex items-center gap-2"><History className="h-4 w-4 text-primary" /> Historische dossiers uit Salonized</p>
+        <p className="text-sm font-semibold flex items-start gap-2"><History className="h-4 w-4 shrink-0 mt-0.5 text-primary" /> Historische dossiers uit Salonized</p>
         <p className="text-xs text-muted-foreground mt-1">
           {canImport
             ? "Oude afspraken en verslagen worden alleen-lezen bewaard met de originele datum. Er wordt niets geboekt of verstuurd."
@@ -164,7 +164,7 @@ export function HistoricalImport() {
         <p className="text-sm text-destructive">Niet alle klanten konden worden geladen. Probeer het opnieuw.</p>
       )}
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         {(["treatment_note", "appointment"] as HistoricalKind[]).map((k) => (
           <Button key={k} size="sm" variant={kind === k ? "default" : "outline"} onClick={() => { setKind(k); setData([]); setHeaders([]); setResult(null); }}>
             {k === "appointment" ? "Historische afspraken" : "Behandelverslagen"}
@@ -181,7 +181,7 @@ export function HistoricalImport() {
         <>
           <div className="grid sm:grid-cols-2 gap-2">
             {fields.map((f) => (
-              <label key={f.key} className="text-xs space-y-1">
+              <label key={f.key} className="min-w-0 text-xs space-y-1">
                 <span className="text-muted-foreground">{f.label}{f.required ? " *" : ""}</span>
                 <select className="w-full rounded-lg border border-border bg-background px-2 py-1.5 text-sm" value={map[f.key] || ""} onChange={(e) => setMap({ ...map, [f.key]: e.target.value })}>
                   <option value="">Niet gebruiken</option>
@@ -210,7 +210,7 @@ export function HistoricalImport() {
                         : (
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="text-warning">{r.match.reason}. Kies de juiste klant:</span>
-                            <select className="rounded-lg border border-border bg-background px-2 py-1" value={manual[r.idx] || ""} onChange={(e) => setManual({ ...manual, [r.idx]: e.target.value })}>
+                            <select className="min-w-0 max-w-full rounded-lg border border-border bg-background px-2 py-1" value={manual[r.idx] || ""} onChange={(e) => setManual({ ...manual, [r.idx]: e.target.value })}>
                               <option value="">Niet importeren</option>
                               {(r.match.status === "check" ? customers.filter((c) => (r.match as { candidates: string[] }).candidates.includes(c.id)) : customers).map((c) => (
                                 <option key={c.id} value={c.id}>{c.name}{c.email ? ` · ${c.email}` : ""}</option>
@@ -253,7 +253,7 @@ export function HistoricalImport() {
         <div className="space-y-2">
           <p className="text-sm font-semibold">Eerdere historische imports</p>
           {batches.map((b) => (
-            <div key={b.id} className="flex items-center justify-between gap-2 rounded-xl border border-border p-3">
+            <div key={b.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border p-3">
               <p className="text-sm">
                 {b.kind === "appointment" ? "Afspraken" : "Verslagen"} · {new Date(b.importedAt).toLocaleString("nl-NL", { dateStyle: "medium", timeStyle: "short" })}
                 <span className="block text-xs text-muted-foreground">{b.count} records</span>
