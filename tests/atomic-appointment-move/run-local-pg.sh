@@ -88,6 +88,33 @@ for F in tests-guard.sql tests.sql tests-phase2.sql tests-phase3.sql tests-phase
   AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/$F 2>&1" | grep -E "PASS|FAIL|ERROR" | sed 's/^psql:[^:]*:[0-9]*: NOTICE:  //' | sed "s/^PASS: /PASS: [guard] /"
 done
 
+# ---- step 2: prepared public-booking server, args built by the SAME helper (publicBookingAtomic.ts) ----
+(cd "$HERE" && bun ./gen-server-scenarios.ts) > "$BASE/scen.sql"; chown $RUNUID "$BASE/scen.sql"
+AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/scen.sql" > "$BASE/scen.out" 2>&1 || { echo "FAIL: S00 scenario run"; cat "$BASE/scen.out"; }
+sc() { grep "^S:$1=" "$BASE/scen.out" | sed "s/^S:$1=//"; }
+code() { sc "$1" | python3 -c 'import sys,json; t=sys.stdin.read().strip(); print(t if t=="refused_before_call" else json.loads(t)["code"])'; }
+expect() { local got; got=$(code "$1"); [ "$got" = "$2" ] && echo "PASS: S $1 -> $2" || echo "FAIL: S $1 got '$got' want '$2'"; }
+expect normal booked; expect duplicate conflict; expect group booked; expect group_partial_conflict conflict
+expect same_name_other_tino booked; expect deposit booked; expect too_long outside_working_hours; expect break in_break
+expect other_salon_employee unknown_employee; expect employee_name refused_before_call; expect no_slug refused_before_call
+expect unknown_slug not_found; expect cest booked; expect cet booked; expect rebook booked
+Q() { AS $P -d gs_move -c "$1"; }
+ID() { sc "$1" | python3 -c 'import sys,json; print(json.loads(sys.stdin.read())["appointments"][0]["id"])'; }
+ok "S normal: token + reference + EA link + confirmed/unpaid" "$(Q "select (booking_token is not null)::text||'/'||(booking_reference like 'GS-%')::text||'/'||status||'/'||payment_status||'/'||(select count(*) from appointment_employees where appointment_id=a.id and employee_id='$EA') from appointments a where id='$(ID normal)'")" "true/true/confirmed/unpaid/1"
+G=$(sc group | python3 -c 'import sys,json; print(json.loads(sys.stdin.read())["booking_group_id"])')
+ok "S group: 2 rows, 1 group id, 2 links" "$(Q "select count(*)||'/'||count(distinct booking_group_id)||'/'||(select count(*) from appointment_employees ae join appointments x on x.id=ae.appointment_id where x.booking_group_id='$G') from appointments where booking_group_id='$G'")" "2/1/2"
+ok "S group partial conflict stored nothing at 15:00" "$(Q "select count(*) from appointments where start_time='15:00' and (appointment_date at time zone 'Europe/Amsterdam')::date='2026-11-03'")" "0"
+ok "S same-name Tino: linked by UUID to EB, not EA" "$(Q "select employee_id from appointments where id='$(ID same_name_other_tino)'")" "$EB"
+ok "S deposit: pending_confirmation/pending/25" "$(Q "select status||'/'||payment_status||'/'||deposit_amount::int from appointments where id='$(ID deposit)'")" "pending_confirmation/pending/25"
+ok "S CEST 09:00 stored as 07:00Z" "$(Q "select to_char(appointment_date at time zone 'UTC','HH24:MI') from appointments where id='$(ID cest)'")" "07:00"
+ok "S CET 09:00 stored as 08:00Z" "$(Q "select to_char(appointment_date at time zone 'UTC','HH24:MI') from appointments where id='$(ID cet)'")" "08:00"
+ok "S rebook source auto_rebook" "$(Q "select source from appointments where id='$(ID rebook)'")" "auto_rebook"
+ok "S existing appointments untouched" "$(Q "select count(*) from appointments where id::text like 'a1000000-%' and updated_at > now() - interval '1 hour' and id not in (select id from appointments where (appointment_date at time zone 'Europe/Amsterdam')::date between '2026-10-12' and '2026-11-02')")" "0"
+BEFORE=$(Q "select count(*) from appointments")
+AS bash -c "$P -d gs_move -c \"SET ROLE anon; SELECT public.create_public_booking_atomic('salon-een','2026-11-09','[]','{}')\"" >/dev/null 2>&1 && echo "FAIL: S anon can call booking RPC" || echo "PASS: S anon cannot call booking RPC"
+AS bash -c "$P -d gs_move -c \"SET ROLE authenticated; SELECT public.create_public_booking_atomic('salon-een','2026-11-09','[]','{}')\"" >/dev/null 2>&1 && echo "FAIL: S authenticated can call booking RPC" || echo "PASS: S logged-in user cannot call booking RPC"
+ok "S refused calls wrote nothing" "$(Q "select count(*) from appointments")" "$BEFORE"
+
 # Race: two sessions move different appointments into overlapping EA slots (Fri 16 Oct)
 AS bash -c "$P -d gs_move -f $BASE/race-s1.sql > $BASE/s1.out 2>&1 & sleep 0.5; $P -d gs_move -f $BASE/race-s2.sql > $BASE/s2.out 2>&1; wait"
 S1=$(grep -h 's1:' "$BASE/s1.out" || true); S2=$(grep -h 's2:' "$BASE/s2.out" || true)
