@@ -102,7 +102,7 @@ export function buildDeps(db: Db, env: AdapterEnv, io: { fetch: typeof fetch; no
   const isStopped = makeGatewayIsStopped({
     contactRefConfig: env.WA_CONTACT_REF_KEYS,
     async linkForSalon(salonId) {
-      return (await one(db, "gateway_tenant_links", "tenant_id,salon_id,enabled,allowed_action_types", { salon_id: salonId })) as GatewayLinkRow | null;
+      return (await one(db, "gateway_tenant_links", "tenant_id,salon_id,enabled,allowed_action_types", { salon_id: salonId })) as unknown as GatewayLinkRow | null;
     },
     async rpc(fn, args) { return db.rpc(fn, args); },
   });
@@ -130,12 +130,12 @@ export function buildDeps(db: Db, env: AdapterEnv, io: { fetch: typeof fetch; no
     },
     async customer(id) {
       const c = (await one(db, "customers",
-        "id,user_id,phone,whatsapp_opt_in,marketing_consent,archived_at,pseudonymized_at,communication_blocked_at", { id })) as CustomerRow | null;
+        "id,user_id,phone,whatsapp_opt_in,marketing_consent,archived_at,pseudonymized_at,communication_blocked_at", { id })) as unknown as CustomerRow | null;
       ctx.customer = c?.id ?? null;
       return c;
     },
     async appointment(id) {
-      return (await one(db, "appointments", "id,user_id,customer_id", { id })) as { user_id: string; customer_id: string | null } | null;
+      return (await one(db, "appointments", "id,user_id,customer_id", { id })) as unknown as { user_id: string; customer_id: string | null } | null;
     },
     async preferenceWhatsappOptOut(tenantId, customerId) {
       const r = await one(db, "customer_message_preferences", "whatsapp_opt_out", { user_id: tenantId, customer_id: customerId });
@@ -216,17 +216,17 @@ export function buildDeps(db: Db, env: AdapterEnv, io: { fetch: typeof fetch; no
         }
         case "automation_run": {
           const r = await one(db, "automation_runs", "id,user_id,customer_id,appointment_id,status", { id });
-          return r ? ({ type, ...r } as EventRow) : null;
+          return r ? ({ type, ...r } as unknown as EventRow) : null;
         }
         case "rebook_action": {
           const r = await one(db, "rebook_actions", "id,user_id,customer_id,appointment_id,reversed_at", { id });
-          return r ? ({ type, ...r } as EventRow) : null;
+          return r ? ({ type, ...r } as unknown as EventRow) : null;
         }
         case "form_request": {
           const r = await one(db, "form_requests", "id,user_id,customer_id,appointment_id,status,completed_at,expires_at", { id });
           if (!r) return null;
           const { expires_at, ...rest } = r;
-          return { type, ...rest, expires_at_ms: typeof expires_at === "string" ? Date.parse(expires_at) : NaN } as EventRow;
+          return { type, ...rest, expires_at_ms: typeof expires_at === "string" ? Date.parse(expires_at) : NaN } as unknown as EventRow;
         }
       }
       return null;
