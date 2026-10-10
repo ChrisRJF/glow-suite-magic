@@ -16,10 +16,55 @@ P="psql -X -q -At -h $BASE/sock -U testsuper"
 AS $P -d postgres -c "create database gs_move" >/dev/null
 AS $P -d gs_move -c "select 'isolated: listen='''||current_setting('listen_addresses')||''' db='||current_database()"
 AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/fixture.sql"
+# ---- T: transaction safety of step 1 (before the real apply) ----
+SNAP="select md5(string_agg(p.oid::regprocedure::text||coalesce(p.proacl::text,'-')||md5(p.prosrc),'|' order by 1)) from pg_proc p where pronamespace='public'::regnamespace"
+TSNAP="select md5(string_agg(table_name||'.'||column_name||':'||data_type||coalesce(column_default,''),'|' order by 1)) from information_schema.columns where table_schema='public'"
+NEWF="select count(*) from pg_proc where pronamespace='public'::regnamespace and proname in ('amsterdam_wall_to_utc','minutes_to_wall_time','appointment_busy_candidates','appointment_slot_check','move_appointment_atomic','create_appointment_atomic','create_public_booking_atomic')"
+COL="select count(*) from information_schema.columns where table_name='tenant_feature_flags' and column_name='atomic_agenda_enabled'"
+F0=$(AS $P -d gs_move -c "$SNAP"); T0=$(AS $P -d gs_move -c "$TSNAP"); D0=$(AS $P -d gs_move -c "select md5(string_agg(t::text,'|' order by t::text)) from tenant_feature_flags t")
+ok() { if [ "$2" = "$3" ]; then echo "PASS: $1"; else echo "FAIL: $1 (got '$2' want '$3')"; fi; }
+# T01 autocommit run refused, nothing created
+AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $M" >/dev/null 2>&1 && echo "FAIL: T01 autocommit allowed" || echo "PASS: T01 run outside one transaction refused"
+ok "T01 nothing created after refused run" "$(AS $P -d gs_move -c "$NEWF")/$(AS $P -d gs_move -c "$COL")" "0/0"
+# T02 forced error mid-file (after column + first functions) rolls back everything
+python3 - "$M" "$BASE/mid.sql" <<'PY'
+import sys; s=open(sys.argv[1]).read(); k=s.index('CREATE OR REPLACE FUNCTION public.appointment_slot_check(')
+open(sys.argv[2],'w').write(s[:k]+"DO $x$ BEGIN RAISE EXCEPTION 'injected mid-migration failure'; END $x$;\n"+s[k:])
+PY
+chown $RUNUID "$BASE/mid.sql"
+AS bash -c "$P -d gs_move -1 -v ON_ERROR_STOP=1 -f $BASE/mid.sql" >/dev/null 2>&1 && echo "FAIL: T02 injected error ignored" || echo "PASS: T02 injected mid-migration error aborts"
+ok "T02 rollback: no new functions, no new column" "$(AS $P -d gs_move -c "$NEWF")/$(AS $P -d gs_move -c "$COL")" "0/0"
+# T03 failure at the final verification step (simulated stray grant) rolls back everything
+python3 - "$M" "$BASE/late.sql" <<'PY'
+import sys; s=open(sys.argv[1]).read(); k=s.index('-- 6. final verification')
+open(sys.argv[2],'w').write(s[:k]+"GRANT EXECUTE ON FUNCTION public.minutes_to_wall_time(int) TO anon;\n"+s[k:])
+PY
+chown $RUNUID "$BASE/late.sql"
+AS bash -c "$P -d gs_move -1 -v ON_ERROR_STOP=1 -f $BASE/late.sql" >/dev/null 2>&1 && echo "FAIL: T03 stray grant passed" || echo "PASS: T03 catalog check catches a stray EXECUTE grant before commit"
+ok "T03 rollback after late failure" "$(AS $P -d gs_move -c "$NEWF")/$(AS $P -d gs_move -c "$COL")" "0/0"
+# T04 uncommitted functions invisible + not callable from another session; T05 nothing executable at commit
+printf 'BEGIN;\n\\i %s\nSELECT pg_sleep(3);\nCOMMIT;\n' "$M" > "$BASE/hold.sql"; chown $RUNUID "$BASE/hold.sql"
+AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/hold.sql >/dev/null 2>&1 &
+  sleep 1.5
+  echo \"V=\$($P -d gs_move -c \"$NEWF\")/\$($P -d gs_move -c \"$COL\")\"
+  $P -d gs_move -c \"select public.minutes_to_wall_time(60)\" >/dev/null 2>&1 && echo CALL=yes || echo CALL=no
+  wait" > "$BASE/vis.out"
+ok "T04 during open transaction other session sees 0 functions / 0 column" "$(grep '^V=' $BASE/vis.out)" "V=0/0"
+ok "T04 other session cannot call uncommitted function" "$(grep '^CALL=' $BASE/vis.out)" "CALL=no"
+ok "T05 after commit all 7 functions and column exist" "$(AS $P -d gs_move -c "$NEWF")/$(AS $P -d gs_move -c "$COL")" "7/1"
+R=$(AS $P -d gs_move -c "select count(*) from pg_proc p, unnest(array['anon','authenticated','service_role']) r where pronamespace='public'::regnamespace and proname in ('amsterdam_wall_to_utc','minutes_to_wall_time','appointment_busy_candidates','appointment_slot_check','move_appointment_atomic','create_appointment_atomic','create_public_booking_atomic') and has_function_privilege(r,p.oid,'EXECUTE')")
+ok "T05 has_function_privilege: anon/authenticated/service_role execute none" "$R" "0"
+ok "T05 pg_proc ACL: PUBLIC has no EXECUTE" "$(AS $P -d gs_move -c "select count(*) from pg_proc p, aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a where pronamespace='public'::regnamespace and proname like '%atomic%' and a.grantee=0")" "0"
+ok "T06 flag off for every salon and default false" "$(AS $P -d gs_move -c "select count(*) filter (where atomic_agenda_enabled)||'/'||(select column_default from information_schema.columns where table_name='tenant_feature_flags' and column_name='atomic_agenda_enabled') from tenant_feature_flags")" "0/false"
+F1=$(AS $P -d gs_move -c "select md5(string_agg(p.oid::regprocedure::text||coalesce(p.proacl::text,'-')||md5(p.prosrc),'|' order by 1)) from pg_proc p where pronamespace='public'::regnamespace and proname not in ('amsterdam_wall_to_utc','minutes_to_wall_time','appointment_busy_candidates','appointment_slot_check','move_appointment_atomic','create_appointment_atomic','create_public_booking_atomic')")
+ok "T07 existing functions (source + ACL) unchanged" "$F1" "$F0"
+ok "T07 existing table columns unchanged" "$(AS $P -d gs_move -c "select md5(string_agg(table_name||'.'||column_name||':'||data_type||coalesce(column_default,''),'|' order by 1)) from information_schema.columns where table_schema='public' and not (table_name='tenant_feature_flags' and column_name='atomic_agenda_enabled')")" "$T0"
+ok "T07 existing flag rows unchanged apart from new column" "$(AS $P -d gs_move -c "select md5(string_agg((to_jsonb(t)-'atomic_agenda_enabled')::text,'|' order by t::text)) from tenant_feature_flags t")" "$(AS $P -d gs_move -c "select '$D0'" )"
+AS $P -d gs_move -c "select 1" >/dev/null
+# (T05 already applied step 1 once inside a held transaction)
 # apply the proposal; a second apply must be REFUSED unless replacement is explicitly reviewed
-AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/2026-10-10_atomic_appointment_move.sql" >/dev/null
-if AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/2026-10-10_atomic_appointment_move.sql" >/dev/null 2>&1; then echo "FAIL: P01 silent re-apply allowed"; else echo "PASS: P01 re-apply without review refused (existing functions not silently replaced)"; fi
-AS bash -c "PGOPTIONS='-c glowsuite.allow_replace=on' $P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/2026-10-10_atomic_appointment_move.sql" >/dev/null && echo "PASS: P01 reviewed re-apply (allow_replace=on) succeeds and is idempotent"
+if AS bash -c "$P -d gs_move -1 -v ON_ERROR_STOP=1 -f $BASE/2026-10-10_atomic_appointment_move.sql" >/dev/null 2>&1; then echo "FAIL: P01 silent re-apply allowed"; else echo "PASS: P01 re-apply without review refused (existing functions not silently replaced)"; fi
+AS bash -c "PGOPTIONS='-c glowsuite.allow_replace=on' $P -d gs_move -1 -v ON_ERROR_STOP=1 -f $BASE/2026-10-10_atomic_appointment_move.sql" >/dev/null && echo "PASS: P01 reviewed re-apply (allow_replace=on) succeeds and is idempotent"
 # step 1 only: nobody may call anything
 AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/tests-grants-pre.sql 2>&1" | grep -E "PASS|FAIL|ERROR" | sed 's/^psql:[^:]*:[0-9]*: NOTICE:  //'
 # activation steps (separately approved in real life)
