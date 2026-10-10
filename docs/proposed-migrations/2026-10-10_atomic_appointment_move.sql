@@ -13,6 +13,25 @@
 -- start_time/end_time as wall clock. No bulk conversion of existing rows.
 
 -- ---------------------------------------------------------------------------
+-- T. ONE TRANSACTION. This file contains NO BEGIN/COMMIT on purpose: the Lovable migration
+--    tool (Drizzle migrator) and the Supabase CLI already run each migration file inside one
+--    transaction; a COMMIT here would end their transaction early. For a manual run use
+--    `psql -1 -v ON_ERROR_STOP=1 -f <file>` (or wrap in BEGIN/COMMIT yourself).
+--    The two statements below REFUSE to run in autocommit mode: the marker is transaction-local,
+--    so if each statement were its own transaction the check fails before anything is created.
+--    Inside the transaction the new column and functions are invisible to every other session
+--    until COMMIT, and EXECUTE is revoked (and verified, section 6) before that COMMIT.
+-- ---------------------------------------------------------------------------
+SELECT pg_catalog.set_config('glowsuite.step1_txid', pg_catalog.txid_current()::text, true);
+DO $tx$
+BEGIN
+  IF COALESCE(current_setting('glowsuite.step1_txid', true), '') <> txid_current()::text THEN
+    RAISE EXCEPTION 'step 1 must run inside ONE transaction (migration tool, psql -1, or BEGIN/COMMIT)';
+  END IF;
+END
+$tx$;
+
+-- ---------------------------------------------------------------------------
 -- 0. safety pre-check: never silently replace an existing function with one of these names.
 --    Re-applying on purpose (reviewed) requires: SET glowsuite.allow_replace = 'on';
 --    Step 1 grants EXECUTE to NOBODY. Activation = separate scripts:
@@ -854,3 +873,38 @@ COMMENT ON FUNCTION public.move_appointment_atomic(uuid, text, text, uuid, times
   'Atomic agenda move. Required version check after row lock. Shared slot lock with create_public_booking_atomic. Proposed 2026-10-10 v2.';
 COMMENT ON FUNCTION public.create_public_booking_atomic(text, text, jsonb, jsonb) IS
   'Online booking: lock + re-check + insert of all lines and employee links in one transaction. service_role only. Proposed 2026-10-10 v2.';
+
+-- ---------------------------------------------------------------------------
+-- 6. final verification INSIDE the same transaction, before COMMIT (catalog based, not text):
+--    any failure here rolls back the whole step, incl. the column and every function.
+-- ---------------------------------------------------------------------------
+DO $verify$
+DECLARE f text; r text;
+BEGIN
+  IF COALESCE(current_setting('glowsuite.step1_txid', true), '') <> txid_current()::text THEN
+    RAISE EXCEPTION 'step 1 verification not in the same transaction';
+  END IF;
+  FOREACH f IN ARRAY ARRAY[
+    'public.amsterdam_wall_to_utc(text,text)','public.minutes_to_wall_time(integer)',
+    'public.appointment_busy_candidates(timestamptz,time,time,integer)',
+    'public.appointment_slot_check(uuid,boolean,jsonb,date,integer,integer,uuid,uuid,text,uuid)',
+    'public.move_appointment_atomic(uuid,text,text,uuid,timestamptz)',
+    'public.create_appointment_atomic(uuid,uuid,text,text,uuid[],text,text,uuid,integer,jsonb)',
+    'public.create_public_booking_atomic(text,text,jsonb,jsonb)'] LOOP
+    FOREACH r IN ARRAY ARRAY['anon','authenticated','service_role'] LOOP
+      IF has_function_privilege(r, f, 'EXECUTE') THEN
+        RAISE EXCEPTION 'step 1 aborted: % can execute %', r, f;
+      END IF;
+    END LOOP;
+    IF EXISTS (SELECT 1 FROM pg_proc p, aclexplode(COALESCE(p.proacl, acldefault('f', p.proowner))) a
+                WHERE p.oid = f::regprocedure AND a.grantee = 0 AND a.privilege_type = 'EXECUTE') THEN
+      RAISE EXCEPTION 'step 1 aborted: PUBLIC can execute %', f;
+    END IF;
+  END LOOP;
+  IF EXISTS (SELECT 1 FROM public.tenant_feature_flags WHERE atomic_agenda_enabled)
+     OR (SELECT column_default FROM information_schema.columns WHERE table_schema='public'
+          AND table_name='tenant_feature_flags' AND column_name='atomic_agenda_enabled') IS DISTINCT FROM 'false' THEN
+    RAISE EXCEPTION 'step 1 aborted: atomic_agenda_enabled not off by default';
+  END IF;
+END
+$verify$;
