@@ -59,7 +59,7 @@ DO $$ BEGIN
   ASSERT (SELECT count(*) FROM customers WHERE user_id='00000000-0000-0000-0000-00000000000a') = 15902, 'nothing deleted';
   ASSERT (SELECT count(*) FROM customers WHERE user_id='00000000-0000-0000-0000-00000000000a' AND merged_into IS NULL) = 9292, 'visible list';
   ASSERT NOT EXISTS (SELECT 1 FROM customers c JOIN _before b ON b.id=c.id
-     WHERE (to_jsonb(c)-'merged_into'-'merged_at'-'merge_batch_id') <> b.row), 'original values incl. consent and updated_at kept';
+     WHERE (to_jsonb(c)-'merged_into'-'merged_at'-'merge_batch_id') <> (b.row-'merged_into'-'merged_at'-'merge_batch_id')), 'original values incl. consent and updated_at kept';
   ASSERT NOT EXISTS (SELECT 1 FROM customers WHERE user_id <> '00000000-0000-0000-0000-00000000000a' AND merged_into IS NOT NULL), 'B/C untouched';
 END $$;
 -- Idempotent re-run
@@ -76,7 +76,7 @@ ROLLBACK TO s1;
 -- Undo -> byte-identical to pre-state
 SELECT 'undo: '||dedupe_undo((SELECT (r->>'batch')::uuid FROM _r))::text;
 DO $$ BEGIN
-  ASSERT NOT EXISTS (SELECT 1 FROM customers c FULL JOIN _before b ON b.id=c.id WHERE to_jsonb(c)-'merged_into'-'merged_at'-'merge_batch_id' IS DISTINCT FROM b.row
+  ASSERT NOT EXISTS (SELECT 1 FROM customers c FULL JOIN _before b ON b.id=c.id WHERE to_jsonb(c)-'merged_into'-'merged_at'-'merge_batch_id' IS DISTINCT FROM (b.row-'merged_into'-'merged_at'-'merge_batch_id')
      OR c.merged_into IS NOT NULL OR c.merge_batch_id IS NOT NULL), 'undo exact';
   ASSERT (SELECT count(*) FROM audit_logs WHERE action LIKE 'customer_dedupe_%') = 2, 'audit';
 END $$;
