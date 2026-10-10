@@ -98,3 +98,32 @@ export function appointmentLocalSlot(appointmentDate: string, startTime: string 
   if (st && st === utcTime) return { kind: "legacy", date: utcDate, time: st };
   return { kind: "ambiguous", date: null, time: null };
 }
+
+/** Amsterdam wall clock -> UTC instant. null for the DST gap and the repeated hour (never guess). */
+export function amsterdamWallToUtc(date: string, time: string): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date); const t = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(time);
+  if (!m || !t) return null;
+  const base = Date.UTC(+m[1], +m[2] - 1, +m[3], +t[1], +t[2]);
+  const hits = [1, 2].map((h) => new Date(base - h * 3600000)).filter((d) => {
+    const s = appointmentLocalSlot(d.toISOString(), time);
+    return s.kind === "canonical" && s.date === date;
+  });
+  return hits.length === 1 ? hits[0] : null;
+}
+
+/** Real start instant of a stored row, for reminders / no-show / confirmations. null = unknown (fail closed). */
+export function appointmentInstant(appointmentDate: string, startTime: string | null | undefined): Date | null {
+  const slot = appointmentLocalSlot(appointmentDate, startTime);
+  if (slot.kind === "canonical") return new Date(appointmentDate);
+  if (slot.kind === "legacy" && slot.date && slot.time) return amsterdamWallToUtc(slot.date, slot.time);
+  return null;
+}
+
+/** Reminder windows as in eventVerifier: 24h = (23h, 25h], 2h = (1h, 3h]. Unknown time => not due, flagged. */
+export function reminderDue(appointmentDate: string, startTime: string | null | undefined, now: Date, kind: "24h" | "2h"):
+  { due: boolean; reason?: "unknown_time" } {
+  const at = appointmentInstant(appointmentDate, startTime);
+  if (!at) return { due: false, reason: "unknown_time" };
+  const h = (at.getTime() - now.getTime()) / 3600000;
+  return { due: kind === "24h" ? h > 23 && h <= 25 : h > 1 && h <= 3 };
+}

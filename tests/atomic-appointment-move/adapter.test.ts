@@ -73,3 +73,39 @@ describe("appointmentLocalSlot: mixed storage", () => {
     expect(appointmentLocalSlot("geen datum", "10:00").kind).toBe("ambiguous");
   });
 });
+
+import { amsterdamWallToUtc, appointmentInstant, reminderDue } from "../../docs/prepared-patches/atomic-appointment-move/moveAppointmentCore";
+
+describe("time conversion and reminders (fictional times)", () => {
+  it("wall clock to UTC incl. DST, gap and repeat refused", () => {
+    expect(amsterdamWallToUtc("2026-10-12", "09:00")?.toISOString()).toBe("2026-10-12T07:00:00.000Z");
+    expect(amsterdamWallToUtc("2026-10-26", "09:00")?.toISOString()).toBe("2026-10-26T08:00:00.000Z");
+    expect(amsterdamWallToUtc("2026-03-29", "02:30")).toBeNull();
+    expect(amsterdamWallToUtc("2026-10-25", "02:30")).toBeNull();
+    expect(amsterdamWallToUtc("2026-10-25", "03:00")?.toISOString()).toBe("2026-10-25T02:00:00.000Z");
+  });
+  it("old and new rows give the same real start", () => {
+    const newRow = appointmentInstant("2026-10-13T08:00:00+00:00", "10:00");
+    const oldRow = appointmentInstant("2026-10-13T10:00:00+00:00", "10:00");
+    expect(newRow?.toISOString()).toBe("2026-10-13T08:00:00.000Z");
+    expect(oldRow?.toISOString()).toBe(newRow?.toISOString());
+  });
+  it("24h and 2h reminders fire for old and new rows at the same moment", () => {
+    const now = new Date("2026-10-12T08:30:00Z"); // 10:30 local, appointment Tue 13 Oct 10:00 local
+    expect(reminderDue("2026-10-13T08:00:00+00:00", "10:00", now, "24h").due).toBe(true);
+    expect(reminderDue("2026-10-13T10:00:00+00:00", "10:00", now, "24h").due).toBe(true);
+    const now2 = new Date("2026-10-13T06:00:00Z"); // 08:00 local, 2 h before
+    expect(reminderDue("2026-10-13T08:00:00+00:00", "10:00", now2, "2h").due).toBe(true);
+    expect(reminderDue("2026-10-13T10:00:00+00:00", "10:00", now2, "2h").due).toBe(true);
+    expect(reminderDue("2026-10-13T08:00:00+00:00", "10:00", new Date("2026-10-13T07:30:00Z"), "2h").due).toBe(false);
+  });
+  it("reminder across the October DST switch uses real hours", () => {
+    // Mon 26 Oct 09:00 CET = 08:00Z; 24 h earlier is Sun 25 Oct 08:00Z
+    expect(reminderDue("2026-10-26T08:00:00+00:00", "09:00", new Date("2026-10-25T08:00:00Z"), "24h").due).toBe(true);
+    expect(reminderDue("2026-10-26T08:00:00+00:00", "09:00", new Date("2026-10-25T06:30:00Z"), "24h").due).toBe(false);
+  });
+  it("unknown time: no reminder, flagged", () => {
+    expect(reminderDue("2026-10-22T09:00:00+00:00", "10:00", new Date("2026-10-21T09:00:00Z"), "24h")).toEqual({ due: false, reason: "unknown_time" });
+    expect(reminderDue("2026-10-22T09:00:00+00:00", null, new Date("2026-10-21T09:00:00Z"), "24h").reason).toBe("unknown_time");
+  });
+});
