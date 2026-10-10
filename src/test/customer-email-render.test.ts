@@ -61,10 +61,9 @@ describe("customer email render links (inactive, fictief)", () => {
       if (u.startsWith("https://glowsuite.nl/")) expect(isAllowedCustomerUrl(u)).toBe(true);
     }
   });
-  it("pause switch only on explicit true", () => {
-    expect(customerEmailPaused("true")).toBe(true);
-    expect(customerEmailPaused(" TRUE ")).toBe(true);
-    expect(customerEmailPaused(undefined)).toBe(false);
-    expect(customerEmailPaused("yes")).toBe(false);
+  it("pause switch: only explicit false allows sending", () => {
+    expect(customerEmailPaused("false")).toBe(false);
+    expect(customerEmailPaused(" FALSE ")).toBe(false);
+    for (const v of ["true", undefined, "", " ", "0", "no", "off", "falsee", "yes"]) expect(customerEmailPaused(v)).toBe(true);
   });
 });

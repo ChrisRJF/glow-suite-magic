@@ -9,13 +9,20 @@ export type EmailAuthDeps = {
   tenantForUser: (userId: string) => Promise<string | null>;
   /** Roles of the verified user within that tenant. */
   rolesForUser: (userId: string) => Promise<string[] | null>;
+  /** Manual sends only: true if recipient email is a stored customer of this tenant. Missing = deny. */
+  recipientAllowed?: (tenantId: string, email: string) => Promise<boolean>;
 };
+
+export type EmailAuthMode = { mode: "preview" } | { mode: "send"; recipientEmail: string };
 
 export type EmailAuthResult =
   | { ok: true; caller: "service" | "user"; tenantId: string }
   | { ok: false; status: 401 | 403 | 500; error: string };
 
-export const EMAIL_ROLES = new Set(["eigenaar", "admin", "manager"]);
+export const PREVIEW_ROLES = new Set(["eigenaar", "admin", "manager"]);
+export const SEND_ROLES = new Set(["eigenaar", "admin"]);
+/** @deprecated kept for imports; equals PREVIEW_ROLES. */
+export const EMAIL_ROLES = PREVIEW_ROLES;
 
 function timingSafeEqual(a: string, b: string) {
   if (a.length !== b.length || a.length === 0) return false;
@@ -32,6 +39,8 @@ export async function authorizeEmailRequest(
   authHeader: string | null,
   requestedUserId: string,
   deps: EmailAuthDeps,
+  /** Defaults to a manual send (strictest) when omitted. */
+  access: EmailAuthMode = { mode: "send", recipientEmail: "" },
 ): Promise<EmailAuthResult> {
   const m = /^Bearer\s+(.+)$/i.exec(authHeader ?? "");
   if (!m) return { ok: false, status: 401, error: "unauthenticated" };
@@ -48,7 +57,14 @@ export async function authorizeEmailRequest(
     const tenant = await deps.tenantForUser(uid);
     if (!tenant || tenant !== requestedUserId) return { ok: false, status: 403, error: "forbidden" };
     const roles = await deps.rolesForUser(uid);
-    if (!roles || !roles.some((r) => EMAIL_ROLES.has(r))) return { ok: false, status: 403, error: "forbidden" };
+    const allowed = access.mode === "preview" ? PREVIEW_ROLES : SEND_ROLES;
+    if (!roles || !roles.some((r) => allowed.has(r))) return { ok: false, status: 403, error: "forbidden" };
+    if (access.mode === "send") {
+      const email = (access.recipientEmail ?? "").trim().toLowerCase();
+      if (!email || !deps.recipientAllowed || !(await deps.recipientAllowed(tenant, email))) {
+        return { ok: false, status: 403, error: "recipient_not_allowed" };
+      }
+    }
     return { ok: true, caller: "user", tenantId: tenant };
   } catch {
     return { ok: false, status: 500, error: "auth_unavailable" };

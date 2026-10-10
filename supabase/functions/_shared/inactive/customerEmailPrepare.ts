@@ -14,12 +14,15 @@ export type PrepareResult =
 
 export async function prepareCustomerEmail(
   authHeader: string | null,
-  body: { user_id?: unknown; template_data?: Record<string, unknown> },
+  body: { user_id?: unknown; preview_only?: unknown; recipient_email?: unknown; template_data?: Record<string, unknown> },
   deps: PrepareDeps,
 ): Promise<PrepareResult> {
   const requested = typeof body.user_id === "string" ? body.user_id : "";
   if (!requested) return { ok: false, status: 400, error: "invalid_request" };
-  const auth = await authorizeEmailRequest(authHeader, requested, deps);
+  const access = body.preview_only === true
+    ? { mode: "preview" as const }
+    : { mode: "send" as const, recipientEmail: typeof body.recipient_email === "string" ? body.recipient_email : "" };
+  const auth = await authorizeEmailRequest(authHeader, requested, deps, access);
   if ("error" in auth) return { ok: false, status: auth.status, error: auth.error };
   let slug: string | null;
   try { slug = await deps.publicSlugForTenant(auth.tenantId); } catch { return { ok: false, status: 500, error: "settings_unavailable" }; }

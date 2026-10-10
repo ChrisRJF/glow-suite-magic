@@ -69,7 +69,7 @@ describe("booking confirmation + reminder chain (fictief)", () => {
     }
   });
   it("admin preview (owner JWT) and real send produce identical links", async () => {
-    const a = await prepareCustomerEmail("Bearer jwt-owner-a", booking(), deps);
+    const a = await prepareCustomerEmail("Bearer jwt-owner-a", { ...booking(), preview_only: true }, deps);
     const b = await prepareCustomerEmail(`Bearer ${SVC}`, booking(), deps);
     expect(a.ok && b.ok && a.links).toEqual(b.ok && b.links);
   });
