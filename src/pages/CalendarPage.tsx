@@ -1,4 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
+import { CustomerPicker } from "@/components/CustomerPicker";
 import { workingWindow } from "@/lib/employeeSchedule";
 import { Button } from "@/components/ui/button";
 import { useAppointments, useCustomers, useServices, useEmployees, useAppointmentEmployees, useEmployeeAvailabilityExceptions } from "@/hooks/useSupabaseData";
@@ -1315,17 +1316,8 @@ export default function CalendarPage() {
                    )}
                   <div>
                     <label className="text-xs text-muted-foreground">Klant *</label>
-                    <select value={form.customer_id} onChange={e => setForm({...form, customer_id: e.target.value})}
-                      className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
-                      <option value="">Selecteer klant</option>
-                      {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
+                    <CustomerPicker customers={customers} value={form.customer_id} onChange={(id) => setForm(f => ({ ...f, customer_id: id }))} />
                   </div>
-                  {form.customer_id && (
-                    <p className="rounded-lg bg-secondary/50 px-3 py-2 text-xs text-muted-foreground">
-                      Geselecteerd: <span className="font-medium text-foreground">{customers.find((customer) => customer.id === form.customer_id)?.name}</span>
-                    </p>
-                  )}
                   <div>
                     <label className="text-xs text-muted-foreground">Behandeling *</label>
                     <select value={form.service_id} onChange={e => setForm({...form, service_id: e.target.value})}
