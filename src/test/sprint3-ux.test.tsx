@@ -153,7 +153,9 @@ describe("Sprint 3 snelle start", () => {
     expect(localStorage.getItem("glowsuite_onboarding_v4_synthetic")).toBe("skipped"); first.unmount(); wizard();
     await screen.findByRole("heading", { name: "Betalingen instellen (optioneel)" });
     expect(JSON.parse(localStorage.getItem(draftKey) || "{}").step).toBe(2);
+  });
 });
+
 
 describe("Sprint 3 afronding", () => {
   async function toDone() {
@@ -198,6 +200,4 @@ describe("Sprint 3 afronding", () => {
     await screen.findByRole("button", { name: /Eerste afspraak maken/ });
     expect(screen.queryByText("Later instellen")).toBeNull();
   });
-});
-
 });
