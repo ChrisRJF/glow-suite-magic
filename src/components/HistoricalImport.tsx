@@ -57,7 +57,7 @@ export function HistoricalImport() {
   useEffect(() => {
     if (!access || !isAdmin || !canPreview) return;
     if (canImport) loadBatches();
-    supabase.from("customers").select("id, name, email, phone").eq("is_demo", access.demo)
+    fetchAllRows((from, to) => supabase.from("customers").select("id, name, email, phone").eq("is_demo", access.demo).order("id").range(from, to))
       .then(({ data }) => setCustomers((data as CustomerLite[]) || []));
   }, [access, isAdmin, canPreview, canImport]);
 

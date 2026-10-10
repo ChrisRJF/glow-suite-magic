@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Tables, TablesInsert } from "@/integrations/supabase/types";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 
 type TableName = keyof import("@/integrations/supabase/types").Database["public"]["Tables"];
 type AnyTableName = TableName | "membership_plans" | "customer_memberships" | "membership_usage";
@@ -17,13 +18,15 @@ export function useSupabaseQuery<T extends AnyTableName>(
   const fetch = useCallback(async () => {
     if (!user) { setData([]); setLoading(false); return; }
     setLoading(true);
-    let query = (supabase as any).from(table).select("*");
-    if (options?.orderBy) {
-      query = query.order(options.orderBy, { ascending: options.ascending ?? false });
-    } else {
-      query = query.order("created_at", { ascending: false });
-    }
-    const { data: result, error } = await query;
+    const { data: result, error } = await fetchAllRows((from, to) => {
+      let query = (supabase as any).from(table).select("*");
+      if (options?.orderBy) {
+        query = query.order(options.orderBy, { ascending: options.ascending ?? false });
+      } else {
+        query = query.order("created_at", { ascending: false });
+      }
+      return query.order("id", { ascending: true }).range(from, to);
+    });
     if (!error && result) setData(result);
     setLoading(false);
   }, [user, table, options?.orderBy, options?.ascending]);
