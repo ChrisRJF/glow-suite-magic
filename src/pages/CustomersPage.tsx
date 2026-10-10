@@ -32,6 +32,7 @@ export default function CustomersPage() {
   useEffect(() => { setVisibleCount(100); }, [search]);
   const [selectedCustomer, setSelectedCustomer] = useState<Tables<"customers"> | null>(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [showDup, setShowDup] = useState(false);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ name: '', phone: '', email: '', notes: '' });
   const [filterLabel, setFilterLabel] = useState<string>(() => {
@@ -132,6 +133,8 @@ export default function CustomersPage() {
         </div>
       )}
 
+      {showDup && <DuplicateCustomersReview customers={customers} onClose={() => setShowDup(false)} />}
+
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3 mb-6 opacity-0 animate-fade-in-up" style={{ animationDelay: '50ms' }}>
         <div className="relative max-w-md flex-1">
@@ -148,6 +151,7 @@ export default function CustomersPage() {
             </button>
           ))}
         </div>
+        {can("customers:delete") && <Button variant="outline" size="sm" onClick={() => setShowDup(true)}>Dubbele klanten controleren</Button>}
       </div>
 
       <div className="flex gap-6">
