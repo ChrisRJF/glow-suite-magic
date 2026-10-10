@@ -31,7 +31,7 @@ SELECT public.create_appointment_atomic(:'C1',:'SVC','2026-10-12','13:00',ARRAY[
 RESET ROLE;
 SELECT t_ok((:'r'::jsonb->>'code')='created' AND (SELECT count(*)=2 AND count(*) FILTER (WHERE is_primary)=1 FROM appointment_employees WHERE appointment_id=(:'r'::jsonb->>'appointment_id')::uuid), 'C03 two employees linked, one primary');
 SET LOCAL ROLE service_role;
-SELECT t_ok((public.create_public_booking_atomic('salon-een','2026-10-12','[{"time":"13:15","service_id":"a0000000-0000-0000-0000-000000000060","employee_id":"e0000000-0000-0000-0000-00000000000b"}]','{"customer_id":"c0000000-0000-0000-0000-000000000001"}')->>'code')='conflict', 'C03 second linked employee blocked for online booking');
+SELECT t_ok((public.create_public_booking_atomic('salon-een','2026-10-12','[{"time":"13:00","service_id":"a0000000-0000-0000-0000-000000000060","employee_id":"e0000000-0000-0000-0000-00000000000b"}]','{"customer_id":"c0000000-0000-0000-0000-000000000001"}')->>'code')='conflict', 'C03 second linked employee blocked for online booking');
 RESET ROLE; SET LOCAL ROLE authenticated;
 SELECT t_ok((public.move_appointment_atomic((:'r'::jsonb->>'appointment_id')::uuid,'2026-10-12','15:00',:'EA',(:'r'::jsonb->>'updated_at')::timestamptz)->>'code')='multi_employee_unsupported', 'C03 multi-employee appointment not moved by guessing');
 SELECT t_ok((public.create_appointment_atomic(:'C1',:'SVC','2026-10-12','16:00',ARRAY[:'EA',:'EB']::uuid[],'','manual',NULL,NULL,NULL)->>'code')='outside_working_hours', 'C03 every employee checked (EB stops at 14:00)');
