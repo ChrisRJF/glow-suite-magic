@@ -12,15 +12,27 @@ internal calendar (via `src/lib/employeeSchedule.ts`), the public booking page a
 - `docs/prepared-patches/employee-schedule/public-booking.index.ts` (+ `.diff`) — replacement for `supabase/functions/public-booking/index.ts`.
 - `src/test/employee-schedule.test.ts` — 27 tests, fictional staff.
 
-## Activation order
-1. Apply the migration (adds a nullable column; nothing changes for existing salons).
-2. Publish the frontend. Editor appears; calendar uses hours once a salon sets them.
-3. `mv supabase/functions/_shared/inactive/employeeSchedule.ts supabase/functions/_shared/employeeSchedule.ts`,
-   update the re-export path in `src/lib/employeeSchedule.ts` and the test import, then copy
-   `public-booking.index.ts` over `supabase/functions/public-booking/index.ts` (deploys automatically).
-4. Rollback for step 3: restore the previous `public-booking/index.ts`; the booking page falls back to legacy mode automatically.
+## Activation order (no moment where hours are visible but not enforced)
+1. Apply the migration (nullable column + validity check; no rows change). Editor stays hidden: the app
+   also requires the server to answer `get_capabilities` with `availability_version: 2`.
+2. `mv supabase/functions/_shared/inactive/employeeSchedule.ts supabase/functions/_shared/employeeSchedule.ts`,
+   update the re-export in `src/lib/employeeSchedule.ts` and test imports, copy `public-booking.index.ts`
+   over `supabase/functions/public-booking/index.ts` (deploys). From now on the server enforces hours.
+   Visitors with an old page open: automatic choice keeps working; a sample name such as "Bas" is
+   refused with 409 `booking_page_outdated` ("vernieuw de pagina"), never reassigned silently.
+3. Publish the frontend. The editor appears only now (column + server capability both present).
+Fallback for step 2: restore the previous `public-booking/index.ts`; the editor hides itself again
+(capability missing) and the booking page falls back to legacy mode. Saved schedules stay stored, unused.
+
+## Confirmation email (prepared call only)
+The patch no longer builds the non-existent `.ics` subdomain link, passes `appointment_id` and
+`booking_token`, sends the employee name instead of an id, and a valid `https://glowsuite.nl/mijn-afspraak/<token>` manage link.
+NOT solved: the live `send-white-label-email` renderer still has its own invalid fallbacks
+(salon subdomain base URL, `/afspraak/beheer`, terms/contact links). Those are fixed only by the separate
+prepared email patch (`docs/prepared-patches/customer-email-links/`).
 
 ## Notes
 - Appointments without an employee block every employee at that time (conservative, as before).
 - Salons without employees keep one salon-wide calendar based on opening hours.
-- Old sample-staff appointments (employee_id "Bas" etc.) count as salon-wide blocks after step 3.
+- Appointments with sample names ("Bas"), deleted or missing employee ids block the whole salon (`normalizeBusyEmployees`).
+- Throwaway DB test: `src/test/sql/run-local-pg-employee-schedule.sh`.
