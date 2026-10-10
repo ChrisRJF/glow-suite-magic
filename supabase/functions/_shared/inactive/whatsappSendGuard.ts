@@ -189,7 +189,12 @@ export interface SendRequest {
   idempotency_key?: unknown;
   /** service sends: business event, e.g. "appointment:<uuid>:24h", "automation_run:<uuid>" */
   event_ref?: unknown;
+  /** Meta template body parameters ({{1}}..{{n}}), positional. Free text has no parameters. */
+  template_params?: unknown;
 }
+/** Provider preparation (Meta templates/sender). Runs before the claim, never for demo tenants. */
+export interface PrepareInput { tenantId: string; kind: string; purpose: MessagePurpose; message: string; params: string[] }
+export type PrepareResult = { ok: true; payload: unknown } | { ok: false; status: 403 | 409 | 422 | 503; reason: string };
 export interface CustomerRow {
   id: string; user_id: string | null; phone: string | null;
   whatsapp_opt_in: boolean | null; marketing_consent: boolean | null;
@@ -214,7 +219,9 @@ export interface Deps {
   /** Atomic: INSERT ... ON CONFLICT DO NOTHING, then read existing row. */
   claim(tenantId: string, key: string, fingerprint: string): Promise<ClaimResult>;
   finalize(tenantId: string, key: string, state: ClaimState, log: MinimalLog): Promise<void>;
-  transport(toE164: string, body: string): Promise<{ accepted: boolean; sid?: string; code?: number }>;
+  /** Real adapters must provide this; throw = lookup failed (-> 503, no claim). */
+  prepare?(input: PrepareInput): Promise<PrepareResult>;
+  transport(toE164: string, body: string, prepared?: unknown): Promise<{ accepted: boolean; sid?: string; code?: number }>;
   /** Keyed HMAC with a server-only secret. Short messages are guessable by plain hash. */
   hmac(purpose: string, value: string): Promise<string>;
   /** Round 8D: loads the referenced business event by id. null = missing; throw = lookup failed. */
@@ -341,8 +348,24 @@ export async function guardedSend(identity: Identity, req: SendRequest, d: Deps)
   const c = evaluateWhatsAppConsent({ purpose, tenantId, customer, stoppedInTenant: false, preferenceWhatsappOptOut: pref as boolean | null });
   if (c.allowed === false) return no(409, c.reason);
 
+  // Template params: plain positional strings only (Meta forbids newlines/tabs in parameters).
+  const params = req.template_params === undefined ? [] : req.template_params;
+  if (!Array.isArray(params) || params.length > 10 ||
+    !params.every((p) => typeof p === "string" && p.trim() !== "" && p.length <= 256 && !/[\n\t]| {5,}/.test(p)))
+    return no(400, "invalid_template_params");
+
+  // Provider preparation before the claim: an invalid template/sender never burns a key. Demo: no provider I/O.
+  let prepared: unknown = undefined;
+  if (!demo && d.prepare) {
+    let p: PrepareResult;
+    try { p = await d.prepare({ tenantId, kind, purpose, message: req.message, params: params as string[] }); }
+    catch { return no(503, "template_lookup_failed"); }
+    if (!p || p.ok !== true) return no((p?.status ?? 503) as Status, p?.reason ?? "template_lookup_failed");
+    prepared = p.payload;
+  }
+
   const key = await d.hmac("claim", `${tenantId}|${slot.slot}`);
-  const contentFp = await d.hmac("content", req.message);
+  const contentFp = await d.hmac("content", params.length ? `${req.message}\u0000${JSON.stringify(params)}` : req.message);
   const fingerprint = await d.hmac("fp", [tenantId, kind, purpose, customer.id, appointmentId ?? "-", dest, contentFp].join("|"));
   let claim: ClaimResult;
   try { claim = await d.claim(tenantId, key, fingerprint); } catch { return no(503, "claim_store_unavailable"); }
@@ -361,7 +384,7 @@ export async function guardedSend(identity: Identity, req: SendRequest, d: Deps)
   }
 
   let r: { accepted: boolean; sid?: string; code?: number };
-  try { r = await d.transport(dest, req.message); }
+  try { r = await d.transport(dest, req.message, prepared); }
   catch {
     await d.finalize(tenantId, key, "unknown", { ...base, provider_sid: null, provider_code: null, status: "unknown" }).catch(() => {});
     return no(502, "outcome_unknown");
