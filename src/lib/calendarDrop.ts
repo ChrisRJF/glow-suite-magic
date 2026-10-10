@@ -1,3 +1,4 @@
+import { pointerWithin, rectIntersection, type CollisionDetection } from "@dnd-kit/core";
 import { fineSlots, timeToMinutes, snapToFine, SNAP_MINUTES } from "@/lib/agendaMove";
 
 export interface DropData {
@@ -75,7 +76,6 @@ export function isTouchActivation(ev: Event | null | undefined): boolean {
  * appointment fully overlaps several 15-min cells, which made plain rect
  * intersection pick no slot or a slot 15 minutes off.
  */
-import { pointerWithin, rectIntersection, type CollisionDetection } from "@dnd-kit/core";
 export const agendaCollision: CollisionDetection = (args) => {
   const hits = pointerWithin(args);
   return hits.length > 0 ? hits : rectIntersection(args);
