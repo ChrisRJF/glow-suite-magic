@@ -18,6 +18,7 @@ const h = createCustomerEmailHandler({
   readStopSwitch: async () => { const v = sql("select sending_enabled from public.customer_email_controls where id = true", role); return v === "" ? null : { sending_enabled: v === "t" }; },
   verifyUser: async () => null, tenantForUser: async () => null, rolesForUser: async () => null,
   loadSettings: async () => ({ salon_name: "Studio Fictief", public_slug: "studio-fictief" }),
+  reviewUrl: async () => null,
   ownerEmail: async () => null, customerLanguage: async () => null,
   tokenForAppointment: async () => null, tokenBelongsToTenant: async () => false,
   log: async () => {}, sendEmail: async () => { sent.push(1); return { ok: true, id: "fake" }; },
