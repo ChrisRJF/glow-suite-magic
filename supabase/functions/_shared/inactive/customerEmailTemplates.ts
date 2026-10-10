@@ -27,17 +27,6 @@ function hexColor(value: unknown, fallback: string) {
   return /^#[0-9A-Fa-f]{6}$/.test(color) ? color : fallback;
 }
 
-function firstFilled(...values: unknown[]) {
-  return values.map((value) => String(value ?? "").trim()).find(Boolean) || "";
-}
-
-function absoluteUrl(value: unknown, fallbackPath: string, baseUrl: string) {
-  const raw = String(value ?? "").trim();
-  if (/^https?:\/\//i.test(raw)) return raw;
-  const path = raw && raw !== "#" ? raw : fallbackPath;
-  return `${baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
-}
-
 function shell(args: { salonName: string; title: string; intro: string; body: string; primaryAction?: Action; secondaryAction?: Action; logoUrl?: string; accent?: string; secondary?: string; lang: EmailLang; footerText: string }) {
   const accent = hexColor(args.accent, "#7B61FF");
   const secondary = hexColor(args.secondary, "#C850C0");
