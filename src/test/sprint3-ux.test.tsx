@@ -153,5 +153,51 @@ describe("Sprint 3 snelle start", () => {
     expect(localStorage.getItem("glowsuite_onboarding_v4_synthetic")).toBe("skipped"); first.unmount(); wizard();
     await screen.findByRole("heading", { name: "Betalingen instellen (optioneel)" });
     expect(JSON.parse(localStorage.getItem(draftKey) || "{}").step).toBe(2);
+});
+
+describe("Sprint 3 afronding", () => {
+  async function toDone() {
+    salonDraft(); wizard();
+    fireEvent.click(screen.getByRole("button", { name: "Meer instellen" }));
+    await screen.findByRole("heading", { name: "Betalingen instellen (optioneel)" });
+    fireEvent.click(screen.getByRole("button", { name: "Volgende" }));
+    await screen.findByRole("button", { name: "Ik heb al een terminal" });
+    fireEvent.click(screen.getByRole("button", { name: "Volgende" }));
+    await screen.findByRole("heading", { name: "Systeemcontrole" });
+    fireEvent.click(screen.getByRole("button", { name: "Volgende" }));
+    await screen.findByRole("heading", { name: "Slimme automatiseringen" });
+    fireEvent.click(screen.getByRole("button", { name: "Volgende" }));
+    await screen.findByRole("heading", { name: /Je salon is klaar/ });
+    return screen.getByRole("heading", { name: /Je salon is klaar/ }).parentElement as HTMLElement;
+  }
+
+  it("gevinkt alleen wat de wizard werkelijk regelt", async () => {
+    const root = await toDone();
+    expect(root.textContent).toContain("Je kunt nu aan de slag");
+    const checked = Array.from(root.querySelectorAll(".text-success"))
+      .map(c => c.parentElement?.textContent?.trim()).sort();
+    expect(checked).toEqual(["Agenda", "Dashboard", "Klantenbestand", "Standaardbehandelingen"]);
+    expect(root.textContent).not.toContain("Online betalingen");
+    expect(root.textContent).not.toContain("Automatiseringen");
   });
+
+  it("neutraal blok Later instellen zonder vinkje of activatieclaim", async () => {
+    const root = await toDone();
+    const later = screen.getByText("Later instellen").closest("div") as HTMLElement;
+    expect(later.querySelector(".text-success")).toBeNull();
+    expect(later.textContent).toMatch(/betalingen/i);
+    expect(later.textContent).toMatch(/automatische berichten/i);
+    expect(later.textContent).toContain("Instellingen");
+    expect(root.textContent).not.toMatch(/actief|geactiveerd|gekoppeld|betaald/i);
+    expect(root.querySelectorAll(".text-success")).toHaveLength(4);
+  });
+
+  it("snelle startclaimt de afronding niet", async () => {
+    salonDraft(); wizard();
+    fireEvent.click(screen.getByRole("button", { name: "Start met GlowSuite" }));
+    await screen.findByRole("button", { name: /Eerste afspraak maken/ });
+    expect(screen.queryByText("Later instellen")).toBeNull();
+  });
+});
+
 });
