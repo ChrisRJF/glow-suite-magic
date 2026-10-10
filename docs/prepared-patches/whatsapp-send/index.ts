@@ -32,8 +32,10 @@ Deno.serve((req) => handleWhatsAppSendHttp(req, {
     WA_CONTACT_REF_KEYS: Deno.env.get("WA_CONTACT_REF_KEYS"),
     WA_SEND_SERVICE_KEYS: Deno.env.get("WA_SEND_SERVICE_KEYS"),
     LOVABLE_API_KEY: Deno.env.get("LOVABLE_API_KEY"),
-    TWILIO_API_KEY: Deno.env.get("TWILIO_API_KEY"),
-    WA_FROM_NUMBER: Deno.env.get("WA_FROM_NUMBER"),
+    WHATSAPP_API_KEY: Deno.env.get("WHATSAPP_API_KEY"),
+    WA_META_PHONE_NUMBER_ID: Deno.env.get("WA_META_PHONE_NUMBER_ID"),
+    WA_META_SENDERS: Deno.env.get("WA_META_SENDERS"),
+    WA_META_TEMPLATES: Deno.env.get("WA_META_TEMPLATES"),
   }, { fetch, now: Date.now, log: (e) => console.log(e) }),
   log: (e) => console.log(e),
   async verifyJwt(token) {

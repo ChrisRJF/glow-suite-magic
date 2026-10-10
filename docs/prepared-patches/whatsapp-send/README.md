@@ -11,8 +11,22 @@ SQL (proposals, not applied): `2026-10-10_whatsapp_sending_paused_flag.sql`,
 `2026-10-10_whatsapp_send_claims_nonces.sql`, `2026-10-09_whatsapp_gateway_receiver.sql`
 (gateway_tenant_links, whatsapp_opt_outs, whatsapp_is_opted_out).
 Secrets: `WA_CLAIM_HMAC_KEY`, `WA_CONTACT_REF_KEYS` (same ring as Gateway), `WA_SEND_SERVICE_KEYS`
-(one key per caller), `WA_FROM_NUMBER` (approved sender; the Twilio sandbox is refused).
-Existing: `LOVABLE_API_KEY`, `TWILIO_API_KEY`.
+(one key per caller). Meta (via linked Lovable WhatsApp connector): `WHATSAPP_API_KEY`,
+`WA_META_PHONE_NUMBER_ID` (of that connection), `WA_META_SENDERS` (salon -> phone_number_id),
+`WA_META_TEMPLATES` (kind -> approved template name/language/category/param count). Existing: `LOVABLE_API_KEY`.
+No Twilio in this route.
+
+## Transport (Meta)
+Lovable WhatsApp connector = Meta Cloud API, documented: `POST /messages`, `GET /message_templates`
+via `connector-gateway.lovable.dev/whatsapp`, gateway injects phone_number_id/WABA and pins Graph v25.0.
+Outbound only templates: the 24h service window cannot be proven server-side (no verified inbound
+store yet), so free text is refused (`free_text_window_unverified`). Template must exist at Meta,
+be APPROVED, match language, category (UTILITY = transactional, MARKETING = marketing) and the
+`{{n}}` count. Success needs a `wamid.` id; 5xx/timeout/id-less 2xx = outcome unknown, never resent.
+Open product decision (multi-tenant): (a) one central GlowSuite number for all salons, or (b) one
+connection/number per salon. One connection = one number, so today only salons listed in
+`WA_META_SENDERS` with that connection's id may send; all others 503. Tests use one fictitious salon.
+Gateway webhook signatures (Lovable HMAC) are unrelated to Meta webhook verification.
 
 ## Caller compatibility (16 routes; none changed yet)
 Until a caller is updated, the new function refuses it (401/422). Nothing falls back to the old function.
