@@ -65,13 +65,13 @@ race "R02 booking 13:00 holds lock, move to 13:30 same employee" "$SRV" "$(book 
 race "R03 move to 14:00 holds lock, booking 14:30 same employee" "$OWN" "$(move s1 $A7 2026-10-22 14:00)" "$SRV" "$(book s2 2026-10-22 14:30)" moved conflict
 race "R04 booking 10:00 vs booking 10:15 same employee" "$SRV" "$(book s1 2026-10-23 10:00)" "$SRV" "$(book s2 2026-10-23 10:15)" booked conflict
 race "R05 two moves of same appointment, same version (different days)" "$OWN" "$(move s1 $A6 2026-10-29 10:00)" "$OWN" "$(move s2 $A6 2026-10-30 14:00)" moved stale
-group() { echo "SELECT '$1:'||(public.create_appointment_atomic(NULL,'$SV','$2','$3',ARRAY['$EA']::uuid[],'','manual',NULL,NULL,'[{\\\"person_name\\\":\\\"X\\\",\\\"service_id\\\":\\\"$SV\\\",\\\"time\\\":\\\"$4\\\",\\\"employee_id\\\":\\\"$EB\\\"}]')->>'code');"; }
+group() { echo "SELECT '$1:'||(public.create_appointment_atomic(NULL,'$SV','$2','$3',ARRAY['$EA']::uuid[],'','manual',NULL,NULL,'[{\"person_name\":\"X\",\"service_id\":\"$SV\",\"time\":\"$4\",\"employee_id\":\"$EB\"}]')->>'code');"; }
 create() { echo "SELECT '$1:'||(public.create_appointment_atomic(NULL,'$SV','$2','$3',ARRAY['$EA']::uuid[],'','manual',NULL,NULL,NULL)->>'code');"; }
 race "R06 online booking 10:00 vs agenda create 10:30" "$SRV" "$(book s1 2026-10-27 10:00)" "$OWN" "$(create s2 2026-10-27 10:30)" booked conflict
 race "R07 agenda create 10:00 vs move to 10:15" "$OWN" "$(create s1 2026-10-28 10:00)" "$OWN" "$(move s2 $A7 2026-10-28 10:15)" created conflict
 race "R08 agenda create 14:00 vs agenda create 14:45" "$OWN" "$(create s1 2026-10-26 14:00)" "$OWN" "$(create s2 2026-10-26 14:45)" created conflict
 EB=e0000000-0000-0000-0000-00000000000b
-race "R09 two group bookings, overlapping members" "$OWN" "$(group s1 2026-10-19 09:00 10:00)" "$OWN" "$(group s2 2026-10-19 11:00 10:30)" created conflict
+race "R09 two group bookings, overlapping members" "$OWN" "$(group s1 2026-11-02 09:00 10:00)" "$OWN" "$(group s2 2026-11-02 11:00 10:30)" created conflict
 CNT() { AS $P -d gs_move -c "$1"; }
 [ "$(CNT "select count(*) from appointments where employee_id='$EA' and start_time in ('13:00','13:30') and (appointment_date at time zone 'Europe/Amsterdam')::date='2026-10-15'")" = "1" ] && echo "PASS: R02 database holds one" || echo "FAIL: R02 rows"
 [ "$(CNT "select count(*) from appointments where employee_id='$EA' and start_time in ('14:00','14:30') and (appointment_date at time zone 'Europe/Amsterdam')::date='2026-10-22'")" = "1" ] && echo "PASS: R03 database holds one" || echo "FAIL: R03 rows"
@@ -81,5 +81,5 @@ for d in 2026-10-27 2026-10-28 2026-10-26; do
   N=$(CNT "select count(*) from appointments where employee_id='$EA' and status<>'geannuleerd' and (appointment_date at time zone 'Europe/Amsterdam')::date='$d' and start_time>='10:00' and start_time<'15:00'")
   [ "$N" = "1" ] && echo "PASS: R06-R08 $d database holds one" || echo "FAIL: R06-R08 $d rows=$N"
 done
-N=$(CNT "select count(*) from appointments where (appointment_date at time zone 'Europe/Amsterdam')::date='2026-10-19' and booking_group_id is not null")
+N=$(CNT "select count(*) from appointments where (appointment_date at time zone 'Europe/Amsterdam')::date='2026-11-02' and booking_group_id is not null")
 [ "$N" = "2" ] && echo "PASS: R09 only the first group (2 rows) stored" || echo "FAIL: R09 rows=$N"
