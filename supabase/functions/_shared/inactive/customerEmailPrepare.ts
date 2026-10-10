@@ -20,7 +20,7 @@ export async function prepareCustomerEmail(
   const requested = typeof body.user_id === "string" ? body.user_id : "";
   if (!requested) return { ok: false, status: 400, error: "invalid_request" };
   const auth = await authorizeEmailRequest(authHeader, requested, deps);
-  if (!auth.ok) return auth;
+  if (!auth.ok) return { ok: false, status: auth.status, error: auth.error };
   let slug: string | null;
   try { slug = await deps.publicSlugForTenant(auth.tenantId); } catch { return { ok: false, status: 500, error: "settings_unavailable" }; }
   // Caller-supplied salon_slug, manage_url, calendar_url, contact/terms urls are ignored.
