@@ -185,7 +185,7 @@ ROLLBACK;
 
 -- T20 optimistic check
 BEGIN; SELECT set_config('request.jwt.claim.sub', :'T1', true); SET LOCAL ROLE authenticated;
-SELECT t_ok((public.move_appointment_atomic(:'A1','2026-10-12','11:00',:'EA','2000-01-01Z',public.t_upd(:'A1'))->>'code')='stale', 'T20 stale updated_at refused');
+SELECT t_ok((public.move_appointment_atomic(:'A1','2026-10-12','11:00',:'EA','2000-01-01Z')->>'code')='stale', 'T20 stale updated_at refused');
 ROLLBACK;
 
 -- T21 unknown employee text ("Bas") blocks the whole salon
@@ -202,7 +202,7 @@ SET LOCAL search_path = pg_temp, public;
 SELECT t_ok((public.move_appointment_atomic('a1000000-0000-0000-0000-000000000001','2026-10-12','11:00','e0000000-0000-0000-0000-00000000000a',public.t_upd('a1000000-0000-0000-0000-000000000001'))->>'code')='moved', 'T22 temp tables ignored');
 RESET ROLE; RESET search_path;
 SELECT t_ok((SELECT ('search_path=""' = ANY(proconfig) OR 'search_path=' = ANY(proconfig)) AND prosecdef FROM pg_proc WHERE proname='move_appointment_atomic'), 'T22 function pinned to empty search_path');
-SELECT t_ok(NOT has_function_privilege('anon','public.move_appointment_atomic(uuid,text,text,uuid,timestamptz,public.t_upd(uuid))','EXECUTE'), 'T22 anon has no EXECUTE');
+SELECT t_ok(NOT has_function_privilege('anon','public.move_appointment_atomic(uuid,text,text,uuid,timestamptz)','EXECUTE'), 'T22 anon has no EXECUTE');
 ROLLBACK;
 
 -- T23 unassigned target still checks opening hours and salon-wide blocks
