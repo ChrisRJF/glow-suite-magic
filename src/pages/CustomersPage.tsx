@@ -174,6 +174,12 @@ export default function CustomersPage() {
               <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
              </button>
            );})}
+          {!loading && filtered.length > visibleCount && (
+            <button onClick={() => setVisibleCount(v => v + 100)}
+              className="w-full py-3 text-sm text-muted-foreground hover:text-foreground rounded-xl border border-border">
+              Meer tonen ({filtered.length - visibleCount} van {filtered.length} resterend)
+            </button>
+          )}
         </div>
 
         {selectedCustomer && selectedIntel && (
