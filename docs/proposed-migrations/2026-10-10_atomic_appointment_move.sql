@@ -406,7 +406,8 @@ BEGIN
            end_time = (pg_catalog.make_interval(mins => _e))::time,
            employee_id = _target_employee_id::text,
            updated_at = _now
-     WHERE id = _a.id;
+     WHERE id = _a.id
+    RETURNING updated_at INTO _now;  -- a live updated_at trigger may override the value
     DELETE FROM public.appointment_employees WHERE appointment_id = _a.id;
     IF _target_employee_id IS NOT NULL THEN
       INSERT INTO public.appointment_employees (appointment_id, employee_id, user_id, is_primary, is_demo)
