@@ -1,3 +1,4 @@
+import { amsterdamDateKey } from "@/lib/reporting";
 const TZ = "Europe/Amsterdam";
 
 /** Kalenderdatum (YYYY-MM-DD) en ISO-weekdag (1=ma..7=zo) in Europe/Amsterdam. */
@@ -42,4 +43,16 @@ export function countNewCustomersThisWeek(
     if (ymd >= monday && ymd <= sunday) n++;
   }
   return n;
+}
+
+/** Amsterdamse kalenderdatum (YYYY-MM-DD) of null bij ontbrekende/ongeldige waarde. */
+export function safeAmsterdamDateKey(value: string | Date | null | undefined): string | null {
+  if (!value) return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : amsterdamDateKey(d);
+}
+
+/** Volgende kalenderdag van een YYYY-MM-DD sleutel (DST-onafhankelijk). */
+export function nextDateKey(key: string): string {
+  return shiftYmd(key, 1);
 }
