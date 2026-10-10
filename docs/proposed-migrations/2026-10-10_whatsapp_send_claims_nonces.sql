@@ -83,14 +83,18 @@ begin
   return found;
 end $$;
 
--- Cleanup. Nonces: once expired (replay window closed). Claims: after _retention_days
--- (min 30) in a terminal state; 'claimed'/'unknown' rows are kept 30 extra days for review.
+-- Cleanup (round 8D). Nonces: once expired (replay window closed).
+-- Claims: kept at least _retention_days (minimum 400). 'claimed'/'unknown' (outcome uncertain)
+-- are kept 30 days longer for review. A row is deleted only when STRICTLY older than its limit.
+-- Limitation: after deletion the same key can be claimed again. Callers must therefore never
+-- retry a send action or business event older than 400 days (reminder/confirmation/form events
+-- are far younger; retry backoff is minutes). Documented in the rollout plan.
 create function public.wa_send_purge(_retention_days integer)
 returns jsonb language plpgsql security definer
 set search_path = pg_catalog, public, pg_temp as $$
 declare n int; c int;
 begin
-  if _retention_days is null or _retention_days < 30 then
+  if _retention_days is null or _retention_days < 400 then
     raise exception 'retention_too_short' using errcode = '22023';
   end if;
   delete from public.wa_service_nonces where expires_at < now(); get diagnostics n = row_count;

@@ -1,4 +1,4 @@
-// INACTIVE (round 8C). Proposed security pipeline for a future whatsapp-send.
+// INACTIVE (round 8C, 8D: business-event verification step 3b). Proposed security pipeline for a future whatsapp-send.
 // Not imported by any entrypoint. All I/O is injected; no network, DB or env here.
 //
 // Every step fails closed:
@@ -21,6 +21,7 @@
 
 import { evaluateWhatsAppConsent, type MessagePurpose } from "./whatsappConsent.ts";
 import { normalizeE164 } from "./contactRef.ts";
+import { verifyBusinessEvent, type EventResolver, type EventType as EvType } from "./eventVerifier.ts";
 
 export type Role = "eigenaar" | "admin" | "manager" | "medewerker" | "financieel" | "receptie";
 
@@ -209,6 +210,9 @@ export interface Deps {
   transport(toE164: string, body: string): Promise<{ accepted: boolean; sid?: string; code?: number }>;
   /** Keyed HMAC with a server-only secret. Short messages are guessable by plain hash. */
   hmac(purpose: string, value: string): Promise<string>;
+  /** Round 8D: loads the referenced business event by id. null = missing; throw = lookup failed. */
+  resolveEvent: EventResolver;
+  now(): number;
 }
 export interface MinimalLog {
   tenant_id: string; customer_id: string; appointment_id: string | null; kind: string; purpose: MessagePurpose;
@@ -292,6 +296,14 @@ export async function guardedSend(identity: Identity, req: SendRequest, d: Deps)
   if (req.user_id !== undefined && req.user_id !== tenantId) return no(403, "body_tenant_mismatch");
   if (customer.user_id !== tenantId) return no(403, "customer_not_in_tenant");
   if (appt && appt.user_id !== tenantId) return no(403, "appointment_not_in_tenant");
+
+  // 3b. Service sends: the signed event_ref is only a claim. Verify the event row itself.
+  if (identity.kind === "service") {
+    const m = EVENT_REF.exec(req.event_ref as string)!;
+    const ev = await verifyBusinessEvent({ type: m[1] as EvType, id: m[2], slot: m[3] ?? null, kind, tenantId,
+      customerId: customer.id, appointmentId, nowMs: d.now() }, d.resolveEvent);
+    if (ev.ok === false) return no(ev.status, ev.reason);
+  }
 
   const dest = normalizeE164(customer.phone);
   if (!dest) return no(422, "customer_phone_invalid");
