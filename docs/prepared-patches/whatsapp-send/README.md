@@ -11,22 +11,46 @@ SQL (proposals, not applied): `2026-10-10_whatsapp_sending_paused_flag.sql`,
 `2026-10-10_whatsapp_send_claims_nonces.sql`, `2026-10-09_whatsapp_gateway_receiver.sql`
 (gateway_tenant_links, whatsapp_opt_outs, whatsapp_is_opted_out).
 Secrets: `WA_CLAIM_HMAC_KEY`, `WA_CONTACT_REF_KEYS` (same ring as Gateway), `WA_SEND_SERVICE_KEYS`
-(one key per caller). Meta (via linked Lovable WhatsApp connector): `WHATSAPP_API_KEY`,
-`WA_META_PHONE_NUMBER_ID` (of that connection), `WA_META_SENDERS` (salon -> phone_number_id),
-`WA_META_TEMPLATES` (kind -> approved template name/language/category/param count). Existing: `LOVABLE_API_KEY`.
+(one key per caller). Meta (direct, per salon): `WA_META_APP_ID` (GlowSuite's Meta app),
+`WA_META_TEMPLATES` (kind -> approved template name/language/category/param count),
+`WA_META_CREDENTIALS` (interim: credential_ref -> token; later an encrypted vault). SQL:
+`2026-10-10_whatsapp_meta_connections.sql`. No `LOVABLE_API_KEY`/`WHATSAPP_API_KEY` in this route.
 No Twilio in this route.
 
-## Transport (Meta)
-Lovable WhatsApp connector = Meta Cloud API, documented: `POST /messages`, `GET /message_templates`
-via `connector-gateway.lovable.dev/whatsapp`, gateway injects phone_number_id/WABA and pins Graph v25.0.
-Outbound only templates: the 24h service window cannot be proven server-side (no verified inbound
-store yet), so free text is refused (`free_text_window_unverified`). Template must exist at Meta,
-be APPROVED, match language, category (UTILITY = transactional, MARKETING = marketing) and the
-`{{n}}` count. Success needs a `wamid.` id; 5xx/timeout/id-less 2xx = outcome unknown, never resent.
-Open product decision (multi-tenant): (a) one central GlowSuite number for all salons, or (b) one
-connection/number per salon. One connection = one number, so today only salons listed in
-`WA_META_SENDERS` with that connection's id may send; all others 503. Tests use one fictitious salon.
-Gateway webhook signatures (Lovable HMAC) are unrelated to Meta webhook verification.
+## Transport (Meta Cloud API, direct, multi-tenant)
+Each salon has its own WABA, phone number and token. `resolveMetaSender()` looks up the connection
+by the VERIFIED tenant only (never request fields) and refuses: missing (503 sender_not_configured),
+lookup error (503), status not active / expired (503 connection_inactive), other app
+(403 connection_app_mismatch), tenant mismatch (403), capability missing (422), no token (503).
+All of this happens before the claim, so a bad mapping burns no claim and calls nobody.
+Templates: `GET graph.facebook.com/v25.0/{waba_id}/message_templates`; send:
+`POST graph.facebook.com/v25.0/{phone_number_id}/messages`, `Authorization: Bearer <salon token>`.
+WABA id, phone id and token come from the same connection row; transport re-checks the phone id.
+Version pinned to v25.0: verify against Meta's Graph changelog before activation.
+Only approved templates (free text refused, 24h window unproven); category, language and `{{n}}`
+checked; success needs `wamid.`; 5xx/timeout/id-less 2xx = unknown, never resent; demo = no contact.
+
+## Embedded Signup (future contract, not built)
+- Identifiers: GlowSuite tenant id, WABA id, phone_number_id, Meta business id, app id.
+- Exchange: owner clicks "WhatsApp verbinden" -> Meta Embedded Signup (Facebook Login for Business,
+  config id) -> browser gets a short-lived `code` + waba/phone ids via session event -> sent to an
+  authenticated edge function bound to the owner's tenant + one-time state -> server exchanges code
+  for a business token with app secret -> token stored only in encrypted vault, row stores `credential_ref`.
+- Verify before `active`: token debug (app id, granted scopes, WABA access), WABA subscribed to app,
+  phone id belongs to that WABA, phone registered; ids never accepted from the browser unverified.
+- Disconnect/revoke: status `revoked`, delete vault token, unsubscribe app from WABA; revoke webhook
+  or failing token -> `revoked`/`expired` (sending stops). Reconnect = fresh signup, new credential_ref.
+- Meta requirements (not assumed granted): Tech Provider/Solution Partner status, business
+  verification, app review for `whatsapp_business_management` + `whatsapp_business_messaging`,
+  Embedded Signup configuration.
+- Open billing choice: salon pays Meta via own payment method on its WABA, or GlowSuite as partner
+  with credit line and re-invoicing.
+
+## Inbound (future note)
+The Trial Gateway uses a Lovable-specific HMAC; that is never a Meta signature. A direct Meta
+integration needs Meta webhook verification (`hub.verify_token` handshake + `X-Hub-Signature-256`
+HMAC-SHA256 of the raw body with the app secret) and routing by verified `phone_number_id` ->
+connection -> tenant. Gateway unchanged.
 
 ## Caller compatibility (16 routes; none changed yet)
 Until a caller is updated, the new function refuses it (401/422). Nothing falls back to the old function.
