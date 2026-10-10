@@ -31,7 +31,7 @@ function world(events: EventRow[], o: { now?: number; resolve?: Deps["resolveEve
       [AP_X]: { user_id: SA, customer_id: CA } } as Record<string, { user_id: string; customer_id: string }>)[id] ?? null,
     preferenceWhatsappOptOut: async () => null,
     isStopped: o.isStopped ?? (async () => false),
-    whatsappEnabled: async () => true, isDemoTenant: async () => false,
+    whatsappEnabled: async () => true, isDemoTenant: async () => false, sendingPaused: async () => false,
     claim: async (t, k, fp) => { await new Promise((r) => setTimeout(r, 3)); const e = claims.get(`${t}|${k}`);
       if (e) return { created: false, state: e.state, fingerprint: e.fp }; claims.set(`${t}|${k}`, { state: "claimed", fp }); return { created: true }; },
     finalize: async (t, k, s) => { claims.set(`${t}|${k}`, { ...claims.get(`${t}|${k}`)!, state: s }); },
@@ -57,7 +57,7 @@ async function svc(caller: ServiceCaller) {
 }
 
 const appt = (o: Partial<Extract<EventRow, { type: "appointment" }>> = {}): EventRow =>
-  ({ type: "appointment", id: AP, user_id: SA, customer_id: CA, status: "gepland", starts_at_ms: NOW + 20 * H, ...o });
+  ({ type: "appointment", id: AP, user_id: SA, customer_id: CA, status: "gepland", starts_at_ms: NOW + 24 * H, ...o });
 const rem = (slot = "24h", id = AP) => ({ message: "Herinnering", kind: "reminder", appointment_id: id, event_ref: `appointment:${id}:${slot}` });
 
 describe("8D-B business events: appointment reminders", () => {

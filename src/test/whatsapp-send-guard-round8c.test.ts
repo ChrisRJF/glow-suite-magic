@@ -40,7 +40,7 @@ function world(o: W = {}) {
       [APPT_NOCUST]: { user_id: SA, customer_id: null } } as Record<string, { user_id: string; customer_id: string | null }>)[id] ?? null,
     preferenceWhatsappOptOut: async (_t, c) => ((o.prefOut ?? []).includes(c) ? true : null),
     isStopped: async (t, p) => (o.stopped ?? []).includes(`${t}:${p}`),
-    whatsappEnabled: async () => true,
+    whatsappEnabled: async () => true, sendingPaused: async () => false,
     isDemoTenant: async () => !!o.demo,
     claim: async (t, k, fp) => {
       if (o.slowClaim) await new Promise((r) => setTimeout(r, 5));
