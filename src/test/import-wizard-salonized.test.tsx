@@ -31,9 +31,9 @@ function q(table: string) {
     const match = rows().filter((r) => st.filters.every((f: any) => f(r)));
     if (st.op === "update") { match.forEach((r) => Object.assign(r, st.payload)); return { data: null, error: null }; }
     if (st.op === "delete") { db[table] = rows().filter((r) => !match.includes(r)); return { data: null, error: null }; }
-    if (table === "customers" && st.range) {
-      counters.customersRangeCalls++;
-      if (fail.customersPage && counters.customersRangeCalls === fail.customersPage) return { data: null, error: { message: "page fail" } };
+    if (st.range) {
+      if (table === "customers") counters.customersRangeCalls++;
+      if (table === "customers" && fail.customersPage && counters.customersRangeCalls === fail.customersPage) return { data: null, error: { message: "page fail" } };
       const [f, t] = st.range;
       const sorted = [...match].sort((a, b) => a.id.localeCompare(b.id));
       return { data: sorted.slice(f, Math.min(t, f + 999) + 1), error: null }; // backend max 1000 rows
