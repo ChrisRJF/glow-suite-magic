@@ -51,14 +51,34 @@ Status: proposal only. Nothing applied, nothing deployed, nothing in `src/` chan
   uses raw `appointment_date` in live code; prepared helpers exist but are not wired in.
 - `max_bookings_simultaneous` and `buffer_minutes` are not enforced (as today).
 - Multi-employee appointments can be created but not moved (`multi_employee_unsupported`).
+- Group bookings from the agenda: each person is stored as its own appointment with
+  `booking_group_id` (same model as online groups). The legacy `sub_appointments` table has no time
+  or employee per person, so lines without their own time are refused (`group_line_needs_time`).
+  The agenda form must send a time per person (patch in `calendarPage.create.patch.md`).
+- Before the guard, the current frontend still writes directly (unchanged behaviour until step 3/4).
 
 ## Rollout (each step separate written approval)
-1. Schema: apply `2026-10-10_atomic_appointment_move.sql`. Nothing calls it; no user impact.
-   Rollback: drop the new functions.
-2. Backend: `public-booking` with the RPC patch (keep a copy of the current version first).
-   Rollback: redeploy the copy.
-3. Frontend: agenda create/move, wachtlijst and read-side helpers on the RPCs, gate per salon in
-   `tenant_feature_flags`. Gate off = moves/creates blocked with a message, never the old path.
-   Rollback: republish the previous frontend (old direct writes still work until step 4).
-4. Guard: apply `2026-10-10_appointment_slot_guard.sql` only after step 3 is live everywhere.
-   Rollback: drop the two triggers (no data involved).
+1. **Schema** `2026-10-10_atomic_appointment_move.sql`: new functions + flag column (default off).
+   EXECUTE for nobody (PUBLIC, anon, authenticated, service_role revoked). Refuses to run if
+   functions with these names already exist, unless `glowsuite.allow_replace=on` is set after review.
+   No existing flow changes. Rollback: drop the new functions and the column.
+2. **Online booking**: `..._activate_booking.sql` (EXECUTE to service_role) + deploy patched
+   `public-booking` (keep a copy of the current one). The patch answers 503 if the RPC fails; it never
+   falls back to the old insert. Rollback before step 4: redeploy the copy and revoke the grant.
+3. **Agenda**: `..._activate_agenda.sql` (EXECUTE to authenticated) + publish frontend with the adapter,
+   then switch `atomic_agenda_enabled` per salon (platform admin only). Flag off or missing = moves and
+   creates blocked with a message (client and server both check). Viewing, notes, cancelling,
+   payments stay available. Rollback before step 4: flag off (blocks), or republish previous frontend.
+4. **Guard** `2026-10-10_appointment_slot_guard.sql`, only when steps 2 and 3 are live for every salon.
+   From then on direct writes of time/employee/links fail for anon, authenticated and service_role.
+
+## Safe rollback after step 4
+- Safe to restore: any frontend from step 3 onward, any public-booking with the RPC patch.
+- Old frontend republished anyway: viewing works; drag (mouse/touch), "Verplaats afspraak", new
+  appointment and waitlist placement fail at the first write (tested G07: nothing changed). Not silent:
+  the old code shows its generic error. Avoid; restore a step-3 version instead.
+- Old public-booking redeployed anyway: live bookings fail at insert (G06), nothing half-written;
+  customers see an error. Payment webhooks and demo seeding keep working.
+- Do not drop the guard while an old frontend or old public-booking is live.
+- Disabling the flag never re-opens a legacy path: the RPCs return `disabled`, direct writes stay
+  blocked by the guard, online booking is not affected by the agenda flag (F05).

@@ -127,3 +127,9 @@ export function reminderDue(appointmentDate: string, startTime: string | null | 
   const h = (at.getTime() - now.getTime()) / 3600000;
   return { due: kind === "24h" ? h > 23 && h <= 25 : h > 1 && h <= 3 };
 }
+
+/** Client-side gate: only a real boolean true from tenant_feature_flags counts. Missing, null,
+ *  "true", 1, read error => off (blocked). The server checks the same flag again. */
+export function isAgendaGateOn(flagRow: unknown): boolean {
+  return !!flagRow && typeof flagRow === "object" && (flagRow as Record<string, unknown>).atomic_agenda_enabled === true;
+}

@@ -12,7 +12,7 @@ Legend: N = new appointment, T = time/employee change, O = other change (no avai
 | Wachtlijst "Plaats in agenda" (`WachtlijstPage` handlePlace) | N | browser-time UTC, **no start_time/end_time, no employee**, name in notes | none | no | `create_appointment_atomic` source `waitlist` (`wachtlijst.place.patch.md`) |
 | Klantdossier / handmatig herboeken | N via agenda form | as agenda | as agenda | no | covered by agenda create |
 | Automatisch herboeken (`autoRebookPass`, AutoRebookCenter) | none (sends link; customer books online) | rebook_actions only | n/a | n/a | booking goes through public-booking RPC |
-| Group booking agenda (`sub_appointments`) | N | sub rows without time/employee | none | no | inserted inside `create_appointment_atomic` (all or nothing) |
+| Group booking agenda (`sub_appointments`) | N | sub rows without time/employee | none | no | each person = own appointment row with `booking_group_id`, own checks, all or nothing; legacy line without time refused |
 | Import afspraken (`ImportWizard`) | N | as given in file, `source='import'` | duplicate skip only | no | guard allows only past rows; future import rows need a later RPC |
 | Historische import (`HistoricalImport`) | none (dossier entries, not appointments) | `historical_dossier_entries` | n/a | n/a | not affected |
 | Payment webhooks / create-payment / viva / mollie / public-booking status update | O | payment/status fields | service_role | n/a | unchanged |

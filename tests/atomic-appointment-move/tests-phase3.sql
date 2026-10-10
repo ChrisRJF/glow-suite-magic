@@ -82,16 +82,12 @@ RESET ROLE;
 SELECT t_ok((SELECT appointment_date='2026-10-26 08:00Z' AND source='waitlist' FROM appointments WHERE id=(:'r'::jsonb->>'appointment_id')::uuid), 'C07 CET create = 08:00Z, waitlist source kept');
 ROLLBACK;
 
--- C08 group (sub appointments) all or nothing; C09 link failure rolls back
+-- C08 legacy group lines (person without own time) are refused, never guessed; nothing written
 BEGIN; SELECT set_config('request.jwt.claim.sub', :'T1', true); SET LOCAL ROLE authenticated;
-SELECT public.create_appointment_atomic(:'C1',:'SVC','2026-10-16','10:00',ARRAY[:'EA']::uuid[],'Groepsboeking','manual',NULL,NULL,'[{"person_name":"Anna","service_id":"a0000000-0000-0000-0000-000000000060"},{"person_name":"Bo","service_id":"a0000000-0000-0000-0000-000000000060","assignment_mode":"auto"}]')::text AS r \gset
+SELECT public.create_appointment_atomic(:'C1',:'SVC','2026-10-16','10:00',ARRAY[:'EA']::uuid[],'Groepsboeking','manual',NULL,NULL,'[{"person_name":"Anna","service_id":"a0000000-0000-0000-0000-000000000060"}]')::text AS r \gset
 RESET ROLE;
-SELECT t_ok((:'r'::jsonb->>'code')='created' AND (SELECT count(*)=2 FROM sub_appointments WHERE parent_appointment_id=(:'r'::jsonb->>'appointment_id')::uuid), 'C08 group with two sub appointments');
-SET LOCAL ROLE authenticated;
-SELECT public.create_appointment_atomic(:'C1',:'SVC','2026-10-16','13:00',ARRAY[:'EA']::uuid[],'','manual',NULL,NULL,'[{"person_name":"Anna","service_id":"a0000000-0000-0000-0000-000000000060"},{"person_name":"Cas","service_id":"a0000000-0000-0000-0000-0000000000f2"}]')::text AS dbg \gset
-SELECT t_ok((:'dbg'::jsonb->>'code')='invalid_input', 'C08 bad sub line refused');
-RESET ROLE;
-SELECT t_ok((SELECT count(*)=1 FROM appointments WHERE customer_id=:'C1') AND (SELECT count(*)=2 FROM sub_appointments), 'C08 refused group left nothing behind');
+SELECT t_ok((:'r'::jsonb->>'code')='group_line_needs_time' AND (:'r'::jsonb->>'line')='2', 'C08 group line without own time refused');
+SELECT t_ok((SELECT count(*)=0 FROM appointments WHERE customer_id=:'C1') AND (SELECT count(*)=0 FROM sub_appointments), 'C08 refused group left nothing behind (main row rolled back)');
 ROLLBACK;
 BEGIN; SELECT set_config('request.jwt.claim.sub', :'T1', true); SELECT set_config('test.fail_link','on', true); SET LOCAL ROLE authenticated;
 DO $$ BEGIN

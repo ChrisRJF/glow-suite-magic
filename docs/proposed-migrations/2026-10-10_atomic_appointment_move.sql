@@ -13,6 +13,34 @@
 -- start_time/end_time as wall clock. No bulk conversion of existing rows.
 
 -- ---------------------------------------------------------------------------
+-- 0. safety pre-check: never silently replace an existing function with one of these names.
+--    Re-applying on purpose (reviewed) requires: SET glowsuite.allow_replace = 'on';
+--    Step 1 grants EXECUTE to NOBODY. Activation = separate scripts:
+--      2026-10-10_atomic_appointment_activate_booking.sql (service_role, online booking)
+--      2026-10-10_atomic_appointment_activate_agenda.sql  (authenticated, agenda)
+-- ---------------------------------------------------------------------------
+DO $pre$
+DECLARE _found text;
+BEGIN
+  SELECT string_agg(p.oid::regprocedure::text, ', ') INTO _found
+    FROM pg_catalog.pg_proc p
+   WHERE p.pronamespace = 'public'::regnamespace
+     AND p.proname IN ('amsterdam_wall_to_utc','minutes_to_wall_time','appointment_busy_candidates',
+                       'appointment_slot_check','move_appointment_atomic','create_appointment_atomic',
+                       'create_public_booking_atomic');
+  IF _found IS NOT NULL AND COALESCE(current_setting('glowsuite.allow_replace', true), '') <> 'on' THEN
+    RAISE EXCEPTION 'existing function(s) would be replaced: %. Review first, then SET glowsuite.allow_replace = on', _found;
+  END IF;
+END
+$pre$;
+
+-- per-tenant gate for the agenda RPCs (default off; read-only for app users, like the other flags)
+ALTER TABLE public.tenant_feature_flags
+  ADD COLUMN IF NOT EXISTS atomic_agenda_enabled boolean NOT NULL DEFAULT false;
+COMMENT ON COLUMN public.tenant_feature_flags.atomic_agenda_enabled IS
+  'Agenda create/move via atomic RPCs. Missing row or false = moves/creates refused (disabled), never a legacy path.';
+
+-- ---------------------------------------------------------------------------
 -- 1. time helpers
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.amsterdam_wall_to_utc(_date text, _time text)
@@ -333,6 +361,9 @@ BEGIN
   IF _expected_updated_at IS NULL THEN
     RETURN pg_catalog.jsonb_build_object('ok', false, 'code', 'missing_version');
   END IF;
+  IF NOT COALESCE((SELECT f.atomic_agenda_enabled FROM public.tenant_feature_flags f WHERE f.tenant_id = _a.user_id), false) THEN
+    RETURN pg_catalog.jsonb_build_object('ok', false, 'code', 'disabled');
+  END IF;
 
   -- 3. shared lock (same key as create_public_booking_atomic), then row lock, then version
   PERFORM pg_catalog.pg_advisory_xact_lock(
@@ -608,10 +639,14 @@ END;
 $fn$;
 
 -- ---------------------------------------------------------------------------
--- 4b. atomic agenda create (agenda "Nieuwe afspraak", wachtlijst "Plaats in agenda",
---     dossier "Opnieuw boeken" which opens the agenda form). Same lock + same check.
---     _employee_ids: UUIDs only (first = primary), each one checked; [] = no employee.
---     _sub_appointments: [{ "person_name": text, "service_id": uuid, "notes": text }] (group).
+-- 4b. atomic agenda create (agenda "Nieuwe afspraak", wachtlijst, dossier "Opnieuw boeken").
+--     Same lock + same check as moves and online booking.
+--     _employee_ids: UUIDs only (first = primary), each checked; [] = no employee.
+--     _sub_appointments (group): [{ "person_name", "service_id", "time":"HH:MM", "employee_id":uuid|null, "notes" }]
+--       Every extra person becomes its OWN appointments row with the shared booking_group_id
+--       (same model as online group booking), with its own duration, time, employee and checks.
+--       The legacy sub_appointments table has no time/employee per person and is NOT written:
+--       a line without "time" is refused (group_line_needs_time), never guessed.
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.create_appointment_atomic(
   _customer_id     uuid,
@@ -635,7 +670,6 @@ DECLARE
   _uid     uuid := auth.uid();
   _demo    boolean;
   _svc     public.services%ROWTYPE;
-  _sub_svc public.services%ROWTYPE;
   _d       date;
   _s       int;
   _e       int;
@@ -644,9 +678,14 @@ DECLARE
   _code    text;
   _emp     uuid;
   _i       int := 0;
+  _n       int := 0;
   _new     public.appointments%ROWTYPE;
+  _main_id uuid;
+  _group   uuid;
   _sub     jsonb;
+  _out     jsonb := '[]'::jsonb;
   _hhmm    constant text := '^([01][0-9]|2[0-3]):[0-5][0-9]$';
+  _uuid    constant text := '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$';
 BEGIN
   IF _uid IS NULL THEN
     RETURN pg_catalog.jsonb_build_object('ok', false, 'code', 'not_authenticated');
@@ -654,13 +693,16 @@ BEGIN
   IF NOT public.has_any_role(_uid, ARRAY['eigenaar','admin','manager','receptie']::public.app_role[]) THEN
     RETURN pg_catalog.jsonb_build_object('ok', false, 'code', 'not_found');
   END IF;
+  IF NOT COALESCE((SELECT f.atomic_agenda_enabled FROM public.tenant_feature_flags f WHERE f.tenant_id = _uid), false) THEN
+    RETURN pg_catalog.jsonb_build_object('ok', false, 'code', 'disabled');
+  END IF;
   IF _service_id IS NULL OR _date IS NULL OR _time IS NULL
      OR _date !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' OR _time !~ _hhmm
      OR COALESCE(_source, 'manual') NOT IN ('manual','waitlist')
      OR COALESCE(cardinality(_employee_ids), 0) > 5
      OR (SELECT count(*) <> count(DISTINCT x) OR bool_or(x IS NULL) FROM unnest(COALESCE(_employee_ids, '{}'::uuid[])) x)
      OR (_sub_appointments IS NOT NULL AND (pg_catalog.jsonb_typeof(_sub_appointments) <> 'array'
-         OR pg_catalog.jsonb_array_length(_sub_appointments) > 10)) THEN
+         OR pg_catalog.jsonb_array_length(_sub_appointments) > 9)) THEN
     RETURN pg_catalog.jsonb_build_object('ok', false, 'code', 'invalid_input');
   END IF;
   BEGIN
@@ -671,18 +713,8 @@ BEGIN
   IF pg_catalog.to_char(_d, 'YYYY-MM-DD') <> _date THEN
     RETURN pg_catalog.jsonb_build_object('ok', false, 'code', 'invalid_input');
   END IF;
-  _s := substr(_time, 1, 2)::int * 60 + substr(_time, 4, 2)::int;
-  IF _s % 5 <> 0 THEN
-    RETURN pg_catalog.jsonb_build_object('ok', false, 'code', 'invalid_input');
-  END IF;
 
-  -- tenant = caller (same rule as appointments RLS), mode = caller's active mode
   _demo := public.current_account_is_demo();
-  SELECT * INTO _svc FROM public.services
-   WHERE id = _service_id AND user_id = _uid AND is_demo = _demo AND duration_minutes > 0;
-  IF NOT FOUND THEN
-    RETURN pg_catalog.jsonb_build_object('ok', false, 'code', 'invalid_input');
-  END IF;
   IF _customer_id IS NOT NULL AND NOT EXISTS (
        SELECT 1 FROM public.customers c WHERE c.id = _customer_id AND c.user_id = _uid AND c.is_demo = _demo) THEN
     RETURN pg_catalog.jsonb_build_object('ok', false, 'code', 'invalid_input');
@@ -693,91 +725,130 @@ BEGIN
     RETURN pg_catalog.jsonb_build_object('ok', false, 'code', 'invalid_input');
   END IF;
 
-  _e := _s + _svc.duration_minutes;
-  _ts := public.amsterdam_wall_to_utc(_date, _time);
-  IF _ts IS NULL THEN
-    RETURN pg_catalog.jsonb_build_object('ok', false, 'code', 'invalid_local_time');
-  END IF;
-
   PERFORM pg_catalog.pg_advisory_xact_lock(
     pg_catalog.hashtextextended('appointment_slot:' || _uid::text || ':' || _date, 0));
-
   SELECT st.opening_hours INTO _opening FROM public.settings st
    WHERE st.user_id = _uid ORDER BY st.created_at DESC LIMIT 1;
-  IF COALESCE(cardinality(_employee_ids), 0) = 0 THEN
-    _code := public.appointment_slot_check(_uid, _demo, _opening, _d, _s, _e, NULL, _svc.id, _svc.name, NULL);
-  ELSE
-    FOREACH _emp IN ARRAY _employee_ids LOOP
-      _code := public.appointment_slot_check(_uid, _demo, _opening, _d, _s, _e, _emp, _svc.id, _svc.name, NULL);
-      EXIT WHEN _code IS NOT NULL;
-    END LOOP;
-  END IF;
-  IF _code IS NOT NULL THEN
-    RETURN pg_catalog.jsonb_build_object('ok', false, 'code', _code, 'employee_id', _emp);
+  IF pg_catalog.jsonb_array_length(COALESCE(_sub_appointments, '[]'::jsonb)) > 0 THEN
+    _group := gen_random_uuid();
   END IF;
 
+  -- line 0 = main person (may have several employees), lines 1..n = extra persons (0 or 1 employee).
+  -- Each line: validate -> check under the lock (sees earlier lines) -> insert row + links.
+  -- Any refusal raises inside this block, so every line and link of this call is rolled back.
   BEGIN
-    INSERT INTO public.appointments (user_id, is_demo, customer_id, service_id, appointment_date, start_time,
-                                     end_time, employee_id, price, notes, status, source, journey_id, journey_session_number)
-    VALUES (_uid, _demo, _customer_id, _svc.id, _ts, _time::time, public.minutes_to_wall_time(_e),
-            CASE WHEN cardinality(_employee_ids) > 0 THEN _employee_ids[1]::text END,
-            COALESCE(_svc.price, 0), left(COALESCE(_notes, ''), 2000), 'gepland', COALESCE(_source, 'manual'),
-            _journey_id, CASE WHEN _journey_id IS NOT NULL THEN _journey_session END)
-    RETURNING * INTO _new;
-    IF cardinality(_employee_ids) > 0 THEN
-      FOREACH _emp IN ARRAY _employee_ids LOOP
-        _i := _i + 1;
-        INSERT INTO public.appointment_employees (appointment_id, employee_id, user_id, is_primary, is_demo)
-        VALUES (_new.id, _emp, _uid, _i = 1, _demo);
-      END LOOP;
-    END IF;
-    FOR _sub IN SELECT v FROM pg_catalog.jsonb_array_elements(COALESCE(_sub_appointments, '[]'::jsonb)) v LOOP
-      IF pg_catalog.jsonb_typeof(_sub) <> 'object' OR length(btrim(COALESCE(_sub ->> 'person_name', ''))) = 0
-         OR COALESCE(_sub ->> 'service_id', '') !~ '^[0-9a-fA-F-]{36}$' THEN
+    FOR _sub IN
+      SELECT pg_catalog.jsonb_build_object('service_id', _service_id::text, 'time', _time, 'main', true)
+      UNION ALL
+      SELECT v FROM pg_catalog.jsonb_array_elements(COALESCE(_sub_appointments, '[]'::jsonb)) v
+    LOOP
+      _n := _n + 1;
+      IF pg_catalog.jsonb_typeof(_sub) <> 'object' THEN
         RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = 'gs:invalid_input';
       END IF;
-      SELECT * INTO _sub_svc FROM public.services
-       WHERE id = (_sub ->> 'service_id')::uuid AND user_id = _uid AND is_demo = _demo;
+      IF NOT (_sub ? 'main') THEN
+        IF NOT (_sub ? 'time') THEN
+          RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = 'gs:group_line_needs_time';
+        END IF;
+        IF length(btrim(COALESCE(_sub ->> 'person_name', ''))) = 0
+           OR COALESCE(_sub ->> 'time', '') !~ _hhmm
+           OR COALESCE(_sub ->> 'service_id', '') !~ _uuid
+           OR (_sub ? 'employee_id' AND _sub -> 'employee_id' <> 'null'::jsonb
+               AND COALESCE(_sub ->> 'employee_id', '') !~ _uuid) THEN
+          RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = 'gs:invalid_input';
+        END IF;
+      END IF;
+      SELECT * INTO _svc FROM public.services
+       WHERE id = (_sub ->> 'service_id')::uuid AND user_id = _uid AND is_demo = _demo
+         AND duration_minutes > 0 AND COALESCE(is_active, true);
       IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = 'gs:invalid_input'; END IF;
-      INSERT INTO public.sub_appointments (parent_appointment_id, person_name, service_id, price, user_id,
-                                           assigned_employee_id, assignment_mode, notes, is_demo)
-      VALUES (_new.id, left(btrim(_sub ->> 'person_name'), 200), _sub_svc.id, COALESCE(_sub_svc.price, 0), _uid,
-              NULL, CASE WHEN _sub ->> 'assignment_mode' = 'auto' THEN 'auto' ELSE 'manual' END,
-              left(COALESCE(_sub ->> 'notes', ''), 2000), _demo);
+      _s := substr(_sub ->> 'time', 1, 2)::int * 60 + substr(_sub ->> 'time', 4, 2)::int;
+      IF _s % 5 <> 0 THEN RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = 'gs:invalid_input'; END IF;
+      _e := _s + _svc.duration_minutes;
+      _ts := public.amsterdam_wall_to_utc(_date, _sub ->> 'time');
+      IF _ts IS NULL THEN RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = 'gs:invalid_local_time'; END IF;
+
+      IF _sub ? 'main' THEN
+        IF COALESCE(cardinality(_employee_ids), 0) = 0 THEN
+          _code := public.appointment_slot_check(_uid, _demo, _opening, _d, _s, _e, NULL, _svc.id, _svc.name, NULL);
+        ELSE
+          FOREACH _emp IN ARRAY _employee_ids LOOP
+            _code := public.appointment_slot_check(_uid, _demo, _opening, _d, _s, _e, _emp, _svc.id, _svc.name, NULL);
+            EXIT WHEN _code IS NOT NULL;
+          END LOOP;
+        END IF;
+      ELSE
+        _emp := NULLIF(_sub ->> 'employee_id', '')::uuid;
+        _code := public.appointment_slot_check(_uid, _demo, _opening, _d, _s, _e, _emp, _svc.id, _svc.name, NULL);
+      END IF;
+      IF _code IS NOT NULL THEN
+        RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = 'gs:' || _code;
+      END IF;
+
+      INSERT INTO public.appointments (user_id, is_demo, customer_id, service_id, appointment_date, start_time,
+                                       end_time, employee_id, price, notes, status, source, journey_id,
+                                       journey_session_number, booking_group_id)
+      VALUES (_uid, _demo, _customer_id, _svc.id, _ts, (_sub ->> 'time')::time, public.minutes_to_wall_time(_e),
+              CASE WHEN _sub ? 'main' THEN (CASE WHEN cardinality(_employee_ids) > 0 THEN _employee_ids[1]::text END)
+                   ELSE NULLIF(_sub ->> 'employee_id', '') END,
+              COALESCE(_svc.price, 0),
+              left(CASE WHEN _sub ? 'main' THEN COALESCE(_notes, '')
+                        ELSE btrim('Groepsboeking voor ' || btrim(_sub ->> 'person_name') || ' ' || COALESCE(_sub ->> 'notes', '')) END, 2000),
+              'gepland', COALESCE(_source, 'manual'),
+              CASE WHEN _sub ? 'main' THEN _journey_id END,
+              CASE WHEN _sub ? 'main' AND _journey_id IS NOT NULL THEN _journey_session END,
+              _group)
+      RETURNING * INTO _new;
+      IF _sub ? 'main' THEN
+        _main_id := _new.id;
+        _i := 0;
+        IF cardinality(_employee_ids) > 0 THEN
+          FOREACH _emp IN ARRAY _employee_ids LOOP
+            _i := _i + 1;
+            INSERT INTO public.appointment_employees (appointment_id, employee_id, user_id, is_primary, is_demo)
+            VALUES (_new.id, _emp, _uid, _i = 1, _demo);
+          END LOOP;
+        END IF;
+      ELSIF _emp IS NOT NULL THEN
+        INSERT INTO public.appointment_employees (appointment_id, employee_id, user_id, is_primary, is_demo)
+        VALUES (_new.id, _emp, _uid, true, _demo);
+      END IF;
+      _out := _out || pg_catalog.jsonb_build_array(pg_catalog.jsonb_build_object(
+        'id', _new.id, 'start_time', pg_catalog.to_char(_new.start_time, 'HH24:MI'),
+        'end_time', CASE WHEN _e = 1440 THEN '24:00' ELSE pg_catalog.to_char(_new.end_time, 'HH24:MI') END,
+        'employee_id', _new.employee_id, 'updated_at', _new.updated_at, 'booking_token', _new.booking_token));
     END LOOP;
   EXCEPTION
     WHEN unique_violation THEN
-      RETURN pg_catalog.jsonb_build_object('ok', false, 'code', 'conflict');
+      RETURN pg_catalog.jsonb_build_object('ok', false, 'code', 'conflict', 'line', _n);
     WHEN raise_exception THEN
       IF SQLERRM LIKE 'gs:%' THEN
-        RETURN pg_catalog.jsonb_build_object('ok', false, 'code', substr(SQLERRM, 4));
+        RETURN pg_catalog.jsonb_build_object('ok', false, 'code', substr(SQLERRM, 4), 'line', _n);
       END IF;
       RAISE;
+    WHEN invalid_text_representation THEN
+      RETURN pg_catalog.jsonb_build_object('ok', false, 'code', 'invalid_input', 'line', _n);
   END;
 
-  RETURN pg_catalog.jsonb_build_object('ok', true, 'code', 'created', 'appointment_id', _new.id,
-    'appointment_date', _new.appointment_date, 'start_time', pg_catalog.to_char(_new.start_time, 'HH24:MI'),
-    'end_time', CASE WHEN _e = 1440 THEN '24:00' ELSE pg_catalog.to_char(_new.end_time, 'HH24:MI') END,
-    'updated_at', _new.updated_at, 'booking_token', _new.booking_token);
+  RETURN pg_catalog.jsonb_build_object('ok', true, 'code', 'created', 'appointment_id', _main_id,
+    'booking_group_id', _group, 'appointments', _out,
+    'appointment_date', (SELECT a.appointment_date FROM public.appointments a WHERE a.id = _main_id),
+    'start_time', _out -> 0 ->> 'start_time', 'end_time', _out -> 0 ->> 'end_time',
+    'updated_at', _out -> 0 ->> 'updated_at', 'booking_token', _out -> 0 ->> 'booking_token');
 END;
 $fn$;
 
 -- ---------------------------------------------------------------------------
--- 5. grants
+-- 5. grants: step 1 grants EXECUTE to NOBODY (explicitly revoked, incl. PUBLIC and the
+--    Supabase default privileges for anon/authenticated/service_role on new functions).
 -- ---------------------------------------------------------------------------
-REVOKE ALL ON FUNCTION public.amsterdam_wall_to_utc(text, text) FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.minutes_to_wall_time(int) FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.appointment_busy_candidates(timestamptz, time, time, int) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.amsterdam_wall_to_utc(text, text) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.minutes_to_wall_time(int) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.appointment_busy_candidates(timestamptz, time, time, int) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.appointment_slot_check(uuid, boolean, jsonb, date, int, int, uuid, uuid, text, uuid) FROM PUBLIC, anon, authenticated, service_role;
-
-REVOKE ALL ON FUNCTION public.move_appointment_atomic(uuid, text, text, uuid, timestamptz) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.move_appointment_atomic(uuid, text, text, uuid, timestamptz) TO authenticated;
-
-REVOKE ALL ON FUNCTION public.create_appointment_atomic(uuid, uuid, text, text, uuid[], text, text, uuid, int, jsonb) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.create_appointment_atomic(uuid, uuid, text, text, uuid[], text, text, uuid, int, jsonb) TO authenticated;
-
-REVOKE ALL ON FUNCTION public.create_public_booking_atomic(text, text, jsonb, jsonb) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.create_public_booking_atomic(text, text, jsonb, jsonb) TO service_role;
+REVOKE ALL ON FUNCTION public.move_appointment_atomic(uuid, text, text, uuid, timestamptz) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.create_appointment_atomic(uuid, uuid, text, text, uuid[], text, text, uuid, int, jsonb) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.create_public_booking_atomic(text, text, jsonb, jsonb) FROM PUBLIC, anon, authenticated, service_role;
 
 COMMENT ON FUNCTION public.move_appointment_atomic(uuid, text, text, uuid, timestamptz) IS
   'Atomic agenda move. Required version check after row lock. Shared slot lock with create_public_booking_atomic. Proposed 2026-10-10 v2.';

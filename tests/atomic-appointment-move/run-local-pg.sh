@@ -6,7 +6,7 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"; ROOT="$(cd "$HERE/../.." && pwd)"
 BASE=/tmp/glowsuite-pg-atomic-move; RUNUID=4711
 rm -rf "$BASE"; mkdir -p "$BASE/data" "$BASE/sock"
-cp "$ROOT/docs/proposed-migrations/2026-10-10_atomic_appointment_move.sql" "$ROOT/docs/proposed-migrations/2026-10-10_appointment_slot_guard.sql" "$HERE"/*.sql "$BASE/"
+cp "$ROOT/docs/proposed-migrations/2026-10-10_atomic_appointment_move.sql" "$ROOT/docs/proposed-migrations/2026-10-10_atomic_appointment_activate_booking.sql" "$ROOT/docs/proposed-migrations/2026-10-10_atomic_appointment_activate_agenda.sql" "$ROOT/docs/proposed-migrations/2026-10-10_appointment_slot_guard.sql" "$HERE"/*.sql "$BASE/"
 chown -R $RUNUID:$RUNUID "$BASE"; chmod 700 "$BASE/sock"
 AS() { env -i PATH="$PATH" HOME=/tmp setpriv --reuid=$RUNUID --regid=$RUNUID --clear-groups "$@"; }
 AS initdb -D "$BASE/data" -U testsuper -A trust >/dev/null
@@ -16,17 +16,24 @@ P="psql -X -q -At -h $BASE/sock -U testsuper"
 AS $P -d postgres -c "create database gs_move" >/dev/null
 AS $P -d gs_move -c "select 'isolated: listen='''||current_setting('listen_addresses')||''' db='||current_database()"
 AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/fixture.sql"
-# apply the proposal twice: CREATE OR REPLACE must be idempotent
-AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/2026-10-10_atomic_appointment_move.sql -f $BASE/2026-10-10_atomic_appointment_move.sql"
-echo "proposal applied twice"
-for F in tests.sql tests-phase2.sql tests-phase3.sql; do
+# apply the proposal; a second apply must be REFUSED unless replacement is explicitly reviewed
+AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/2026-10-10_atomic_appointment_move.sql" >/dev/null
+if AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/2026-10-10_atomic_appointment_move.sql" >/dev/null 2>&1; then echo "FAIL: P01 silent re-apply allowed"; else echo "PASS: P01 re-apply without review refused (existing functions not silently replaced)"; fi
+AS bash -c "PGOPTIONS='-c glowsuite.allow_replace=on' $P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/2026-10-10_atomic_appointment_move.sql" >/dev/null && echo "PASS: P01 reviewed re-apply (allow_replace=on) succeeds and is idempotent"
+# step 1 only: nobody may call anything
+AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/tests-grants-pre.sql 2>&1" | grep -E "PASS|FAIL|ERROR" | sed 's/^psql:[^:]*:[0-9]*: NOTICE:  //'
+# activation steps (separately approved in real life)
+AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/2026-10-10_atomic_appointment_activate_booking.sql -f $BASE/2026-10-10_atomic_appointment_activate_agenda.sql" >/dev/null
+AS $P -d gs_move -c "update tenant_feature_flags set atomic_agenda_enabled=true" >/dev/null
+echo "activation simulated"
+for F in tests.sql tests-phase2.sql tests-phase3.sql tests-phase4.sql; do
   AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/$F 2>&1" | grep -E "PASS|FAIL|ERROR" | sed 's/^psql:[^:]*:[0-9]*: NOTICE:  //'
 done
 
 # ---- guard (step 4 migration) applied, then all RPC suites again + guard tests ----
 AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/2026-10-10_appointment_slot_guard.sql -f $BASE/2026-10-10_appointment_slot_guard.sql" >/dev/null
 echo "guard applied twice"
-for F in tests-guard.sql tests.sql tests-phase2.sql tests-phase3.sql; do
+for F in tests-guard.sql tests.sql tests-phase2.sql tests-phase3.sql tests-phase4.sql; do
   AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/$F 2>&1" | grep -E "PASS|FAIL|ERROR" | sed 's/^psql:[^:]*:[0-9]*: NOTICE:  //' | sed "s/^PASS: /PASS: [guard] /"
 done
 
@@ -58,10 +65,13 @@ race "R02 booking 13:00 holds lock, move to 13:30 same employee" "$SRV" "$(book 
 race "R03 move to 14:00 holds lock, booking 14:30 same employee" "$OWN" "$(move s1 $A7 2026-10-22 14:00)" "$SRV" "$(book s2 2026-10-22 14:30)" moved conflict
 race "R04 booking 10:00 vs booking 10:15 same employee" "$SRV" "$(book s1 2026-10-23 10:00)" "$SRV" "$(book s2 2026-10-23 10:15)" booked conflict
 race "R05 two moves of same appointment, same version (different days)" "$OWN" "$(move s1 $A6 2026-10-29 10:00)" "$OWN" "$(move s2 $A6 2026-10-30 14:00)" moved stale
+group() { echo "SELECT '$1:'||(public.create_appointment_atomic(NULL,'$SV','$2','$3',ARRAY['$EA']::uuid[],'','manual',NULL,NULL,'[{\"person_name\":\"X\",\"service_id\":\"$SV\",\"time\":\"$4\",\"employee_id\":\"$EB\"}]')->>'code');"; }
 create() { echo "SELECT '$1:'||(public.create_appointment_atomic(NULL,'$SV','$2','$3',ARRAY['$EA']::uuid[],'','manual',NULL,NULL,NULL)->>'code');"; }
 race "R06 online booking 10:00 vs agenda create 10:30" "$SRV" "$(book s1 2026-10-27 10:00)" "$OWN" "$(create s2 2026-10-27 10:30)" booked conflict
 race "R07 agenda create 10:00 vs move to 10:15" "$OWN" "$(create s1 2026-10-28 10:00)" "$OWN" "$(move s2 $A7 2026-10-28 10:15)" created conflict
 race "R08 agenda create 14:00 vs agenda create 14:45" "$OWN" "$(create s1 2026-10-26 14:00)" "$OWN" "$(create s2 2026-10-26 14:45)" created conflict
+EB=e0000000-0000-0000-0000-00000000000b
+race "R09 two group bookings, overlapping members" "$OWN" "$(group s1 2026-11-02 09:00 10:00)" "$OWN" "$(group s2 2026-11-02 11:00 10:30)" created conflict
 CNT() { AS $P -d gs_move -c "$1"; }
 [ "$(CNT "select count(*) from appointments where employee_id='$EA' and start_time in ('13:00','13:30') and (appointment_date at time zone 'Europe/Amsterdam')::date='2026-10-15'")" = "1" ] && echo "PASS: R02 database holds one" || echo "FAIL: R02 rows"
 [ "$(CNT "select count(*) from appointments where employee_id='$EA' and start_time in ('14:00','14:30') and (appointment_date at time zone 'Europe/Amsterdam')::date='2026-10-22'")" = "1" ] && echo "PASS: R03 database holds one" || echo "FAIL: R03 rows"
@@ -71,3 +81,5 @@ for d in 2026-10-27 2026-10-28 2026-10-26; do
   N=$(CNT "select count(*) from appointments where employee_id='$EA' and status<>'geannuleerd' and (appointment_date at time zone 'Europe/Amsterdam')::date='$d' and start_time>='10:00' and start_time<'15:00'")
   [ "$N" = "1" ] && echo "PASS: R06-R08 $d database holds one" || echo "FAIL: R06-R08 $d rows=$N"
 done
+N=$(CNT "select count(*) from appointments where (appointment_date at time zone 'Europe/Amsterdam')::date='2026-11-02' and booking_group_id is not null")
+[ "$N" = "2" ] && echo "PASS: R09 only the first group (2 rows) stored" || echo "FAIL: R09 rows=$N"

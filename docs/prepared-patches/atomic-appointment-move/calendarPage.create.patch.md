@@ -14,11 +14,14 @@ const { data: res, error } = await (supabase.rpc as any)("create_appointment_ato
   _source: "manual",
   _journey_id: journeyLink?.id ?? null,
   _journey_session: journeyLink?.session ?? null,
+  // each extra person = own appointment row in the same booking_group_id, own time/service/employee
   _sub_appointments: subAppts.filter(s => s.person_name && s.service_id).map(s => ({
-    person_name: s.person_name, service_id: s.service_id, assignment_mode: s.assignment_mode,
-    notes: `Tijd: ${s.assigned_time || form.time}`,
+    person_name: s.person_name, service_id: s.service_id,
+    time: s.assigned_time || form.time,             // required; no time => refused, never guessed
+    employee_id: s.assigned_employee_id ?? null,     // UUID only; names are never sent
   })),
 });
+if (!isAgendaGateOn(flags)) { toast.error("Afspraak opslaan is even niet beschikbaar."); return; }
 if (error || !res?.ok) { toast.error(createMessage(res?.code, error)); return; }  // no fallback insert
 ```
 - Names are no longer written as "Medewerker: X" for new rows (the links are the truth).
