@@ -71,7 +71,7 @@ type R = [string, string, string, string, string];
 function buildFixture(): { rows: R[]; expect: { fresh: number; dupes: number; conflicts: number; missing: number; invalid: number } } {
   const rows: R[] = [];
   const variants = (n: number) => [`+316${n}`, `00316${n}`, `+31 (0)6 ${n}`];
-  for (let i = 0; i < 6623; i++) {
+  for (let i = 0; i < (Number(process.env.FX_PAIRS) || 6623); i++) {
     const n = 10000000 + i;
     rows.push([`Fictief ${i}`, `f${i}@voorbeeld.test`, `06${n}`, "01-01-1990", ""]);
     rows.push([` Fictief ${i} `, ` F${i}@Voorbeeld.TEST `, variants(n)[i % 3], "", ""]);
@@ -104,12 +104,12 @@ function xlsxBytes() {
 const card = (label: string) => Number(screen.getByText(label).parentElement!.textContent!.replace(label, "").replace(/\D/g, ""));
 
 async function toPreview(file: File) {
-  render(<ImportWizard />);
+  render(<ImportWizard />); console.log("rendered");
   const input = document.querySelector('input[type="file"]') as HTMLInputElement;
   fireEvent.change(input, { target: { files: [file] } });
   fireEvent.click(await screen.findByRole("button", { name: /Volgende/ }));
   fireEvent.click(await screen.findByRole("button", { name: /Auto-detecteer kolommen/ }));
-  fireEvent.click(await screen.findByRole("button", { name: /Preview/ }));
+  fireEvent.click(await screen.findByRole("button", { name: /Preview/ })); console.log("to preview");
 }
 const waitPreview = () => screen.findByText("Wordt geïmporteerd", {}, { timeout: 30000 });
 async function startImport() {
