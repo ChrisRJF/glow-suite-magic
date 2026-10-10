@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchAllRows } from "@/lib/fetchAllRows";
+import { CustomerImportIndex } from "@/lib/customerImportDedupe";
+import { normalizeEmail as dupNormEmail, normalizePhone as dupKey } from "@/lib/customerDuplicates";
 import { Link } from "react-router-dom";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
@@ -600,7 +602,7 @@ export function ImportWizard() {
 
       const ensureCustomer = async (name: string, email: string, phone: string): Promise<string | null> => {
         const e = email ? email.toLowerCase().trim() : "";
-        const p = phone ? normalizePhone(phone) ?? "" : "";
+        const p = phone ? dupKey(phone) ?? "" : "";
         const n = name ? name.toLowerCase().trim() : "";
         if (e && customerByEmail.has(e)) return customerByEmail.get(e)!;
         if (p && customerByPhone.has(p)) return customerByPhone.get(p)!;
