@@ -35,13 +35,51 @@ export interface AdapterEnv {
   /** {"<caller>":{"current":"1","keys":{"1":"<Base64>"}}} one entry per internal caller */
   WA_SEND_SERVICE_KEYS?: string | null;
   LOVABLE_API_KEY?: string | null;
-  TWILIO_API_KEY?: string | null;
-  /** Approved central sender, e.g. whatsapp:+31...; the Twilio sandbox number is refused. */
-  WA_FROM_NUMBER?: string | null;
+  /** Linked Lovable WhatsApp (Meta Cloud API) connection key. Server-only. */
+  WHATSAPP_API_KEY?: string | null;
+  /** phone_number_id of the linked connection (get_connection_configuration). Digits only. */
+  WA_META_PHONE_NUMBER_ID?: string | null;
+  /** {"<salon uuid>":"<phone_number_id>"}: verified sender per salon. Unlisted salon = refused. */
+  WA_META_SENDERS?: string | null;
+  /** {"<kind>":{"name","language","category":"UTILITY|MARKETING","params":n}}. Must exist AND be APPROVED at Meta. */
+  WA_META_TEMPLATES?: string | null;
 }
 
-export const TWILIO_GATEWAY = "https://connector-gateway.lovable.dev/twilio/Messages.json";
-const SANDBOX_FROM = "whatsapp:+14155238886";
+// Transport: Meta WhatsApp Cloud API through the Lovable WhatsApp connector gateway (documented:
+// POST /messages, GET /message_templates; gateway injects phone-number/WABA ids and pins Graph v25.0).
+export const META_GATEWAY = "https://connector-gateway.lovable.dev/whatsapp";
+export const META_GRAPH_VERSION = "v25.0";
+const PHONE_ID = /^\d{5,20}$/;
+const TEMPLATE_NAME = /^[a-z0-9_]{1,512}$/;
+const LANG = /^[a-z]{2,3}(_[A-Z]{2})?$/;
+export interface TemplateCfg { name: string; language: string; category: "UTILITY" | "MARKETING"; params: number }
+
+export function parseSenders(raw: unknown, connectionPhoneId: string): Record<string, string> | null {
+  if (typeof raw !== "string" || !raw) return null;
+  let j: unknown; try { j = JSON.parse(raw); } catch { return null; }
+  if (!j || typeof j !== "object" || Array.isArray(j)) return null;
+  const out: Record<string, string> = {};
+  for (const [salon, id] of Object.entries(j as Record<string, unknown>)) {
+    if (!/^[0-9a-f-]{36}$/.test(salon) || typeof id !== "string" || !PHONE_ID.test(id)) return null;
+    out[salon] = id;
+  }
+  // One linked connection = one number. Any entry pointing elsewhere = misconfigured -> deny all.
+  return Object.values(out).every((id) => id === connectionPhoneId) ? out : null;
+}
+export function parseTemplates(raw: unknown): Record<string, TemplateCfg> | null {
+  if (typeof raw !== "string" || !raw) return null;
+  let j: unknown; try { j = JSON.parse(raw); } catch { return null; }
+  if (!j || typeof j !== "object" || Array.isArray(j)) return null;
+  const out: Record<string, TemplateCfg> = {};
+  for (const [kind, v] of Object.entries(j as Record<string, unknown>)) {
+    const t = v as Partial<TemplateCfg> | null;
+    if (!t || typeof t.name !== "string" || !TEMPLATE_NAME.test(t.name) || typeof t.language !== "string" || !LANG.test(t.language) ||
+      (t.category !== "UTILITY" && t.category !== "MARKETING") || !Number.isInteger(t.params) || t.params! < 0 || t.params! > 10) return null;
+    out[kind] = { name: t.name, language: t.language, category: t.category, params: t.params! };
+  }
+  return out;
+}
+const placeholders = (text: unknown) => typeof text === "string" ? new Set(text.match(/\{\{\d+\}\}/g) ?? []).size : -1;
 const ROLES: Role[] = ["eigenaar", "admin", "manager", "medewerker", "financieel", "receptie"];
 
 const hex = (b: ArrayBuffer) => Array.from(new Uint8Array(b), (x) => x.toString(16).padStart(2, "0")).join("");
@@ -90,9 +128,18 @@ export interface BuiltDeps { deps: Deps; service: ServiceVerifyDeps }
 /** null = configuration missing/invalid -> the HTTP layer answers 503 before any read. */
 export function buildDeps(db: Db, env: AdapterEnv, io: { fetch: typeof fetch; now(): number; timeoutMs?: number; log?: (e: Record<string, unknown>) => void }): BuiltDeps | null {
   const claimKey = key32(env.WA_CLAIM_HMAC_KEY);
-  const from = env.WA_FROM_NUMBER;
-  if (!claimKey || !env.WA_CONTACT_REF_KEYS || !env.LOVABLE_API_KEY || !env.TWILIO_API_KEY) return null;
-  if (typeof from !== "string" || !/^whatsapp:\+[1-9]\d{7,14}$/.test(from) || from === SANDBOX_FROM) return null;
+  const phoneId = env.WA_META_PHONE_NUMBER_ID;
+  if (!claimKey || !env.WA_CONTACT_REF_KEYS || !env.LOVABLE_API_KEY || !env.WHATSAPP_API_KEY) return null;
+  if (typeof phoneId !== "string" || !PHONE_ID.test(phoneId)) return null;
+  const senders = parseSenders(env.WA_META_SENDERS, phoneId);
+  const templates = parseTemplates(env.WA_META_TEMPLATES);
+  if (!senders || !templates) return null;
+  const gwHeaders = { Authorization: `Bearer ${env.LOVABLE_API_KEY}`, "X-Connection-Api-Key": env.WHATSAPP_API_KEY };
+  async function timed(url: string, init: RequestInit): Promise<Response> {
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), io.timeoutMs ?? 10_000);
+    try { return await io.fetch(url, { ...init, signal: ctl.signal }); } finally { clearTimeout(t); }
+  }
 
   // wa_claim_send also stores customer_id + kind, which the guard's claim(tenant,key,fp) does not
   // pass. Captured from this request's own customer()/fingerprint calls. buildDeps() MUST be
@@ -178,27 +225,52 @@ export function buildDeps(db: Db, env: AdapterEnv, io: { fetch: typeof fetch; no
         content_fp: log.content_fp.slice(0, 12), status: state, code: log.provider_code, finalized: r.data === true && !r.error });
       if (r.error || r.data !== true) throw new Error("finalize_failed");
     },
-    async transport(toE164, body) {
-      const ctl = new AbortController();
-      const t = setTimeout(() => ctl.abort(), io.timeoutMs ?? 10_000);
-      let res: Response;
-      try {
-        res = await io.fetch(TWILIO_GATEWAY, {
-          method: "POST", signal: ctl.signal,
-          headers: { Authorization: `Bearer ${env.LOVABLE_API_KEY}`, "X-Connection-Api-Key": env.TWILIO_API_KEY!,
-            "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams({ To: `whatsapp:${toE164}`, From: from, Body: body }),
-        });
-      } finally { clearTimeout(t); }
-      // 5xx / unreadable 2xx: provider may have sent it -> throw = outcome unknown, never resent.
+    // Sender + template checks before the claim. No free text: the 24h customer-service window
+    // cannot be established server-side (no verified inbound store), so only approved templates go out.
+    async prepare({ tenantId, kind, purpose, params }) {
+      const sender = senders[tenantId];
+      if (!sender) return { ok: false, status: 503, reason: "sender_not_configured" };
+      if (sender !== phoneId) return { ok: false, status: 403, reason: "sender_tenant_mismatch" };
+      const cfg = templates[kind];
+      if (!cfg) return { ok: false, status: 422, reason: "free_text_window_unverified" };
+      if (cfg.category !== (purpose === "marketing" ? "MARKETING" : "UTILITY")) return { ok: false, status: 422, reason: "template_category_mismatch" };
+      if (params.length !== cfg.params) return { ok: false, status: 422, reason: "template_params_mismatch" };
+      const res = await timed(`${META_GATEWAY}/message_templates?name=${encodeURIComponent(cfg.name)}&fields=name,status,language,category,components&limit=25`,
+        { method: "GET", headers: gwHeaders });
+      if (!res.ok) throw new Error("template_lookup_failed");
+      const j = await res.json() as { data?: Array<Record<string, unknown>> };
+      if (!Array.isArray(j?.data)) throw new Error("template_lookup_failed");
+      const t = j.data.filter((x) => x.name === cfg.name && x.language === cfg.language);
+      if (t.length !== 1) return { ok: false, status: 422, reason: "template_not_found" };
+      if (t[0].status !== "APPROVED") return { ok: false, status: 422, reason: "template_not_approved" };
+      if (t[0].category !== cfg.category) return { ok: false, status: 422, reason: "template_category_mismatch" };
+      const comps = Array.isArray(t[0].components) ? t[0].components as Array<Record<string, unknown>> : [];
+      const body = comps.filter((c) => c.type === "BODY");
+      if (body.length !== 1 || placeholders(body[0].text) !== cfg.params) return { ok: false, status: 422, reason: "template_format_mismatch" };
+      // Headers/buttons with variables are not supported yet: refuse rather than send half-filled.
+      if (comps.some((c) => c.type !== "BODY" && c.type !== "FOOTER" && placeholders(c.text) > 0)) return { ok: false, status: 422, reason: "template_format_mismatch" };
+      return { ok: true, payload: { name: cfg.name, language: cfg.language, params } };
+    },
+    async transport(toE164, _body, prepared) {
+      const p = prepared as { name?: string; language?: string; params?: string[] } | undefined;
+      if (!p?.name || !p.language || !Array.isArray(p.params)) return { accepted: false, code: 0 }; // never free text
+      const res = await timed(`${META_GATEWAY}/messages`, {
+        method: "POST", headers: { ...gwHeaders, "Content-Type": "application/json" },
+        body: JSON.stringify({ messaging_product: "whatsapp", to: toE164.replace(/^\+/, ""), type: "template",
+          template: { name: p.name, language: { code: p.language },
+            components: p.params.length ? [{ type: "body", parameters: p.params.map((text) => ({ type: "text", text })) }] : [] } }),
+      });
+      // 5xx / unreadable or id-less 2xx: Meta may have sent it -> throw = outcome unknown, never resent.
       if (res.status >= 500) throw new Error("provider_unknown");
       let j: Record<string, unknown> = {};
       try { j = await res.json(); } catch { if (res.ok) throw new Error("provider_unknown"); }
       if (res.ok) {
-        if (typeof j.sid !== "string") throw new Error("provider_unknown");
-        return { accepted: true, sid: j.sid };
+        const id = (j.messages as Array<{ id?: unknown }> | undefined)?.[0]?.id;
+        if (typeof id !== "string" || !/^wamid\.[A-Za-z0-9_=+\/-]{1,256}$/.test(id)) throw new Error("provider_unknown");
+        return { accepted: true, sid: id };
       }
-      return { accepted: false, code: typeof j.code === "number" ? j.code : res.status };
+      const code = (j.error as { code?: unknown } | undefined)?.code;
+      return { accepted: false, code: typeof code === "number" ? code : res.status };
     },
     async hmac(purpose, value) {
       if (purpose === "fp") ctx.kind = value.split("|")[1] ?? null;
