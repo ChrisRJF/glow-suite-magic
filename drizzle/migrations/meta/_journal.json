@@ -43,6 +43,13 @@
       "when": 1791650435090,
       "tag": "0005_employee_weekly_schedule",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791669331744,
+      "tag": "0006_atomic_appointment_step1",
+      "breakpoints": true
     }
   ]
 }
