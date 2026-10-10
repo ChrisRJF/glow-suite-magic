@@ -34,10 +34,6 @@ export function TodayBriefing({ variant = "default", title, hideHeader = false, 
     const today = new Date();
     const todayStr = amsterdamDateKey(today);
 
-    const todaysAppts = appointments.filter(
-      (a: any) => safeAmsterdamDateKey(a.appointment_date) === todayStr && a.status !== "geannuleerd",
-    );
-
     const openPaymentsToday = payments.filter((p: any) => {
       if (p.status !== "pending") return false;
       const created = safeAmsterdamDateKey(p.created_at) === todayStr;
