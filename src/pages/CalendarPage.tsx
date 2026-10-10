@@ -28,7 +28,7 @@ import {
   useSensor, useSensors,
 } from "@dnd-kit/core";
 import { DayApptDraggable, DaySlotDroppable } from "@/components/CalendarDayDnd";
-import { resolveDropTarget, validateDropWindow, isTouchActivation } from "@/lib/calendarDrop";
+import { resolveDropTarget, validateDropWindow, isTouchActivation, agendaCollision } from "@/lib/calendarDrop";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { EmployeeColumnDayView } from "@/components/EmployeeColumnDayView";
 import { MoveAppointmentSheet, type MoveTarget } from "@/components/MoveAppointmentSheet";
@@ -1516,7 +1516,7 @@ export default function CalendarPage() {
           </span>
         </div>
 
-        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+        <DndContext sensors={sensors} collisionDetection={agendaCollision} onDragEnd={handleDragEnd}>
         {view === 'day' ? (
           <div className="relative">
             {(() => { return null; })()}
