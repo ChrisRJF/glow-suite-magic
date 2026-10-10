@@ -1,0 +1,880 @@
+// PREPARED, INACTIVE replacement for supabase/functions/public-booking/index.ts (Agenda 3.0 step 2b).
+// Do not deploy without separate approval. Reference of the current server: public-booking.reference.index.ts
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { z } from "https://esm.sh/zod@3.23.8";
+import { createVivaOrder, vivaCheckoutUrl, isVivaConfigured } from "../_shared/viva.ts";
+import { getDefaultMessageTemplate, normalizeMessageLang, renderMessage, intlLocale } from "../_shared/messageTranslations.ts";
+import { decideDeposit } from "../_shared/depositDecision.ts";
+import { amsterdamToUtc, utcToAmsterdam, busyFromAppointments, normalizeBusyEmployees, resolveBooking, availabilitySlots, startTimes, canDoService, type ScheduleEmployee } from "../_shared/employeeSchedule.ts";
+import { buildAtomicBookingArgs, interpretAtomicResult, UNAVAILABLE_MSG } from "./publicBookingAtomic.ts";
+import { appendConfirmationBlock, buildConfirmationLink, claimReminderDispatch } from "../_shared/reminderEngine.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+// Real employees are loaded per salon (getSalon). No fixed sample staff.
+const SALON_WIDE = "__salon__"; // virtual employee for salons that have no employees configured
+
+const RequestSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("get_salon"), slug: z.string().trim().min(1).max(120) }),
+  z.object({ action: z.literal("get_booking"), slug: z.string().trim().min(1).max(120), booking_token: z.string().uuid() }),
+  z.object({
+    action: z.literal("get_availability"),
+    slug: z.string().trim().min(1).max(120),
+    date: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/),
+    service_ids: z.array(z.string().uuid()).min(1).max(9),
+  }),
+  z.object({ action: z.literal("lookup_customer"), slug: z.string().trim().min(1).max(120), email: z.string().trim().email().max(255) }),
+  z.object({
+    action: z.literal("create_booking"),
+    slug: z.string().trim().min(1).max(120),
+    customer: z.object({
+      name: z.string().trim().min(2).max(120),
+      email: z.string().trim().email().max(255),
+      phone: z.string().trim().min(6).max(40),
+      marketing_consent: z.boolean().optional().default(false),
+      privacy_consent: z.boolean().optional().default(true),
+      accepted_glowsuite_terms: z.boolean().optional().default(false),
+      accepted_salon_terms: z.boolean().optional().default(false),
+      accepted_terms_at: z.string().datetime().optional().nullable(),
+      preferred_language: z.enum(["nl","en","de","fr","es"]).optional(),
+    }),
+    date: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/),
+    time: z.string().trim().regex(/^\d{2}:\d{2}$/),
+    service_id: z.string().uuid(),
+    employee: z.string().trim().max(80).optional().nullable(),
+    group_members: z.array(z.object({
+      name: z.string().trim().min(1).max(120),
+      service_id: z.string().uuid(),
+      time: z.string().trim().regex(/^\d{2}:\d{2}$/).optional(),
+      employee: z.string().trim().max(80).optional().nullable(),
+    })).max(8).optional().default([]),
+    payment: z.object({ required: z.boolean(), amount: z.number().min(0).max(100000), type: z.enum(["deposit", "full", "remainder"]).optional().default("deposit"), method: z.enum(["ideal", "bancontact", "creditcard", "applepay", "paypal"]).optional().default("ideal") }),
+    notes: z.string().trim().max(1000).optional().default(""),
+    language: z.enum(["nl","en","de","fr","es"]).optional(),
+    rebook_token: z.string().uuid().optional().nullable(),
+  }),
+]);
+
+type ServiceRow = { id: string; name: string; duration_minutes: number; price: number; color?: string | null; description?: string | null; translations?: Record<string, { name?: string; description?: string; category?: string }> | null; category?: string | null; user_id: string };
+
+type EmployeeRow = ScheduleEmployee & { name: string; role: string | null; photo_url: string | null };
+
+type SalonContext = {
+  settings: any;
+  services: ServiceRow[];
+  employees: EmployeeRow[];
+};
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+}
+
+function slugify(value: string) {
+  return value.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
+async function getSalon(supabase: ReturnType<typeof createClient>, slug: string): Promise<SalonContext | null> {
+  const normalized = slugify(slug);
+  const { data: settingsRows, error } = await supabase
+    .from("settings")
+    .select("id, user_id, salon_name, opening_hours, demo_mode, is_demo, deposit_new_client, deposit_percentage, full_prepay_threshold, skip_prepay_vip, deposit_noshow_risk, group_bookings_enabled, mollie_mode, whitelabel_branding, public_slug, show_prices_online, public_employees_enabled, cancellation_notice, payment_provider, payment_provider_fallback_enabled")
+    .or(`public_slug.eq.${normalized},public_slug.eq.${slug}`)
+    .limit(1);
+
+  if (error) throw error;
+  let settings = settingsRows?.[0];
+
+  if (!settings) {
+    const { data: fallbackRows } = await supabase
+      .from("settings")
+      .select("id, user_id, salon_name, opening_hours, demo_mode, is_demo, deposit_new_client, deposit_percentage, full_prepay_threshold, skip_prepay_vip, deposit_noshow_risk, group_bookings_enabled, mollie_mode, whitelabel_branding, public_slug, show_prices_online, public_employees_enabled, cancellation_notice, payment_provider, payment_provider_fallback_enabled")
+      .limit(200);
+    settings = fallbackRows?.find((row: any) => slugify(row.salon_name || "") === normalized);
+  }
+
+  if (!settings) return null;
+
+  const { data: services, error: serviceError } = await supabase
+    .from("services")
+    .select("id, user_id, name, duration_minutes, price, color, description, category, translations")
+    .eq("user_id", settings.user_id)
+    .eq("is_active", true)
+    .eq("is_online_bookable", true)
+    .eq("is_internal_only", false)
+    .order("name", { ascending: true });
+
+  if (serviceError) throw serviceError;
+
+  // Only active employees of THIS salon, in the same demo/live mode as the salon.
+  const { data: employees, error: employeeError } = await supabase
+    .from("employees")
+    .select("id, name, role, photo_url, is_active, status, status_from, status_until, working_days, breaks, break_start, break_end, weekly_schedule, services, sort_order")
+    .eq("user_id", settings.user_id)
+    .eq("is_active", true)
+    .eq("is_demo", Boolean(settings.is_demo || settings.demo_mode))
+    .order("sort_order", { ascending: true });
+  if (employeeError) throw employeeError;
+
+  return { settings, services: services || [], employees: (employees || []) as EmployeeRow[] };
+}
+
+function safeSalonPayload(ctx: SalonContext) {
+  const branding = ctx.settings.whitelabel_branding || {};
+  return {
+    salon: {
+      slug: ctx.settings.public_slug,
+      name: ctx.settings.salon_name || branding.salon_name || "Salon",
+      logo_url: branding.logo_url || "",
+      primary_color: branding.primary_color || "#7B61FF",
+      secondary_color: branding.secondary_color || "#C850C0",
+      opening_hours: ctx.settings.opening_hours,
+      demo_mode: Boolean(ctx.settings.demo_mode),
+      group_bookings_enabled: Boolean(ctx.settings.group_bookings_enabled),
+      show_prices_online: ctx.settings.show_prices_online !== false,
+      public_employees_enabled: ctx.settings.public_employees_enabled !== false,
+      cancellation_notice: ctx.settings.cancellation_notice || "Annuleer of verplaats je afspraak minimaal 24 uur van tevoren.",
+      booking_rules: {
+        deposit_new_client: ctx.settings.deposit_new_client ?? true,
+        deposit_percentage: ctx.settings.deposit_percentage ?? 50,
+        full_prepay_threshold: Number(ctx.settings.full_prepay_threshold || 150),
+        skip_prepay_vip: ctx.settings.skip_prepay_vip ?? false,
+        deposit_noshow_risk: ctx.settings.deposit_noshow_risk ?? true,
+        mollie_mode: ctx.settings.mollie_mode || "test",
+      },
+      language_config: {
+        default_language: (ctx.settings as any).language || "nl",
+        active_languages: Array.isArray((ctx.settings as any).active_languages) && (ctx.settings as any).active_languages.length
+          ? (ctx.settings as any).active_languages
+          : ["nl", "en", "de", "fr", "es"],
+        allow_customer_language_switch: (ctx.settings as any).allow_customer_language_switch !== false,
+        auto_detect_language: (ctx.settings as any).auto_detect_language !== false,
+      },
+    },
+    services: ctx.services.map((service) => ({
+      id: service.id,
+      name: service.name,
+      duration: service.duration_minutes,
+      price: ctx.settings.show_prices_online === false ? 0 : Number(service.price || 0),
+      color: service.color,
+      description: service.description,
+      category: service.category || null,
+      translations: service.translations || {},
+    })),
+    employees: ctx.settings.public_employees_enabled === false ? [] : ctx.employees.map((e) => ({
+      id: e.id,
+      name: e.name,
+      role: e.role || "",
+      photo_url: e.photo_url || null,
+      service_ids: ctx.services.filter((svc) => canDoService(e, svc)).map((svc) => svc.id),
+    })),
+    availability_version: 2,
+  };
+}
+
+// Europe/Amsterdam wall-clock time -> UTC, correct in summer and winter time.
+function combineDateTime(date: string, time: string) {
+  return amsterdamToUtc(date, time);
+}
+
+function overlaps(startA: Date, endA: Date, startB: Date, endB: Date) {
+  return startA < endB && startB < endA;
+}
+
+function addMinutesToTime(time: string, minutes: number) {
+  const [hour, minute] = time.split(":").map(Number);
+  const total = hour * 60 + minute + minutes;
+  const nextHour = Math.floor(total / 60) % 24;
+  const nextMinute = total % 60;
+  return `${String(nextHour).padStart(2, "0")}:${String(nextMinute).padStart(2, "0")}:00`;
+}
+
+async function sendWhiteLabelEmail(supabase: ReturnType<typeof createClient>, body: Record<string, unknown>) {
+  const { error } = await supabase.functions.invoke("send-white-label-email", { body });
+  if (error) console.error("White-label email failed", error.message);
+}
+
+function scheduleStaff(ctx: SalonContext): ScheduleEmployee[] {
+  if (ctx.employees.length) return ctx.employees;
+  // Salon without employees: one salon-wide calendar, opening hours only (previous behaviour).
+  return [{ id: SALON_WIDE, weekly_schedule: null, working_days: [1, 2, 3, 4, 5, 6, 7], services: [] }];
+}
+
+function todayAmsterdam() {
+  return utcToAmsterdam(new Date());
+}
+
+async function loadDay(supabase: ReturnType<typeof createClient>, ctx: SalonContext, date: string) {
+  const userId = ctx.settings.user_id;
+  // Local-day bounds in UTC (DST-safe), widened by a day so long treatments are never missed.
+  const from = new Date(amsterdamToUtc(date, "00:00").getTime() - 24 * 3600000).toISOString();
+  const to = new Date(amsterdamToUtc(date, "23:59").getTime() + 60000).toISOString();
+  const [{ data: existing, error }, { data: exceptions, error: exError }] = await Promise.all([
+    supabase.from("appointments")
+      .select("appointment_date, end_time, employee_id, status")
+      .eq("user_id", userId)
+      .gte("appointment_date", from)
+      .lte("appointment_date", to)
+      .not("status", "in", "(geannuleerd,cancelled)"),
+    supabase.from("employee_availability_exceptions")
+      .select("employee_id, type, start_date, end_date, start_time, end_time, days_of_week")
+      .eq("user_id", userId)
+      .lte("start_date", date),
+  ]);
+  if (error) throw error;
+  if (exError) throw exError;
+  const ids = new Set(ctx.employees.map((e) => e.id));
+  const now = todayAmsterdam();
+  return {
+    date,
+    opening: ctx.settings.opening_hours || null,
+    // Appointments of unknown employees (other salon / deleted) are treated as salon-wide blocks.
+    // Unknown, former, sample (e.g. "Bas") or missing employee ids block the whole salon.
+    busy: busyFromAppointments(date, normalizeBusyEmployees((existing || []) as any[], ids)),
+    exceptions: ((exceptions || []) as any[]).filter((ex: any) => ids.has(ex.employee_id)),
+    notBefore: date === now.date ? now.minutes + 15 : undefined,
+  };
+}
+
+/** Server-side availability decision. Returns the rows with verified employee ids, or null. */
+async function assertAvailability(supabase: ReturnType<typeof createClient>, ctx: SalonContext, date: string, bookings: Array<{ time: string; service: ServiceRow; employee: string | null }>): Promise<{ ids: Array<string | null> } | { code: "slot_unavailable" | "booking_page_outdated" }> {
+  if (date < todayAmsterdam().date) return { code: "slot_unavailable" };
+  // A requested employee must be a real employee id of this salon. Old booking pages send names
+  // (e.g. "Bas"): refuse explicitly instead of silently picking someone else.
+  const known = new Set(ctx.settings.public_employees_enabled === false ? [] : ctx.employees.map((e) => e.id));
+  if (bookings.some((b) => b.employee && !known.has(b.employee))) return { code: "booking_page_outdated" };
+  const day = await loadDay(supabase, ctx, date);
+  const result = resolveBooking(scheduleStaff(ctx), day, bookings.map((b) => ({ service: b.service, time: b.time, employee: b.employee })));
+  if (!result.ok) return { code: "slot_unavailable" };
+  return { ids: result.rows.map((r) => (r.employee === SALON_WIDE ? null : r.employee)) };
+}
+
+const OUTDATED_MSG = "Deze boekingspagina is verouderd. Vernieuw de pagina en kies opnieuw een medewerker en tijd.";
+
+async function createMolliePayment(args: { req: Request; supabase: ReturnType<typeof createClient>; amount: number; paymentType: string; method: string; appointmentId: string; customerId: string; salonId: string; salonOwnerId: string; settingsId: string; bookingToken: string; isDemo: boolean }) {
+  if (args.isDemo) {
+    return { demo: true, status: "paid", mollieId: `demo_${crypto.randomUUID().slice(0, 8)}`, checkoutUrl: null };
+  }
+
+  const { data: connection } = await args.supabase
+    .from("mollie_connections")
+    .select("*")
+    .eq("user_id", args.salonOwnerId)
+    .eq("salon_id", args.settingsId)
+    .eq("is_active", true)
+    .is("disconnected_at", null)
+    .maybeSingle();
+  if (!connection) {
+    return { setupError: "Mollie is nog niet gekoppeld. Je afspraak is opgeslagen, maar betaling kon niet worden gestart." };
+  }
+
+  const origin = args.req.headers.get("origin") || "https://glowsuite.nl";
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const mollieResponse = await fetch("https://api.mollie.com/v2/payments", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${(connection as any).mollie_access_token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      amount: { currency: "EUR", value: args.amount.toFixed(2) },
+      description: `GlowSuite ${args.paymentType === "deposit" ? "aanbetaling" : "betaling"}`,
+      redirectUrl: `${origin}/boeken/${args.salonId}?status=payment-return&booking=${args.bookingToken}`,
+      webhookUrl: `${supabaseUrl}/functions/v1/mollie-webhook`,
+      method: args.method,
+      metadata: {
+        appointment_id: args.appointmentId,
+        customer_id: args.customerId,
+        salon_id: args.salonOwnerId,
+        booking_token: args.bookingToken,
+        payment_type: args.paymentType,
+      },
+    }),
+  });
+  const mollieData = await mollieResponse.json();
+  if (!mollieResponse.ok) return { setupError: "Betaling kon niet worden gestart. Je afspraak is opgeslagen met betaalstatus in afwachting.", raw: mollieData };
+  return { demo: false, status: "pending", mollieId: mollieData.id, checkoutUrl: mollieData._links?.checkout?.href || null };
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method !== "POST") return json({ error: "Methode niet toegestaan" }, 405);
+
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, serviceKey);
+
+    const rawBody = await req.json();
+    // Lets the admin app confirm the server enforces weekly schedules before showing the editor.
+    if (rawBody && rawBody.action === "get_capabilities") return json({ availability_version: 2 });
+    const parsed = RequestSchema.safeParse(rawBody);
+    if (!parsed.success) return json({ error: "Ongeldige invoer", details: parsed.error.flatten().fieldErrors }, 400);
+
+    const ctx = await getSalon(supabase, parsed.data.slug);
+    if (!ctx) return json({ error: "Deze boekingspagina bestaat niet." }, 404);
+
+    if (parsed.data.action === "get_salon") return json(safeSalonPayload(ctx));
+
+    if (parsed.data.action === "get_availability") {
+      const { date, service_ids } = parsed.data;
+      if (date < todayAmsterdam().date) return json({ date, slots: {} });
+      const day = await loadDay(supabase, ctx, date);
+      const staff = scheduleStaff(ctx);
+      // Hidden employees or no employees: anonymous keys only, never ids or names.
+      const publicStaff = ctx.settings.public_employees_enabled !== false && ctx.employees.length > 0;
+      const svcs = service_ids.map((id) => ctx.services.find((s) => s.id === id)).filter(Boolean) as ServiceRow[];
+      const slots = availabilitySlots(staff, day, svcs, { publicStaff });
+      return json({ date, slots });
+    }
+
+    if (parsed.data.action === "get_booking") {
+      const { data: appointment, error: appointmentError } = await supabase
+        .from("appointments")
+        .select("id, booking_reference, booking_token, appointment_date, start_time, employee_id, payment_status, status, service_id, services(name)")
+        .eq("user_id", ctx.settings.user_id)
+        .eq("booking_token", parsed.data.booking_token)
+        .maybeSingle();
+      if (appointmentError) throw appointmentError;
+      if (!appointment) return json({ error: "Boeking niet gevonden." }, 404);
+      return json({
+        appointment,
+        confirmation: {
+          salon_name: ctx.settings.salon_name,
+          service_name: (appointment as any).services?.name || "Behandeling",
+          employee: appointment.employee_id,
+          date: String(appointment.appointment_date).slice(0, 10),
+          time: String(appointment.start_time || "").slice(0, 5),
+          reference: appointment.booking_reference,
+          payment_status: appointment.payment_status,
+          status: appointment.status,
+        },
+      });
+    }
+
+    if (parsed.data.action === "lookup_customer") {
+      const email = parsed.data.email.toLowerCase();
+      const { data: customer } = await supabase
+        .from("customers")
+        .select("id, name, phone, preferred_language")
+        .eq("user_id", ctx.settings.user_id)
+        .ilike("email", email)
+        .maybeSingle();
+      if (!customer) return json({ customer: null, recentAppointments: [] });
+      const { data: appts } = await supabase
+        .from("appointments")
+        .select("id, service_id, appointment_date")
+        .eq("user_id", ctx.settings.user_id)
+        .eq("customer_id", customer.id)
+        .order("appointment_date", { ascending: false })
+        .limit(3);
+      return json({ customer: { name: customer.name, phone: customer.phone || "", preferred_language: (customer as any).preferred_language || null }, recentAppointments: appts || [] });
+    }
+
+    const data = parsed.data;
+    const serviceMap = new Map(ctx.services.map((service) => [service.id, service]));
+    const mainService = serviceMap.get(data.service_id);
+    if (!mainService) return json({ error: "Deze behandeling is niet meer beschikbaar." }, 410);
+
+    const bookingRows = [
+      { name: data.customer.name, service: mainService, time: data.time, employee: data.employee || null },
+      ...data.group_members.map((member) => {
+        const memberService = serviceMap.get(member.service_id);
+        if (!memberService) throw new Error("Een gekozen groepsbehandeling is niet meer beschikbaar.");
+        return { name: member.name, service: memberService, time: member.time || data.time, employee: member.employee || null };
+      }),
+    ];
+
+    const assigned = await assertAvailability(supabase, ctx, data.date, bookingRows);
+    if ("code" in assigned) {
+      return assigned.code === "booking_page_outdated"
+        ? json({ error: OUTDATED_MSG, code: "booking_page_outdated" }, 409)
+        : json({ error: "Deze tijd is niet (meer) beschikbaar. Kies een nieuw moment.", code: "slot_unavailable" }, 409);
+    }
+    // From here on only server-verified employee ids are used.
+    bookingRows.forEach((row, i) => { row.employee = assigned.ids[i]; });
+
+    const email = data.customer.email.toLowerCase();
+    const { data: existingCustomer } = await supabase
+      .from("customers")
+      .select("id, is_vip, no_show_count, cancellation_count, total_visits")
+      .eq("user_id", ctx.settings.user_id)
+      .ilike("email", email)
+      .maybeSingle();
+
+    let customerId = existingCustomer?.id;
+    const preferredLanguage = (data.customer as any).preferred_language || (data as any).language || null;
+    if (!customerId) {
+      const { data: newCustomer, error: customerError } = await supabase
+        .from("customers")
+        .insert({
+          user_id: ctx.settings.user_id,
+          is_demo: Boolean(ctx.settings.is_demo || ctx.settings.demo_mode),
+          name: data.customer.name,
+          email,
+          phone: data.customer.phone,
+          marketing_consent: data.customer.marketing_consent,
+          privacy_consent: data.customer.privacy_consent,
+          preferred_language: preferredLanguage || "nl",
+          notes: ctx.settings.demo_mode ? "Demo boeking via online boeken" : "Aangemaakt via online boeken",
+        })
+        .select("id")
+        .single();
+      if (customerError) throw customerError;
+      customerId = newCustomer.id;
+    } else if (preferredLanguage) {
+      // Update existing customer's language preference (non-fatal)
+      await supabase
+        .from("customers")
+        .update({ preferred_language: preferredLanguage })
+        .eq("id", customerId)
+        .eq("user_id", ctx.settings.user_id);
+    }
+
+    // ---- SERVER-SIDE DEPOSIT DECISION (single source of truth) ----
+    // Ignore whatever the browser sent in `serverPayment.required` / `serverPayment.amount`.
+    // Only `serverPayment.method` is honored as a display hint.
+    const totalPriceEuros = bookingRows.reduce((sum, row) => sum + Number(row.service.price || 0), 0);
+    const decision = decideDeposit({
+      settings: ctx.settings,
+      customer: existingCustomer || null,
+      isNewCustomer: !existingCustomer,
+      servicePriceEuros: totalPriceEuros,
+    });
+    const serverPayment = {
+      required: decision.required,
+      amount: decision.amount_euros,
+      type: decision.type === "full" ? ("full" as const) : ("deposit" as const),
+      method: data.payment?.method || "ideal",
+    };
+    console.log("[public-booking] deposit decision", {
+      salon_id: ctx.settings.user_id,
+      customer_id: customerId,
+      new_customer: !existingCustomer,
+      total_price: totalPriceEuros,
+      risk_score: decision.risk_score,
+      risk_level: decision.risk_level,
+      required: decision.required,
+      amount: decision.amount_euros,
+      reason: decision.reason,
+    });
+
+    // ---- AUTO REBOOK ATTRIBUTION ----
+    // A valid, unused token proves this booking came from an Auto Rebook message.
+    // Token lifecycle + server-side identity check. A forwarded link still
+    // books normally, it just never attributes revenue to the wrong customer.
+    let rebookAction: { id: string; customer_id: string | null; service_id: string | null } | null = null;
+    if (data.rebook_token) {
+      const { data: ra } = await supabase
+        .from("rebook_actions")
+        .select("id, customer_id, service_id, booked_at, status, token_expires_at")
+        .eq("rebook_token", data.rebook_token)
+        .eq("user_id", ctx.settings.user_id)
+        .maybeSingle();
+
+      const expired = ra?.token_expires_at ? new Date(ra.token_expires_at).getTime() < Date.now() : false;
+      const cancelled = ["suppressed", "vervallen", "mislukt"].includes(String(ra?.status || ""));
+      const identityMatches = Boolean(ra?.customer_id) && ra?.customer_id === customerId;
+
+      if (!ra) {
+        console.log("[public-booking] rebook token unknown");
+      } else if (ra.booked_at) {
+        console.log("[public-booking] rebook token already used", { action_id: ra.id });
+      } else if (expired || cancelled) {
+        console.log("[public-booking] rebook token no longer valid", { action_id: ra.id, expired, cancelled });
+      } else if (!identityMatches) {
+        // Forwarded link: booking proceeds as a normal online booking.
+        console.log("[public-booking] rebook token customer mismatch", { action_id: ra.id });
+      } else {
+        rebookAction = { id: ra.id, customer_id: ra.customer_id, service_id: ra.service_id };
+      }
+    }
+
+    const appointmentsToInsert = bookingRows.map((row, index) => {
+      const start = combineDateTime(data.date, row.time);
+      const end = new Date(start.getTime() + row.service.duration_minutes * 60000);
+      const notesParts = [data.notes, index > 0 ? `Groepsboeking voor ${row.name}` : "Online boeking"];
+      if (decision.required) notesParts.push(`[deposit:${decision.reason} · risk=${decision.risk_level}/${decision.risk_score}]`);
+      return {
+        user_id: ctx.settings.user_id,
+        is_demo: Boolean(ctx.settings.is_demo || ctx.settings.demo_mode),
+        customer_id: customerId,
+        service_id: row.service.id,
+        appointment_date: start.toISOString(),
+        start_time: row.time,
+        end_time: addMinutesToTime(row.time, row.service.duration_minutes),
+        employee_id: row.employee,
+        price: Number(row.service.price || 0),
+        notes: notesParts.filter(Boolean).join(" · "),
+        status: serverPayment.required ? "pending_confirmation" : "confirmed",
+        payment_status: serverPayment.required ? "pending" : "unpaid",
+        payment_required: serverPayment.required,
+        deposit_amount: serverPayment.required ? serverPayment.amount : 0,
+        source: index === 0 && rebookAction ? "auto_rebook" : "online_booking",
+        booking_group_id: null, // set by the RPC; this array is only used for rebook attribution prices
+        payment_type: serverPayment.type,
+        accepted_glowsuite_terms: Boolean(data.customer.accepted_glowsuite_terms),
+        accepted_salon_terms: Boolean(data.customer.accepted_salon_terms),
+        accepted_terms_at: data.customer.accepted_terms_at ?? ((data.customer.accepted_glowsuite_terms && data.customer.accepted_salon_terms) ? new Date().toISOString() : null),
+      };
+    });
+
+    // ---- ATOMIC SAVE (Agenda 3.0) ----
+    // Lock + re-check + insert of every line + employee links in ONE database transaction
+    // (create_public_booking_atomic, service_role only). No direct insert fallback, ever.
+    const atomicArgs = buildAtomicBookingArgs({
+      slug: ctx.settings.public_slug,
+      date: data.date,
+      rows: bookingRows.map((r) => ({ name: r.name, time: r.time, employee: r.employee, service: r.service })),
+      notes: data.notes,
+      depositTag: decision.required ? `[deposit:${decision.reason} · risk=${decision.risk_level}/${decision.risk_score}]` : null,
+      customerId: customerId!,
+      paymentRequired: serverPayment.required,
+      paymentAmount: serverPayment.amount,
+      paymentType: serverPayment.type,
+      rebook: Boolean(rebookAction),
+      acceptedGlowsuiteTerms: Boolean(data.customer.accepted_glowsuite_terms),
+      acceptedSalonTerms: Boolean(data.customer.accepted_salon_terms),
+      acceptedTermsAt: data.customer.accepted_terms_at,
+      nowIso: new Date().toISOString(),
+    });
+    if (!atomicArgs) {
+      console.error("[public-booking] atomic booking refused before call", { salon_id: ctx.settings.user_id, has_slug: Boolean(ctx.settings.public_slug) });
+      return json({ error: UNAVAILABLE_MSG, code: "booking_unavailable" }, 503);
+    }
+    let rpcRes: { data: unknown; error: unknown };
+    try {
+      rpcRes = await supabase.rpc("create_public_booking_atomic", atomicArgs);
+    } catch (e) {
+      rpcRes = { data: null, error: e };
+    }
+    if (rpcRes.error) console.error("[public-booking] create_public_booking_atomic error", (rpcRes.error as any)?.code || "exception");
+    const outcome = interpretAtomicResult(rpcRes, bookingRows.length);
+    if (!outcome.ok) return json(outcome.body, outcome.status);
+    const bookingGroupId = outcome.bookingGroupId;
+
+    // booking_reference is set by the existing insert trigger; read it after commit (read-only).
+    const { data: refs } = await supabase.from("appointments").select("id, booking_reference")
+      .eq("user_id", ctx.settings.user_id).in("id", outcome.appointments.map((a) => a.id));
+    const refById = new Map(((refs || []) as any[]).map((r) => [r.id, r.booking_reference]));
+    const appointments = outcome.appointments.map((a) => ({
+      id: a.id, booking_token: a.booking_token, booking_reference: refById.get(a.id) ?? null,
+      appointment_date: a.appointment_date, start_time: a.start_time, end_time: a.end_time,
+      employee_id: a.employee_id, service_id: a.service_id, payment_status: a.payment_status, status: a.status,
+    }));
+
+    if (rebookAction && appointments?.[0]) {
+      // GROUP BOOKINGS: attribute only the single appointment that belongs to
+      // the original Auto Rebook context (the rebooked customer's own line).
+      // Extra people in a group booking are never counted as rebook revenue.
+      const primaryIndex = rebookAction.service_id
+        ? Math.max(0, appointmentsToInsert.findIndex((r) => r.service_id === rebookAction!.service_id))
+        : 0;
+      const primary = appointments[primaryIndex] || appointments[0];
+      const attributed = Number(appointmentsToInsert[primaryIndex]?.price || appointmentsToInsert[0]?.price || 0);
+      await supabase.from("rebook_actions").update({
+        status: "geboekt",
+        booked_at: new Date().toISOString(),
+        appointment_id: primary.id,
+        attributed_revenue: attributed,
+      }).eq("id", rebookAction.id).is("booked_at", null);
+    }
+
+    const primaryAppointment = appointments?.[0];
+    let checkoutUrl: string | null = null;
+    let paymentStatus = primaryAppointment?.payment_status || "unpaid";
+    let paymentInitError: string | null = null;
+
+    if (serverPayment.required && primaryAppointment) {
+      const providerSetting = ((ctx.settings as any).payment_provider as string) || "mollie";
+      const fallbackEnabled = Boolean((ctx.settings as any).payment_provider_fallback_enabled);
+      let provider = providerSetting;
+      const isDemo = Boolean(ctx.settings.demo_mode);
+      const salonSlugForMeta = ctx.settings.public_slug || slugify(ctx.settings.salon_name || "salon");
+
+      if (provider === "viva") {
+        // Viva flow
+        if (isDemo) {
+          const fakeOrderCode = `demo_viva_${crypto.randomUUID().slice(0, 8)}`;
+          checkoutUrl = `/boeken/${salonSlugForMeta}?status=demo-viva-payment&booking=${primaryAppointment.booking_token}`;
+          paymentStatus = "paid";
+          await supabase.from("payments").insert({
+            user_id: ctx.settings.user_id,
+            appointment_id: primaryAppointment.id,
+            customer_id: customerId,
+            mollie_payment_id: fakeOrderCode,
+            checkout_reference: fakeOrderCode,
+            amount: serverPayment.amount,
+            currency: "EUR",
+            payment_type: serverPayment.type,
+            status: "paid",
+            method: "viva",
+            is_demo: true,
+            provider: "viva",
+            metadata: {
+              provider: "viva",
+              source: "public_booking",
+              viva_order_code: fakeOrderCode,
+              appointment_id: primaryAppointment.id,
+              customer_id: customerId,
+              salon_id: salonSlugForMeta,
+              booking_token: primaryAppointment.booking_token,
+              payment_type: serverPayment.type,
+              simulated: true,
+            },
+          });
+        } else if (!isVivaConfigured()) {
+          if (fallbackEnabled) {
+            console.warn("[public-booking] Viva not configured, falling back to Mollie");
+            provider = "mollie";
+          } else {
+            paymentInitError = "Viva is nog niet gekoppeld. Je afspraak is opgeslagen, maar betaling kon niet worden gestart.";
+            paymentStatus = "payment_pending";
+          }
+        } else {
+          try {
+            const origin = req.headers.get("origin") || "https://glowsuite.nl";
+            const returnUrl = `${origin}/boeken/${salonSlugForMeta}?status=payment-return&booking=${primaryAppointment.booking_token}`;
+            const order = await createVivaOrder({
+              amountCents: Math.round(Number(serverPayment.amount) * 100),
+              description: `GlowSuite ${serverPayment.type === "deposit" ? "aanbetaling" : "betaling"}`,
+              customerEmail: email,
+              customerFullName: data.customer.name,
+              customerPhone: data.customer.phone,
+              successUrl: returnUrl,
+              failureUrl: returnUrl,
+              source: "public_booking",
+              paymentType: serverPayment.type === "deposit" ? "deposit" : "full",
+            });
+            checkoutUrl = vivaCheckoutUrl(order.orderCode);
+            paymentStatus = "pending";
+            await supabase.from("payments").insert({
+              user_id: ctx.settings.user_id,
+              appointment_id: primaryAppointment.id,
+              customer_id: customerId,
+              mollie_payment_id: order.orderCode,
+              checkout_reference: order.orderCode,
+              amount: serverPayment.amount,
+              currency: "EUR",
+              payment_type: serverPayment.type,
+              status: "pending",
+              method: "viva",
+              is_demo: false,
+              provider: "viva",
+              metadata: {
+                provider: "viva",
+                source: "public_booking",
+                viva_order_code: order.orderCode,
+                appointment_id: primaryAppointment.id,
+                customer_id: customerId,
+                salon_id: salonSlugForMeta,
+                booking_token: primaryAppointment.booking_token,
+                payment_type: serverPayment.type,
+                checkout_url: checkoutUrl,
+              },
+            });
+          } catch (e) {
+            console.error("Viva order failed (public booking)", e);
+            if (fallbackEnabled) {
+              console.warn("[public-booking] Viva failed, falling back to Mollie");
+              provider = "mollie";
+            } else {
+              paymentInitError = "Betaling kon niet worden gestart. Je afspraak is opgeslagen met betaalstatus in afwachting.";
+              paymentStatus = "payment_pending";
+            }
+          }
+        }
+      }
+      if (provider === "mollie") {
+        // Mollie (default fallback) — unchanged
+        const payment = await createMolliePayment({
+          req,
+          supabase,
+          amount: serverPayment.amount,
+          paymentType: serverPayment.type,
+          method: serverPayment.method,
+          appointmentId: primaryAppointment.id,
+          customerId,
+          salonId: salonSlugForMeta,
+          salonOwnerId: ctx.settings.user_id,
+          settingsId: ctx.settings.id,
+          bookingToken: primaryAppointment.booking_token,
+          isDemo,
+        });
+        if (payment.setupError) {
+          paymentInitError = payment.setupError;
+          paymentStatus = "payment_pending";
+        } else {
+          paymentStatus = payment.demo ? "paid" : "pending";
+          checkoutUrl = payment.checkoutUrl;
+          await supabase.from("payments").insert({
+            user_id: ctx.settings.user_id,
+            appointment_id: primaryAppointment.id,
+            customer_id: customerId,
+            mollie_payment_id: payment.mollieId,
+            amount: serverPayment.amount,
+            currency: "EUR",
+            payment_type: serverPayment.type,
+            status: paymentStatus,
+            method: serverPayment.method,
+            mollie_method: serverPayment.method,
+            is_demo: isDemo,
+            provider: Boolean(ctx.settings.is_demo || ctx.settings.demo_mode) ? "demo" : "mollie",
+            checkout_reference: primaryAppointment.booking_reference,
+            metadata: {
+              appointment_id: primaryAppointment.id,
+              customer_id: customerId,
+              salon_id: salonSlugForMeta,
+              booking_token: primaryAppointment.booking_token,
+              payment_type: serverPayment.type,
+            },
+          });
+        }
+      }
+
+      const nextPaymentStatus = paymentStatus === "paid" ? "paid" : paymentInitError ? "payment_failed" : "pending";
+      if (bookingGroupId) await supabase.from("appointments").update({ payment_status: nextPaymentStatus, status: paymentStatus === "paid" ? "confirmed" : "pending_confirmation" }).eq("booking_group_id", bookingGroupId).eq("user_id", ctx.settings.user_id);
+      await supabase.from("appointments").update({ payment_status: nextPaymentStatus, status: paymentStatus === "paid" ? "confirmed" : "pending_confirmation" }).eq("id", primaryAppointment.id);
+    }
+
+    if (primaryAppointment) {
+      const salonSlug = ctx.settings.public_slug || slugify(ctx.settings.salon_name || "salon");
+      // No .ics link: no calendar endpoint exists. The booking_token identifies the appointment
+      // for the manage link; the secure renderer builds links from server data only.
+      const employeeName = ctx.employees.find((e) => e.id === primaryAppointment.employee_id)?.name || null;
+      await sendWhiteLabelEmail(supabase, {
+        user_id: ctx.settings.user_id,
+        salon_slug: salonSlug,
+        salon_name: ctx.settings.salon_name || "Salon",
+        recipient_email: email,
+        recipient_name: data.customer.name,
+        template_key: "booking_confirmation",
+        appointment_id: primaryAppointment.id,
+        booking_token: primaryAppointment.booking_token,
+        idempotency_key: `booking-confirmation-${primaryAppointment.id}`,
+        language: preferredLanguage || undefined,
+        template_data: {
+          customer_name: data.customer.name,
+          service_name: mainService.name,
+          appointment_date: primaryAppointment.appointment_date,
+          date: data.date,
+          time: data.time,
+          employee: employeeName,
+          reference: primaryAppointment.booking_reference,
+          total_amount: serverPayment.required ? serverPayment.amount : Number(mainService.price || 0),
+          booking_token: primaryAppointment.booking_token,
+          // Valid manage page on the main domain (current renderer would otherwise fall back to a salon subdomain).
+          manage_url: primaryAppointment.booking_token ? `https://glowsuite.nl/mijn-afspraak/${primaryAppointment.booking_token}` : undefined,
+        },
+      });
+
+      // Fire-and-forget WhatsApp confirmation (does not block booking flow).
+      // Skip if payment is required and not yet paid — confirmation is then sent by mollie-webhook.
+      try {
+        const { data: waSettings } = await supabase
+          .from("whatsapp_settings")
+          .select("enabled, send_booking_confirmation")
+          .eq("user_id", ctx.settings.user_id)
+          .maybeSingle();
+
+        const shouldSendNow = !serverPayment.required || paymentStatus === "paid";
+
+        if (shouldSendNow && waSettings?.enabled && waSettings?.send_booking_confirmation && data.customer.phone) {
+          // Canonical claim — one booking_confirmation per appointment across
+          // channels. If the payment webhook has already dispatched one, this
+          // no-ops safely.
+          const claimed = await claimReminderDispatch(
+            supabase as any,
+            primaryAppointment.id,
+            "booking_confirmation",
+            "whatsapp",
+          );
+          if (!claimed) {
+            console.log("booking_confirmation already_claimed", primaryAppointment.id);
+          } else {
+            // Load template
+            const { data: tpl } = await supabase
+              .from("whatsapp_templates")
+              .select("content, is_active")
+              .eq("user_id", ctx.settings.user_id)
+              .eq("template_type", "booking_confirmation")
+              .maybeSingle();
+
+            const waLang = normalizeMessageLang(preferredLanguage || (ctx.settings as any).language || "nl");
+            const templateContent = (tpl?.is_active === false ? null : tpl?.content)
+              || getDefaultMessageTemplate("booking_confirmation", waLang, "whatsapp");
+
+            const dateStr = new Date(data.date).toLocaleDateString(intlLocale(waLang), { day: "numeric", month: "long", year: "numeric" });
+            const servicesList = bookingRows.map((r) => `• ${r.service.name}`).join("\n");
+            const confirmationLink = buildConfirmationLink(primaryAppointment.booking_token);
+            const rescheduleLink = confirmationLink
+              || `${req.headers.get("origin") || "https://glowsuite.nl"}/afspraak`;
+            if (!primaryAppointment.booking_token) {
+              console.warn("WhatsApp: missing booking_token for reschedule link", primaryAppointment.id);
+            }
+
+            let waMessage = renderMessage(templateContent, {
+              customer_name: data.customer.name,
+              salon_name: ctx.settings.salon_name || "ons salon",
+              appointment_date: dateStr,
+              appointment_time: data.time,
+              services: servicesList,
+              reschedule_link: rescheduleLink,
+              review_link: "",
+              booking_link: rescheduleLink,
+            });
+            waMessage = appendConfirmationBlock(waMessage, confirmationLink, "booking_confirmation", waLang);
+
+            const fnUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/whatsapp-send`;
+            fetch(fnUrl, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+              },
+              body: JSON.stringify({
+                user_id: ctx.settings.user_id,
+                to: data.customer.phone,
+                message: waMessage,
+                customer_id: customerId,
+                appointment_id: primaryAppointment.id,
+                kind: "confirmation",
+                reminder_type: "booking_confirmation",
+                booking_token: primaryAppointment.booking_token,
+                confirmation_link: confirmationLink,
+                meta: { trigger: "booking_created", payment_status: paymentStatus, canonical_key: `reminder:booking_confirmation:${primaryAppointment.id}` },
+              }),
+            }).catch((e) => console.error("WhatsApp send failed", e));
+          }
+        }
+      } catch (waErr) {
+        console.error("WhatsApp dispatch error (non-blocking)", waErr);
+      }
+    }
+
+    return json({
+      success: true,
+      appointment: primaryAppointment,
+      appointments,
+      customer_id: customerId,
+      checkoutUrl,
+      paymentInitError,
+      confirmation: {
+        salon_name: ctx.settings.salon_name,
+        service_name: mainService.name,
+        employee: primaryAppointment?.employee_id,
+        date: data.date,
+        time: data.time,
+        reference: primaryAppointment?.booking_reference,
+        payment_status: paymentStatus,
+      },
+    });
+  } catch (error) {
+    console.error("public-booking unexpected error", error);
+    const msg = (error as Error)?.message || "";
+    // Map common DB errors to friendly Dutch text — never leak constraint names.
+    if (/duplicate key|23505|idx_appointments_unique/i.test(msg)) {
+      return json({ error: "Dit tijdslot is net geboekt. Kies een andere tijd.", code: "slot_unavailable" }, 409);
+    }
+    return json({ error: "Er ging iets mis bij het opslaan van je boeking. Probeer het opnieuw." }, 500);
+  }
+});
