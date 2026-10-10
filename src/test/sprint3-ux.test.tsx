@@ -118,7 +118,7 @@ describe("Sprint 3 snelle start", () => {
   it("houdt bestaande volledige stappen inclusief terugknop bereikbaar", async () => {
     salonDraft(); wizard(); fireEvent.click(screen.getByRole("button", { name: "Meer instellen" }));
     await screen.findByRole("heading", { name: "Betalingen instellen (optioneel)" });
-    fireEvent.click(screen.getByRole("button", { name: "Terug", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: /^Terug$/ }));
     expect(screen.getByLabelText("Hoe heet jouw salon?")).toHaveValue("Fictieve salon");
     fireEvent.click(screen.getByRole("button", { name: "Meer instellen" }));
     await screen.findByRole("heading", { name: "Betalingen instellen (optioneel)" });
