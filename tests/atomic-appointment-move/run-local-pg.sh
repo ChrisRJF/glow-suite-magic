@@ -16,6 +16,7 @@ P="psql -X -q -At -h $BASE/sock -U testsuper"
 AS $P -d postgres -c "create database gs_move" >/dev/null
 AS $P -d gs_move -c "select 'isolated: listen='''||current_setting('listen_addresses')||''' db='||current_database()"
 AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/fixture.sql"
+M=$BASE/2026-10-10_atomic_appointment_move.sql
 # ---- T: transaction safety of step 1 (before the real apply) ----
 SNAP="select md5(string_agg(p.oid::regprocedure::text||coalesce(p.proacl::text,'-')||md5(p.prosrc),'|' order by 1)) from pg_proc p where pronamespace='public'::regnamespace"
 TSNAP="select md5(string_agg(table_name||'.'||column_name||':'||data_type||coalesce(column_default,''),'|' order by 1)) from information_schema.columns where table_schema='public'"
