@@ -653,10 +653,10 @@ export default function InstellingenPage() {
   return (
     <AppLayout title="Instellingen" subtitle="Account en saloninstellingen">
       {/* Tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-3 mb-8 -mx-1 px-1 border-b border-border/50 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
+      <div className="flex w-full min-w-0 max-w-full gap-2 overflow-x-auto pb-3 mb-8 px-1 border-b border-border/50 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
         {tabs.map(t => (
           <button key={t.id} onClick={() => setActiveTab(t.id)}
-            className={`flex items-center gap-2 min-h-10 px-4 py-2.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all ${
+            className={`flex shrink-0 items-center gap-2 min-h-10 px-4 py-2.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all ${
               activeTab === t.id ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
             }`}>
             <t.icon className="w-3.5 h-3.5" />{t.label}
@@ -664,7 +664,7 @@ export default function InstellingenPage() {
         ))}
       </div>
 
-      <div className="grid gap-6 sm:gap-8 max-w-3xl">
+      <div className="grid w-full min-w-0 max-w-3xl grid-cols-[minmax(0,1fr)] gap-6 sm:gap-8">
         {/* Algemeen */}
         {activeTab === "algemeen" && (
           <>
@@ -1391,7 +1391,7 @@ export default function InstellingenPage() {
           </div>
         )}
 
-        {activeTab === "import" && <div className="space-y-6"><ImportWizard /><HistoricalImport /></div>}
+        {activeTab === "import" && <div className="w-full min-w-0 max-w-full space-y-6"><ImportWizard /><HistoricalImport /></div>}
 
         {/* User Roles - Enhanced with add/remove */}
         {activeTab === "rollen" && (
@@ -1506,12 +1506,12 @@ export default function InstellingenPage() {
           </div>
         )}
 
-        <div className="pt-2">
+        {activeTab !== "import" && <div className="pt-2">
           <Button onClick={handleSave} className="w-full" size="lg" disabled={saveLoading}>
             {saveLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
             {saveLoading ? "Opslaan..." : "Opslaan"}
           </Button>
-        </div>
+        </div>}
       </div>
 
       <ConfirmDialog
