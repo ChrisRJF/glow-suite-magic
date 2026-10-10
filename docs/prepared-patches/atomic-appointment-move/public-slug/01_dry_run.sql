@@ -6,7 +6,7 @@ WITH s AS (
          public_slug, pg_temp.gs_slug(salon_name) AS derived
   FROM public.settings
 ), target AS (           -- the value each row will have after the backfill
-  SELECT id, missing, derived, CASE WHEN missing THEN derived ELSE public_slug END AS final_slug FROM s
+  SELECT id, missing, derived, public_slug, CASE WHEN missing THEN derived ELSE public_slug END AS final_slug FROM s
 )
 SELECT 'total='              || count(*)
   || ' missing='             || count(*) FILTER (WHERE missing)
