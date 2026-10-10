@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
@@ -119,19 +119,22 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
     : "";
   const [data, setData] = useState<Data>(EMPTY);
   const [saving, setSaving] = useState(false);
+  const busyRef = useRef(false);
+  const [loadedKey, setLoadedKey] = useState("");
 
   useEffect(() => {
     if (!storageKey || !open) return;
     try {
       const raw = localStorage.getItem(storageKey);
-      if (raw) setData({ ...EMPTY, ...JSON.parse(raw) });
-    } catch {}
+      setData(raw ? { ...EMPTY, ...JSON.parse(raw) } : EMPTY);
+    } catch { setData(EMPTY); }
+    setLoadedKey(storageKey);
   }, [storageKey, open]);
 
   useEffect(() => {
-    if (!storageKey || !open) return;
+    if (!storageKey || !open || loadedKey !== storageKey || data.postWelcome) return;
     try { localStorage.setItem(storageKey, JSON.stringify(data)); } catch {}
-  }, [data, storageKey, open]);
+  }, [data, storageKey, open, loadedKey]);
 
   useEffect(() => {
     if (!user || !open || data.salonName) return;
@@ -160,6 +163,10 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
   const minutesLeft = Math.max(1, Math.round((TOTAL - step - 1) * 0.4));
 
   const onLogoUpload = async (file: File) => {
+    if (previewMode) {
+      setData(d => ({ ...d, logoUrl: URL.createObjectURL(file) }));
+      return;
+    }
     if (!user) return;
     const ext = file.name.split(".").pop() || "png";
     const path = `${user.id}/logo-${Date.now()}.${ext}`;
@@ -171,30 +178,33 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
   };
 
   const saveSalon = async () => {
-    if (!user) return;
+    if (!user) throw new Error("Niet ingelogd");
     // Preview mode: never touch DB, never seed services, never overwrite settings/logo/salon-type.
     if (previewMode) return;
     const name = data.salonName.trim() || "Mijn Salon";
-    await supabase.from("profiles").update({ salon_name: name }).eq("user_id", user.id);
-    const { data: s } = await supabase.from("settings").select("id").eq("user_id", user.id).eq("is_demo", false).maybeSingle();
+    const { error: profileError } = await supabase.from("profiles").update({ salon_name: name }).eq("user_id", user.id);
+    if (profileError) throw profileError;
+    const { data: s, error: settingsError } = await supabase.from("settings").select("id").eq("user_id", user.id).eq("is_demo", false).maybeSingle();
+    if (settingsError) throw settingsError;
     if (s?.id) {
-      await (supabase.from("settings") as any).update({
+      const { error } = await (supabase.from("settings") as any).update({
         salon_name: name,
         salon_logo_url: data.logoUrl || null,
         salon_type: data.salonType || null,
       }).eq("id", s.id);
+      if (error) throw error;
     }
     // Auto-seed default services only if the salon has no services yet (avoid duplicates on re-run).
     if (data.salonType) {
-      const { count } = await supabase
+      const { count, error } = await supabase
         .from("services")
         .select("id", { count: "exact", head: true })
         .eq("user_id", user.id);
-      if (!count || count === 0) {
+      if (error || count === null) throw error || new Error("Behandelingen konden niet worden gecontroleerd");
+      if (count === 0) {
         const seeds = SERVICES_BY_TYPE[data.salonType as SalonType] || [];
         for (const svc of seeds) {
-          try {
-            await servicesCrud.insert({
+          const inserted = await servicesCrud.insert({
               name: svc.name,
               price: svc.price,
               duration_minutes: svc.duration_minutes,
@@ -202,7 +212,7 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
               is_active: true,
               is_online_bookable: true,
             });
-          } catch {}
+          if (!inserted) throw new Error("Behandeling kon niet worden opgeslagen");
         }
       }
     }
@@ -221,19 +231,22 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
     } catch {}
   };
 
-  const next = async () => {
+  const next = async (quickStart = false) => {
+    if (busyRef.current) return;
+    busyRef.current = true;
     setSaving(true);
     try {
       if (step === 1) {
-        if (!data.salonType) { toast.error("Kies eerst je salon type"); return; }
+        if (!data.salonType || !data.salonName.trim()) { toast.error("Vul je salonnaam in en kies je salontype"); return; }
         await saveSalon();
+        if (quickStart) { finish(); return; }
       }
       if (step === 5) saveAutomations();
       if (step === TOTAL - 1) { finish(); return; }
       setStep(step + 1);
     } catch (e: any) {
       toast.error("Er ging iets mis");
-    } finally { setSaving(false); }
+    } finally { busyRef.current = false; setSaving(false); }
   };
 
   const back = () => setStep(Math.max(0, step - 1));
@@ -269,9 +282,10 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
     onOpenChange(false);
   };
 
-  const canProceed = step !== 1 || Boolean(data.salonType);
+  const canProceed = step !== 1 || Boolean(data.salonType && data.salonName.trim());
   const primaryLabel =
-    step === 0 ? "Begin setup"
+    step === 0 ? "Beginnen"
+    : step === 1 ? "Start met GlowSuite"
     : step === TOTAL - 1 ? "Start met GlowSuite"
     : "Volgende";
 
@@ -312,10 +326,10 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
               </div>
               {step > 0 && step < TOTAL - 1 && (
                 <div className="flex flex-col items-end">
-                  <button onClick={skipAll} className="text-xs text-muted-foreground hover:text-foreground">
-                    Later afmaken
-                  </button>
-                  <span className="text-[10px] text-muted-foreground/70">Voortgang wordt bewaard</span>
+                  <Button variant="ghost" size="sm" onClick={skipAll} disabled={saving} className="text-xs text-muted-foreground">
+                    Nu sluiten
+                  </Button>
+                  <span className="text-[10px] text-muted-foreground/70 text-right max-w-36">Verder via Instellingen › Snelle setup</span>
                 </div>
               )}
             </div>
@@ -348,14 +362,19 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
 
         {/* Footer */}
         {showChrome && (
-          <div className="px-5 sm:px-8 py-4 border-t border-border/50 bg-background flex items-center justify-between gap-3">
+          <div className="px-5 sm:px-8 py-4 border-t border-border/50 bg-background flex flex-wrap items-center justify-between gap-3">
             <Button variant="ghost" size="sm" onClick={back} disabled={saving || step === 0}>
               <ArrowLeft className="w-4 h-4" /> Terug
             </Button>
-            <Button variant="gradient" size="sm" onClick={next} disabled={saving || !canProceed}>
-              {saving ? "Bezig..." : primaryLabel}
-              {!saving && <ArrowRight className="w-4 h-4" />}
-            </Button>
+            <div className="flex flex-col-reverse sm:flex-row gap-2 min-w-0">
+              {step === 1 && (
+                <Button variant="outline" size="sm" onClick={() => next()} disabled={saving || !canProceed}>Meer instellen</Button>
+              )}
+              <Button variant="gradient" size="sm" onClick={() => next(step === 1)} disabled={saving || !canProceed}>
+                {saving ? "Bezig..." : primaryLabel}
+                {!saving && <ArrowRight className="w-4 h-4" />}
+              </Button>
+            </div>
           </div>
         )}
       </DialogContent>
@@ -377,7 +396,7 @@ function WelcomeStep() {
       />
       <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">Welkom bij GlowSuite</h1>
       <p className="text-base text-muted-foreground mb-6">
-        Binnen ongeveer 2 minuten is jouw salon klaar voor gebruik. GlowSuite configureert automatisch de belangrijkste instellingen.
+        Vul je salonnaam in en kies je salontype. Betalingen en berichten kun je later instellen.
       </p>
       <div className="grid grid-cols-2 gap-2 w-full mb-2 text-left">
         {items.map(t => (
@@ -398,7 +417,7 @@ function SalonStep({ data, setData, onLogo }: any) {
     <div className="space-y-6 max-w-lg mx-auto">
       <div>
         <h2 className="text-2xl font-bold tracking-tight">Wat voor salon heb je?</h2>
-        <p className="text-sm text-muted-foreground mt-1">Zo configureert GlowSuite automatisch de juiste instellingen.</p>
+        <p className="text-sm text-muted-foreground mt-1">Kies je salontype voor passende standaardbehandelingen.</p>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
         {SALON_TYPES.map(({ id, label, icon: Icon }) => {
@@ -430,8 +449,9 @@ function SalonStep({ data, setData, onLogo }: any) {
 
       <div className="space-y-4 pt-2">
         <div>
-          <Label>Hoe heet jouw salon?</Label>
+          <Label htmlFor="onboarding-salon-name">Hoe heet jouw salon?</Label>
           <Input
+            id="onboarding-salon-name"
             value={data.salonName}
             onChange={e => setData({ ...data, salonName: e.target.value })}
             placeholder="Studio Nova"
@@ -465,9 +485,9 @@ function GlowPayStep({ demo }: { demo: boolean }) {
   return (
     <div className="space-y-5 max-w-lg mx-auto">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Ontvang direct online betalingen</h2>
+        <h2 className="text-2xl font-bold tracking-tight">Betalingen instellen (optioneel)</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Klanten kunnen veilig betalen via iDEAL, Bancontact, Apple Pay en creditcard. GlowSuite regelt de verwerking automatisch.
+          Stel je betaalaccount in via GlowPay. De beschikbare betaalmethoden hangen af van je koppeling.
         </p>
       </div>
       <div className="p-5 rounded-2xl border border-border bg-gradient-to-br from-primary/5 to-transparent">
@@ -476,9 +496,9 @@ function GlowPayStep({ demo }: { demo: boolean }) {
             <CreditCard className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <p className="font-semibold">{demo ? "Demo modus actief" : "GlowPay is klaar voor gebruik"}</p>
+            <p className="font-semibold">{demo ? "Demo modus actief" : "GlowPay instellen"}</p>
             <p className="text-xs text-muted-foreground">
-              {demo ? "Er worden geen echte betalingen verwerkt." : "Je kunt direct betalingen ontvangen."}
+              {demo ? "Er worden geen echte betalingen verwerkt." : "Je kunt dit later instellen via GlowPay."}
             </p>
           </div>
         </div>
@@ -492,12 +512,12 @@ function GlowPayStep({ demo }: { demo: boolean }) {
       </div>
       {demo ? (
         <div className="p-3 rounded-lg bg-amber-500/5 border border-amber-500/20 text-xs text-muted-foreground">
-          Je kunt alles veilig testen zonder dat er iets in rekening wordt gebracht.
+          Dit scherm toont de betaalmogelijkheden; het bevestigt geen actieve koppeling.
         </div>
       ) : (
         <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-success/5 border border-success/20 text-xs text-muted-foreground">
           <Check className="w-3.5 h-3.5 text-success mt-0.5 shrink-0" />
-          <span>GlowSuite regelt dit automatisch. Klanten kunnen direct veilig betalen.</span>
+          <span>Controleer je betaalaccount via GlowPay voordat je betalingen ontvangt.</span>
         </div>
       )}
     </div>
@@ -608,7 +628,7 @@ function TerminalStep({ previewMode = false }: { previewMode?: boolean }) {
         <h2 className="text-2xl font-bold tracking-tight">Koppel je pinautomaat</h2>
         <p className="text-sm text-muted-foreground mt-1">
           {mode === "success"
-            ? "Je terminal is klaar voor gebruik."
+            ? "De terminalgegevens zijn opgeslagen. Controleer de verbinding via GlowPay."
             : mode === "skipped"
             ? "Je kunt dit later instellen. We slaan deze stap over."
             : "Heb je al een Sunmi-terminal?"}
@@ -625,7 +645,7 @@ function TerminalStep({ previewMode = false }: { previewMode?: boolean }) {
               <div className="min-w-0">
                 <p className="font-semibold">Terminal gekoppeld</p>
                 <p className="text-xs text-muted-foreground truncate">
-                  {existing?.terminal_name || "Terminal actief"}
+                  {existing?.terminal_name || "Terminal"}
                   {existing?.terminal_id ? ` · ${existing.terminal_id}` : ""}
                 </p>
               </div>
@@ -663,7 +683,7 @@ function TerminalStep({ previewMode = false }: { previewMode?: boolean }) {
               </div>
               <div>
                 <p className="font-semibold">Sunmi & Viva Smart Checkout</p>
-                <p className="text-xs text-muted-foreground">Koppelen doe je in één minuut.</p>
+                <p className="text-xs text-muted-foreground">Je kunt deze stap overslaan en later instellen.</p>
               </div>
             </div>
           </div>
@@ -798,7 +818,7 @@ function SystemCheckStep() {
     <div className="space-y-5 max-w-lg mx-auto">
       <div>
         <h2 className="text-2xl font-bold tracking-tight">Systeemcontrole</h2>
-        <p className="text-sm text-muted-foreground mt-1">GlowSuite controleert automatisch of alles werkt.</p>
+        <p className="text-sm text-muted-foreground mt-1">Deze controle bevestigt niet dat betalingen of berichten actief zijn.</p>
       </div>
       <div className="rounded-2xl border border-border overflow-hidden">
         {rows.map((r, i) => {
@@ -809,7 +829,7 @@ function SystemCheckStep() {
               {st === "checking" && <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" />}
               {st === "ok" && (
                 <span className="flex items-center gap-1.5 text-xs font-medium text-success">
-                  <Check className="w-4 h-4" /> OK
+                  {r.key === "agenda" || r.key === "db" ? <><Check className="w-4 h-4" /> Bereikbaar</> : "Niet bevestigd"}
                 </span>
               )}
               {st === "fail" && <span className="text-xs text-muted-foreground">Later opnieuw</span>}
@@ -820,12 +840,12 @@ function SystemCheckStep() {
       {!anyChecking && allOk && (
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-success/5 border border-success/20 text-sm">
           <Check className="w-4 h-4 text-success" />
-          <span className="font-medium">Alles werkt.</span>
+          <span className="font-medium">Controle afgerond. Betaalstatus is niet bevestigd.</span>
         </div>
       )}
       {demoMode && (
         <p className="text-xs text-muted-foreground text-center">
-          Testbetalingen zijn beschikbaar zodra je wilt oefenen.
+          Controleer de testinstellingen via GlowPay voordat je oefent.
         </p>
       )}
     </div>
@@ -861,7 +881,7 @@ function AutomationsStep({ data, setData }: any) {
       </div>
       <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-primary/5 border border-primary/20 text-xs text-muted-foreground">
         <Sparkles className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
-        <span>GlowSuite regelt dit automatisch op de achtergrond.</span>
+        <span>Controleer de koppelingen voordat je automatische berichten gebruikt.</span>
       </div>
     </div>
   );
@@ -885,7 +905,7 @@ function DoneStep({ logoUrl, salonName }: { logoUrl?: string; salonName?: string
         />
       )}
       <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">🎉 Je salon is klaar!</h1>
-      <p className="text-base text-muted-foreground mb-6">GlowSuite heeft automatisch ingesteld:</p>
+      <p className="text-base text-muted-foreground mb-6">Je kunt nu verder. Betalingen en berichten vragen een aparte koppeling:</p>
       <div className="grid grid-cols-2 gap-2 w-full text-left">
         {items.map(t => (
           <div key={t} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-secondary/40 border border-border/50">
@@ -900,7 +920,7 @@ function DoneStep({ logoUrl, salonName }: { logoUrl?: string; salonName?: string
 
 function PostWelcomeStep({ onNavigate }: { onNavigate: (path: string) => void }) {
   const actions = [
-    { icon: Calendar, label: "Eerste afspraak maken", emoji: "📅", path: "/kalender" },
+    { icon: Calendar, label: "Eerste afspraak maken", emoji: "📅", path: "/agenda?nieuw=1" },
     { icon: UserPlus, label: "Eerste klant toevoegen", emoji: "👤", path: "/klanten" },
     { icon: ShoppingBag, label: "Kassa openen", emoji: "💳", path: "/kassa" },
     { icon: BarChart3, label: "Dashboard bekijken", emoji: "📊", path: "/" },
@@ -930,7 +950,7 @@ function PostWelcomeStep({ onNavigate }: { onNavigate: (path: string) => void })
         ))}
       </div>
       <p className="text-[11px] text-muted-foreground text-center mt-6">
-        GlowSuite regelt de rest automatisch.
+        Extra instellingen vind je later via Instellingen en GlowPay.
       </p>
     </div>
   );
