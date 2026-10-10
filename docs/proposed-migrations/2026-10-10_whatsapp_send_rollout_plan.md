@@ -1,4 +1,4 @@
-# WhatsApp-verzending: compatibiliteitsmatrix, uitrol- en terugvalplan (ronde 8C, NIET uitgevoerd)
+# WhatsApp-verzending: compatibiliteitsmatrix, uitrol- en terugvalplan (ronde 8C, herzien in 8D, NIET uitgevoerd)
 
 Status: voorstel. Niets hiervan is toegepast, gedeployed of geactiveerd.
 
@@ -30,42 +30,43 @@ Alle 12 serverroutes sturen nu alleen `Authorization: Bearer <service role key>`
 
 Extra effect voor alle routes: klanten met `whatsapp_opt_in = null` worden geweigerd (geen backfill). In de huidige data kan dat het grootste deel van de klanten zijn; dit moet vóór livegang in aantallen gemeten worden (alleen tellen, niets wijzigen).
 
-## 2. Beleidsbesluiten voor de projecteigenaar (open)
+## 2. Voorgestelde indeling (nog GEEN definitief beleid)
 
-1. Zijn boekingsbevestiging, betalingsbevestiging, no-show-melding en formulierverzoeken transactioneel? (voorstel: ja, maar altijd met expliciete WhatsApp-opt-in en STOP).
-2. Reviewverzoek, campagne, wachtlijst, Auto Rebook, automations: marketing (marketing_consent vereist). Bevestigen.
-3. Hoe wordt WhatsApp-opt-in voortaan verzameld (boekingsformulier, kassa)? Geen backfill van bestaande klanten zonder bewijs.
-4. Bewaartermijn claims (voorstel 400 dagen) en nonces (vervallen na 10 min).
-5. Rollen voor handmatig versturen (voorstel: eigenaar, admin, manager, receptie; test alleen eigenaar/admin).
-6. Toegestane testontvangers: alleen eigen klant met opt-in (voorstel) of aparte geverifieerde testnummers.
+Transactioneel (onder voorbehoud): boekingsbevestiging, betalingsbevestiging, afspraakherinnering, no-showmelding, formulierverzoek.
+Marketing: reviewverzoek, campagne, wachtlijstaanbod, Auto Rebook, marketingautomatisering, vrije handmatige berichten.
+Geen categorie omzeilt STOP of de voorkeur `whatsapp_opt_out`; geen categorie maakt toestemming aan; geen backfill.
 
-## 3. Minimale eerste productiepatch (pas na aparte goedkeuring)
+Gevolgen: klanten met `whatsapp_opt_in` leeg krijgen niets, ook geen herinnering. Marketingstromen vereisen daarnaast `marketing_consent = true`. Het aandeel geblokkeerde klanten moet vooraf alleen geteld worden.
 
-Doel: onmiddellijk weigeren van niet-geauthenticeerde en cross-tenant verzoeken, zonder Gateway.
+Open besluiten: (1) indeling hierboven; (2) hoe opt-in voortaan wordt verzameld; (3) bewaartermijn claims 400 dagen (+30 bij onzekere uitkomst) en nonces 10 minuten; (4) rollen handmatig versturen; (5) testontvangers.
 
-Fase 0 (zonder live effect): DB-voorstel `2026-10-10_whatsapp_send_claims_nonces.sql` beoordelen; per caller een secret (>= 32 bytes) aanmaken in config-formaat `{"current":"1","keys":{"1":"<Base64>"}}`; meting consentdekking.
-Fase 1: tabellen/functies toepassen (alleen nieuwe objecten, niets bestaands gewijzigd).
-Fase 2: callers 6-16 laten ondertekenen met HMAC v2 en `event_ref` meesturen, **terwijl** de oude functie nog draait (extra headers worden genegeerd). Per caller in de logs controleren dat handtekening + event_ref aanwezig zijn.
-Fase 3: `whatsapp-send` vervangen door wrapper: `Authorization` met service key telt niet meer; alleen (a) gebruikers-JWT via `auth.getUser` of (b) geldige HMAC v2 + nonce. Body `user_id` moet gelijk zijn aan de afgeleide salon. UI-routes 1-5 krijgen tegelijk `action_id` en klantkeuze voor tests.
-Fase 4: strikte consent aanzetten (kan apart, nadat besluiten 1-3 genomen zijn). Tot dan geldt in fase 3 minimaal: STOP/preference-opt-out blokkeert, opt-in `false` blokkeert.
+## 3. Uitrolvolgorde (alles na aparte goedkeuring per stap)
 
-Volgorde is: database → callers ondertekenen → verzendfunctie afdwingen → consent aanscherpen.
+Er is geen tussenfase met alleen authenticatie. Zodra de nieuwe `whatsapp-send` actief wordt, gelden vanaf het eerste verzoek ALLE controles: geverifieerde identiteit, juiste salon en rol, ontvanger = eigen klant met opgeslagen nummer, geblokkeerde/gearchiveerde/gepseudonimiseerde klanten geweigerd, STOP via Gateway-adapter, `whatsapp_opt_out`, vastgestelde toestemmingsregels (onbekend = nee), verificatie van de zakelijke gebeurtenis en een verzendclaim vóór providercontact. Stromen die daar niet aan voldoen staan gepauzeerd (geen verzending, wel log "niet verzonden"); afspraken, klanten en betalingen blijven ongewijzigd.
+
+1. Controle 16 aanroeproutes (tabel hierboven), per route vastleggen wat ontbreekt.
+2. Databasevoorzieningen: claims/nonces, `gateway_tenant_links`, `whatsapp_opt_outs` + `whatsapp_is_opted_out`, noodschakelaar-vlag in `tenant_feature_flags`. Eerst op staging.
+3. Toestemming: besluiten nemen, opt-in-verzameling bouwen, dekking alleen tellen.
+4. Interne ondertekening: per caller secret (>= 32 bytes), contact-ref-sleutelring.
+5. Callers aanpassen (apart traject): HMAC v2, `event_ref` (reminders `:24h` / `:2h`, nu nog gedeelde markering), `customer_id` bij automations. Oude functie negeert extra velden.
+6. Nieuwe `whatsapp-send` uitrollen met noodschakelaar standaard AAN (gepauzeerd) voor alle salons. Pas dan zijn de controles actief zonder providercontact.
+7. Testen op aparte demo-/stagingomgeving met fictieve klanten en gemockte of sandbox-provider.
+8. Per salon pauze opheffen, eerst demo, daarna één echte salon na toestemming. The Beautycare Clinic alleen na expliciete goedkeuring van Chris.
+9. Monitoring: weigerredenen per salon, claims `unknown`, 503-percentage; noodstop bij afwijking.
+
+Bewaartermijn: claims >= 400 dagen, onzekere claims 430 dagen. Na verlopen kan dezelfde sleutel opnieuw worden geclaimd; callers mogen daarom nooit een actie of gebeurtenis ouder dan 400 dagen opnieuw aanbieden (huidige retries: minuten).
 
 ## 4. Terugvalplan (fail-closed)
 
-Teruggaan naar de huidige kwetsbare functie is geen standaard rollback.
+- Noodschakelaar aan: 503 `sending_paused`, geen claim, geen providercontact.
+- Geen automatische retries van `claimed`/`unknown`; medewerker beoordeelt.
+- Afspraken, klanten, betalingen ongewijzigd.
+- Fout in één caller: alleen die sleutel intrekken.
+- Herstel = gecorrigeerde code opnieuw testen en uitrollen. Nooit terug naar de huidige onbeveiligde functie.
 
-- Noodschakelaar: per-tenant/globale vlag "WhatsApp-verzending gepauzeerd" (bestaand patroon `tenant_feature_flags`), standaard uit. Bij problemen aan: `whatsapp-send` antwoordt 503 `sending_paused`, maakt geen claim en roept de provider niet aan.
-- Afspraken, klanten, betalingen en herinneringsplanning worden niet gewijzigd; schedulers loggen "niet verzonden" zodat het zichtbaar blijft.
-- Claims in `claimed`/`unknown` worden nooit automatisch opnieuw verzonden; een medewerker beoordeelt ze.
-- Bij een fout in één caller: alleen diens sleutel uit de config halen (die caller krijgt 401), de rest blijft werken.
-- Herstel = gecorrigeerde patch opnieuw uitrollen, niet de oude code.
+## 5. Nog ontbrekend
 
-## 5. Nog ontbrekende voorzieningen
-
-- Toegepaste claims/nonce-tabellen (nu alleen lokaal getest).
-- Secrets per caller en een HMAC-signeerhelper in elke caller.
-- `event_ref` in `whatsapp_logs`/retry-pad; `customer_id` in automation-runs.
-- Opt-in-verzameling + meting van huidige dekking.
-- STOP-lijst per salon (Gateway-voorstel ronde 7) gekoppeld aan `isStopped`.
-- Noodschakelaar-vlag.
+- Toegepaste tabellen (alleen lokaal getest), secrets, ondertekenhelpers in callers.
+- Echte event-resolver (queries staan in `eventVerifier.ts`), inclusief tijdzone-omrekening afspraakstart.
+- Statusregels voor review/no-show-afspraken en automation-runs zijn minimaal (alleen `geannuleerd`/`skipped`); vaststellen.
+- Gateway-zijde: STOP-schrijfpad en salonkoppeling; end-to-end niet bewezen.
