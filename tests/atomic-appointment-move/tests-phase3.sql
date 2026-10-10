@@ -109,5 +109,5 @@ SELECT t_ok((SELECT e=1440 FROM public.appointment_busy_candidates('2026-10-16 2
 SELECT t_ok((SELECT e=1440 FROM public.appointment_busy_candidates('2026-10-16 21:00Z','23:00','00:00',60)), 'M01 end 00:00 read as end of day (old rows)');
 BEGIN; SELECT set_config('request.jwt.claim.sub', :'T1', true); SET LOCAL ROLE authenticated;
 SELECT t_ok((public.move_appointment_atomic(:'A1','2026-10-16','23:00',:'EA',public.t_upd(:'A1'))->>'code')='outside_working_hours', 'M01 move ending 24:00 explicitly refused');
-SELECT t_ok((public.create_appointment_atomic(NULL,:'SVC','2026-10-16','23:15','{}','','manual',NULL,NULL,NULL)->>'code')='outside_working_hours', 'M01 create crossing midnight refused');
+SELECT t_ok((public.create_appointment_atomic(NULL,:'SVC','2026-10-16','23:15','{}','','manual',NULL,NULL,NULL)->>'code')='outside_hours', 'M01 create crossing midnight refused (outside_hours)');
 ROLLBACK;
