@@ -40,9 +40,9 @@ export class CustomerImportIndex {
     const m = e ? me : p ? mp : [];
     if (e || p) {
       if (!m.length) return { kind: "new" };
-      const same = m.find((r) => r.name === n && !(e ? r.phone : r.email));
+      const same = m.find((r) => r.name === n);
       if (same) return { kind: "dupe", id: same.id };
-      return { kind: "conflict", reason: e ? "Zelfde e-mail, andere naam of extra telefoon" : "Zelfde telefoonnummer, andere naam of extra e-mail" };
+      return { kind: "conflict", reason: e ? "Zelfde e-mail, andere naam" : "Zelfde telefoonnummer, andere naam" };
     }
     // No contact data: a name alone never proves a duplicate.
     if (n && this.byName.has(n)) return { kind: "conflict", reason: "Alleen naam komt overeen, geen contactgegevens" };
