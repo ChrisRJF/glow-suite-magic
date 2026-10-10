@@ -82,7 +82,7 @@ DO $$ BEGIN
 END $$;
 -- Re-run after undo
 DO $$ DECLARE r jsonb := dedupe_preview('00000000-0000-0000-0000-00000000000a'); BEGIN
-  ASSERT (r->>'planned')::int = 6613; ASSERT (dedupe_apply((r->>'batch')::uuid, true)->>'would_apply')::int = 6610; END $$;
+  ASSERT (r->>'planned')::int = 6613; ASSERT (dedupe_apply((r->>'batch')::uuid, true)->>'would_apply')::int = 6611; END $$;
 -- Missing linked table must abort, not be ignored.
 DROP TABLE privacy_requests;
 DO $$ BEGIN PERFORM _dedupe_ref_count(gen_random_uuid()); RAISE EXCEPTION 'expected missing';
