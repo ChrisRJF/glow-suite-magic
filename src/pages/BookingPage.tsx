@@ -1225,6 +1225,12 @@ export default function BookingPage() {
               </div>
             )}
 
+             {liveStaff && liveSlots === null && (
+               <p className="text-sm text-muted-foreground py-4 text-center">Beschikbare tijden laden…</p>
+             )}
+             {liveStaff && liveSlots !== null && availableSlots.length === 0 && (
+               <p className="text-sm text-muted-foreground py-4 text-center">Op deze dag is er geen tijd vrij. Kies een andere dag.</p>
+             )}
              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {availableSlots.map((slot) => {
                 const meta = SLOT_LABEL_KEYS[slot];
