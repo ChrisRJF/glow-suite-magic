@@ -5,7 +5,7 @@ import { useCustomers, useAppointments, useServices, useCampaigns, useLeads, use
 import { usePayments } from "@/hooks/usePayments";
 import { calculateNoShowRisk } from "@/lib/noShowRisk";
 import { formatEuro } from "@/lib/data";
-import { buildReports, rangeForPreset, trendClass, trendLabel } from "@/lib/reporting";
+import { amsterdamDateKey, buildReports, rangeForPreset, trendClass, trendLabel } from "@/lib/reporting";
 import {
   TrendingUp, Users, Calendar, Euro, Sparkles, ArrowRight, Clock,
   Zap, BarChart3, Award, UserPlus, ChevronDown, AlertTriangle, Star, UserX, Send, RefreshCw,
@@ -24,7 +24,7 @@ import { BeautycareWelcomeCard } from "@/components/demo/BeautycareWelcomeCard";
 
 import { actionLogKey, clearLegacyDemoLocalState } from "@/lib/demoIsolation";
 import { cn } from "@/lib/utils";
-import { countNewCustomersThisWeek } from "@/lib/calendarWeek";
+import { countNewCustomersThisWeek, nextDateKey, safeAmsterdamDateKey } from "@/lib/calendarWeek";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 
@@ -48,9 +48,9 @@ export default function DashboardPage() {
   const report = useMemo(() => buildReports({ appointments, customers, services, payments, refunds, mode: demoMode ? "demo" : "live", from: reportRange.from, to: reportRange.to }), [appointments, customers, services, payments, refunds, demoMode, reportRange.from, reportRange.to]);
   const loading = customersLoading || appointmentsLoading || servicesLoading || paymentsLoading || refundsLoading;
 
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = amsterdamDateKey(new Date());
   const todaysAppts = useMemo(
-    () => report.rows.appointments.filter((a) => a.appointment_date?.startsWith(todayStr)),
+    () => report.rows.appointments.filter((a) => safeAmsterdamDateKey(a.appointment_date) === todayStr),
     [report.rows.appointments, todayStr],
   );
 
@@ -76,11 +76,9 @@ export default function DashboardPage() {
   const rebookPct = customers.length > 0 ? Math.round(((customers.length - withoutNext.length) / customers.length) * 100) : 0;
 
   // No-show risico morgen
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowStr = tomorrow.toISOString().split("T")[0];
-  const noShowRiskTomorrow = appointments.filter((a) => {
-    if (!a.appointment_date?.startsWith(tomorrowStr) || a.status === "geannuleerd") return false;
+  const tomorrowStr = nextDateKey(todayStr);
+  const noShowRiskTomorrow = report.rows.appointments.filter((a) => {
+    if (safeAmsterdamDateKey(a.appointment_date) !== tomorrowStr || a.status === "geannuleerd") return false;
     const c = customers.find((x) => x.id === a.customer_id);
     return c ? calculateNoShowRisk(c).isElevated : false;
   }).length;

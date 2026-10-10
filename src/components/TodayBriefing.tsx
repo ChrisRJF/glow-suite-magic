@@ -1,17 +1,18 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, CreditCard, Crown, Sparkles, CheckCircle2 } from "lucide-react";
+import { ArrowRight, CreditCard, Crown, CheckCircle2 } from "lucide-react";
 import { useAppointments, useCustomerMemberships } from "@/hooks/useSupabaseData";
 import { usePayments } from "@/hooks/usePayments";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { amsterdamDateKey } from "@/lib/reporting";
+import { safeAmsterdamDateKey } from "@/lib/calendarWeek";
 
 /**
  * "Today" command-center card.
  * Calm, factual signals based on real data only — no AI guesses.
  *  - open payments today
  *  - memberships expiring within 14 days
- *  - quiet-day nudge (only when today is genuinely quiet)
  */
 interface TodayBriefingProps {
   variant?: "default" | "compact";
@@ -31,18 +32,17 @@ export function TodayBriefing({ variant = "default", title, hideHeader = false, 
 
   const items = useMemo(() => {
     const today = new Date();
-    const todayStr = today.toISOString().split("T")[0];
-    const dayName = today.toLocaleDateString("nl-NL", { weekday: "long" });
+    const todayStr = amsterdamDateKey(today);
 
     const todaysAppts = appointments.filter(
-      (a: any) => a.appointment_date?.startsWith(todayStr) && a.status !== "geannuleerd",
+      (a: any) => safeAmsterdamDateKey(a.appointment_date) === todayStr && a.status !== "geannuleerd",
     );
 
     const openPaymentsToday = payments.filter((p: any) => {
       if (p.status !== "pending") return false;
-      const created = p.created_at?.startsWith(todayStr);
+      const created = safeAmsterdamDateKey(p.created_at) === todayStr;
       const due = p.appointment_id
-        ? appointments.find((a: any) => a.id === p.appointment_id)?.appointment_date?.startsWith(todayStr)
+        ? safeAmsterdamDateKey(appointments.find((a: any) => a.id === p.appointment_id)?.appointment_date) === todayStr
         : false;
       return created || due;
     });
@@ -58,7 +58,6 @@ export function TodayBriefing({ variant = "default", title, hideHeader = false, 
       return d >= today && d <= in14;
     });
 
-    const isQuiet = todaysAppts.length > 0 && todaysAppts.length <= 3;
 
     const list: Array<{
       key: string;
@@ -88,17 +87,6 @@ export function TodayBriefing({ variant = "default", title, hideHeader = false, 
         why: "Looptijd eindigt binnen 14 dagen. Goed moment om te verlengen.",
         onClick: () => navigate("/abonnementen"),
         tone: "muted",
-      });
-    }
-
-    if (isQuiet && list.length < 3) {
-      list.push({
-        key: "quiet",
-        icon: Sparkles,
-        label: `Rustige ${dayName}`,
-        why: `${todaysAppts.length} ${todaysAppts.length === 1 ? "afspraak" : "afspraken"} vandaag. Bekijk je agenda.`,
-        onClick: () => navigate("/agenda"),
-        tone: "success",
       });
     }
 
