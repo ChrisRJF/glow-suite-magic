@@ -3,7 +3,7 @@ import { z } from "https://esm.sh/zod@3.23.8";
 import { createVivaOrder, vivaCheckoutUrl, isVivaConfigured } from "../_shared/viva.ts";
 import { getDefaultMessageTemplate, normalizeMessageLang, renderMessage, intlLocale } from "../_shared/messageTranslations.ts";
 import { decideDeposit } from "../_shared/depositDecision.ts";
-import { amsterdamToUtc, utcToAmsterdam, busyFromAppointments, resolveBooking, startTimes, canDoService, type ScheduleEmployee } from "../_shared/employeeSchedule.ts";
+import { amsterdamToUtc, utcToAmsterdam, busyFromAppointments, normalizeBusyEmployees, resolveBooking, startTimes, canDoService, type ScheduleEmployee } from "../_shared/employeeSchedule.ts";
 import { appendConfirmationBlock, buildConfirmationLink, claimReminderDispatch } from "../_shared/reminderEngine.ts";
 
 const corsHeaders = {
@@ -41,12 +41,12 @@ const RequestSchema = z.discriminatedUnion("action", [
     date: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/),
     time: z.string().trim().regex(/^\d{2}:\d{2}$/),
     service_id: z.string().uuid(),
-    employee: z.string().uuid().optional().nullable(),
+    employee: z.string().trim().max(80).optional().nullable(),
     group_members: z.array(z.object({
       name: z.string().trim().min(1).max(120),
       service_id: z.string().uuid(),
       time: z.string().trim().regex(/^\d{2}:\d{2}$/).optional(),
-      employee: z.string().uuid().optional().nullable(),
+      employee: z.string().trim().max(80).optional().nullable(),
     })).max(8).optional().default([]),
     payment: z.object({ required: z.boolean(), amount: z.number().min(0).max(100000), type: z.enum(["deposit", "full", "remainder"]).optional().default("deposit"), method: z.enum(["ideal", "bancontact", "creditcard", "applepay", "paypal"]).optional().default("ideal") }),
     notes: z.string().trim().max(1000).optional().default(""),
@@ -228,21 +228,27 @@ async function loadDay(supabase: ReturnType<typeof createClient>, ctx: SalonCont
     date,
     opening: ctx.settings.opening_hours || null,
     // Appointments of unknown employees (other salon / deleted) are treated as salon-wide blocks.
-    busy: busyFromAppointments(date, ((existing || []) as any[]).map((r: any) => ({ ...r, employee_id: r.employee_id && ids.has(r.employee_id) ? r.employee_id : (ctx.employees.length ? r.employee_id : null) }))),
+    // Unknown, former, sample (e.g. "Bas") or missing employee ids block the whole salon.
+    busy: busyFromAppointments(date, normalizeBusyEmployees((existing || []) as any[], ids)),
     exceptions: ((exceptions || []) as any[]).filter((ex: any) => ids.has(ex.employee_id)),
     notBefore: date === now.date ? now.minutes + 15 : undefined,
   };
 }
 
 /** Server-side availability decision. Returns the rows with verified employee ids, or null. */
-async function assertAvailability(supabase: ReturnType<typeof createClient>, ctx: SalonContext, date: string, bookings: Array<{ time: string; service: ServiceRow; employee: string | null }>) {
-  if (date < todayAmsterdam().date) return null;
+async function assertAvailability(supabase: ReturnType<typeof createClient>, ctx: SalonContext, date: string, bookings: Array<{ time: string; service: ServiceRow; employee: string | null }>): Promise<{ ids: Array<string | null> } | { code: "slot_unavailable" | "booking_page_outdated" }> {
+  if (date < todayAmsterdam().date) return { code: "slot_unavailable" };
+  // A requested employee must be a real employee id of this salon. Old booking pages send names
+  // (e.g. "Bas"): refuse explicitly instead of silently picking someone else.
+  const known = new Set(ctx.employees.map((e) => e.id));
+  if (bookings.some((b) => b.employee && !known.has(b.employee))) return { code: "booking_page_outdated" };
   const day = await loadDay(supabase, ctx, date);
-  const staff = scheduleStaff(ctx);
-  const result = resolveBooking(staff, day, bookings.map((b) => ({ service: b.service, time: b.time, employee: ctx.employees.length ? b.employee : null })));
-  if (!result.ok) return null;
-  return result.rows.map((r) => (r.employee === SALON_WIDE ? null : r.employee));
+  const result = resolveBooking(scheduleStaff(ctx), day, bookings.map((b) => ({ service: b.service, time: b.time, employee: b.employee })));
+  if (!result.ok) return { code: "slot_unavailable" };
+  return { ids: result.rows.map((r) => (r.employee === SALON_WIDE ? null : r.employee)) };
 }
+
+const OUTDATED_MSG = "Deze boekingspagina is verouderd. Vernieuw de pagina en kies opnieuw een medewerker en tijd.";
 
 async function createMolliePayment(args: { req: Request; supabase: ReturnType<typeof createClient>; amount: number; paymentType: string; method: string; appointmentId: string; customerId: string; salonId: string; salonOwnerId: string; settingsId: string; bookingToken: string; isDemo: boolean }) {
   if (args.isDemo) {
@@ -295,7 +301,10 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    const parsed = RequestSchema.safeParse(await req.json());
+    const rawBody = await req.json();
+    // Lets the admin app confirm the server enforces weekly schedules before showing the editor.
+    if (rawBody && rawBody.action === "get_capabilities") return json({ availability_version: 2 });
+    const parsed = RequestSchema.safeParse(rawBody);
     if (!parsed.success) return json({ error: "Ongeldige invoer", details: parsed.error.flatten().fieldErrors }, 400);
 
     const ctx = await getSalon(supabase, parsed.data.slug);
@@ -381,9 +390,13 @@ Deno.serve(async (req) => {
     ];
 
     const assigned = await assertAvailability(supabase, ctx, data.date, bookingRows);
-    if (!assigned) return json({ error: "Deze tijd is niet (meer) beschikbaar. Kies een nieuw moment.", code: "slot_unavailable" }, 409);
+    if ("code" in assigned) {
+      return assigned.code === "booking_page_outdated"
+        ? json({ error: OUTDATED_MSG, code: "booking_page_outdated" }, 409)
+        : json({ error: "Deze tijd is niet (meer) beschikbaar. Kies een nieuw moment.", code: "slot_unavailable" }, 409);
+    }
     // From here on only server-verified employee ids are used.
-    bookingRows.forEach((row, i) => { row.employee = assigned[i]; });
+    bookingRows.forEach((row, i) => { row.employee = assigned.ids[i]; });
 
     const email = data.customer.email.toLowerCase();
     const { data: existingCustomer } = await supabase
@@ -511,7 +524,7 @@ Deno.serve(async (req) => {
     });
 
     const stillAvailable = await assertAvailability(supabase, ctx, data.date, bookingRows);
-    if (!stillAvailable || stillAvailable.some((id, i) => id !== bookingRows[i].employee)) return json({ error: "Deze tijd is net volgeboekt. Kies een nieuw moment.", code: "slot_unavailable" }, 409);
+    if ("code" in stillAvailable || stillAvailable.ids.some((id, i) => id !== bookingRows[i].employee)) return json({ error: "Deze tijd is net volgeboekt. Kies een nieuw moment.", code: "slot_unavailable" }, 409);
 
     const { data: appointments, error: appointmentError } = await supabase
       .from("appointments")
@@ -713,8 +726,9 @@ Deno.serve(async (req) => {
 
     if (primaryAppointment) {
       const salonSlug = ctx.settings.public_slug || slugify(ctx.settings.salon_name || "salon");
-      const serviceSlug = slugify(mainService.name || "service");
-      const calendarUrl = `https://${salonSlug}.glowsuite.nl/calendar/${serviceSlug}/booking_confirmation.ics?date=${encodeURIComponent(data.date)}&time=${encodeURIComponent(data.time)}&duration=${encodeURIComponent(String(mainService.duration_minutes || 30))}&ref=${encodeURIComponent(primaryAppointment.booking_reference || primaryAppointment.id)}`;
+      // No .ics link: no calendar endpoint exists. The booking_token identifies the appointment
+      // for the manage link; the secure renderer builds links from server data only.
+      const employeeName = ctx.employees.find((e) => e.id === primaryAppointment.employee_id)?.name || null;
       await sendWhiteLabelEmail(supabase, {
         user_id: ctx.settings.user_id,
         salon_slug: salonSlug,
@@ -722,6 +736,8 @@ Deno.serve(async (req) => {
         recipient_email: email,
         recipient_name: data.customer.name,
         template_key: "booking_confirmation",
+        appointment_id: primaryAppointment.id,
+        booking_token: primaryAppointment.booking_token,
         idempotency_key: `booking-confirmation-${primaryAppointment.id}`,
         language: preferredLanguage || undefined,
         template_data: {
@@ -730,10 +746,12 @@ Deno.serve(async (req) => {
           appointment_date: primaryAppointment.appointment_date,
           date: data.date,
           time: data.time,
-          employee: primaryAppointment.employee_id,
+          employee: employeeName,
           reference: primaryAppointment.booking_reference,
           total_amount: serverPayment.required ? serverPayment.amount : Number(mainService.price || 0),
-          calendar_url: calendarUrl,
+          booking_token: primaryAppointment.booking_token,
+          // Valid manage page on the main domain (current renderer would otherwise fall back to a salon subdomain).
+          manage_url: primaryAppointment.booking_token ? `https://glowsuite.nl/mijn-afspraak/${primaryAppointment.booking_token}` : undefined,
         },
       });
 

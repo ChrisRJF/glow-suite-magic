@@ -28,6 +28,10 @@ $$;
 ALTER TABLE public.employees
   ADD COLUMN IF NOT EXISTS weekly_schedule jsonb DEFAULT NULL;
 
-ALTER TABLE public.employees
-  ADD CONSTRAINT employees_weekly_schedule_valid
-  CHECK (public.is_valid_weekly_schedule(weekly_schedule));
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'employees_weekly_schedule_valid') THEN
+    ALTER TABLE public.employees
+      ADD CONSTRAINT employees_weekly_schedule_valid
+      CHECK (public.is_valid_weekly_schedule(weekly_schedule));
+  END IF;
+END $$;
