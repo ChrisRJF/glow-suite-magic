@@ -10,10 +10,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useDemoMode } from "@/hooks/useDemoMode";
 import { supabase } from "@/integrations/supabase/client";
 import { EmployeeAvatar } from "@/components/EmployeeAvatar";
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { Plus, Trash2, Camera, X, Loader2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { weeklyScheduleAvailable, scheduleError, isValidSchedule, type WeeklySchedule, type DayKey } from "@/lib/employeeSchedule";
 import { STATUS_OPTIONS, statusMeta, parseBreaks, type EmployeeBreak, type EmployeeStatus } from "@/lib/employeeAvailability";
 
 const DAY_LABELS = ["Ma", "Di", "Wo", "Do", "Vr", "Za", "Zo"];
@@ -34,6 +35,8 @@ interface EmployeeForm {
   status_from: string;
   status_until: string;
   is_active: boolean;
+  /** null = no fixed weekly hours (legacy: working days + salon opening hours). */
+  weekly_schedule: WeeklySchedule | null;
 }
 
 const emptyForm = (): EmployeeForm => ({
@@ -50,6 +53,7 @@ const emptyForm = (): EmployeeForm => ({
   status_from: "",
   status_until: "",
   is_active: true,
+  weekly_schedule: null,
 });
 
 const EXCEPTION_TYPES: { value: string; label: string }[] = [
@@ -71,6 +75,9 @@ export default function EmployeesPage() {
   const [form, setForm] = useState<EmployeeForm>(emptyForm());
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // The weekly schedule editor only appears once the database supports it.
+  const [scheduleEnabled, setScheduleEnabled] = useState(false);
+  useEffect(() => { weeklyScheduleAvailable().then(setScheduleEnabled); }, []);
 
   // New exception form (only used when editing existing employee)
   const [newEx, setNewEx] = useState({
@@ -110,6 +117,7 @@ export default function EmployeesPage() {
       status_from: e.status_from || "",
       status_until: e.status_until || "",
       is_active: e.is_active !== false,
+      weekly_schedule: isValidSchedule(e.weekly_schedule) ? (e.weekly_schedule as WeeklySchedule) : null,
     });
     setTab("profiel");
     setShowForm(true);
@@ -149,6 +157,19 @@ export default function EmployeesPage() {
       toast.error("Naam is verplicht");
       return;
     }
+    if (scheduleEnabled && form.weekly_schedule) {
+      if (Object.keys(form.weekly_schedule).length === 0) {
+        toast.error("Zet minstens één werkdag aan of schakel vaste werktijden uit");
+        return;
+      }
+      const err = scheduleError(form.weekly_schedule);
+      if (err) {
+        toast.error(`Werktijden ongeldig. ${err}`);
+        setTab("werkdagen");
+        return;
+      }
+    }
+    const scheduleDays = form.weekly_schedule ? Object.keys(form.weekly_schedule).map(Number).sort() : null;
     // Keep legacy break_start/break_end mirroring the first break for backwards compat.
     const firstBreak = form.breaks[0];
     const payload = {
@@ -158,7 +179,8 @@ export default function EmployeesPage() {
       photo_url: form.photo_url,
       email: form.email.trim() || null,
       phone: form.phone.trim() || null,
-      working_days: form.working_days.length ? form.working_days : [1, 2, 3, 4, 5],
+      working_days: scheduleEnabled && scheduleDays?.length ? scheduleDays : (form.working_days.length ? form.working_days : [1, 2, 3, 4, 5]),
+      ...(scheduleEnabled ? { weekly_schedule: form.weekly_schedule } : {}),
       breaks: form.breaks.filter((b) => b.start && b.end),
       break_start: firstBreak?.start || null,
       break_end: firstBreak?.end || null,
@@ -200,6 +222,34 @@ export default function EmployeesPage() {
       ...f,
       working_days: f.working_days.includes(day) ? f.working_days.filter((d) => d !== day) : [...f.working_days, day].sort(),
     }));
+  };
+
+  const useFixedHours = (on: boolean) => {
+    setForm((f) => {
+      if (!on) return { ...f, weekly_schedule: null };
+      const next: WeeklySchedule = {};
+      (f.working_days.length ? f.working_days : [1, 2, 3, 4, 5]).forEach((d) => { next[String(d) as DayKey] = { start: "09:00", end: "17:00" }; });
+      return { ...f, weekly_schedule: next };
+    });
+  };
+
+  const setScheduleDay = (day: number, value: { start: string; end: string } | null) => {
+    setForm((f) => {
+      const next: WeeklySchedule = { ...(f.weekly_schedule || {}) };
+      if (value) next[String(day) as DayKey] = value; else delete next[String(day) as DayKey];
+      return { ...f, weekly_schedule: next };
+    });
+  };
+
+  const copyScheduleDay = (day: number) => {
+    setForm((f) => {
+      const src = f.weekly_schedule?.[String(day) as DayKey];
+      if (!src) return f;
+      const next: WeeklySchedule = { ...(f.weekly_schedule || {}) };
+      Object.keys(next).forEach((k) => { next[k as DayKey] = { ...src }; });
+      return { ...f, weekly_schedule: next };
+    });
+    toast.success("Tijden gekopieerd naar alle actieve werkdagen");
   };
 
   const addBreak = () => {
@@ -440,6 +490,56 @@ export default function EmployeesPage() {
 
                 {/* Werkdagen */}
                 <TabsContent value="werkdagen" className="pt-4">
+                  {scheduleEnabled && (
+                    <label className="flex items-start gap-2 text-sm mb-4">
+                      <input
+                        type="checkbox"
+                        className="mt-1"
+                        checked={!!form.weekly_schedule}
+                        onChange={(ev) => useFixedHours(ev.target.checked)}
+                      />
+                      <span>
+                        Vaste werktijden per dag
+                        <span className="block text-xs text-muted-foreground">Uit: de medewerker werkt op de gekozen dagen tijdens de openingstijden van de salon.</span>
+                      </span>
+                    </label>
+                  )}
+                  {scheduleEnabled && form.weekly_schedule ? (
+                    <div className="space-y-2">
+                      {DAY_LABELS.map((lbl, i) => {
+                        const day = i + 1;
+                        const d = form.weekly_schedule?.[String(day) as DayKey];
+                        const invalid = !!d && !!d.start && !!d.end && d.start >= d.end;
+                        return (
+                          <div key={day} className="rounded-lg border border-border p-2 space-y-2 sm:space-y-0 sm:flex sm:items-center sm:gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setScheduleDay(day, d ? null : { start: "09:00", end: "17:00" })}
+                              aria-pressed={!!d}
+                              className={cn(
+                                "w-full sm:w-14 h-10 rounded-lg text-xs font-medium border transition",
+                                d ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-muted-foreground"
+                              )}
+                            >
+                              {lbl}
+                            </button>
+                            {d ? (
+                              <div className="flex items-center gap-2 flex-1">
+                                <Input type="time" aria-label={`Begintijd ${lbl}`} value={d.start} onChange={(ev) => setScheduleDay(day, { ...d, start: ev.target.value })} className={cn("h-10", invalid && "border-destructive")} />
+                                <span className="text-xs text-muted-foreground">tot</span>
+                                <Input type="time" aria-label={`Eindtijd ${lbl}`} value={d.end} onChange={(ev) => setScheduleDay(day, { ...d, end: ev.target.value })} className={cn("h-10", invalid && "border-destructive")} />
+                                <Button type="button" variant="ghost" size="sm" className="shrink-0 text-xs" onClick={() => copyScheduleDay(day)}>Kopieer</Button>
+                              </div>
+                            ) : (
+                              <p className="text-xs text-muted-foreground flex-1">Niet beschikbaar</p>
+                            )}
+                            {invalid && <p className="text-xs text-destructive sm:hidden">Eindtijd moet later zijn dan begintijd</p>}
+                          </div>
+                        );
+                      })}
+                      <p className="text-xs text-muted-foreground">"Kopieer" zet deze tijden op alle andere actieve werkdagen. Pauzes, verlof en uitzonderingen blijven gelden.</p>
+                    </div>
+                  ) : (<>
                   <Label className="text-xs">Werkdagen</Label>
                   <div className="flex gap-1 mt-2 flex-wrap">
                     {DAY_LABELS.map((lbl, i) => {
@@ -460,6 +560,7 @@ export default function EmployeesPage() {
                       );
                     })}
                   </div>
+                  </>)}
                 </TabsContent>
 
                 {/* Pauzes */}
