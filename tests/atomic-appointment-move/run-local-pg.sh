@@ -19,7 +19,9 @@ AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/fixture.sql"
 # apply the proposal twice: CREATE OR REPLACE must be idempotent
 AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/2026-10-10_atomic_appointment_move.sql -f $BASE/2026-10-10_atomic_appointment_move.sql"
 echo "proposal applied twice"
-AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/tests.sql 2>&1" | grep -E "PASS|FAIL|ERROR" | sed 's/^psql:[^:]*:[0-9]*: NOTICE:  //'
+for F in tests.sql tests-phase2.sql; do
+  AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/$F 2>&1" | grep -E "PASS|FAIL|ERROR" | sed 's/^psql:[^:]*:[0-9]*: NOTICE:  //'
+done
 
 # Race: two sessions move different appointments into overlapping EA slots (Fri 16 Oct)
 AS bash -c "$P -d gs_move -f $BASE/race-s1.sql > $BASE/s1.out 2>&1 & sleep 0.5; $P -d gs_move -f $BASE/race-s2.sql > $BASE/s2.out 2>&1; wait"
@@ -28,3 +30,29 @@ echo "race $S1 $S2"
 if [ "$S1" = "s1:moved" ] && [ "$S2" = "s2:conflict" ]; then echo "PASS: R01 concurrent overlapping moves: only one succeeds"; else echo "FAIL: R01 race"; fi
 N=$(AS $P -d gs_move -c "select count(*) from appointments where id in ('a1000000-0000-0000-0000-000000000006','a1000000-0000-0000-0000-000000000007') and (start_time, start_time + interval '60 min') overlaps ('10:00'::time,'11:30'::time)")
 [ "$N" = "1" ] && echo "PASS: R01 database holds exactly one of the two" || echo "FAIL: R01 rows=$N"
+
+# ---- fase 2 races: s1 holds its transaction 2 s, s2 starts 0.5 s later ----
+OWN="SELECT set_config('request.jwt.claim.sub','11111111-1111-1111-1111-111111111111',true); SET LOCAL ROLE authenticated;"
+SRV="SET LOCAL ROLE service_role;"
+CM='{"customer_id":"c0000000-0000-0000-0000-000000000001"}'
+SV=a0000000-0000-0000-0000-000000000060; EA=e0000000-0000-0000-0000-00000000000a
+book() { echo "SELECT '$1:'||(public.create_public_booking_atomic('salon-een','$2','[{\"time\":\"$3\",\"service_id\":\"$SV\",\"employee_id\":\"$EA\"}]','$CM')->>'code');"; }
+move() { echo "SELECT '$1:'||(public.move_appointment_atomic('$2','$3','$4','$EA',public.t_upd('$2'))->>'code');"; }
+race() { # name role1 sql1 role2 sql2 expect1 expect2
+  printf 'BEGIN;\n%s\n%s\nSELECT pg_sleep(2);\nCOMMIT;\n' "$2" "$3" > "$BASE/r1.sql"
+  printf 'BEGIN;\n%s\n%s\nCOMMIT;\n' "$4" "$5" > "$BASE/r2.sql"
+  chown $RUNUID "$BASE/r1.sql" "$BASE/r2.sql"
+  AS bash -c "$P -d gs_move -f $BASE/r1.sql > $BASE/o1 2>&1 & sleep 0.5; $P -d gs_move -f $BASE/r2.sql > $BASE/o2 2>&1; wait"
+  local a b; a=$(grep -h 's1:' "$BASE/o1" || true); b=$(grep -h 's2:' "$BASE/o2" || true)
+  if [ "$a" = "s1:$6" ] && [ "$b" = "s2:$7" ]; then echo "PASS: $1 ($a $b)"; else echo "FAIL: $1 ($a $b)"; cat "$BASE/o1" "$BASE/o2"; fi
+}
+A7=a1000000-0000-0000-0000-000000000007; A6=a1000000-0000-0000-0000-000000000006
+race "R02 booking 13:00 holds lock, move to 13:30 same employee" "$SRV" "$(book s1 2026-10-15 13:00)" "$OWN" "$(move s2 $A7 2026-10-15 13:30)" booked conflict
+race "R03 move to 14:00 holds lock, booking 14:30 same employee" "$OWN" "$(move s1 $A7 2026-10-22 14:00)" "$SRV" "$(book s2 2026-10-22 14:30)" moved conflict
+race "R04 booking 10:00 vs booking 10:15 same employee" "$SRV" "$(book s1 2026-10-23 10:00)" "$SRV" "$(book s2 2026-10-23 10:15)" booked conflict
+race "R05 two moves of same appointment, same version (different days)" "$OWN" "$(move s1 $A6 2026-10-29 10:00)" "$OWN" "$(move s2 $A6 2026-10-30 14:00)" moved stale
+CNT() { AS $P -d gs_move -c "$1"; }
+[ "$(CNT "select count(*) from appointments where employee_id='$EA' and start_time in ('13:00','13:30') and (appointment_date at time zone 'Europe/Amsterdam')::date='2026-10-15'")" = "1" ] && echo "PASS: R02 database holds one" || echo "FAIL: R02 rows"
+[ "$(CNT "select count(*) from appointments where employee_id='$EA' and start_time in ('14:00','14:30') and (appointment_date at time zone 'Europe/Amsterdam')::date='2026-10-22'")" = "1" ] && echo "PASS: R03 database holds one" || echo "FAIL: R03 rows"
+[ "$(CNT "select count(*) from appointments where employee_id='$EA' and start_time in ('10:00','10:15') and (appointment_date at time zone 'Europe/Amsterdam')::date='2026-10-23'")" = "1" ] && echo "PASS: R04 database holds one" || echo "FAIL: R04 rows"
+[ "$(CNT "select (appointment_date at time zone 'Europe/Amsterdam')::date::text from appointments where id='$A6'")" = "2026-10-29" ] && echo "PASS: R05 first move kept, second not applied" || echo "FAIL: R05 state"
