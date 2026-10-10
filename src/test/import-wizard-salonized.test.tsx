@@ -4,6 +4,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import * as XLSX from "xlsx";
+import { MemoryRouter } from "react-router-dom";
 
 const db: Record<string, any[]> = {};
 const fail = { customersPage: 0, itemsInsertCall: 0 };
@@ -105,7 +106,7 @@ function xlsxBytes() {
 const card = (label: string) => Number(screen.getByText(label).parentElement!.textContent!.replace(label, "").replace(/\D/g, ""));
 
 async function toPreview(file: File) {
-  render(<ImportWizard />);
+  render(<MemoryRouter><ImportWizard /></MemoryRouter>);
   const input = document.querySelector('input[type="file"]') as HTMLInputElement;
   fireEvent.change(input, { target: { files: [file] } });
   fireEvent.click(await screen.findByRole("button", { name: /Volgende/ }));
