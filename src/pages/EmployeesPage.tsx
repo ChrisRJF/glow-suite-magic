@@ -524,7 +524,7 @@ export default function EmployeesPage() {
                         const d = form.weekly_schedule?.[String(day) as DayKey];
                         const invalid = !!d && !!d.start && !!d.end && d.start >= d.end;
                         return (
-                          <div key={day} className="rounded-lg border border-border p-2 space-y-2 sm:space-y-0 sm:flex sm:items-center sm:gap-2">
+                          <div key={day} className="min-w-0 w-full max-w-full rounded-lg border border-border p-2 space-y-2 sm:space-y-0 sm:flex sm:items-start sm:gap-2">
                             <button
                               type="button"
                               onClick={() => setScheduleDay(day, d ? null : { start: "09:00", end: "17:00" })}
@@ -537,11 +537,13 @@ export default function EmployeesPage() {
                               {lbl}
                             </button>
                             {d ? (
-                              <div className="flex items-center gap-2 flex-1">
-                                <Input type="time" aria-label={`Begintijd ${lbl}`} value={d.start} onChange={(ev) => setScheduleDay(day, { ...d, start: ev.target.value })} className={cn("h-10", invalid && "border-destructive")} />
-                                <span className="text-xs text-muted-foreground">tot</span>
-                                <Input type="time" aria-label={`Eindtijd ${lbl}`} value={d.end} onChange={(ev) => setScheduleDay(day, { ...d, end: ev.target.value })} className={cn("h-10", invalid && "border-destructive")} />
-                                <Button type="button" variant="ghost" size="sm" className="shrink text-xs whitespace-normal h-auto py-1 leading-tight" onClick={() => copyScheduleDay(day)}>Tijden kopiëren naar werkdagen</Button>
+                              <div className="min-w-0 max-w-full flex-1 space-y-1">
+                                <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+                                  <Input type="time" aria-label={`Begintijd ${lbl}`} value={d.start} onChange={(ev) => setScheduleDay(day, { ...d, start: ev.target.value })} className={cn("h-11 min-w-0 max-w-full px-2", invalid && "border-destructive")} />
+                                  <span className="text-xs text-muted-foreground">tot</span>
+                                  <Input type="time" aria-label={`Eindtijd ${lbl}`} value={d.end} onChange={(ev) => setScheduleDay(day, { ...d, end: ev.target.value })} className={cn("h-11 min-w-0 max-w-full px-2", invalid && "border-destructive")} />
+                                </div>
+                                <Button type="button" variant="ghost" size="sm" className="h-11 max-w-full text-xs text-muted-foreground whitespace-normal" aria-describedby="copy-schedule-help" onClick={() => copyScheduleDay(day)}>Kopieer tijden</Button>
                               </div>
                             ) : (
                               <p className="text-xs text-muted-foreground flex-1">Niet beschikbaar</p>
@@ -550,7 +552,7 @@ export default function EmployeesPage() {
                           </div>
                         );
                       })}
-                      <p className="text-xs text-muted-foreground">"Tijden kopiëren naar werkdagen" overschrijft de tijden van alle andere actieve werkdagen. Pauzes, verlof en uitzonderingen blijven gelden.</p>
+                      <p id="copy-schedule-help" className="text-xs text-muted-foreground">Kopieert deze tijden naar alle andere werkdagen en vervangt daar de bestaande tijden. Pauzes, verlof en uitzonderingen blijven gelden.</p>
                     </div>
                   ) : (<>
                   <Label className="text-xs">Werkdagen</Label>
