@@ -890,7 +890,9 @@ function AutomationsStep({ data, setData }: any) {
 }
 
 function DoneStep({ logoUrl, salonName }: { logoUrl?: string; salonName?: string }) {
-  const items = ["Agenda", "Online betalingen", "Klantenbestand", "Automatiseringen", "Dashboard"];
+  // Alleen wat deze wizard daadwerkelijk heeft geregeld. Betalingen en automatische
+  // berichten vereisen een aparte koppeling en krijgen hier daarom geen vinkje.
+  const ready = ["Agenda", "Klantenbestand", "Standaardbehandelingen", "Dashboard"];
   return (
     <div className="h-full flex flex-col items-center justify-center text-center py-6 sm:py-10 max-w-md mx-auto">
       {logoUrl ? (
@@ -907,18 +909,27 @@ function DoneStep({ logoUrl, salonName }: { logoUrl?: string; salonName?: string
         />
       )}
       <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">🎉 Je salon is klaar!</h1>
-      <p className="text-base text-muted-foreground mb-6">Je kunt nu verder. Betalingen en berichten vragen een aparte koppeling:</p>
+      <p className="text-base text-muted-foreground mb-6">
+        Je kunt nu aan de slag. Je salon staat in GlowSuite en je kunt direct werken met:
+      </p>
       <div className="grid grid-cols-2 gap-2 w-full text-left">
-        {items.map(t => (
+        {ready.map(t => (
           <div key={t} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-secondary/40 border border-border/50">
-            <Check className="w-4 h-4 text-success" />
+            <Check className="w-4 h-4 text-success shrink-0" />
             <span className="text-sm font-medium">{t}</span>
           </div>
         ))}
       </div>
+      <div className="w-full mt-4 rounded-2xl border border-border/60 bg-secondary/20 px-4 py-3 text-left">
+        <p className="text-sm font-semibold">Later instellen</p>
+        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+          Betalingen en automatische berichten regel je apart via Instellingen, wanneer het je uitkomt.
+        </p>
+      </div>
     </div>
   );
 }
+
 
 function PostWelcomeStep({ onNavigate }: { onNavigate: (path: string) => void }) {
   const actions = [
