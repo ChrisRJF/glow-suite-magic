@@ -94,6 +94,11 @@ export function buildDeps(db: Db, env: AdapterEnv, io: { fetch: typeof fetch; no
   if (!claimKey || !env.WA_CONTACT_REF_KEYS || !env.LOVABLE_API_KEY || !env.TWILIO_API_KEY) return null;
   if (typeof from !== "string" || !/^whatsapp:\+[1-9]\d{7,14}$/.test(from) || from === SANDBOX_FROM) return null;
 
+  // wa_claim_send also stores customer_id + kind, which the guard's claim(tenant,key,fp) does not
+  // pass. Captured from this request's own customer()/fingerprint calls. buildDeps() MUST be
+  // called once per request (never shared across concurrent requests).
+  const ctx: { customer: string | null; kind: string | null } = { customer: null, kind: null };
+
   const isStopped = makeGatewayIsStopped({
     contactRefConfig: env.WA_CONTACT_REF_KEYS,
     async linkForSalon(salonId) {
@@ -124,8 +129,10 @@ export function buildDeps(db: Db, env: AdapterEnv, io: { fetch: typeof fetch; no
       return row && ROLES.includes(row.role as Role) ? (row.role as Role) : null;
     },
     async customer(id) {
-      return (await one(db, "customers",
+      const c = (await one(db, "customers",
         "id,user_id,phone,whatsapp_opt_in,marketing_consent,archived_at,pseudonymized_at,communication_blocked_at", { id })) as CustomerRow | null;
+      ctx.customer = c?.id ?? null;
+      return c;
     },
     async appointment(id) {
       return (await one(db, "appointments", "id,user_id,customer_id", { id })) as { user_id: string; customer_id: string | null } | null;
@@ -154,7 +161,7 @@ export function buildDeps(db: Db, env: AdapterEnv, io: { fetch: typeof fetch; no
       return r.is_demo === true || r.demo_mode === true;
     },
     async claim(tenantId, key, fingerprint): Promise<ClaimResult> {
-      const r = await db.rpc("wa_claim_send", { _tenant: tenantId, _key: key, _fp: fingerprint, _customer: CLAIM_CTX.customer, _kind: CLAIM_CTX.kind });
+      const r = await db.rpc("wa_claim_send", { _tenant: tenantId, _key: key, _fp: fingerprint, _customer: ctx.customer, _kind: ctx.kind });
       const d = r.data as { result?: string; state?: string } | null;
       if (r.error || !d) throw new Error("claim_failed");
       if (d.result === "created") return { created: true };
@@ -193,7 +200,10 @@ export function buildDeps(db: Db, env: AdapterEnv, io: { fetch: typeof fetch; no
       }
       return { accepted: false, code: typeof j.code === "number" ? j.code : res.status };
     },
-    async hmac(purpose, value) { return hmacHex(claimKey, `${purpose}\n${value}`); },
+    async hmac(purpose, value) {
+      if (purpose === "fp") ctx.kind = value.split("|")[1] ?? null;
+      return hmacHex(claimKey, `${purpose}\n${value}`);
+    },
     async resolveEvent(type: EventType, id: string): Promise<EventRow | null> {
       switch (type) {
         case "appointment": {
@@ -223,8 +233,6 @@ export function buildDeps(db: Db, env: AdapterEnv, io: { fetch: typeof fetch; no
     },
   };
 
-  // wa_claim_send also stores customer_id + kind; the guard calls claim() right after these are
-  // known, so the HTTP layer records them per request (single request per isolate invocation).
   const service: ServiceVerifyDeps = {
     keys: parseServiceKeys(env.WA_SEND_SERVICE_KEYS),
     now: io.now, hmacHex, sha256Hex,
@@ -234,21 +242,7 @@ export function buildDeps(db: Db, env: AdapterEnv, io: { fetch: typeof fetch; no
       return r.data;
     },
   };
-  return { deps: withClaimContext(deps), service };
-}
-
-// The guard's claim(tenant,key,fp) signature has no customer/kind; capture them from the
-// preceding customer()/fingerprint inputs of the same call. Scoped per buildDeps() instance.
-const CLAIM_CTX: { customer: string | null; kind: string | null } = { customer: null, kind: null };
-function withClaimContext(d: Deps): Deps {
-  return {
-    ...d,
-    async customer(id) { const c = await d.customer(id); CLAIM_CTX.customer = c?.id ?? null; return c; },
-    async hmac(purpose, value) {
-      if (purpose === "fp") CLAIM_CTX.kind = value.split("|")[1] ?? null;
-      return d.hmac(purpose, value);
-    },
-  };
+  return { deps, service };
 }
 
 export type { ServiceCaller };
