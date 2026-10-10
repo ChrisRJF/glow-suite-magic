@@ -192,7 +192,7 @@ describe("Sprint 3 afronding", () => {
     expect(root.querySelectorAll(".text-success")).toHaveLength(4);
   });
 
-  it("snelle startclaimt de afronding niet", async () => {
+  it("snelle start claimt de afronding niet", async () => {
     salonDraft(); wizard();
     fireEvent.click(screen.getByRole("button", { name: "Start met GlowSuite" }));
     await screen.findByRole("button", { name: /Eerste afspraak maken/ });
