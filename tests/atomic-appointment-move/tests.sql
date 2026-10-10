@@ -107,7 +107,7 @@ SELECT t_ok((public.move_appointment_atomic(:'A1','2026-10-12','11:00',:'EA',pub
 ROLLBACK;
 BEGIN; SET LOCAL ROLE anon;
 DO $$ BEGIN
-  PERFORM public.move_appointment_atomic('a1000000-0000-0000-0000-000000000001','2026-10-12','11:00',NULL,public.t_upd('a1000000-0000-0000-0000-000000000001'));
+  PERFORM public.move_appointment_atomic('a1000000-0000-0000-0000-000000000001','2026-10-12','11:00',NULL,'2026-01-01Z'::timestamptz);
   RAISE EXCEPTION 'FAIL: anon could execute';
 EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'PASS: T12 anon has no EXECUTE';
 END $$;

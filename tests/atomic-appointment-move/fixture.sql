@@ -107,10 +107,10 @@ INSERT INTO public.customers (id, user_id, name) VALUES
  ('c0000000-0000-0000-0000-000000000001','11111111-1111-1111-1111-111111111111','Test Klant'),
  ('c0000000-0000-0000-0000-000000000002','22222222-2222-2222-2222-222222222222','Andere Klant');
 -- legacy calendar row (wall clock stored as UTC): Tue 13 Oct 15:00 local, EA
--- and an ambiguous row (start_time matches neither reading): Thu 15 Oct, no employee
+-- and an ambiguous row (start_time matches neither reading): Thu 22 Oct, readings 11:00 local or 09:00, no employee
 INSERT INTO public.appointments (id, user_id, service_id, appointment_date, start_time, end_time, employee_id, status) VALUES
  ('a1000000-0000-0000-0000-000000000009','11111111-1111-1111-1111-111111111111','a0000000-0000-0000-0000-000000000060','2026-10-13 15:00Z','15:00','16:00','e0000000-0000-0000-0000-00000000000a','gepland'),
- ('a1000000-0000-0000-0000-000000000010','11111111-1111-1111-1111-111111111111','a0000000-0000-0000-0000-000000000060','2026-10-15 05:00Z','14:00','15:00',NULL,'gepland');
+ ('a1000000-0000-0000-0000-000000000010','11111111-1111-1111-1111-111111111111','a0000000-0000-0000-0000-000000000060','2026-10-22 09:00Z','10:00','11:00',NULL,'gepland');
 INSERT INTO public.appointment_employees (user_id, appointment_id, employee_id, is_primary) VALUES
  ('11111111-1111-1111-1111-111111111111','a1000000-0000-0000-0000-000000000009','e0000000-0000-0000-0000-00000000000a',true);
 -- test helper: current version of a row (tests run as authenticated without table grants)
