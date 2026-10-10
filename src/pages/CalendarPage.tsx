@@ -24,10 +24,11 @@ import { GuidanceHint } from "@/components/demo/GuidanceHint";
 
 import { EmployeeAvatar, EmployeeAvatarStack } from "@/components/EmployeeAvatar";
 import {
-  DndContext, DragEndEvent, PointerSensor, TouchSensor, KeyboardSensor,
-  useSensor, useSensors, useDraggable, useDroppable as useDroppableImported,
+  DndContext, DragEndEvent, MouseSensor, TouchSensor, KeyboardSensor,
+  useSensor, useSensors,
 } from "@dnd-kit/core";
-import { CSS } from "@dnd-kit/utilities";
+import { DayApptDraggable, DaySlotDroppable } from "@/components/CalendarDayDnd";
+import { resolveDropTarget, validateDropWindow, isTouchActivation } from "@/lib/calendarDrop";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { EmployeeColumnDayView } from "@/components/EmployeeColumnDayView";
 import { MoveAppointmentSheet, type MoveTarget } from "@/components/MoveAppointmentSheet";
@@ -121,12 +122,16 @@ export default function CalendarPage() {
   const [moveSheetOpen, setMoveSheetOpen] = useState(false);
   const [dossierAppt, setDossierAppt] = useState<any | null>(null);
   const [moveTargetAppt, setMoveTargetAppt] = useState<any | null>(null);
+  const [dragPrefill, setDragPrefill] = useState<MoveTarget | null>(null);
   const [reflowOpen, setReflowOpen] = useState(false);
 
-  // dnd-kit sensors: long-press on touch (300ms / 8px), small distance on pointer (desktop)
+  // dnd-kit sensors: MouseSensor for desktop and TouchSensor for phones.
+  // PointerSensor is not used because it also captures touch pointers and
+  // fights the TouchSensor / native scroll on iOS and Android. Drag only
+  // starts from the grip (touch-action: none); elsewhere the agenda scrolls.
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 300, tolerance: 8 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 8 } }),
     useSensor(KeyboardSensor),
   );
 
@@ -934,42 +939,69 @@ export default function CalendarPage() {
   };
 
   const openMoveSheet = (apt: any) => {
+    setDragPrefill(null);
     setMoveTargetAppt(apt);
     setMoveSheetOpen(true);
   };
 
-  // Drag end handler — applies an immediate move when dropped on a slot/cell.
+  // Drag end handler. Desktop (mouse): applies the move directly, as before.
+  // Touch: opens the existing MoveAppointmentSheet prefilled with the drop
+  // target; nothing is written until the user confirms there.
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
-    if (!over) return;
+    if (!over) return; // dropped outside the grid / cancelled: noop
     const apptId = active.data.current?.appointmentId as string | undefined;
-    const overData = over.data.current as { slot?: string; employeeId?: string; type?: string } | undefined;
-    if (!apptId || !overData?.slot) return;
+    if (!apptId) return;
     const apt = appointments.find(a => a.id === apptId);
     if (!apt) return;
 
-    const targetSlot = overData.slot;
-    const targetEmployeeId = overData.employeeId && overData.employeeId !== 'unassigned'
-      ? overData.employeeId
-      : (overData.employeeId === 'unassigned' ? null : null);
+    const currentColId = getColumnIdForAppointment(apt);
+    const resolved = resolveDropTarget(over.data.current as any, view, currentColId);
+    if (!resolved) return;
 
-    // For day view (no employee column), keep current employee.
-    let resolvedEmpId: string | null = targetEmployeeId;
-    if (view === 'day') {
-      const currentColId = getColumnIdForAppointment(apt);
-      resolvedEmpId = currentColId === 'unassigned' ? null : currentColId;
-    }
+    const svc = services.find(s => s.id === apt.service_id);
+    const duration = svc?.duration_minutes || 30;
+    const target: MoveTarget = { date: dateStr, time: resolved.time, employeeId: resolved.employeeId };
 
-    await applyMove(apt, {
-      date: dateStr,
-      time: targetSlot,
-      employeeId: resolvedEmpId,
+    // Same place: noop
+    if (getAppointmentTime(apt) === target.time && getAppointmentDate(apt) === target.date &&
+        (currentColId === (target.employeeId ?? 'unassigned'))) return;
+
+    const windowErr = validateDropWindow({
+      time: target.time,
+      durationMinutes: duration,
+      isPause: target.employeeId ? (s) => isPauseSlotForEmpId(target.employeeId!, s) : undefined,
     });
+    if (windowErr) { toast.error(windowErr); return; }
+
+    // Same conflict check applyMove uses (single source of truth).
+    const isDbEmployee = !!(target.employeeId && activeDbEmployees.find((e: any) => e.id === target.employeeId));
+    const conflict = findConflict({
+      movingId: apt.id,
+      date: target.date,
+      startTime: target.time,
+      durationMinutes: duration,
+      targetEmployeeId: isDbEmployee ? target.employeeId : null,
+      targetEmployeeName: displayEmployees.find((e: any) => e.id === target.employeeId)?.name || null,
+      appointments,
+      apptEmployees: apptEmployees || [],
+      services,
+    });
+    if (conflict) { toast.error(`${conflict}. Deze plek is bezet.`); return; }
+
+    if (isMobile || isTouchActivation(event.activatorEvent)) {
+      setDragPrefill(target);
+      setMoveTargetAppt(apt);
+      setMoveSheetOpen(true);
+      return;
+    }
+    await applyMove(apt, target);
   };
 
   // Initial values for the move sheet
   const moveSheetInitial = useMemo(() => {
     if (!moveTargetAppt) return { date: dateStr, time: '09:00', employeeId: null as string | null };
+    if (dragPrefill) return { date: dragPrefill.date, time: dragPrefill.time, employeeId: dragPrefill.employeeId };
     const t = getAppointmentTime(moveTargetAppt) || '09:00';
     const d = getAppointmentDate(moveTargetAppt) || dateStr;
     const colId = getColumnIdForAppointment(moveTargetAppt);
@@ -978,7 +1010,7 @@ export default function CalendarPage() {
       time: snapToFine(t),
       employeeId: colId === 'unassigned' ? null : colId,
     };
-  }, [moveTargetAppt, dateStr, apptEmployees, displayEmployees]);
+  }, [moveTargetAppt, dragPrefill, dateStr, apptEmployees, displayEmployees]);
 
   // Status pill: trigger uses Radix DropdownMenu so the menu is portaled
   // out of any overflow-hidden / z-stacked appointment cards.
@@ -1034,42 +1066,8 @@ export default function CalendarPage() {
     );
   };
 
-  // Inline draggable wrapper for day view appointment block
-  const DayApptDraggable = ({ apt, children }: { apt: any; children: (handleProps: any) => React.ReactNode }) => {
-    const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-      id: `day-apt-${apt.id}`,
-      data: { appointmentId: apt.id, type: 'appointment' },
-      // Mobile drag is enabled but only triggers from the dedicated grip handle (long-press).
-    });
-    return (
-      <div
-        ref={setNodeRef}
-        style={{
-          transform: CSS.Translate.toString(transform),
-          opacity: isDragging ? 0.5 : 1,
-        }}
-        className="absolute inset-x-0 top-1"
-      >
-        {children({ attributes, listeners })}
-      </div>
-    );
-  };
-
-  // Inline droppable wrapper for an empty day-view slot
-  const DaySlotDroppable = ({ slot, children }: { slot: string; children: React.ReactNode }) => {
-    const { setNodeRef, isOver } = useDroppableImported({
-      id: `day-slot-${slot}`,
-      data: { slot, employeeId: undefined, type: 'slot' },
-    });
-    return (
-      <div
-        ref={setNodeRef}
-        className={cn("absolute inset-0 transition-colors rounded-xl", isOver && "bg-primary/10 ring-1 ring-primary/40")}
-      >
-        {children}
-      </div>
-    );
-  };
+  // DayApptDraggable / DaySlotDroppable are hoisted to CalendarDayDnd.tsx
+  // so they keep a stable identity across renders (no remount mid-drag).
 
   // -----------------------------------------------------------------------
 
@@ -1550,6 +1548,7 @@ export default function CalendarPage() {
                 <div key={slot} className="flex gap-4 group min-h-[48px] relative">
                   <span className="w-14 text-xs text-muted-foreground py-3 tabular-nums flex-shrink-0 z-0">{slot}</span>
                   <div className="flex-1 border-t border-border/50 relative">
+                    <DaySlotDroppable slot={slot} />
                     {coveredByEarlier ? (
                       // Slot is visually covered by a longer appointment starting earlier — render nothing.
                       null
@@ -1619,12 +1618,13 @@ export default function CalendarPage() {
                               <button
                                 {...listeners}
                                 {...attributes}
-                                className="flex h-8 w-8 shrink-0 -ml-1 cursor-grab items-center justify-center rounded-lg hover:bg-secondary/60 active:cursor-grabbing active:bg-secondary sm:h-9 sm:w-9"
+                                className="flex h-11 w-11 shrink-0 -ml-1 cursor-grab items-center justify-center rounded-lg bg-secondary/40 hover:bg-secondary/60 active:cursor-grabbing active:bg-secondary"
                                 aria-label="Sleep om te verplaatsen"
+                                title="Houd vast en sleep om te verplaatsen"
                                 onClick={(e) => e.stopPropagation()}
-                                style={{ touchAction: 'none' }}
+                                style={{ touchAction: 'none', WebkitTouchCallout: 'none', userSelect: 'none' }}
                               >
-                                <GripVertical className="w-4 h-4 text-muted-foreground" />
+                                <GripVertical className="w-5 h-5 text-muted-foreground" />
                               </button>
                               <div className="flex min-w-0 items-center gap-1 sm:shrink-0">
                                 {dossierStatuses[apt.id] && (
@@ -1665,12 +1665,12 @@ export default function CalendarPage() {
                       </DayApptDraggable>
                       );
                     })() : (
-                      <DaySlotDroppable slot={slot}>
+                      <div className="absolute inset-0">
                         <div onClick={() => openAddModal(dateStr, slot)}
                           className="h-[40px] rounded-xl border border-dashed border-border/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer hover:bg-primary/5 hover:border-primary/30 mt-1">
-                          <span className="text-xs text-muted-foreground flex items-center gap-1"><Plus className="w-3.5 h-3.5" />Direct beschikbaar</span>
+                          <span className="text-xs text-muted-foreground flex items-center gap-1"><Plus className="w-3.5 h-3.5" />Nieuwe afspraak</span>
                         </div>
-                      </DaySlotDroppable>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -1690,7 +1690,7 @@ export default function CalendarPage() {
             isPauseSlot={isPauseSlotForEmpId}
             onRequestMove={openMoveSheet}
             onSlotClick={(empId, slot) => openAddModal(dateStr, slot)}
-            draggable={!isMobile}
+            draggable
           />
         ) : (
           <div className="overflow-x-auto">
@@ -1753,7 +1753,7 @@ export default function CalendarPage() {
 
       <MoveAppointmentSheet
         open={moveSheetOpen}
-        onOpenChange={setMoveSheetOpen}
+        onOpenChange={(o) => { setMoveSheetOpen(o); if (!o) setDragPrefill(null); }}
         appointment={moveTargetAppt}
         initialDate={moveSheetInitial.date}
         initialTime={moveSheetInitial.time}

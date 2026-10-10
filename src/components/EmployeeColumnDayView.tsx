@@ -47,9 +47,12 @@ export function DraggableAppointmentBlock({
         height: `${heightPx}px`,
         backgroundColor: `${color}1F`,
         borderLeft: `3px solid ${color}`,
-        opacity: isDragging ? 0.5 : 1,
-        touchAction: "none",
+        opacity: isDragging ? 0.6 : 1,
+        zIndex: isDragging ? 50 : undefined,
+        // touch-action stays default here so the agenda can still be swiped;
+        // only the grip below blocks native scrolling.
       }}
+      data-apt-id={apt.id}
       className={cn(
         "absolute left-1 right-1 top-0.5 rounded-xl p-2 transition-shadow",
         draggable && "hover:shadow-md",
@@ -80,11 +83,13 @@ export function DraggableAppointmentBlock({
             <button
               {...listeners}
               {...attributes}
-              className="min-h-9 min-w-9 rounded hover:bg-secondary/60 cursor-grab active:cursor-grabbing flex items-center justify-center"
+              className="h-11 w-11 rounded-lg bg-background/60 hover:bg-secondary/60 cursor-grab active:cursor-grabbing flex items-center justify-center"
               aria-label="Sleep om te verplaatsen"
+              title="Houd vast en sleep om te verplaatsen"
               onClick={(e) => e.stopPropagation()}
+              style={{ touchAction: "none", WebkitTouchCallout: "none", userSelect: "none" }}
             >
-              <GripVertical className="w-3 h-3 text-muted-foreground" />
+              <GripVertical className="w-4 h-4 text-muted-foreground" />
             </button>
           )}
           <button
