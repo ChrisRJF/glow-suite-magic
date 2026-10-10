@@ -17,6 +17,8 @@ import type { Tables } from "@/integrations/supabase/types";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useCustomerIntelligence } from "@/hooks/useCustomerIntelligence";
 import { calculateNoShowRisk } from "@/lib/noShowRisk";
+import { searchAfterUpdate } from "@/lib/customerDuplicates";
+import { DuplicateCustomersReview } from "@/components/customers/DuplicateCustomersReview";
 
 export default function CustomersPage() {
   const { data: customers, loading, refetch } = useCustomers();
@@ -78,7 +80,14 @@ export default function CustomersPage() {
     if (!can("customers:update")) { toast.error("Je hebt geen rechten om klanten te wijzigen."); return; }
     if (!selectedCustomer) return;
     const result = await update(selectedCustomer.id, form);
-    if (result) { toast.success("Klant bijgewerkt"); setEditing(false); refetch(); setSelectedCustomer({ ...selectedCustomer, ...form }); }
+    if (result) {
+      toast.success("Klant bijgewerkt");
+      setEditing(false);
+      // Keep the edited customer visible even when the name no longer matches the search.
+      setSearch((s) => searchAfterUpdate(s, form));
+      setSelectedCustomer({ ...selectedCustomer, ...form });
+      refetch();
+    }
   };
 
   const selectedIntel = selectedCustomer ? customerIntel.find(c => c.id === selectedCustomer.id) : null;
