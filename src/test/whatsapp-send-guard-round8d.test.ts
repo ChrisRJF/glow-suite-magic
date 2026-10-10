@@ -31,7 +31,7 @@ function world(events: EventRow[], o: { now?: number; resolve?: Deps["resolveEve
       [AP_X]: { user_id: SA, customer_id: CA } } as Record<string, { user_id: string; customer_id: string }>)[id] ?? null,
     preferenceWhatsappOptOut: async () => null,
     isStopped: o.isStopped ?? (async () => false),
-    whatsappEnabled: async () => true, isDemoTenant: async () => false,
+    whatsappEnabled: async () => true, isDemoTenant: async () => false, sendingPaused: async () => false,
     claim: async (t, k, fp) => { await new Promise((r) => setTimeout(r, 3)); const e = claims.get(`${t}|${k}`);
       if (e) return { created: false, state: e.state, fingerprint: e.fp }; claims.set(`${t}|${k}`, { state: "claimed", fp }); return { created: true }; },
     finalize: async (t, k, s) => { claims.set(`${t}|${k}`, { ...claims.get(`${t}|${k}`)!, state: s }); },
@@ -57,7 +57,7 @@ async function svc(caller: ServiceCaller) {
 }
 
 const appt = (o: Partial<Extract<EventRow, { type: "appointment" }>> = {}): EventRow =>
-  ({ type: "appointment", id: AP, user_id: SA, customer_id: CA, status: "gepland", starts_at_ms: NOW + 20 * H, ...o });
+  ({ type: "appointment", id: AP, user_id: SA, customer_id: CA, status: "gepland", starts_at_ms: NOW + 24 * H, ...o });
 const rem = (slot = "24h", id = AP) => ({ message: "Herinnering", kind: "reminder", appointment_id: id, event_ref: `appointment:${id}:${slot}` });
 
 describe("8D-B business events: appointment reminders", () => {
@@ -92,7 +92,7 @@ describe("8D-B business events: appointment reminders", () => {
     expect(await guardedSend(s, rem("24h"), world([appt({ starts_at_ms: NOW + H })]).deps)).toMatchObject({ reason: "reminder_outside_window" });
     expect(await guardedSend(s, rem("2h"), world([appt()]).deps)).toMatchObject({ reason: "reminder_outside_window" });
     expect(await guardedSend(s, rem("2h"), world([appt({ starts_at_ms: NOW - H })]).deps)).toMatchObject({ reason: "reminder_outside_window" });
-    expect(await guardedSend(s, rem("2h"), world([appt({ starts_at_ms: NOW + H })]).deps)).toMatchObject({ ok: true });
+    expect(await guardedSend(s, rem("2h"), world([appt({ starts_at_ms: NOW + 2 * H })]).deps)).toMatchObject({ ok: true });
     expect(await guardedSend(s, rem("24h"), world([appt({ starts_at_ms: null })]).deps)).toMatchObject({ reason: "event_time_unknown" });
   });
   it("cancelled appointment -> no reminder / confirmation", async () => {
@@ -248,5 +248,148 @@ describe("8D stays inactive", () => {
     const walk = (d: string): string[] => readdirSync(d).flatMap((f) => { const p = join(d, f);
       return statSync(p).isDirectory() ? (f === "inactive" ? [] : walk(p)) : p.endsWith(".ts") ? [p] : []; });
     for (const f of walk(root)) expect(readFileSync(f, "utf8")).not.toMatch(/eventVerifier|gatewayStopAdapter|whatsappSendGuard/);
+  });
+});
+
+// ---- Implementation sprint: A (test mode / demo / emergency stop), B (windows), C (STOP chain) ----
+import { localToEpochMs } from "../../supabase/functions/_shared/inactive/eventVerifier";
+import { buildOptOutData, isStopKeyword } from "../../supabase/functions/_shared/inactive/gatewayStopAdapter";
+import { handleGatewayCommand, signV1, COMMAND_PATH } from "../../supabase/functions/_shared/inactive/gatewayReceiver";
+import { parseKeyRing } from "../../supabase/functions/_shared/inactive/contactRef";
+
+
+describe("sprint A: test mode, demo, emergency stop", () => {
+  it("WhatsApp disabled -> refused for service and test sends; demo simulates without provider", async () => {
+    const w = world([appt()]); w.deps.whatsappEnabled = async () => false;
+    expect(await guardedSend(await svc("reminder-scheduler"), rem(), w.deps)).toMatchObject({ reason: "whatsapp_disabled" });
+    const d = world([appt()]); d.deps.whatsappEnabled = async () => false; d.deps.isDemoTenant = async () => true;
+    expect(await guardedSend(await svc("reminder-scheduler"), rem(), d.deps)).toMatchObject({ ok: true, result: "simulated" });
+    expect(d.transport).not.toHaveBeenCalled();
+  });
+  it("demo lookup failure / odd value -> no send", async () => {
+    const w = world([appt()]); w.deps.isDemoTenant = async () => { throw new Error("x"); };
+    expect(await guardedSend(await svc("reminder-scheduler"), rem(), w.deps)).toMatchObject({ status: 503 });
+    w.deps.isDemoTenant = async () => "no" as never;
+    expect(await guardedSend(await svc("reminder-scheduler"), rem(), w.deps)).toMatchObject({ status: 503 });
+    expect(w.transport).not.toHaveBeenCalled();
+  });
+  it("emergency stop on / error / missing value -> 503, no claim, no provider, also for demo", async () => {
+    for (const p of [async () => true, async () => { throw new Error("x"); }, async () => undefined as never]) {
+      const w = world([appt()]); w.deps.sendingPaused = p; w.deps.isDemoTenant = async () => true;
+      expect(await guardedSend(await svc("reminder-scheduler"), rem(), w.deps)).toMatchObject({ status: 503, reason: "sending_paused" });
+      expect(w.transport).not.toHaveBeenCalled(); expect(w.claims.size).toBe(0);
+    }
+  });
+});
+
+describe("sprint B: reminder windows + DST + two schedulers", () => {
+  it("windows do not overlap and match scheduler tolerance (+/- 1h)", async () => {
+    const s = await svc("reminder-scheduler");
+    for (const [slot, lead, ok] of [["24h", 23.5, true], ["24h", 25, true], ["24h", 22.9, false], ["24h", 25.1, false],
+      ["2h", 2, true], ["2h", 1, false], ["2h", 3.1, false], ["24h", 2, false], ["2h", 24, false]] as const) {
+      const r = await guardedSend(s, rem(slot), world([appt({ starts_at_ms: NOW + lead * H })]).deps);
+      expect(r.ok, `${slot}@${lead}h`).toBe(ok);
+    }
+  });
+  it("reminder-scheduler and automation-scheduler share one claim -> second is duplicate", async () => {
+    const w = world([appt()]);
+    expect(await guardedSend(await svc("reminder-scheduler"), rem(), w.deps)).toMatchObject({ ok: true });
+    expect(await guardedSend(await svc("automation-scheduler"), rem(), w.deps)).toMatchObject({ reason: "duplicate" });
+    expect(w.transport).toHaveBeenCalledTimes(1);
+  });
+  it("cancelled appointment -> no reminder", async () => {
+    expect(await guardedSend(await svc("reminder-scheduler"), rem(), world([appt({ status: "geannuleerd" })]).deps)).toMatchObject({ reason: "event_cancelled" });
+  });
+  it("Europe/Amsterdam conversion: winter, summer, spring gap, autumn fold", () => {
+    expect(localToEpochMs("2026-01-15", "10:00")).toBe(Date.UTC(2026, 0, 15, 9, 0));
+    expect(localToEpochMs("2026-07-15", "10:00")).toBe(Date.UTC(2026, 6, 15, 8, 0));
+    expect(localToEpochMs("2026-03-29", "02:30")).toBeNull();
+    expect(localToEpochMs("2026-10-25", "02:30")).toBe(Date.UTC(2026, 9, 25, 0, 30));
+    expect(localToEpochMs("2026-10-25", "03:30")).toBe(Date.UTC(2026, 9, 25, 2, 30));
+    expect(localToEpochMs("2026-13-01", "10:00")).toBeNull();
+    // 24h across the autumn change = 25 wall-clock hours; still inside the (23h,25h] window.
+    const start = localToEpochMs("2026-10-25", "10:00")!, prev = localToEpochMs("2026-10-24", "10:00")!;
+    expect(start - prev).toBe(25 * H);
+  });
+});
+
+describe("sprint C: full STOP chain (offline)", () => {
+  const MK = Buffer.from(new Uint8Array(32).fill(9)).toString("base64");
+  const MK2 = Buffer.from(new Uint8Array(32).fill(3)).toString("base64");
+  const ring1 = JSON.stringify({ current: "1", keys: { "1": MK } });
+  const ring12 = JSON.stringify({ current: "2", keys: { "1": MK, "2": MK2 } });
+  const GW_A = "gw_tenant_a", GW_B = "gw_tenant_b", SECRET = "s".repeat(40), PHONE = "+31612345678";
+  const T = 1_800_000_000;
+
+  function chain(o: { storeDown?: boolean; rpcMissing?: boolean } = {}) {
+    const optOuts = new Set<string>(); const receipts = new Map<string, string>();
+    const links: Record<string, { salonId: string }> = { [GW_A]: { salonId: SA }, [GW_B]: { salonId: SB } };
+    const store = {
+      resolveTenant: async (t: string) => links[t] ? { salonId: links[t].salonId, enabled: true, allowedActionTypes: ["opt_out_signal" as const] } : null,
+      processOnce: async (salon: string, rc: any, eff: any) => {
+        if (o.storeDown) throw new Error("down");
+        const k = `${rc.tenantId}|${rc.idempotencyKey}`;
+        if (receipts.has(k)) return receipts.get(k) === rc.requestHash ? { result: "duplicate" as const, storedCode: 200, storedBody: {} } : { result: "conflict" as const };
+        receipts.set(k, rc.requestHash); optOuts.add(`${salon}|${eff.contactRef}`); return { result: "applied" as const };
+      },
+    };
+    const isStoppedFor = (cfg: string) => makeGatewayIsStopped({
+      contactRefConfig: cfg,
+      linkForSalon: async (s) => ({ [SA]: { tenant_id: GW_A, salon_id: SA, enabled: true, allowed_action_types: ["opt_out_signal"] },
+        [SB]: { tenant_id: GW_B, salon_id: SB, enabled: true, allowed_action_types: ["opt_out_signal"] } } as any)[s] ?? null,
+      rpc: async (_f, a) => o.rpcMissing ? { data: null, error: { code: "42883" } } : { data: a._refs.some((r) => optOuts.has(`${a._salon}|${r}`)), error: null },
+    });
+    return { store, optOuts, isStoppedFor };
+  }
+  async function inbound(store: any, gw: string, text: string, cfg = ring1, opts: { badSig?: boolean; key?: string } = {}) {
+    const ring = parseKeyRing(cfg); if (ring.ok === false) throw new Error(ring.reason);
+    const data = await buildOptOutData(ring.ring, gw, PHONE, text);
+    if (!data) return null;
+    const body = JSON.stringify({ contract_version: 1, idempotency_key: opts.key ?? createHash("sha256").update(gw + text + cfg).digest("hex"),
+      tenant_id: gw, action_type: "opt_out_signal", provider_event_id: "wamid.fict", occurred_at: new Date(T * 1000).toISOString(), data });
+    const sig = await signV1("k1", opts.badSig ? "x".repeat(40) : SECRET, String(T), "POST", COMMAND_PATH, body);
+    return handleGatewayCommand({ enabled: true, keys: { k1: SECRET }, contactRefVersions: ["1", "2"] }, store,
+      { method: "POST", path: COMMAND_PATH, rawBody: body, headers: { "x-gs-key-id": "k1", "x-gs-timestamp": String(T),
+        "x-gs-nonce": JSON.parse(body).idempotency_key, "x-gs-signature": sig } }, T);
+  }
+  const send = (isStopped: Deps["isStopped"]) => world([appt()], { isStopped });
+
+  it("keywords: exact whole-message only", () => {
+    for (const k of ["STOP", "stop", " Stoppen ", "afmelden.", "UITSCHRIJVEN", "unsubscribe!"]) expect(isStopKeyword(k)).toBe(true);
+    for (const k of ["stop met die actie", "ja", "", "STOPP", null]) expect(isStopKeyword(k)).toBe(false);
+  });
+  it("valid STOP -> stored as contact_ref only (no phone) -> future send blocked; duplicate STOP is one effect", async () => {
+    const c = chain();
+    expect((await inbound(c.store, GW_A, "STOP"))!.status).toBe(200);
+    expect((await inbound(c.store, GW_A, "STOP"))!.body.code).toBe("duplicate");
+    expect(c.optOuts.size).toBe(1);
+    expect([...c.optOuts].join()).not.toContain("612345678");
+    const w = send(c.isStoppedFor(ring1));
+    expect(await guardedSend(await svc("reminder-scheduler"), rem(), w.deps)).toMatchObject({ reason: "customer_stopped" });
+    expect(w.transport).not.toHaveBeenCalled();
+  });
+  it("invalid webhook signature / unknown tenant -> rejected, nothing stored", async () => {
+    const c = chain();
+    expect((await inbound(c.store, GW_A, "STOP", ring1, { badSig: true }))!.status).toBe(401);
+    expect((await inbound(c.store, "gw_unknown", "STOP"))!.status).toBe(403);
+    expect(c.optOuts.size).toBe(0);
+  });
+  it("STOP at another salon does not leak; STOP after key rotation still blocks", async () => {
+    const c = chain();
+    await inbound(c.store, GW_B, "STOP");
+    expect(await c.isStoppedFor(ring1)(SA, PHONE)).toBe(false);
+    await inbound(c.store, GW_A, "AFMELDEN", ring1);           // stored under key v1
+    expect(await c.isStoppedFor(ring12)(SA, PHONE)).toBe(true); // checked after rotation to v2
+  });
+  it("STOP storage down -> 503 to gateway (retry); missing STOP schema -> sends blocked", async () => {
+    expect((await inbound(chain({ storeDown: true }).store, GW_A, "STOP"))!.status).toBe(503);
+    const w = send(chain({ rpcMissing: true }).isStoppedFor(ring1));
+    expect(await guardedSend(await svc("reminder-scheduler"), rem(), w.deps)).toMatchObject({ status: 503 });
+    expect(w.transport).not.toHaveBeenCalled();
+  });
+  it("existing preference whatsapp_opt_out blocks even with consent", async () => {
+    const w = world([appt()]); w.deps.preferenceWhatsappOptOut = async () => true;
+    expect((await guardedSend(await svc("reminder-scheduler"), rem(), w.deps)).ok).toBe(false);
+    expect(w.transport).not.toHaveBeenCalled();
   });
 });

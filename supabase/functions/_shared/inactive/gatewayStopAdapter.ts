@@ -8,7 +8,26 @@
 // guard maps to 503 "consent_lookup_failed": no claim, no provider call.
 // customer_message_preferences.whatsapp_opt_out is checked separately by the guard (always).
 
-import { checkStopBeforeSend, parseKeyRing } from "./contactRef.ts";
+import { checkStopBeforeSend, computeCurrentContactRef, parseKeyRing, type KeyRing } from "./contactRef.ts";
+
+/** Existing STOP keywords. Whole message only (trimmed, case-insensitive, trailing "." / "!" allowed);
+ *  "stop met die actie" is NOT a STOP. */
+export const STOP_WORDS = ["STOP", "STOPPEN", "AFMELDEN", "UITSCHRIJVEN", "UNSUBSCRIBE"] as const;
+export function isStopKeyword(text: unknown): boolean {
+  if (typeof text !== "string" || text.length > 64) return false;
+  const t = text.trim().replace(/[.!]+$/, "").toUpperCase();
+  return (STOP_WORDS as readonly string[]).includes(t);
+}
+
+/** Gateway-side step (offline reference): verified inbound text + sender -> opt_out_signal data.
+ *  Only the keyed contact_ref leaves this function; the phone number is never returned or stored.
+ *  null = not a STOP, or sender not normalisable (no signal, nothing stored). */
+export async function buildOptOutData(ring: KeyRing, gatewayTenantId: string, sender: unknown, text: unknown)
+  : Promise<{ channel: "whatsapp"; contact_ref: string } | null> {
+  if (!isStopKeyword(text)) return null;
+  const ref = await computeCurrentContactRef(ring, gatewayTenantId, sender);
+  return ref ? { channel: "whatsapp", contact_ref: ref } : null;
+}
 
 export interface GatewayLinkRow { tenant_id: unknown; salon_id: unknown; enabled: unknown; allowed_action_types: unknown }
 export interface RpcResult { data: unknown; error: { code?: string; message?: string } | null }
