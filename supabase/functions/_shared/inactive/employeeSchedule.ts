@@ -270,3 +270,9 @@ export function busyFromAppointments(date: string, rows: Array<{ appointment_dat
   }
   return out;
 }
+
+/** Appointments whose employee_id is not a current employee of the salon (sample names like "Bas",
+ *  deleted employees, NULL) become salon-wide blocks, so they can never be double-booked. */
+export function normalizeBusyEmployees<T extends { employee_id: string | null }>(rows: T[], knownIds: Set<string>): T[] {
+  return rows.map((r) => ({ ...r, employee_id: r.employee_id && knownIds.has(r.employee_id) ? r.employee_id : null }));
+}
