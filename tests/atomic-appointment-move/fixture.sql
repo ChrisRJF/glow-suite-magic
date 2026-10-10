@@ -52,7 +52,7 @@ $$;
 
 -- Test-only switch to simulate a failing link write (rollback test).
 CREATE FUNCTION public.t_fail_link() RETURNS trigger LANGUAGE plpgsql AS $$
-BEGIN IF current_setting('test.fail_link', true) = 'on' THEN RAISE EXCEPTION 'simulated link failure'; END IF; RETURN NEW; END $$;
+BEGIN IF current_setting('test.fail_link', true) = 'on' OR current_setting('test.fail_link_emp', true) = NEW.employee_id::text THEN RAISE EXCEPTION 'simulated link failure'; END IF; RETURN NEW; END $$;
 CREATE TRIGGER t_fail_link BEFORE INSERT ON public.appointment_employees FOR EACH ROW EXECUTE FUNCTION public.t_fail_link();
 
 CREATE FUNCTION public.t_ok(cond boolean, label text) RETURNS text LANGUAGE plpgsql AS $$
@@ -124,3 +124,8 @@ CREATE FUNCTION public.t_upd(uuid) RETURNS timestamptz LANGUAGE sql STABLE SECUR
 GRANT EXECUTE ON FUNCTION public.t_upd(uuid) TO authenticated;
 INSERT INTO public.treatment_journeys (id, user_id, customer_id) VALUES
  ('d0000000-0000-0000-0000-000000000001','11111111-1111-1111-1111-111111111111','c0000000-0000-0000-0000-000000000001');
+-- tenant feature flags (structure as live, plus the proposed column added by the migration)
+CREATE TABLE public.tenant_feature_flags (tenant_id uuid PRIMARY KEY, history_csv_preview_enabled boolean NOT NULL DEFAULT false, history_csv_import_enabled boolean NOT NULL DEFAULT false, updated_at timestamptz NOT NULL DEFAULT now());
+INSERT INTO public.tenant_feature_flags (tenant_id) VALUES ('11111111-1111-1111-1111-111111111111'),('22222222-2222-2222-2222-222222222222');
+-- emulate Supabase: new functions in public get EXECUTE for anon/authenticated/service_role by default
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO anon, authenticated, service_role;

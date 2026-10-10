@@ -6,7 +6,7 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"; ROOT="$(cd "$HERE/../.." && pwd)"
 BASE=/tmp/glowsuite-pg-atomic-move; RUNUID=4711
 rm -rf "$BASE"; mkdir -p "$BASE/data" "$BASE/sock"
-cp "$ROOT/docs/proposed-migrations/2026-10-10_atomic_appointment_move.sql" "$ROOT/docs/proposed-migrations/2026-10-10_appointment_slot_guard.sql" "$HERE"/*.sql "$BASE/"
+cp "$ROOT/docs/proposed-migrations/2026-10-10_atomic_appointment_move.sql" "$ROOT/docs/proposed-migrations/2026-10-10_atomic_appointment_activate_booking.sql" "$ROOT/docs/proposed-migrations/2026-10-10_atomic_appointment_activate_agenda.sql" "$ROOT/docs/proposed-migrations/2026-10-10_appointment_slot_guard.sql" "$HERE"/*.sql "$BASE/"
 chown -R $RUNUID:$RUNUID "$BASE"; chmod 700 "$BASE/sock"
 AS() { env -i PATH="$PATH" HOME=/tmp setpriv --reuid=$RUNUID --regid=$RUNUID --clear-groups "$@"; }
 AS initdb -D "$BASE/data" -U testsuper -A trust >/dev/null
@@ -16,17 +16,24 @@ P="psql -X -q -At -h $BASE/sock -U testsuper"
 AS $P -d postgres -c "create database gs_move" >/dev/null
 AS $P -d gs_move -c "select 'isolated: listen='''||current_setting('listen_addresses')||''' db='||current_database()"
 AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/fixture.sql"
-# apply the proposal twice: CREATE OR REPLACE must be idempotent
-AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/2026-10-10_atomic_appointment_move.sql -f $BASE/2026-10-10_atomic_appointment_move.sql"
-echo "proposal applied twice"
-for F in tests.sql tests-phase2.sql tests-phase3.sql; do
+# apply the proposal; a second apply must be REFUSED unless replacement is explicitly reviewed
+AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/2026-10-10_atomic_appointment_move.sql" >/dev/null
+if AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/2026-10-10_atomic_appointment_move.sql" >/dev/null 2>&1; then echo "FAIL: P01 silent re-apply allowed"; else echo "PASS: P01 re-apply without review refused (existing functions not silently replaced)"; fi
+AS bash -c "PGOPTIONS='-c glowsuite.allow_replace=on' $P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/2026-10-10_atomic_appointment_move.sql" >/dev/null && echo "PASS: P01 reviewed re-apply (allow_replace=on) succeeds and is idempotent"
+# step 1 only: nobody may call anything
+AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/tests-grants-pre.sql 2>&1" | grep -E "PASS|FAIL|ERROR" | sed 's/^psql:[^:]*:[0-9]*: NOTICE:  //'
+# activation steps (separately approved in real life)
+AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/2026-10-10_atomic_appointment_activate_booking.sql -f $BASE/2026-10-10_atomic_appointment_activate_agenda.sql" >/dev/null
+AS $P -d gs_move -c "update tenant_feature_flags set atomic_agenda_enabled=true" >/dev/null
+echo "activation simulated"
+for F in tests.sql tests-phase2.sql tests-phase3.sql tests-phase4.sql; do
   AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/$F 2>&1" | grep -E "PASS|FAIL|ERROR" | sed 's/^psql:[^:]*:[0-9]*: NOTICE:  //'
 done
 
 # ---- guard (step 4 migration) applied, then all RPC suites again + guard tests ----
 AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/2026-10-10_appointment_slot_guard.sql -f $BASE/2026-10-10_appointment_slot_guard.sql" >/dev/null
 echo "guard applied twice"
-for F in tests-guard.sql tests.sql tests-phase2.sql tests-phase3.sql; do
+for F in tests-guard.sql tests.sql tests-phase2.sql tests-phase3.sql tests-phase4.sql; do
   AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/$F 2>&1" | grep -E "PASS|FAIL|ERROR" | sed 's/^psql:[^:]*:[0-9]*: NOTICE:  //' | sed "s/^PASS: /PASS: [guard] /"
 done
 
