@@ -1753,7 +1753,7 @@ export default function CalendarPage() {
 
       <MoveAppointmentSheet
         open={moveSheetOpen}
-        onOpenChange={setMoveSheetOpen}
+        onOpenChange={(o) => { setMoveSheetOpen(o); if (!o) setDragPrefill(null); }}
         appointment={moveTargetAppt}
         initialDate={moveSheetInitial.date}
         initialTime={moveSheetInitial.time}
