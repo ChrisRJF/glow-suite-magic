@@ -916,6 +916,7 @@ export function ImportWizard() {
             imported++;
           }
         } catch (rowErr: any) {
+          if (String(rowErr?.message ?? "").startsWith("Importregistratie")) throw rowErr;
           errors.push({ row: rowNum, reason: "Onverwachte fout", fix: rowErr?.message ?? "", original: row });
         }
       }
