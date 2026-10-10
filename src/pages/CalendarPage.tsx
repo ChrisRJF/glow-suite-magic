@@ -1,4 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
+import { workingWindow } from "@/lib/employeeSchedule";
 import { Button } from "@/components/ui/button";
 import { useAppointments, useCustomers, useServices, useEmployees, useAppointmentEmployees, useEmployeeAvailabilityExceptions } from "@/hooks/useSupabaseData";
 import { parseBreaks, getAbsenceForDate, isSlotInBreaks, isSlotBlockedByException, dayOfWeekIso, statusMeta, type EmployeeBreak, type ExceptionRow } from "@/lib/employeeAvailability";
@@ -175,6 +176,8 @@ export default function CalendarPage() {
           status_until: e.status_until || null,
           status_note: e.status_note || null,
           services: Array.isArray(e.services) ? e.services : [],
+          // null/undefined = legacy (working days + opening hours); set = fixed hours per weekday.
+          weekly_schedule: e.weekly_schedule ?? null,
         };
       });
     }
@@ -217,9 +220,14 @@ export default function CalendarPage() {
     (availabilityExceptions || []).filter((ex: any) => ex.employee_id === empId) as ExceptionRow[];
 
   // Employee availability for current date
+  // Fixed weekly hours (shared rule with online booking). Only applies when a schedule is set.
+  const scheduleWindow = (emp: DisplayEmp, d: string) =>
+    (emp as any).weekly_schedule ? workingWindow({ id: (emp as any).id, weekly_schedule: (emp as any).weekly_schedule }, [], d, null) : undefined;
+
   const getEmployeeStatus = (emp: DisplayEmp, date: Date) => {
     const dow = dayOfWeekIso(date);
-    if (!emp.days.includes(dow)) return 'afwezig';
+    if (scheduleWindow(emp, formatLocalDate(date)) === null) return 'afwezig';
+    if (!(emp as any).weekly_schedule && !emp.days.includes(dow)) return 'afwezig';
     const dStr = formatLocalDate(date);
     const absence = getAbsenceForDate(emp as any, exceptionsFor((emp as any).id), dStr);
     if (absence) return absence.type === 'ziek' ? 'ziek' : absence.type === 'vakantie' ? 'vakantie' : 'afwezig';
@@ -228,7 +236,8 @@ export default function CalendarPage() {
 
   const getEmployeeAbsenceBadge = (emp: DisplayEmp, date: Date) => {
     const dow = dayOfWeekIso(date);
-    if (!(emp as any).days?.includes(dow)) return { label: 'Vrij', tone: 'bg-muted text-muted-foreground' };
+    const win = scheduleWindow(emp, formatLocalDate(date));
+    if (win === null || (win === undefined && !(emp as any).days?.includes(dow))) return { label: 'Vrij', tone: 'bg-muted text-muted-foreground' };
     const absence = getAbsenceForDate(emp as any, exceptionsFor((emp as any).id), formatLocalDate(date));
     if (!absence) return null;
     const meta = statusMeta(absence.type);
@@ -252,6 +261,8 @@ export default function CalendarPage() {
   };
 
   const isSlotPauze = (emp: DisplayEmp, slot: string) => {
+    const win = scheduleWindow(emp, dateStr);
+    if (win === null || (win && (slot < win.start || slot >= win.end))) return true;
     const breaks = getEmployeeBreaks(emp);
     const dow = currentDayOfWeek;
     if (isSlotInBreaks(slot, breaks, dow)) return true;
