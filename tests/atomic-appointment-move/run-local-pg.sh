@@ -23,6 +23,13 @@ for F in tests.sql tests-phase2.sql tests-phase3.sql; do
   AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/$F 2>&1" | grep -E "PASS|FAIL|ERROR" | sed 's/^psql:[^:]*:[0-9]*: NOTICE:  //'
 done
 
+# ---- guard (step 4 migration) applied, then all RPC suites again + guard tests ----
+AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/2026-10-10_appointment_slot_guard.sql -f $BASE/2026-10-10_appointment_slot_guard.sql" >/dev/null
+echo "guard applied twice"
+for F in tests-guard.sql tests.sql tests-phase2.sql tests-phase3.sql; do
+  AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/$F 2>&1" | grep -E "PASS|FAIL|ERROR" | sed 's/^psql:[^:]*:[0-9]*: NOTICE:  //' | sed "s/^PASS: /PASS: [guard] /"
+done
+
 # Race: two sessions move different appointments into overlapping EA slots (Fri 16 Oct)
 AS bash -c "$P -d gs_move -f $BASE/race-s1.sql > $BASE/s1.out 2>&1 & sleep 0.5; $P -d gs_move -f $BASE/race-s2.sql > $BASE/s2.out 2>&1; wait"
 S1=$(grep -h 's1:' "$BASE/s1.out" || true); S2=$(grep -h 's2:' "$BASE/s2.out" || true)
@@ -30,13 +37,6 @@ echo "race $S1 $S2"
 if [ "$S1" = "s1:moved" ] && [ "$S2" = "s2:conflict" ]; then echo "PASS: R01 concurrent overlapping moves: only one succeeds"; else echo "FAIL: R01 race"; fi
 N=$(AS $P -d gs_move -c "select count(*) from appointments where id in ('a1000000-0000-0000-0000-000000000006','a1000000-0000-0000-0000-000000000007') and (start_time, start_time + interval '60 min') overlaps ('10:00'::time,'11:30'::time)")
 [ "$N" = "1" ] && echo "PASS: R01 database holds exactly one of the two" || echo "FAIL: R01 rows=$N"
-
-# ---- guard (step 4 migration) applied, then all RPC suites again + guard tests ----
-AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/2026-10-10_appointment_slot_guard.sql -f $BASE/2026-10-10_appointment_slot_guard.sql" >/dev/null
-echo "guard applied twice"
-for F in tests-guard.sql tests.sql tests-phase2.sql tests-phase3.sql; do
-  AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/$F 2>&1" | grep -E "PASS|FAIL|ERROR" | sed 's/^psql:[^:]*:[0-9]*: NOTICE:  //' | sed "s/^PASS: /PASS: [guard] /"
-done
 
 # ---- fase 2 races: s1 holds its transaction 2 s, s2 starts 0.5 s later ----
 OWN="SELECT set_config('request.jwt.claim.sub','11111111-1111-1111-1111-111111111111',true); SET LOCAL ROLE authenticated;"
