@@ -284,6 +284,7 @@ export function ImportWizard() {
   const [confirmed, setConfirmed] = useState(false);
   const [existing, setExisting] = useState<{ emails: Set<string>; phones: Set<string>; names: Set<string> } | null>(null);
   const [importing, setImporting] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [progress, setProgress] = useState(0);
   const [progressLabel, setProgressLabel] = useState("");
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -432,10 +433,16 @@ export function ImportWizard() {
     let active = true;
     setExisting(null);
     setConfirmed(false);
+    setLoadError(false);
     (async () => {
       if (type === "customers") {
-        const { data } = await fetchAllRows((from, to) => supabase.from("customers").select("id, name, email, phone").eq("user_id", user.id).eq("is_demo", demoMode).order("id").range(from, to));
+        const { data, error } = await fetchAllRows((from, to) => supabase.from("customers").select("id, name, email, phone").eq("user_id", user.id).eq("is_demo", demoMode).order("id").range(from, to));
         if (!active) return;
+        if (error) {
+          // Never run duplicate checks against a partial customer list.
+          setLoadError(true);
+          return;
+        }
         setExisting({
           emails: new Set((data ?? []).map((c: any) => (c.email ?? "").toLowerCase()).filter(Boolean)),
           phones: new Set((data ?? []).map((c: any) => c.phone ?? "").filter(Boolean)),
@@ -524,6 +531,7 @@ export function ImportWizard() {
       return;
     }
     if (!isAdmin || !confirmed || !SELECTABLE_TYPES.includes(type)) return;
+    if (loadError) { toast.error("Niet alle klanten konden worden geladen. Probeer het opnieuw."); return; }
     setImporting(true);
     setProgress(0);
     setProgressLabel("Voorbereiden…");
@@ -561,6 +569,14 @@ export function ImportWizard() {
           ? supabase.from("membership_plans").select("id, name").eq("user_id", user.id).eq("is_demo", demoMode)
           : Promise.resolve({ data: [] as any[] }),
       ]);
+      if (existingCustomersRes.error) {
+        // Partial customer list: never dedupe or auto-link against it. Abort before any writes.
+        await supabase.from("import_batches").update({ status: "failed" }).eq("id", batchId);
+        toast.error("Niet alle klanten konden worden geladen. Probeer het opnieuw.");
+        setImporting(false);
+        setProgressLabel("");
+        return;
+      }
       const existingCustomers = existingCustomersRes.data ?? [];
       const existingServices = existingServicesRes.data ?? [];
       const existingEmployees = existingEmployeesRes.data ?? [];
@@ -1173,6 +1189,9 @@ export function ImportWizard() {
           <p className="text-sm text-muted-foreground">
             {fileName} ({SOURCE_LABELS[source]} → {TYPE_LABELS[type]})
           </p>
+          {loadError && (
+            <p className="text-sm text-destructive">Niet alle klanten konden worden geladen. Probeer het opnieuw.</p>
+          )}
           {analysis ? (
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
               <SummaryCard label="Gevonden" value={analysis.total} />

@@ -28,6 +28,7 @@ export function HistoricalImport() {
   const [data, setData] = useState<Record<string, string>[]>([]);
   const [map, setMap] = useState<Record<string, string>>({});
   const [customers, setCustomers] = useState<CustomerLite[]>([]);
+  const [customersError, setCustomersError] = useState(false);
   const [manual, setManual] = useState<Record<number, string>>({});
   const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -58,14 +59,23 @@ export function HistoricalImport() {
   useEffect(() => {
     if (!access || !isAdmin || !canPreview) return;
     if (canImport) loadBatches();
+    setCustomersError(false);
     fetchAllRows((from, to) => supabase.from("customers").select("id, name, email, phone").eq("is_demo", access.demo).order("id").range(from, to))
-      .then(({ data }) => setCustomers((data as CustomerLite[]) || []));
+      .then(({ data, error }) => {
+        if (error) {
+          setCustomers([]);
+          setCustomersError(true);
+          toast.error("Niet alle klanten konden worden geladen. Probeer het opnieuw.");
+          return;
+        }
+        setCustomers((data as CustomerLite[]) || []);
+      });
   }, [access, isAdmin, canPreview, canImport]);
 
   const fields = HISTORICAL_FIELDS[kind];
   const get = (r: Record<string, string>, k: string) => (map[k] ? String(r[map[k]] ?? "").trim() : "");
 
-  const rows: Row[] = useMemo(() => data.map((r, idx) => {
+  const rows: Row[] = useMemo(() => (customersError ? [] : data).map((r, idx) => {
     const date = parseDate(get(r, "date"));
     let error: string | undefined;
     if (!date) error = "Ongeldige of ontbrekende datum";
@@ -73,7 +83,7 @@ export function HistoricalImport() {
     else if (kind === "appointment" && get(r, "time") && !parseTime(get(r, "time"))) error = "Ongeldige tijd";
     return { idx, raw: r, date, error, match: matchCustomer({ name: get(r, "customer_name"), email: get(r, "customer_email"), phone: get(r, "customer_phone") }, customers) };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [data, map, customers, kind]);
+  }), [data, map, customers, kind, customersError]);
 
   const customerFor = (r: Row) => (r.match.status === "matched" ? r.match.customerId : manual[r.idx] || null);
   const ready = rows.filter((r) => !r.error && customerFor(r));
@@ -106,6 +116,7 @@ export function HistoricalImport() {
 
   const runImport = async () => {
     if (!canImport || !confirmed || ready.length === 0) return;
+    if (customersError) { toast.error("Niet alle klanten konden worden geladen. Probeer het opnieuw."); return; }
     setBusy(true);
     const batchId = crypto.randomUUID();
     const entries = await Promise.all(ready.map(async (r) => {
@@ -148,6 +159,10 @@ export function HistoricalImport() {
             : "CSV controleren. Je bestand wordt alleen in je browser gelezen en niet opgeslagen of verstuurd. Er wordt niets toegevoegd."}
         </p>
       </div>
+
+      {customersError && (
+        <p className="text-sm text-destructive">Niet alle klanten konden worden geladen. Probeer het opnieuw.</p>
+      )}
 
       <div className="flex gap-2">
         {(["treatment_note", "appointment"] as HistoricalKind[]).map((k) => (

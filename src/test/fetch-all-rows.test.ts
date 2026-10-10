@@ -27,4 +27,15 @@ describe("fetchAllRows", () => {
     const { error } = await fetchAllRows(() => Promise.resolve({ data: null, error: { message: "x" } }));
     expect(error).toBeTruthy();
   });
+  it.each([1, 2])("flags an error on page %i so imports never dedupe against a partial list", async (failPage) => {
+    let page = 0;
+    const { data, error } = await fetchAllRows((from, to) => {
+      page++;
+      if (page - 1 === failPage) return Promise.resolve({ data: null, error: { message: "databasefout" } });
+      return Promise.resolve({ data: names.slice(from, to + 1).map((name, id) => ({ id: from + id, name })), error: null });
+    });
+    expect(error).toBeTruthy();
+    // Partial data may be present, but callers must treat error as "list incomplete" and abort.
+    expect(data.length).toBeLessThan(2500);
+  });
 });
