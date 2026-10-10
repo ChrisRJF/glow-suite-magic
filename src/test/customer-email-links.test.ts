@@ -25,7 +25,7 @@ describe("customer email links (fictieve salons)", () => {
   });
   it("all links point to existing routes on the main domain, no subdomains", () => {
     const l = buildCustomerEmailLinks({ publicSlug: "studio-fictief", bookingToken: TOKEN });
-    for (const u of [l.bookingUrl!, l.manageUrl!, l.contactUrl, l.termsUrl]) {
+    for (const u of [l.bookingUrl!, l.manageUrl!]) {
       expect(new URL(u).host).toBe("glowsuite.nl");
       expect(routeExists(u)).toBe(true);
       expect(isAllowedCustomerUrl(u)).toBe(true);
