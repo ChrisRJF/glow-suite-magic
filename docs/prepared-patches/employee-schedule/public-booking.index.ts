@@ -3,7 +3,7 @@ import { z } from "https://esm.sh/zod@3.23.8";
 import { createVivaOrder, vivaCheckoutUrl, isVivaConfigured } from "../_shared/viva.ts";
 import { getDefaultMessageTemplate, normalizeMessageLang, renderMessage, intlLocale } from "../_shared/messageTranslations.ts";
 import { decideDeposit } from "../_shared/depositDecision.ts";
-import { amsterdamToUtc, utcToAmsterdam, busyFromAppointments, normalizeBusyEmployees, resolveBooking, startTimes, canDoService, type ScheduleEmployee } from "../_shared/employeeSchedule.ts";
+import { amsterdamToUtc, utcToAmsterdam, busyFromAppointments, normalizeBusyEmployees, resolveBooking, availabilitySlots, startTimes, canDoService, type ScheduleEmployee } from "../_shared/employeeSchedule.ts";
 import { appendConfirmationBlock, buildConfirmationLink, claimReminderDispatch } from "../_shared/reminderEngine.ts";
 
 const corsHeaders = {
@@ -240,7 +240,7 @@ async function assertAvailability(supabase: ReturnType<typeof createClient>, ctx
   if (date < todayAmsterdam().date) return { code: "slot_unavailable" };
   // A requested employee must be a real employee id of this salon. Old booking pages send names
   // (e.g. "Bas"): refuse explicitly instead of silently picking someone else.
-  const known = new Set(ctx.employees.map((e) => e.id));
+  const known = new Set(ctx.settings.public_employees_enabled === false ? [] : ctx.employees.map((e) => e.id));
   if (bookings.some((b) => b.employee && !known.has(b.employee))) return { code: "booking_page_outdated" };
   const day = await loadDay(supabase, ctx, date);
   const result = resolveBooking(scheduleStaff(ctx), day, bookings.map((b) => ({ service: b.service, time: b.time, employee: b.employee })));
@@ -317,17 +317,10 @@ Deno.serve(async (req) => {
       if (date < todayAmsterdam().date) return json({ date, slots: {} });
       const day = await loadDay(supabase, ctx, date);
       const staff = scheduleStaff(ctx);
-      const slots: Record<string, Record<string, string[]>> = {};
-      for (const id of service_ids) {
-        const svc = ctx.services.find((s) => s.id === id);
-        if (!svc) continue;
-        slots[id] = {};
-        for (const emp of staff) {
-          if (!canDoService(emp, svc)) continue;
-          const times = startTimes(emp, day, svc.duration_minutes, 15);
-          if (times.length) slots[id][emp.id === SALON_WIDE ? "auto" : emp.id] = times;
-        }
-      }
+      // Hidden employees or no employees: anonymous keys only, never ids or names.
+      const publicStaff = ctx.settings.public_employees_enabled !== false && ctx.employees.length > 0;
+      const svcs = service_ids.map((id) => ctx.services.find((s) => s.id === id)).filter(Boolean) as ServiceRow[];
+      const slots = availabilitySlots(staff, day, svcs, { publicStaff });
       return json({ date, slots });
     }
 
