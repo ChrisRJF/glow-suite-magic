@@ -55,9 +55,7 @@ export default function DashboardPage() {
 
   const omzetVandaag = report.revenue.today;
 
-  const totalSlots = Math.max(10, todaysAppts.length);
-  const bezetting = totalSlots > 0 ? Math.round((todaysAppts.length / totalSlots) * 100) : 0;
-  const vrijePlekken = Math.max(0, totalSlots - todaysAppts.length);
+  const newCustomersThisWeek = useMemo(() => countNewCustomersThisWeek(report.rows.customers ?? customers), [report.rows.customers, customers]);
 
   const inactiveCustomers = customers.filter((c) => {
     const last = appointments
@@ -194,14 +192,10 @@ export default function DashboardPage() {
         <section className="rounded-2xl border border-border/50 bg-card/60 px-4 py-3 sm:px-5 sm:py-3.5" style={{ boxShadow: "var(--shadow-sm)" }}>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="space-y-1 min-w-0">
-              <div className="flex flex-wrap gap-1.5">
-                <span className="trust-chip text-[10.5px]"><CheckCircle2 className="w-3 h-3 text-success" />Live gekoppeld</span>
-                <span className="trust-chip text-[10.5px]">Zojuist bijgewerkt</span>
-              </div>
               <h2 className="text-[15px] sm:text-base font-medium tracking-tight text-foreground/90">
-                +{formatEuro(glowSuiteWeekRevenue)} verdiend via GlowSuite deze week
+                {formatEuro(report.revenue.week)} omzet in de laatste 7 dagen
               </h2>
-              <p className="text-[12px] text-muted-foreground/80">Uit boekingen, betalingen en opvolging.</p>
+              <p className="text-[12px] text-muted-foreground/80">Op basis van betaalde betalingen.</p>
             </div>
             <Button variant="ghost" size="sm" onClick={() => navigate("/rapporten?type=omzet")} className="self-start sm:self-auto">
               Bekijk groei <ArrowRight className="w-3.5 h-3.5 ml-1" />
@@ -214,7 +208,7 @@ export default function DashboardPage() {
         <div className="flex items-end justify-between mb-4">
           <div>
             <h2 className="text-section-title">Vandaag in cijfers</h2>
-            <p className="text-meta mt-1">Live signalen uit je salon</p>
+            <p className="text-meta mt-1">Uit je agenda, klanten en betalingen</p>
           </div>
           <Button variant="ghost" size="sm" onClick={() => navigate("/rapporten?type=omzet")} className="hidden sm:inline-flex">
             Bekijk rapport <ArrowRight className="w-3.5 h-3.5 ml-1" />
@@ -242,23 +236,13 @@ export default function DashboardPage() {
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <span className="text-meta">
-                {todaysAppts.length} {todaysAppts.length === 1 ? "afspraak" : "afspraken"} · {bezetting}% bezetting
+                {todaysAppts.length} {todaysAppts.length === 1 ? "afspraak" : "afspraken"}
               </span>
-              {bezetting < 60 && bezetting > 0 && (
-                <span className="text-[11px] font-semibold text-success bg-success/10 px-2 py-0.5 rounded-md">
-                  ruimte voor groei
-                </span>
-              )}
-              {bezetting >= 80 && (
-                <span className="text-[11px] font-semibold text-success bg-success/10 px-2 py-0.5 rounded-md">
-                  sterke dag 🔥
-                </span>
-              )}
             </div>
           </button>
 
           <DashboardKpi icon={Calendar} label="Afspraken vandaag" value={String(report.appointments.today)} trend={trendLabel(report.appointments.trend)} trendValue={report.appointments.trend} onClick={() => navigate("/agenda")} />
-          <DashboardKpi icon={UserPlus} label="Nieuwe klanten deze week" value={String(report.customers.newThisMonth)} trend={trendLabel(report.customers.trend)} trendValue={report.customers.trend} onClick={() => navigate("/klanten")} />
+          <DashboardKpi icon={UserPlus} label="Nieuwe klanten deze week" value={String(newCustomersThisWeek)} trend="ma t/m zo" onClick={() => navigate("/klanten")} />
           <DashboardKpi icon={RefreshCw} label="Herhaalboekingen" value={`${rebookPct}%`} trend="retentie" onClick={() => navigate("/herboekingen")} />
           <DashboardKpi icon={Crown} label="Abonnement omzet" value={formatEuro(membershipRevenue)} trend="recurring" onClick={() => navigate("/abonnementen")} />
           <DashboardKpi icon={AlertTriangle} label="Open acties" value={String(openActions)} trend="vandaag" onClick={() => navigate("/acties")} />
