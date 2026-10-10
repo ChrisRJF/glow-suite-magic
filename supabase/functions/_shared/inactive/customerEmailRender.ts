@@ -36,7 +36,7 @@ export type ServerLinkInputs = {
   publicSlug: unknown;
   /** appointments.booking_token, loaded or passed by a trusted caller; never an appointment id. */
   bookingToken?: unknown;
-  /** settings.google_review_url of the authorized tenant (server-side value only). */
+  /** profiles.google_review_url of the authorized tenant (server-side value only). */
   storedReviewUrl?: unknown;
 };
 

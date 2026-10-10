@@ -12,7 +12,7 @@ Activation means: move the four modules from `_shared/inactive/` to `_shared/` (
    - verifyUser = `admin.auth.getUser(jwt)`; tenantForUser = `current_tenant_id()` rule via user_access/user_roles (server read); rolesForUser = user_roles rows for that tenant.
    - Same call for `preview_only` and real sends. 401/403/500 return without render, log or send.
 3. Delete `slugify`, `uniqueSalonSlug`, `publicBaseUrl`, `absoluteUrl` fallbacks and the inline `calendarLink`/`termsLink`/`contactUrl`.
-4. Build links with `buildSafeEmailLinks({ publicSlug: settings.public_slug, bookingToken, storedReviewUrl: settings.google_review_url })`.
+4. Build links with `buildSafeEmailLinks({ publicSlug: settings.public_slug, bookingToken, storedReviewUrl })` where `storedReviewUrl` comes from `profiles.google_review_url` of the authorized tenant (never from `settings`; a missing/invalid URL only hides the review button).
    - bookingToken: if `template_data.appointment_id` is given, load `appointments.booking_token` where `id = appointment_id AND user_id = tenant`; otherwise accept `template_data.booking_token` only if an appointment with that token exists for the tenant. No match = no token = no manage/confirm buttons.
 5. Render buttons only from `templateActions(template_key, links)`; plain text uses only `allowedLinksIn(...)`. All caller URLs (manage_url, confirm_url, decline_url, calendar_url, receipt_url, membership_url, review_url, rebook_url, booking_url, new_booking_url, contact_url, terms_url, public_base_url, base_url, salon_slug) are ignored.
 

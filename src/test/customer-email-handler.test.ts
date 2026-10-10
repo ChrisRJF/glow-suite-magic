@@ -13,7 +13,7 @@ const users: Record<string, { uid: string; tenant: string; roles: string[] }> = 
   "jwt-staff-a": { uid: "u-sa", tenant: A, roles: ["medewerker"] },
 };
 
-function setup(stop: () => Promise<{ sending_enabled: unknown } | null> = async () => ({ sending_enabled: true })) {
+function setup(stop: () => Promise<{ sending_enabled: unknown } | null> = async () => ({ sending_enabled: true }), reviewUrl: string | null = "https://g.page/r/fictief") {
   const sent: any[] = []; const logs: any[] = [];
   let jwt = "";
   const deps: HandlerDeps = {
@@ -23,7 +23,8 @@ function setup(stop: () => Promise<{ sending_enabled: unknown } | null> = async 
     tenantForUser: async () => users[jwt]?.tenant ?? null,
     rolesForUser: async () => users[jwt]?.roles ?? null,
     recipientAllowed: async (t, e) => t === A && e === "klant@fictief.test",
-    loadSettings: async (t) => (t === A ? { salon_name: "Studio Fictief", public_slug: "studio-fictief", google_review_url: "https://g.page/r/fictief", is_demo: false } : t === B ? { salon_name: "Salon B", public_slug: "salon-b" } : null),
+    loadSettings: async (t) => (t === A ? { salon_name: "Studio Fictief", public_slug: "studio-fictief", is_demo: false } : t === B ? { salon_name: "Salon B", public_slug: "salon-b" } : null),
+    reviewUrl: async (t) => (t === A ? reviewUrl : null),
     ownerEmail: async () => "owner@fictief.test",
     customerLanguage: async () => null,
     tokenForAppointment: async (t, id) => (t === A && id === APPT ? TOKEN : null),
@@ -133,5 +134,17 @@ describe("secured send-white-label-email handler (fictief)", () => {
     const p = await (await h(req(base({ preview_only: true, template_data: { booking_token: TOKEN } }), "Bearer jwt-owner-a"))).json();
     await h(req(base({ template_data: { booking_token: TOKEN } })));
     expect(p.html).toBe(sent[0].html);
+  });
+
+  it.each([[null], ["geen-url"], ["javascript:alert(1)"]])("review URL %j never blocks sends; review button hidden", async (bad) => {
+    const { h, sent } = setup(undefined, bad as string | null);
+    const r = await h(req(base({ template_key: "review_request" })));
+    expect(r.status).toBe(200);
+    expect(sent).toHaveLength(1);
+    expect(sent[0].html).not.toContain("g.page");
+    expect(sent[0].html).not.toContain("javascript:");
+    // booking confirmation also unaffected
+    const r2 = await h(req(base({ template_data: { booking_token: TOKEN } })));
+    expect(r2.status).toBe(200);
   });
 });

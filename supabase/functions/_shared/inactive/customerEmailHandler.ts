@@ -13,12 +13,14 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const LANGS = new Set(["nl", "en", "de", "fr", "es"]);
 export const MAX_BODY_BYTES = 32 * 1024;
 
-export type SalonSettings = { salon_name?: string | null; public_slug?: string | null; whitelabel_branding?: any; demo_mode?: boolean | null; is_demo?: boolean | null; language?: string | null; google_review_url?: string | null };
+export type SalonSettings = { salon_name?: string | null; public_slug?: string | null; whitelabel_branding?: any; demo_mode?: boolean | null; is_demo?: boolean | null; language?: string | null };
 
 export type HandlerDeps = EmailAuthDeps & {
   /** Fresh read of public.customer_email_controls on every call. Must throw or return error on DB failure. */
   readStopSwitch: () => Promise<{ sending_enabled: unknown } | null>;
   loadSettings: (tenantId: string) => Promise<SalonSettings | null>;
+  /** google_review_url from public.profiles of the authorized tenant; null when absent. Never blocks sending. */
+  reviewUrl: (tenantId: string) => Promise<string | null>;
   ownerEmail: (tenantId: string) => Promise<string | null>;
   customerLanguage: (tenantId: string, email: string) => Promise<string | null>;
   /** appointments.booking_token where id = appointmentId AND user_id = tenant. */
@@ -102,7 +104,8 @@ export function createCustomerEmailHandler(deps: HandlerDeps) {
       let token: string | null = null;
       if (typeof td.appointment_id === "string" && UUID.test(td.appointment_id)) token = await deps.tokenForAppointment(tenantId, td.appointment_id);
       else if (typeof td.booking_token === "string" && UUID.test(td.booking_token) && (await deps.tokenBelongsToTenant(tenantId, td.booking_token))) token = td.booking_token;
-      const links = buildSafeEmailLinks({ publicSlug: settings.public_slug, bookingToken: token, storedReviewUrl: settings.google_review_url });
+      const storedReviewUrl = await deps.reviewUrl(tenantId).catch(() => null);
+      const links = buildSafeEmailLinks({ publicSlug: settings.public_slug, bookingToken: token, storedReviewUrl });
 
       const lang: EmailLang = body.language
         ?? normalizeEmailLang((await deps.customerLanguage(tenantId, body.recipient_email).catch(() => null)) || settings.language || "nl");
