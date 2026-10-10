@@ -38,7 +38,7 @@ function json(status: number, body: unknown) {
   return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
 function fromResult(r: Result) {
-  if (r.ok) return json(200, { success: true, status: r.result, ...(r.sid ? { sid: r.sid } : {}), ...(r.result === "simulated" ? { demo: true, simulated: true } : {}) });
+  if (r.ok === true) return json(200, { success: true, status: r.result, ...(r.sid ? { sid: r.sid } : {}), ...(r.result === "simulated" ? { demo: true, simulated: true } : {}) });
   return json(r.status, { success: false, error: r.reason, message: MESSAGES[r.reason] ?? fallback(r.status) });
 }
 
@@ -88,6 +88,6 @@ export async function handleWhatsAppSendHttp(req: Request, env: HttpEnv): Promis
     // Any unexpected adapter failure before transport: refuse. (Transport/finalize errors are handled in the guard.)
     result = { ok: false, status: 503, reason: "dependency_failed" };
   }
-  env.log?.({ ev: "wa-send-http", status: result.status, reason: result.ok ? result.result : result.reason });
+  env.log?.({ ev: "wa-send-http", status: result.status, reason: result.ok === true ? result.result : result.reason });
   return fromResult(result);
 }
