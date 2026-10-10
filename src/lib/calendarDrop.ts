@@ -1,3 +1,4 @@
+import { pointerWithin, rectIntersection, type CollisionDetection } from "@dnd-kit/core";
 import { fineSlots, timeToMinutes, snapToFine, SNAP_MINUTES } from "@/lib/agendaMove";
 
 export interface DropData {
@@ -67,3 +68,15 @@ export function isTouchActivation(ev: Event | null | undefined): boolean {
   const pt = (ev as PointerEvent).pointerType;
   return pt === "touch" || pt === "pen";
 }
+
+/**
+ * Collision detection for the agenda: the slot under the finger/cursor wins.
+ * Falls back to rect intersection (keyboard drags have no pointer).
+ * Needed because the day-view draggable wrapper has zero height and a long
+ * appointment fully overlaps several 15-min cells, which made plain rect
+ * intersection pick no slot or a slot 15 minutes off.
+ */
+export const agendaCollision: CollisionDetection = (args) => {
+  const hits = pointerWithin(args);
+  return hits.length > 0 ? hits : rectIntersection(args);
+};
