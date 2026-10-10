@@ -9,16 +9,14 @@ LOCK TABLE public.settings IN SHARE ROW EXCLUSIVE MODE;   -- no concurrent slug/
 DO $$
 DECLARE _missing int; _empty int; _dup int; _same int; _changed int;
 BEGIN
-  IF NOT pg_catalog.current_setting('transaction_isolation') IS NOT NULL OR txid_current_if_assigned() IS NULL AND false THEN NULL; END IF;
   SELECT count(*) FILTER (WHERE public_slug IS NULL OR btrim(public_slug) = ''),
          count(*) FILTER (WHERE (public_slug IS NULL OR btrim(public_slug) = '') AND pg_temp.gs_slug(salon_name) = '')
     INTO _missing, _empty FROM public.settings;
   SELECT count(*) INTO _same FROM (SELECT pg_temp.gs_slug(salon_name) d FROM public.settings
     WHERE pg_temp.gs_slug(salon_name) <> '' GROUP BY 1 HAVING count(*) > 1) x;
   SELECT count(*) INTO _dup FROM (
-    SELECT CASE WHEN public_slug IS NULL OR btrim(public_slug) = '' THEN pg_temp.gs_slug(salon_name) ELSE public_slug END f
-    FROM public.settings) x WHERE f <> '' GROUP BY f HAVING count(*) > 1;
-  _dup := coalesce(_dup, 0);
+    SELECT f FROM (SELECT CASE WHEN public_slug IS NULL OR btrim(public_slug) = '' THEN pg_temp.gs_slug(salon_name) ELSE public_slug END f
+                   FROM public.settings) y WHERE f <> '' GROUP BY f HAVING count(*) > 1) x;
   IF _missing <> current_setting('gs.expected')::int THEN
     RAISE EXCEPTION 'STOP: % missing, dry run said %', _missing, current_setting('gs.expected'); END IF;
   IF _empty > 0 THEN RAISE EXCEPTION 'STOP: % salons have no usable name for a link', _empty; END IF;
