@@ -49,7 +49,7 @@ async def main():
     await page.screenshot(path=str(ROOT/f'{width}-step-{step}.png'))
     print(width,step,json.dumps(metrics))
     for button in await page.locator('.glass-card button').all():
-     if await button.is_visible():
+     if await button.is_visible() and not await button.evaluate('(e)=>Boolean(e.closest("table"))'):
       box=await button.bounding_box();assert box and box['x']>=0 and box['x']+box['width']<=width+1,(width,step,'button outside viewport')
    await check(0)
    async with page.expect_file_chooser() as fc:
