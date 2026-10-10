@@ -1,5 +1,5 @@
 5a6
-> import { amsterdamToUtc, utcToAmsterdam, busyFromAppointments, resolveBooking, startTimes, canDoService, type ScheduleEmployee } from "../_shared/employeeSchedule.ts";
+> import { amsterdamToUtc, utcToAmsterdam, busyFromAppointments, normalizeBusyEmployees, resolveBooking, startTimes, canDoService, type ScheduleEmployee } from "../_shared/employeeSchedule.ts";
 13,18c14,15
 < const EMPLOYEES = [
 <   { id: "bas", name: "Bas", role: "Kapper" },
@@ -17,14 +17,6 @@
 >     date: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/),
 >     service_ids: z.array(z.string().uuid()).min(1).max(9),
 >   }),
-41c44
-<     employee: z.string().trim().max(80).optional().nullable(),
----
->     employee: z.string().uuid().optional().nullable(),
-46c49
-<       employee: z.string().trim().max(80).optional().nullable(),
----
->       employee: z.string().uuid().optional().nullable(),
 56a60,61
 > type EmployeeRow = ScheduleEmployee & { name: string; role: string | null; photo_url: string | null };
 > 
@@ -101,7 +93,7 @@
 >       .eq("user_id", userId)
 >       .lte("start_date", date),
 >   ]);
-181a224,235
+181a224,236
 >   if (exError) throw exError;
 >   const ids = new Set(ctx.employees.map((e) => e.id));
 >   const now = todayAmsterdam();
@@ -109,12 +101,13 @@
 >     date,
 >     opening: ctx.settings.opening_hours || null,
 >     // Appointments of unknown employees (other salon / deleted) are treated as salon-wide blocks.
->     busy: busyFromAppointments(date, ((existing || []) as any[]).map((r: any) => ({ ...r, employee_id: r.employee_id && ids.has(r.employee_id) ? r.employee_id : (ctx.employees.length ? r.employee_id : null) }))),
+>     // Unknown, former, sample (e.g. "Bas") or missing employee ids block the whole salon.
+>     busy: busyFromAppointments(date, normalizeBusyEmployees((existing || []) as any[], ids)),
 >     exceptions: ((exceptions || []) as any[]).filter((ex: any) => ids.has(ex.employee_id)),
 >     notBefore: date === now.date ? now.minutes + 15 : undefined,
 >   };
 > }
-183,196c237,244
+183,196c238,248
 <   for (const booking of bookings) {
 <     const start = combineDateTime(date, booking.time);
 <     const end = new Date(start.getTime() + booking.duration * 60000);
@@ -131,14 +124,27 @@
 <   return true;
 ---
 > /** Server-side availability decision. Returns the rows with verified employee ids, or null. */
-> async function assertAvailability(supabase: ReturnType<typeof createClient>, ctx: SalonContext, date: string, bookings: Array<{ time: string; service: ServiceRow; employee: string | null }>) {
->   if (date < todayAmsterdam().date) return null;
+> async function assertAvailability(supabase: ReturnType<typeof createClient>, ctx: SalonContext, date: string, bookings: Array<{ time: string; service: ServiceRow; employee: string | null }>): Promise<{ ids: Array<string | null> } | { code: "slot_unavailable" | "booking_page_outdated" }> {
+>   if (date < todayAmsterdam().date) return { code: "slot_unavailable" };
+>   // A requested employee must be a real employee id of this salon. Old booking pages send names
+>   // (e.g. "Bas"): refuse explicitly instead of silently picking someone else.
+>   const known = new Set(ctx.employees.map((e) => e.id));
+>   if (bookings.some((b) => b.employee && !known.has(b.employee))) return { code: "booking_page_outdated" };
 >   const day = await loadDay(supabase, ctx, date);
->   const staff = scheduleStaff(ctx);
->   const result = resolveBooking(staff, day, bookings.map((b) => ({ service: b.service, time: b.time, employee: ctx.employees.length ? b.employee : null })));
->   if (!result.ok) return null;
->   return result.rows.map((r) => (r.employee === SALON_WIDE ? null : r.employee));
-257a306,324
+>   const result = resolveBooking(scheduleStaff(ctx), day, bookings.map((b) => ({ service: b.service, time: b.time, employee: b.employee })));
+>   if (!result.ok) return { code: "slot_unavailable" };
+>   return { ids: result.rows.map((r) => (r.employee === SALON_WIDE ? null : r.employee)) };
+198a251,252
+> const OUTDATED_MSG = "Deze boekingspagina is verouderd. Vernieuw de pagina en kies opnieuw een medewerker en tijd.";
+> 
+250c304,307
+<     const parsed = RequestSchema.safeParse(await req.json());
+---
+>     const rawBody = await req.json();
+>     // Lets the admin app confirm the server enforces weekly schedules before showing the editor.
+>     if (rawBody && rawBody.action === "get_capabilities") return json({ availability_version: 2 });
+>     const parsed = RequestSchema.safeParse(rawBody);
+257a315,333
 >     if (parsed.data.action === "get_availability") {
 >       const { date, service_ids } = parsed.data;
 >       if (date < todayAmsterdam().date) return json({ date, slots: {} });
@@ -158,23 +164,25 @@
 >       return json({ date, slots });
 >     }
 > 
-316,317c383,386
+316,317c392,399
 <     const available = await assertAvailability(supabase, ctx.settings.user_id, data.date, bookingRows.map((row) => ({ time: row.time, duration: row.service.duration_minutes, employee: row.employee })));
 <     if (!available) return json({ error: "Deze tijd is net volgeboekt. Kies een nieuw moment.", code: "slot_unavailable" }, 409);
 ---
 >     const assigned = await assertAvailability(supabase, ctx, data.date, bookingRows);
->     if (!assigned) return json({ error: "Deze tijd is niet (meer) beschikbaar. Kies een nieuw moment.", code: "slot_unavailable" }, 409);
+>     if ("code" in assigned) {
+>       return assigned.code === "booking_page_outdated"
+>         ? json({ error: OUTDATED_MSG, code: "booking_page_outdated" }, 409)
+>         : json({ error: "Deze tijd is niet (meer) beschikbaar. Kies een nieuw moment.", code: "slot_unavailable" }, 409);
+>     }
 >     // From here on only server-verified employee ids are used.
->     bookingRows.forEach((row, i) => { row.employee = assigned[i]; });
-444,445c513,514
+>     bookingRows.forEach((row, i) => { row.employee = assigned.ids[i]; });
+444,445c526,527
 <     const stillAvailable = await assertAvailability(supabase, ctx.settings.user_id, data.date, bookingRows.map((row) => ({ time: row.time, duration: row.service.duration_minutes, employee: row.employee })));
 <     if (!stillAvailable) return json({ error: "Deze tijd is net volgeboekt. Kies een nieuw moment.", code: "slot_unavailable" }, 409);
 ---
 >     const stillAvailable = await assertAvailability(supabase, ctx, data.date, bookingRows);
->     if (!stillAvailable || stillAvailable.some((id, i) => id !== bookingRows[i].employee)) return json({ error: "Deze tijd is net volgeboekt. Kies een nieuw moment.", code: "slot_unavailable" }, 409);
-458a528,537
->     }
-> 
+>     if ("code" in stillAvailable || stillAvailable.ids.some((id, i) => id !== bookingRows[i].employee)) return json({ error: "Deze tijd is net volgeboekt. Kies een nieuw moment.", code: "slot_unavailable" }, 409);
+460a543,552
 >     // Link verified employees so the internal calendar shows the booking in the right column.
 >     const links = (appointments || []).filter((a: any) => a.employee_id).map((a: any, i: number) => ({
 >       appointment_id: a.id, employee_id: a.employee_id, user_id: ctx.settings.user_id,
@@ -183,3 +191,25 @@
 >     if (links.length) {
 >       const { error: linkError } = await supabase.from("appointment_employees").insert(links);
 >       if (linkError) console.error("appointment_employees link failed", linkError.message);
+>     }
+> 
+637,638c729,731
+<       const serviceSlug = slugify(mainService.name || "service");
+<       const calendarUrl = `https://${salonSlug}.glowsuite.nl/calendar/${serviceSlug}/booking_confirmation.ics?date=${encodeURIComponent(data.date)}&time=${encodeURIComponent(data.time)}&duration=${encodeURIComponent(String(mainService.duration_minutes || 30))}&ref=${encodeURIComponent(primaryAppointment.booking_reference || primaryAppointment.id)}`;
+---
+>       // No .ics link: no calendar endpoint exists. The booking_token identifies the appointment
+>       // for the manage link; the secure renderer builds links from server data only.
+>       const employeeName = ctx.employees.find((e) => e.id === primaryAppointment.employee_id)?.name || null;
+645a739,740
+>         appointment_id: primaryAppointment.id,
+>         booking_token: primaryAppointment.booking_token,
+654c749
+<           employee: primaryAppointment.employee_id,
+---
+>           employee: employeeName,
+657c752,754
+<           calendar_url: calendarUrl,
+---
+>           booking_token: primaryAppointment.booking_token,
+>           // Valid manage page on the main domain (current renderer would otherwise fall back to a salon subdomain).
+>           manage_url: primaryAppointment.booking_token ? `https://glowsuite.nl/mijn-afspraak/${primaryAppointment.booking_token}` : undefined,
