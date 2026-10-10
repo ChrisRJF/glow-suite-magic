@@ -47,6 +47,18 @@ BEGIN
 END;
 $fn$;
 
+-- minutes since local midnight -> wall time; 1440 is stored as '24:00' (never silently 23:59)
+CREATE OR REPLACE FUNCTION public.minutes_to_wall_time(_m int)
+RETURNS time
+LANGUAGE sql
+IMMUTABLE
+SET search_path = ''
+AS $fn$
+  SELECT CASE WHEN _m IS NULL OR _m < 0 OR _m > 1440 THEN NULL
+              WHEN _m = 1440 THEN '24:00'::time
+              ELSE pg_catalog.make_interval(mins => _m)::time END
+$fn$;
+
 -- kind: canonical (real UTC, start_time = Amsterdam clock), legacy (calendar: start_time = UTC
 -- clock of the stored value), ambiguous (start_time missing or matches neither; one row per reading).
 CREATE OR REPLACE FUNCTION public.appointment_busy_candidates(
@@ -403,7 +415,7 @@ BEGIN
     UPDATE public.appointments
        SET appointment_date = _new_ts,
            start_time = _target_start::time,
-           end_time = (pg_catalog.make_interval(mins => _e))::time,
+           end_time = public.minutes_to_wall_time(_e),
            employee_id = _target_employee_id::text,
            updated_at = _now
      WHERE id = _a.id
@@ -420,7 +432,7 @@ BEGIN
   RETURN pg_catalog.jsonb_build_object(
     'ok', true, 'code', 'moved', 'appointment_id', _a.id,
     'appointment_date', _new_ts, 'start_time', _target_start,
-    'end_time', pg_catalog.to_char((pg_catalog.make_interval(mins => _e))::time, 'HH24:MI'),
+    'end_time', pg_catalog.to_char(public.minutes_to_wall_time(_e), 'HH24:MI'),
     'employee_id', _target_employee_id, 'updated_at', _now);
 END;
 $fn$;
@@ -534,7 +546,8 @@ BEGIN
         RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = 'gs:invalid_input';
       END IF;
       SELECT * INTO _svc FROM public.services
-       WHERE id = (_line ->> 'service_id')::uuid AND user_id = _tenant AND duration_minutes > 0;
+       WHERE id = (_line ->> 'service_id')::uuid AND user_id = _tenant AND duration_minutes > 0
+         AND COALESCE(is_active, true);
       IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = 'gs:invalid_input'; END IF;
       _emp_id := NULLIF(_line ->> 'employee_id', '')::uuid;
       _s := substr(_line ->> 'time', 1, 2)::int * 60 + substr(_line ->> 'time', 4, 2)::int;
@@ -555,7 +568,7 @@ BEGIN
         source, booking_group_id, payment_type, accepted_glowsuite_terms, accepted_salon_terms, accepted_terms_at)
       VALUES (
         _tenant, _is_demo, _cust, _svc.id, _ts, (_line ->> 'time')::time,
-        (pg_catalog.make_interval(mins => LEAST(_e, 1439)))::time,
+        public.minutes_to_wall_time(_e),
         _emp_id::text, COALESCE(_svc.price, 0), left(COALESCE(_line ->> 'notes', ''), 2000),
         _status, _pstatus, COALESCE((_common ->> 'payment_required')::boolean, false),
         GREATEST(0, LEAST(100000, COALESCE((_common ->> 'deposit_amount')::numeric, 0))),
@@ -598,6 +611,7 @@ $fn$;
 -- 5. grants
 -- ---------------------------------------------------------------------------
 REVOKE ALL ON FUNCTION public.amsterdam_wall_to_utc(text, text) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.minutes_to_wall_time(int) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.appointment_busy_candidates(timestamptz, time, time, int) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.appointment_slot_check(uuid, boolean, jsonb, date, int, int, uuid, uuid, text, uuid) FROM PUBLIC, anon, authenticated, service_role;
 
