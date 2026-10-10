@@ -276,11 +276,11 @@ export default function AdminEmailTemplatesPage() {
           </Card>
 
           <Tabs defaultValue="visual" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="visual">HTML preview</TabsTrigger>
-              <TabsTrigger value="reminders">Reminder .ics</TabsTrigger>
-              <TabsTrigger value="html">HTML output</TabsTrigger>
-              <TabsTrigger value="text">Tekst output</TabsTrigger>
+            <TabsList className="grid h-auto w-full grid-cols-2 gap-1 p-1 sm:grid-cols-4">
+              <TabsTrigger value="visual" className="h-auto min-h-10 whitespace-normal px-2 py-2 text-center leading-tight">HTML preview</TabsTrigger>
+              <TabsTrigger value="reminders" className="h-auto min-h-10 whitespace-normal px-2 py-2 text-center leading-tight">Reminder .ics</TabsTrigger>
+              <TabsTrigger value="html" className="h-auto min-h-10 whitespace-normal px-2 py-2 text-center leading-tight">HTML output</TabsTrigger>
+              <TabsTrigger value="text" className="h-auto min-h-10 whitespace-normal px-2 py-2 text-center leading-tight">Tekst output</TabsTrigger>
             </TabsList>
             <TabsContent value="visual" className="mt-4">
               <Card>
@@ -294,7 +294,7 @@ export default function AdminEmailTemplatesPage() {
                       <p className="break-all font-mono text-[11px] leading-relaxed text-muted-foreground">Button style: {extractCalendarButtonStyle(preview.html, bookingCalendarUrl) || "—"}</p>
                     </div>
                   )}
-                  <iframe title="Email template preview" srcDoc={preview?.html || ""} className="h-[620px] w-full bg-background" />
+                  <iframe sandbox="" referrerPolicy="no-referrer" title="Email template preview" srcDoc={preview?.html || ""} className="h-[620px] w-full bg-background" />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -327,7 +327,7 @@ export default function AdminEmailTemplatesPage() {
                     </div>
                   </CardHeader>
                   <CardContent className="p-0 overflow-hidden">
-                    <iframe title={`Reminder preview ${item.service.name} ${item.schedule.label}`} srcDoc={item.preview.html} className="h-[520px] w-full bg-background" />
+                    <iframe sandbox="" referrerPolicy="no-referrer" title={`Reminder preview ${item.service.name} ${item.schedule.label}`} srcDoc={item.preview.html} className="h-[520px] w-full bg-background" />
                   </CardContent>
                 </Card>
               ))}
