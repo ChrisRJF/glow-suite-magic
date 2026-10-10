@@ -71,7 +71,7 @@ export interface MetaResolvers {
   /** Resolves credential_ref -> access token for exactly this connection. Unknown -> null. */
   credential(ref: string, conn: MetaConnection): Promise<string | null>;
 }
-type Resolved = { ok: true; conn: MetaConnection; token: string } | { ok: false; status: number; reason: string };
+type Resolved = { ok: true; conn: MetaConnection; token: string } | { ok: false; status: 403 | 422 | 503; reason: string };
 
 /** Fail-closed validation of a resolved connection for this tenant + purpose. */
 export async function resolveMetaSender(r: MetaResolvers, tenantId: string, expectedAppId: string, category: "UTILITY" | "MARKETING", nowMs: number): Promise<Resolved> {
