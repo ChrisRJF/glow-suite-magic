@@ -531,6 +531,7 @@ export function ImportWizard() {
       return;
     }
     if (!isAdmin || !confirmed || !SELECTABLE_TYPES.includes(type)) return;
+    if (loadError) { toast.error("Niet alle klanten konden worden geladen. Probeer het opnieuw."); return; }
     setImporting(true);
     setProgress(0);
     setProgressLabel("Voorbereiden…");
