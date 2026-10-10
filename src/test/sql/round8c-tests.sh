@@ -97,7 +97,7 @@ qs "insert into wa_send_claims(tenant_id,claim_key,fingerprint,state,customer_id
  ('$SA','$(H 72)','$(H 72)','unknown','$C','reminder',now()-interval '431 days'),
  ('$SA','$(H 73)','$(H 73)','sent','$C','reminder',now()-interval '10 days')" >/dev/null
 qs "insert into wa_service_nonces values ('auto-rebook','$(NX 80)', now()-interval '1 second')" >/dev/null
-has "retention below 30 refused"       "$(qa "select public.wa_send_purge(7);")" "retention_too_short"
+has "retention below 400 refused"      "$(qa "select public.wa_send_purge(7);")" "retention_too_short"
 has "retention null refused"           "$(qa "select public.wa_send_purge(null);")" "retention_too_short"
 ok "purge counts"                      "$(q "select public.wa_send_purge(400)::text;")" '{"claims": 2, "nonces": 1}'
 ok "old unknown kept for review"       "$(qs "select count(*) from wa_send_claims where claim_key='$(H 71)'")" "1"
