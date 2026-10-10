@@ -5,7 +5,7 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { handleWhatsAppSendHttp } from "../_shared/inactive/whatsappSendHttp.ts";
-import { buildDeps, type Db } from "../_shared/inactive/whatsappSendAdapters.ts";
+import { buildDeps, type Db, type MetaConnection } from "../_shared/inactive/whatsappSendAdapters.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -31,12 +31,26 @@ Deno.serve((req) => handleWhatsAppSendHttp(req, {
     WA_CLAIM_HMAC_KEY: Deno.env.get("WA_CLAIM_HMAC_KEY"),
     WA_CONTACT_REF_KEYS: Deno.env.get("WA_CONTACT_REF_KEYS"),
     WA_SEND_SERVICE_KEYS: Deno.env.get("WA_SEND_SERVICE_KEYS"),
-    LOVABLE_API_KEY: Deno.env.get("LOVABLE_API_KEY"),
-    WHATSAPP_API_KEY: Deno.env.get("WHATSAPP_API_KEY"),
-    WA_META_PHONE_NUMBER_ID: Deno.env.get("WA_META_PHONE_NUMBER_ID"),
-    WA_META_SENDERS: Deno.env.get("WA_META_SENDERS"),
+    WA_META_APP_ID: Deno.env.get("WA_META_APP_ID"),
     WA_META_TEMPLATES: Deno.env.get("WA_META_TEMPLATES"),
-  }, { fetch, now: Date.now, log: (e) => console.log(e) }),
+  }, { fetch, now: Date.now, log: (e) => console.log(e), meta: {
+    // Per-salon connection, keyed ONLY by the verified tenant. Table is a proposal; until it
+    // exists the lookup errors and every send fails closed (503 connection_lookup_failed).
+    async connectionForTenant(tenantId) {
+      const { data, error } = await admin.from("whatsapp_meta_connections")
+        .select("tenant_id,waba_id,phone_number_id,status,app_id,credential_ref,capabilities,expires_at")
+        .eq("tenant_id", tenantId).limit(2);
+      if (error || !Array.isArray(data) || data.length > 1) throw new Error("connection_lookup_failed");
+      const r = data[0]; if (!r) return null;
+      return { ...r, expires_at_ms: r.expires_at ? Date.parse(r.expires_at) : null } as MetaConnection;
+    },
+    // Interim injected credential store: {"<credential_ref>":"<token>"} in a server secret.
+    // Later replaced by an encrypted vault lookup; tokens never live in salon tables.
+    async credential(ref) {
+      try { const m = JSON.parse(Deno.env.get("WA_META_CREDENTIALS") ?? ""); return typeof m?.[ref] === "string" ? m[ref] : null; }
+      catch { return null; }
+    },
+  } }),
   log: (e) => console.log(e),
   async verifyJwt(token) {
     const { data, error } = await admin.auth.getUser(token);
