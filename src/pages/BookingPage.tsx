@@ -40,14 +40,15 @@ const SLOT_LABEL_KEYS: Record<string, { key: string; tone: "primary" | "success"
 
 const STORAGE_KEY = "glowsuite:booking-progress";
 
-const availableSlots = ["09:00", "10:00", "11:30", "13:00", "14:30", "16:00", "17:00"];
+const LEGACY_SLOTS = ["09:00", "10:00", "11:30", "13:00", "14:30", "16:00", "17:00"];
 const paymentMethods = [
   { id: "ideal", label: "iDEAL | Wero" },
   { id: "creditcard", label: "Creditcard" },
   { id: "bancontact", label: "Bancontact" },
 ];
 
-const EMPLOYEES = [
+// Legacy sample staff: only used until the server sends real employees (availability_version 2).
+const EMPLOYEES: Array<{ key?: string; name: string; role: string }> = [
   { name: "Bas", role: "Kapper" },
   { name: "Roos", role: "Kapster" },
   { name: "Lisa", role: "Allround stylist" },
@@ -143,6 +144,8 @@ export default function BookingPage() {
   const [acceptedGlowsuiteTerms, setAcceptedGlowsuiteTerms] = useState(false);
   const [acceptedSalonTerms, setAcceptedSalonTerms] = useState(false);
   const [showTermsError, setShowTermsError] = useState(false);
+  // Real availability per service and employee id, computed by the server (same rules as the calendar).
+  const [liveSlots, setLiveSlots] = useState<Record<string, Record<string, string[]>> | null>(null);
 
   useEffect(() => {
     if (!salonSlug) return;
@@ -415,6 +418,32 @@ export default function BookingPage() {
   };
 
   const service = bookingServices.find((item) => item.id === selectedService);
+  const liveStaff = publicData?.availability_version === 2;
+  const liveServiceIds = useMemo(
+    () => Array.from(new Set([selectedService, ...groupMembers.map((m) => m.serviceId)].filter(Boolean) as string[])),
+    [selectedService, groupMembers],
+  );
+  const liveKey = liveServiceIds.join(",");
+  useEffect(() => {
+    if (!liveStaff || !salonSlug || !liveServiceIds.length) { setLiveSlots(null); return; }
+    let cancelled = false;
+    setLiveSlots(null);
+    callPublicBooking<{ slots: Record<string, Record<string, string[]>> }>({ action: "get_availability", slug: salonSlug, date: selectedDate, service_ids: liveServiceIds })
+      .then((res) => { if (!cancelled) setLiveSlots(res.slots || {}); })
+      .catch(() => { if (!cancelled) setLiveSlots({}); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveStaff, salonSlug, selectedDate, liveKey]);
+  /** Is this employee (key) free for this service at this time? Legacy mode: always true. */
+  const isFree = (key: string, serviceId: string, time: string) =>
+    !liveStaff || Boolean(liveSlots?.[serviceId]?.[key]?.includes(time));
+  const availableSlots: string[] = useMemo(() => {
+    if (!liveStaff) return LEGACY_SLOTS;
+    const perEmp = liveSlots?.[selectedService || ""] || {};
+    return Array.from(new Set(Object.values(perEmp).flat())).sort();
+  }, [liveStaff, liveSlots, selectedService]);
+  const staffName = (key: string | null | undefined) =>
+    (liveStaff ? publicData?.employees.find((e) => e.id === key)?.name : key) || key || "";
 
   const rules = usePaymentRules({
     deposit_new_client: publicData?.salon.booking_rules.deposit_new_client ?? settingsRow?.deposit_new_client ?? true,
@@ -466,7 +495,16 @@ export default function BookingPage() {
     setGroupMembers((prev) => prev.map((member) => (member.id === id ? { ...member, ...updates } : member)));
   };
 
-  const getEmployeesForService = (serviceId: string) => {
+  const getEmployeesForService = (serviceId: string): Array<{ key: string; name: string; role: string }> => {
+    if (liveStaff) {
+      return (publicData?.employees || [])
+        .filter((e) => !e.service_ids || e.service_ids.includes(serviceId))
+        .map((e) => ({ key: e.id, name: e.name, role: e.role }));
+    }
+    return legacyEmployeesForService(serviceId).map((e) => ({ key: e.name, name: e.name, role: e.role }));
+  };
+
+  const legacyEmployeesForService = (serviceId: string) => {
     const currentService = bookingServices.find((item) => item.id === serviceId);
     if (!currentService) return EMPLOYEES;
 
@@ -521,8 +559,8 @@ export default function BookingPage() {
       const employeeOptions = getEmployeesForService(person.serviceId);
 
       if (person.assignmentMode === "manual") {
-        const isAllowedEmployee = employeeOptions.some((employee) => employee.name === person.assignedEmployee);
-        if (!person.assignedEmployee || !isAllowedEmployee || usedEmployees.has(person.assignedEmployee)) {
+        const isAllowedEmployee = employeeOptions.some((employee) => employee.key === person.assignedEmployee);
+        if (!person.assignedEmployee || !isAllowedEmployee || usedEmployees.has(person.assignedEmployee) || !isFree(person.assignedEmployee, person.serviceId, selectedTime)) {
           simultaneousValid = false;
           break;
         }
@@ -539,7 +577,7 @@ export default function BookingPage() {
         continue;
       }
 
-      const employee = employeeOptions.find((item) => !usedEmployees.has(item.name));
+      const employee = employeeOptions.find((item) => !usedEmployees.has(item.key) && isFree(item.key, person.serviceId, selectedTime));
       if (!employee) {
         simultaneousValid = false;
         break;
@@ -548,12 +586,12 @@ export default function BookingPage() {
       simultaneousPlacements.push({
         id: person.id,
         personLabel: person.personLabel,
-        employee: employee.name,
+        employee: employee.key,
         time: selectedTime,
         serviceName: person.serviceName,
         assignmentMode: person.assignmentMode,
       });
-      usedEmployees.add(employee.name);
+      usedEmployees.add(employee.key);
     }
 
     if (simultaneousValid && simultaneousPlacements.length === people.length) {
@@ -572,13 +610,14 @@ export default function BookingPage() {
       const employeeOptions = getEmployeesForService(person.serviceId);
 
       if (person.assignmentMode === "manual") {
-        const isAllowedEmployee = employeeOptions.some((employee) => employee.name === person.assignedEmployee);
+        const isAllowedEmployee = employeeOptions.some((employee) => employee.key === person.assignedEmployee);
         if (!person.assignedEmployee || !isAllowedEmployee) {
           sequentialValid = false;
           break;
         }
 
-        const slotIndex = nextSlotPerEmployee.get(person.assignedEmployee) ?? targetIndex;
+        let slotIndex = nextSlotPerEmployee.get(person.assignedEmployee) ?? targetIndex;
+        while (availableSlots[slotIndex] && !isFree(person.assignedEmployee, person.serviceId, availableSlots[slotIndex])) slotIndex += 1;
         const slot = availableSlots[slotIndex];
         if (!slot) {
           sequentialValid = false;
@@ -598,7 +637,11 @@ export default function BookingPage() {
       }
 
       const candidate = employeeOptions
-        .map((employee) => ({ employee, slotIndex: nextSlotPerEmployee.get(employee.name) ?? targetIndex }))
+        .map((employee) => {
+          let slotIndex = nextSlotPerEmployee.get(employee.key) ?? targetIndex;
+          while (availableSlots[slotIndex] && !isFree(employee.key, person.serviceId, availableSlots[slotIndex])) slotIndex += 1;
+          return { employee, slotIndex };
+        })
         .sort((left, right) => left.slotIndex - right.slotIndex)[0];
 
       if (!candidate || !availableSlots[candidate.slotIndex]) {
@@ -609,12 +652,12 @@ export default function BookingPage() {
       sequentialPlacements.push({
         id: person.id,
         personLabel: person.personLabel,
-        employee: candidate.employee.name,
+        employee: candidate.employee.key,
         time: availableSlots[candidate.slotIndex],
         serviceName: person.serviceName,
         assignmentMode: person.assignmentMode,
       });
-      nextSlotPerEmployee.set(candidate.employee.name, candidate.slotIndex + 1);
+      nextSlotPerEmployee.set(candidate.employee.key, candidate.slotIndex + 1);
     }
 
     if (sequentialValid && sequentialPlacements.length === people.length) {
@@ -893,7 +936,7 @@ export default function BookingPage() {
           >
             <option value="">{t("booking.assignment.chooseStaffPlaceholder")}</option>
             {availableEmployees.map((employee) => (
-              <option key={employee.name} value={employee.name}>
+              <option key={employee.key} value={employee.key}>
                 {employee.name} ({employee.role})
               </option>
             ))}
@@ -1317,7 +1360,7 @@ export default function BookingPage() {
                         <p className="text-[11px] text-muted-foreground">{placement.serviceName} · {placement.assignmentMode === "manual" ? t("booking.assignment.manualLabel") : t("booking.assignment.autoLabel")}</p>
                       </div>
                       <div className="text-right">
-                        <p className="font-medium">{placement.employee}</p>
+                        <p className="font-medium">{staffName(placement.employee)}</p>
                         <p className="text-[11px] text-muted-foreground">{placement.time}</p>
                       </div>
                     </div>
@@ -1483,7 +1526,7 @@ export default function BookingPage() {
                   <div className="flex justify-between"><span className="text-muted-foreground">{t("booking.confirmation.date")}</span><span className="font-medium">{confirmation?.date ? new Date(`${confirmation.date}T00:00:00`).toLocaleDateString(dateLocale, { weekday: "short", day: "numeric", month: "short" }) : new Date(`${selectedDate}T00:00:00`).toLocaleDateString(dateLocale, { weekday: "short", day: "numeric", month: "short" })}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">{t("booking.confirmation.time")}</span><span className="font-medium">{confirmation?.time || selectedTime}</span></div>
                   {selectedPlacements[0]?.employee && (
-                    <div className="flex justify-between"><span className="text-muted-foreground">{t("booking.confirmation.staff")}</span><span className="font-medium">{selectedPlacements[0].employee}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">{t("booking.confirmation.staff")}</span><span className="font-medium">{staffName(selectedPlacements[0].employee)}</span></div>
                   )}
                   {confirmation?.reference && (
                     <div className="flex justify-between"><span className="text-muted-foreground">{t("booking.confirmation.reference")}</span><span className="font-medium tabular-nums">{confirmation.reference}</span></div>

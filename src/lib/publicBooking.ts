@@ -40,7 +40,9 @@ export interface PublicBookingSalon {
 export interface PublicBookingData {
   salon: PublicBookingSalon;
   services: PublicBookingService[];
-  employees: Array<{ id: string; name: string; role: string }>;
+  employees: Array<{ id: string; name: string; role: string; photo_url?: string | null; service_ids?: string[] }>;
+  /** 2 = real staff + server availability (get_availability). Absent = legacy sample staff. */
+  availability_version?: number;
 }
 
 export async function callPublicBooking<T>(body: Record<string, unknown>) {
