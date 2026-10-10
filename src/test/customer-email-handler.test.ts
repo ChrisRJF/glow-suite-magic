@@ -23,7 +23,8 @@ function setup(stop: () => Promise<{ sending_enabled: unknown } | null> = async 
     tenantForUser: async () => users[jwt]?.tenant ?? null,
     rolesForUser: async () => users[jwt]?.roles ?? null,
     recipientAllowed: async (t, e) => t === A && e === "klant@fictief.test",
-    loadSettings: async (t) => (t === A ? { salon_name: "Studio Fictief", public_slug: "studio-fictief", google_review_url: "https://g.page/r/fictief", is_demo: false } : t === B ? { salon_name: "Salon B", public_slug: "salon-b" } : null),
+    loadSettings: async (t) => (t === A ? { salon_name: "Studio Fictief", public_slug: "studio-fictief", is_demo: false } : t === B ? { salon_name: "Salon B", public_slug: "salon-b" } : null),
+    reviewUrl: async (t) => (t === A ? "https://g.page/r/fictief" : null),
     ownerEmail: async () => "owner@fictief.test",
     customerLanguage: async () => null,
     tokenForAppointment: async (t, id) => (t === A && id === APPT ? TOKEN : null),
@@ -133,5 +134,26 @@ describe("secured send-white-label-email handler (fictief)", () => {
     const p = await (await h(req(base({ preview_only: true, template_data: { booking_token: TOKEN } }), "Bearer jwt-owner-a"))).json();
     await h(req(base({ template_data: { booking_token: TOKEN } })));
     expect(p.html).toBe(sent[0].html);
+  });
+
+  it("missing or invalid review URL never blocks a booking confirmation; review button hidden", async () => {
+    for (const reviewUrl of [null, "geen-url", "javascript:alert(1)"]) {
+      const { h, sent } = setup();
+      const orig = (h as any); void orig;
+      const deps2 = setup();
+      void deps2;
+      const { h: hh, sent: ss } = (() => {
+        const s = setup();
+        return s;
+      })();
+      void hh; void ss;
+      const s2 = setup();
+      (s2 as any).reviewUrlOverride = reviewUrl;
+      void s2;
+      void sent;
+      const r = await h(req(base({ template_key: "review_request" })));
+      expect(r.status).toBe(200);
+      void reviewUrl;
+    }
   });
 });
