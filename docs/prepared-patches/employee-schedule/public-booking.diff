@@ -1,0 +1,185 @@
+5a6
+> import { amsterdamToUtc, utcToAmsterdam, busyFromAppointments, resolveBooking, startTimes, canDoService, type ScheduleEmployee } from "../_shared/employeeSchedule.ts";
+13,18c14,15
+< const EMPLOYEES = [
+<   { id: "bas", name: "Bas", role: "Kapper" },
+<   { id: "roos", name: "Roos", role: "Kapster" },
+<   { id: "lisa", name: "Lisa", role: "Allround stylist" },
+<   { id: "emma", name: "Emma", role: "Junior stylist" },
+< ];
+---
+> // Real employees are loaded per salon (getSalon). No fixed sample staff.
+> const SALON_WIDE = "__salon__"; // virtual employee for salons that have no employees configured
+22a20,25
+>   z.object({
+>     action: z.literal("get_availability"),
+>     slug: z.string().trim().min(1).max(120),
+>     date: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/),
+>     service_ids: z.array(z.string().uuid()).min(1).max(9),
+>   }),
+41c44
+<     employee: z.string().trim().max(80).optional().nullable(),
+---
+>     employee: z.string().uuid().optional().nullable(),
+46c49
+<       employee: z.string().trim().max(80).optional().nullable(),
+---
+>       employee: z.string().uuid().optional().nullable(),
+56a60,61
+> type EmployeeRow = ScheduleEmployee & { name: string; role: string | null; photo_url: string | null };
+> 
+59a65
+>   employees: EmployeeRow[];
+101c107,118
+<   return { settings, services: services || [] };
+---
+> 
+>   // Only active employees of THIS salon, in the same demo/live mode as the salon.
+>   const { data: employees, error: employeeError } = await supabase
+>     .from("employees")
+>     .select("id, name, role, photo_url, is_active, status, status_from, status_until, working_days, breaks, break_start, break_end, weekly_schedule, services, sort_order")
+>     .eq("user_id", settings.user_id)
+>     .eq("is_active", true)
+>     .eq("is_demo", Boolean(settings.is_demo || settings.demo_mode))
+>     .order("sort_order", { ascending: true });
+>   if (employeeError) throw employeeError;
+> 
+>   return { settings, services: services || [], employees: (employees || []) as EmployeeRow[] };
+146c163,170
+<     employees: ctx.settings.public_employees_enabled === false ? [] : EMPLOYEES,
+---
+>     employees: ctx.settings.public_employees_enabled === false ? [] : ctx.employees.map((e) => ({
+>       id: e.id,
+>       name: e.name,
+>       role: e.role || "",
+>       photo_url: e.photo_url || null,
+>       service_ids: ctx.services.filter((svc) => canDoService(e, svc)).map((svc) => svc.id),
+>     })),
+>     availability_version: 2,
+149a174
+> // Europe/Amsterdam wall-clock time -> UTC, correct in summer and winter time.
+151c176
+<   return new Date(`${date}T${time}:00+01:00`);
+---
+>   return amsterdamToUtc(date, time);
+171,180c196,222
+< async function assertAvailability(supabase: ReturnType<typeof createClient>, userId: string, date: string, bookings: Array<{ time: string; duration: number; employee: string | null }>) {
+<   const dayStart = `${date}T00:00:00+01:00`;
+<   const dayEnd = `${date}T23:59:59+01:00`;
+<   const { data: existing, error } = await supabase
+<     .from("appointments")
+<     .select("appointment_date, end_time, employee_id, status")
+<     .eq("user_id", userId)
+<     .gte("appointment_date", dayStart)
+<     .lte("appointment_date", dayEnd)
+<     .not("status", "in", "(geannuleerd,cancelled)");
+---
+> function scheduleStaff(ctx: SalonContext): ScheduleEmployee[] {
+>   if (ctx.employees.length) return ctx.employees;
+>   // Salon without employees: one salon-wide calendar, opening hours only (previous behaviour).
+>   return [{ id: SALON_WIDE, weekly_schedule: null, working_days: [1, 2, 3, 4, 5, 6, 7], services: [] }];
+> }
+> 
+> function todayAmsterdam() {
+>   return utcToAmsterdam(new Date());
+> }
+> 
+> async function loadDay(supabase: ReturnType<typeof createClient>, ctx: SalonContext, date: string) {
+>   const userId = ctx.settings.user_id;
+>   // Local-day bounds in UTC (DST-safe), widened by a day so long treatments are never missed.
+>   const from = new Date(amsterdamToUtc(date, "00:00").getTime() - 24 * 3600000).toISOString();
+>   const to = new Date(amsterdamToUtc(date, "23:59").getTime() + 60000).toISOString();
+>   const [{ data: existing, error }, { data: exceptions, error: exError }] = await Promise.all([
+>     supabase.from("appointments")
+>       .select("appointment_date, end_time, employee_id, status")
+>       .eq("user_id", userId)
+>       .gte("appointment_date", from)
+>       .lte("appointment_date", to)
+>       .not("status", "in", "(geannuleerd,cancelled)"),
+>     supabase.from("employee_availability_exceptions")
+>       .select("employee_id, type, start_date, end_date, start_time, end_time, days_of_week")
+>       .eq("user_id", userId)
+>       .lte("start_date", date),
+>   ]);
+181a224,235
+>   if (exError) throw exError;
+>   const ids = new Set(ctx.employees.map((e) => e.id));
+>   const now = todayAmsterdam();
+>   return {
+>     date,
+>     opening: ctx.settings.opening_hours || null,
+>     // Appointments of unknown employees (other salon / deleted) are treated as salon-wide blocks.
+>     busy: busyFromAppointments(date, (existing || []).map((r: any) => ({ ...r, employee_id: r.employee_id && ids.has(r.employee_id) ? r.employee_id : (ctx.employees.length ? r.employee_id : null) }))),
+>     exceptions: (exceptions || []).filter((ex: any) => ids.has(ex.employee_id)),
+>     notBefore: date === now.date ? now.minutes + 15 : undefined,
+>   };
+> }
+183,196c237,244
+<   for (const booking of bookings) {
+<     const start = combineDateTime(date, booking.time);
+<     const end = new Date(start.getTime() + booking.duration * 60000);
+<     const sameEmployee = (existing || []).filter((item: any) => !booking.employee || !item.employee_id || item.employee_id === booking.employee);
+<     const taken = sameEmployee.some((item: any) => {
+<       const itemStart = new Date(item.appointment_date);
+<       const [h, m] = String(item.end_time || "00:00").split(":").map(Number);
+<       const itemEnd = new Date(itemStart);
+<       itemEnd.setHours(h || itemStart.getHours(), m || itemStart.getMinutes(), 0, 0);
+<       return overlaps(start, end, itemStart, itemEnd);
+<     });
+<     if (taken) return false;
+<   }
+<   return true;
+---
+> /** Server-side availability decision. Returns the rows with verified employee ids, or null. */
+> async function assertAvailability(supabase: ReturnType<typeof createClient>, ctx: SalonContext, date: string, bookings: Array<{ time: string; service: ServiceRow; employee: string | null }>) {
+>   if (date < todayAmsterdam().date) return null;
+>   const day = await loadDay(supabase, ctx, date);
+>   const staff = scheduleStaff(ctx);
+>   const result = resolveBooking(staff, day, bookings.map((b) => ({ service: b.service, time: b.time, employee: ctx.employees.length ? b.employee : null })));
+>   if (!result.ok) return null;
+>   return result.rows.map((r) => (r.employee === SALON_WIDE ? null : r.employee));
+257a306,324
+>     if (parsed.data.action === "get_availability") {
+>       const { date, service_ids } = parsed.data;
+>       if (date < todayAmsterdam().date) return json({ date, slots: {} });
+>       const day = await loadDay(supabase, ctx, date);
+>       const staff = scheduleStaff(ctx);
+>       const slots: Record<string, Record<string, string[]>> = {};
+>       for (const id of service_ids) {
+>         const svc = ctx.services.find((s) => s.id === id);
+>         if (!svc) continue;
+>         slots[id] = {};
+>         for (const emp of staff) {
+>           if (!canDoService(emp, svc)) continue;
+>           const times = startTimes(emp, day, svc.duration_minutes, 15);
+>           if (times.length) slots[id][emp.id === SALON_WIDE ? "auto" : emp.id] = times;
+>         }
+>       }
+>       return json({ date, slots });
+>     }
+> 
+316,317c383,386
+<     const available = await assertAvailability(supabase, ctx.settings.user_id, data.date, bookingRows.map((row) => ({ time: row.time, duration: row.service.duration_minutes, employee: row.employee })));
+<     if (!available) return json({ error: "Deze tijd is net volgeboekt. Kies een nieuw moment.", code: "slot_unavailable" }, 409);
+---
+>     const assigned = await assertAvailability(supabase, ctx, data.date, bookingRows);
+>     if (!assigned) return json({ error: "Deze tijd is niet (meer) beschikbaar. Kies een nieuw moment.", code: "slot_unavailable" }, 409);
+>     // From here on only server-verified employee ids are used.
+>     bookingRows.forEach((row, i) => { row.employee = assigned[i]; });
+444,445c513,514
+<     const stillAvailable = await assertAvailability(supabase, ctx.settings.user_id, data.date, bookingRows.map((row) => ({ time: row.time, duration: row.service.duration_minutes, employee: row.employee })));
+<     if (!stillAvailable) return json({ error: "Deze tijd is net volgeboekt. Kies een nieuw moment.", code: "slot_unavailable" }, 409);
+---
+>     const stillAvailable = await assertAvailability(supabase, ctx, data.date, bookingRows);
+>     if (!stillAvailable || stillAvailable.some((id, i) => id !== bookingRows[i].employee)) return json({ error: "Deze tijd is net volgeboekt. Kies een nieuw moment.", code: "slot_unavailable" }, 409);
+458a528,537
+>     }
+> 
+>     // Link verified employees so the internal calendar shows the booking in the right column.
+>     const links = (appointments || []).filter((a: any) => a.employee_id).map((a: any, i: number) => ({
+>       appointment_id: a.id, employee_id: a.employee_id, user_id: ctx.settings.user_id,
+>       is_demo: Boolean(ctx.settings.is_demo || ctx.settings.demo_mode), is_primary: true,
+>     }));
+>     if (links.length) {
+>       const { error: linkError } = await supabase.from("appointment_employees").insert(links);
+>       if (linkError) console.error("appointment_employees link failed", linkError.message);

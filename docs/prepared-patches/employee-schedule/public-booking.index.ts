@@ -527,6 +527,16 @@ Deno.serve(async (req) => {
       return json({ error: "Boeking kon niet worden opgeslagen. Probeer het opnieuw of kies een ander tijdstip." }, 500);
     }
 
+    // Link verified employees so the internal calendar shows the booking in the right column.
+    const links = (appointments || []).filter((a: any) => a.employee_id).map((a: any, i: number) => ({
+      appointment_id: a.id, employee_id: a.employee_id, user_id: ctx.settings.user_id,
+      is_demo: Boolean(ctx.settings.is_demo || ctx.settings.demo_mode), is_primary: true,
+    }));
+    if (links.length) {
+      const { error: linkError } = await supabase.from("appointment_employees").insert(links);
+      if (linkError) console.error("appointment_employees link failed", linkError.message);
+    }
+
     if (rebookAction && appointments?.[0]) {
       // GROUP BOOKINGS: attribute only the single appointment that belongs to
       // the original Auto Rebook context (the rebooked customer's own line).
