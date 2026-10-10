@@ -65,9 +65,9 @@ DECLARE
   _t   timestamp;
 BEGIN
   IF _ts IS NULL THEN RETURN; END IF;
-  IF _start IS NOT NULL AND date_trunc('minute', _ams)::time = date_trunc('minute', _start::interval)::time THEN
+  IF _start IS NOT NULL AND pg_catalog.to_char(_ams, 'HH24:MI') = pg_catalog.to_char(_start, 'HH24:MI') THEN
     _k := 'canonical';
-  ELSIF _start IS NOT NULL AND date_trunc('minute', _utc)::time = date_trunc('minute', _start::interval)::time THEN
+  ELSIF _start IS NOT NULL AND pg_catalog.to_char(_utc, 'HH24:MI') = pg_catalog.to_char(_start, 'HH24:MI') THEN
     _k := 'legacy';
   ELSE
     _k := 'ambiguous';
