@@ -89,6 +89,9 @@ for F in tests-guard.sql tests.sql tests-phase2.sql tests-phase3.sql tests-phase
 done
 
 # ---- step 2: prepared public-booking server, args built by the SAME helper (publicBookingAtomic.ts) ----
+EA=e0000000-0000-0000-0000-00000000000a; EB=e0000000-0000-0000-0000-00000000000b
+SNAPA="select md5(string_agg(to_jsonb(a)::text,'|' order by id)) from appointments a where id in (select id from pre_ids)"
+AS $P -d gs_move -c "create table pre_ids as select id from appointments" >/dev/null; PRE=$(AS $P -d gs_move -c "$SNAPA")
 (cd "$HERE" && bun ./gen-server-scenarios.ts) > "$BASE/scen.sql"; chown $RUNUID "$BASE/scen.sql"
 AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/scen.sql" > "$BASE/scen.out" 2>&1 || { echo "FAIL: S00 scenario run"; cat "$BASE/scen.out"; }
 sc() { grep "^S:$1=" "$BASE/scen.out" | sed "s/^S:$1=//"; }
@@ -109,7 +112,7 @@ ok "S deposit: pending_confirmation/pending/25" "$(Q "select status||'/'||paymen
 ok "S CEST 09:00 stored as 07:00Z" "$(Q "select to_char(appointment_date at time zone 'UTC','HH24:MI') from appointments where id='$(ID cest)'")" "07:00"
 ok "S CET 09:00 stored as 08:00Z" "$(Q "select to_char(appointment_date at time zone 'UTC','HH24:MI') from appointments where id='$(ID cet)'")" "08:00"
 ok "S rebook source auto_rebook" "$(Q "select source from appointments where id='$(ID rebook)'")" "auto_rebook"
-ok "S existing appointments untouched" "$(Q "select count(*) from appointments where id::text like 'a1000000-%' and updated_at > now() - interval '1 hour' and id not in (select id from appointments where (appointment_date at time zone 'Europe/Amsterdam')::date between '2026-10-12' and '2026-11-02')")" "0"
+ok "S existing appointments unchanged (all columns)" "$(Q "$SNAPA")" "$PRE"
 BEFORE=$(Q "select count(*) from appointments")
 AS bash -c "$P -d gs_move -c \"SET ROLE anon; SELECT public.create_public_booking_atomic('salon-een','2026-11-09','[]','{}')\"" >/dev/null 2>&1 && echo "FAIL: S anon can call booking RPC" || echo "PASS: S anon cannot call booking RPC"
 AS bash -c "$P -d gs_move -c \"SET ROLE authenticated; SELECT public.create_public_booking_atomic('salon-een','2026-11-09','[]','{}')\"" >/dev/null 2>&1 && echo "FAIL: S authenticated can call booking RPC" || echo "PASS: S logged-in user cannot call booking RPC"
