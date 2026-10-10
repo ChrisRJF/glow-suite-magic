@@ -1,3 +1,4 @@
+-- SUPERSEDED by 2026-10-10_customer_dedupe_exact_pairs.sql. DO NOT RUN: moves rows, no undo, unsafe for bulk.
 -- PROPOSED, NOT APPLIED. Needs explicit approval before running.
 -- Controlled, non-destructive customer merge. Nothing is deleted: the duplicate is
 -- marked merged_into the kept customer and every linked row is moved, in one transaction.
