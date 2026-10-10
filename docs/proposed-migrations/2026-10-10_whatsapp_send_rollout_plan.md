@@ -70,3 +70,13 @@ Bewaartermijn: claims >= 400 dagen, onzekere claims 430 dagen. Na verlopen kan d
 - Echte event-resolver (queries staan in `eventVerifier.ts`), inclusief tijdzone-omrekening afspraakstart.
 - Statusregels voor review/no-show-afspraken en automation-runs zijn minimaal (alleen `geannuleerd`/`skipped`); vaststellen.
 - Gateway-zijde: STOP-schrijfpad en salonkoppeling; end-to-end niet bewezen.
+
+## 6. Implementatieset eerste productiepatch (sprint, NIET uitgevoerd)
+
+Guard (inactief, klaar): noodstop `sendingPaused` eerst (fout/onbekend = gepauzeerd, 503, geen claim); `whatsappEnabled` geldt ook voor test=true; demo = simulatie zonder provider; herinneringsvensters 24h (23h,25h] en 2h (1h,3h] (ruimste bestaande schedulertolerantie ±1h); automation-scheduler stuurt herinneringen als `kind: reminder` + `appointment:<id>:24h|2h`, zodat beide schedulers één claim delen. Salons met afwijkende `reminder_hours_before` worden geweigerd tot apart besluit.
+
+Database minimaal: `whatsapp_send_claims`, `whatsapp_send_nonces`, `gateway_tenant_links`, `whatsapp_opt_outs` + RPC `whatsapp_is_opted_out`, receipts-tabel + atomische RPC uit 2026-10-09-voorstel, vlag `whatsapp_sending_paused` in `tenant_feature_flags` (default true).
+
+Secrets: per caller signing key (6), contact-ref-sleutelring, Gateway HMAC v1-sleutel, claim/content-HMAC-sleutel.
+
+Patchvolgorde: (1) SQL op staging, (2) secrets, (3) nieuwe whatsapp-send met noodstop AAN, (4) callers 6–16 ondertekenen + event_ref, (5) UI 1–5 action_id + klantkeuze, (6) Gateway STOP-route activeren, (7) demo ontgrendelen, (8) één echte salon na goedkeuring.
