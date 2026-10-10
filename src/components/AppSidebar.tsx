@@ -6,10 +6,11 @@ import {
   Zap, ShoppingBag, Package, BarChart3, Settings, HelpCircle, LogOut,
   Sun, Moon, Bot, Clock, Gift, ShoppingCart, Share2, UserPlus, RotateCcw, Mail, Wallet, Sparkles, ChevronDown, ShieldCheck, Rocket, Brain, Activity, Flame, Crown,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useUserRole, canAccessRoute } from "@/hooks/useUserRole";
+import { Button } from "@/components/ui/button";
 import { GlowSuiteLogo } from "@/components/GlowSuiteLogo";
 
 interface NavItem {
@@ -38,19 +39,7 @@ interface NavGroup {
 // ───────────────────────────────────────────────────────────
 const navGroups: NavGroup[] = [
   {
-    title: "AI Systemen",
-    ai: true,
-    defaultOpen: true,
-    items: [
-      { label: "Auto Revenue", icon: Flame, path: "/auto-revenue", accent: true, live: true },
-      { label: "Omzet Autopilot", icon: Zap, path: "/acties" },
-      { label: "AI Insights", icon: Brain, path: "/ai#insights", routePath: "/ai" },
-      { label: "AI Activiteit", icon: Activity, path: "/ai#activity", routePath: "/ai" },
-      { label: "AI Segmenten", icon: Users, path: "/segmenten" },
-    ],
-  },
-  {
-    title: "Operatie",
+    title: "Dagelijks",
     defaultOpen: true,
     items: [
       { label: "Overzicht", icon: LayoutDashboard, path: "/" },
@@ -74,7 +63,7 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    title: "Commerce",
+    title: "Verkoop",
     items: [
       { label: "Kassa", icon: ShoppingBag, path: "/kassa" },
       { label: "Producten", icon: Package, path: "/producten" },
@@ -84,7 +73,7 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    title: "Finance",
+    title: "Geldzaken",
     items: [
       { label: "Omzet", icon: TrendingUp, path: "/omzet" },
       { label: "Eigenaar", icon: Crown, path: "/eigenaar", accent: true, ownerOnly: true },
@@ -92,6 +81,18 @@ const navGroups: NavGroup[] = [
       { label: "GlowPay", icon: CreditCard, path: "/glowpay", accent: true },
       { label: "Refunds", icon: RotateCcw, path: "/refunds" },
       { label: "Rapporten", icon: BarChart3, path: "/rapporten" },
+    ],
+  },
+  {
+    title: "Slimme functies",
+    ai: true,
+    items: [
+      { label: "GlowSuite AI", icon: Sparkles, path: "/ai" },
+      { label: "Auto Revenue", icon: Flame, path: "/auto-revenue", accent: true, live: true },
+      { label: "Omzet Autopilot", icon: Zap, path: "/acties" },
+      { label: "AI Insights", icon: Brain, path: "/ai#insights", routePath: "/ai" },
+      { label: "AI Activiteit", icon: Activity, path: "/ai#activity", routePath: "/ai" },
+      { label: "AI Segmenten", icon: Users, path: "/segmenten" },
     ],
   },
   {
@@ -106,11 +107,13 @@ const navGroups: NavGroup[] = [
   },
 ];
 
-const STORAGE_KEY = "glowsuite:sidebar:open-groups";
+const STORAGE_KEY = "glowsuite:sidebar:open-groups:v2";
+const LEGACY_STORAGE_KEY = "glowsuite:sidebar:open-groups";
 
 export function AppSidebar() {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
   const { user, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { roles, isOwner } = useUserRole();
@@ -151,7 +154,23 @@ export function AppSidebar() {
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) return JSON.parse(raw);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          const saved: Record<string, boolean> = {};
+          for (const [title, value] of Object.entries(parsed)) {
+            if (typeof value === "boolean") saved[title] = value;
+          }
+          return saved;
+        }
+      }
+      const legacy = JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY) || "{}");
+      // Only the former two default-open groups reset. Explicit other choices survive.
+      const migrated: Record<string, boolean> = { Dagelijks: true, "Slimme functies": false };
+      for (const [oldTitle, title] of [["Groei", "Groei"], ["Commerce", "Verkoop"], ["Finance", "Geldzaken"], ["Beheer", "Beheer"]]) {
+        if (typeof legacy?.[oldTitle] === "boolean") migrated[title] = legacy[oldTitle];
+      }
+      return migrated;
     } catch {}
     return {};
   });
@@ -180,6 +199,20 @@ export function AppSidebar() {
     window.addEventListener("glowsuite:open-sidebar", open);
     return () => window.removeEventListener("glowsuite:open-sidebar", open);
   }, []);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const previous = document.activeElement;
+    closeButtonRef.current?.focus();
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      window.removeEventListener("keydown", closeOnEscape);
+      if (previous instanceof HTMLElement) previous.focus();
+    };
+  }, [mobileOpen]);
 
   const toggleGroup = (title: string) =>
     setOpenGroups((p) => ({ ...p, [title]: !p[title] }));
@@ -257,47 +290,19 @@ export function AppSidebar() {
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 lg:px-5 pt-4 lg:pt-6 pb-2 shrink-0">
-          <Link to="/ai" onClick={() => setMobileOpen(false)} className="flex items-center" aria-label="GlowSuite">
+          <Link to="/" onClick={() => setMobileOpen(false)} className="flex items-center" aria-label="GlowSuite">
             <GlowSuiteLogo size="md" withWordmark priority />
           </Link>
-          <button
+          <Button
+            ref={closeButtonRef}
+            variant="ghost"
+            size="icon"
             onClick={() => setMobileOpen(false)}
             aria-label="Menu sluiten"
             className="lg:hidden inline-flex items-center justify-center h-10 w-10 rounded-xl hover:bg-secondary active:scale-95 transition"
           >
             <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Pinned premium AI CTA card */}
-        <div className="px-3 pb-3 shrink-0">
-          <Link
-            to="/ai"
-            onClick={() => setMobileOpen(false)}
-            className={cn(
-              "group relative flex items-center gap-3 px-3.5 py-3.5 rounded-2xl text-[14px] font-semibold transition-all overflow-hidden",
-              "border border-primary/20 bg-gradient-to-br from-primary/12 via-fuchsia-500/10 to-primary/[0.04]",
-              "shadow-[0_8px_28px_-12px_hsl(var(--primary)/0.35)] hover:shadow-[0_10px_32px_-10px_hsl(var(--primary)/0.5)]",
-              "hover:from-primary/18 hover:via-fuchsia-500/15 hover:to-primary/8 active:scale-[0.99]",
-              location.pathname === "/ai" && !location.hash && "ring-1 ring-primary/30"
-            )}
-          >
-            <div className="absolute -top-8 -right-8 h-24 w-24 rounded-full bg-primary/20 blur-2xl pointer-events-none" />
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-fuchsia-500 text-white flex items-center justify-center shrink-0 shadow-[0_4px_14px_-4px_hsl(var(--primary)/0.6)]">
-              <Sparkles className="w-4 h-4" />
-            </div>
-            <div className="flex-1 min-w-0 relative">
-              <div className="flex items-center gap-2">
-                <span className="truncate text-foreground">GlowSuite AI</span>
-                <span className="text-[9.5px] font-semibold px-1.5 py-0.5 rounded-md bg-gradient-to-r from-primary to-fuchsia-500 text-white">
-                  AI
-                </span>
-              </div>
-              <p className="text-[11px] font-normal text-muted-foreground truncate">
-                Command Center
-              </p>
-            </div>
-          </Link>
+          </Button>
         </div>
 
         {/* Scrollable nav */}
@@ -313,8 +318,11 @@ export function AppSidebar() {
                   group.ai && "rounded-2xl bg-gradient-to-b from-primary/[0.06] to-transparent border border-primary/15 p-1.5"
                 )}
               >
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  aria-expanded={isOpen}
+                  aria-controls={`sidebar-group-${idx}`}
                   onClick={() => toggleGroup(group.title)}
                   className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-secondary/40 transition"
                 >
@@ -333,12 +341,10 @@ export function AppSidebar() {
                       isOpen ? "rotate-0" : "-rotate-90"
                     )}
                   />
-                </button>
-                {isOpen && (
-                  <div className="flex flex-col gap-0.5 mt-1">
-                    {group.items.map(renderItem)}
-                  </div>
-                )}
+                </Button>
+                <div id={`sidebar-group-${idx}`} hidden={!isOpen} className="flex flex-col gap-0.5 mt-1">
+                  {isOpen && group.items.map(renderItem)}
+                </div>
               </div>
             );
           })}
