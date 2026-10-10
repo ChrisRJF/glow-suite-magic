@@ -26,6 +26,8 @@ export default function CustomersPage() {
   const { can } = useUserRole();
   const [searchParams] = useSearchParams();
   const [search, setSearch] = useState('');
+  const [visibleCount, setVisibleCount] = useState(100);
+  useEffect(() => { setVisibleCount(100); }, [search]);
   const [selectedCustomer, setSelectedCustomer] = useState<Tables<"customers"> | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -59,7 +61,8 @@ export default function CustomersPage() {
   }, [customers, appointments]);
 
   const filtered = customerIntel.filter(c => {
-    const matchSearch = c.name.toLowerCase().includes(search.toLowerCase());
+    const q = search.toLowerCase().trim();
+    const matchSearch = !q || (c.name ?? '').toLowerCase().includes(q) || (c.email ?? '').toLowerCase().includes(q) || (c.phone ?? '').includes(q);
     const matchLabel = filterLabel === "alle" || c.label.toLowerCase() === filterLabel;
     return matchSearch && matchLabel;
   });
@@ -68,7 +71,7 @@ export default function CustomersPage() {
     if (!can("customers:create")) { toast.error("Je hebt geen rechten om klanten toe te voegen."); return; }
     if (!form.name.trim()) { toast.error("Naam is verplicht"); return; }
     const result = await insert(form);
-    if (result) { toast.success("Klant toegevoegd"); setShowAdd(false); setForm({ name: '', phone: '', email: '', notes: '' }); refetch(); }
+    if (result) { toast.success("Klant toegevoegd"); setShowAdd(false); setSearch(form.name); setForm({ name: '', phone: '', email: '', notes: '' }); refetch(); }
   };
 
   const handleUpdate = async () => {
@@ -142,7 +145,7 @@ export default function CustomersPage() {
         <div className={cn("flex-1 space-y-2 opacity-0 animate-fade-in-up", selectedCustomer && "hidden lg:block")} style={{ animationDelay: '200ms' }}>
           {loading ? <p className="text-sm text-muted-foreground text-center py-8">Laden...</p> :
            filtered.length === 0 ? <p className="text-sm text-muted-foreground text-center py-8">Geen klanten gevonden</p> :
-            filtered.map((customer) => {
+            filtered.slice(0, visibleCount).map((customer) => {
              const signal = getShowcaseSignal(customer.name);
              const SignalIcon = signal?.icon;
              return (
