@@ -202,7 +202,7 @@ describe("ImportWizard Salonized re-import (synthetic)", () => {
     await waitFor(() => expect(toast.warning).toHaveBeenCalled(), { timeout: 60000 });
     expect(customers().length).toBe(FX.expect.fresh);
 
-    fireEvent.click(screen.getByRole("button", { name: /terugdraaien/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Import ongedaan maken/ }));
     await waitFor(() => expect(customers().length).toBe(400), { timeout: 30000 });
     expect(db.import_batches[1].status).toBe("undone");
   }, 240000);

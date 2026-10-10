@@ -494,11 +494,15 @@ export function ImportWizard() {
     if (!confirm("Weet je zeker dat je deze import wilt terugdraaien? Rijen uit deze import worden verwijderd.")) return;
     setUndoing(batchId);
     try {
-      const { data: items } = await supabase
+      // Page through all items (backend returns max 1.000 per request); never undo half silently.
+      const { data: items, error: itemsLoadErr } = await fetchAllRows((from, to) => supabase
         .from("import_batch_items")
-        .select("table_name, row_id")
+        .select("id, table_name, row_id")
         .eq("batch_id", batchId)
-        .eq("user_id", user.id);
+        .eq("user_id", user.id)
+        .order("id")
+        .range(from, to));
+      if (itemsLoadErr) throw new Error("Niet alle importregels konden worden geladen. Probeer het opnieuw.");
       const byTable = new Map<string, string[]>();
       (items ?? []).forEach((it: any) => {
         const arr = byTable.get(it.table_name) ?? [];
