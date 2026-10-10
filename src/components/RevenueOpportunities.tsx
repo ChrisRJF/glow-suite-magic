@@ -1,9 +1,8 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, TrendingUp, RotateCcw, Star, Sparkles } from "lucide-react";
+import { ArrowRight, RotateCcw, Star, Sparkles } from "lucide-react";
 import { useAppointments, useCustomers, useServices } from "@/hooks/useSupabaseData";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatEuro } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import { useDueRebook } from "@/lib/autoRebookClient";
 
@@ -32,21 +31,6 @@ export function RevenueOpportunities() {
   const items = useMemo(() => {
     const now = Date.now();
     const DAY = 1000 * 60 * 60 * 24;
-    const todayStr = new Date().toISOString().split("T")[0];
-
-    const todaysAppts = appointments.filter(
-      (a: any) => a.appointment_date?.startsWith(todayStr) && a.status !== "geannuleerd",
-    );
-
-    const ROUGH_SLOT_TARGET = 8;
-    const freeSlots = Math.max(0, ROUGH_SLOT_TARGET - todaysAppts.length);
-
-    const priced = (services as any[]).filter((s) => Number(s.price) > 0);
-    const avgPrice = priced.length > 0
-      ? priced.reduce((s, x) => s + Number(x.price || 0), 0) / priced.length
-      : 0;
-    const potentialRevenue = Math.round(freeSlots * avgPrice);
-
     let recentNoReview = 0;
     for (const c of customers as any[]) {
       const visits = (appointments as any[])
@@ -67,18 +51,6 @@ export function RevenueOpportunities() {
       onClick: () => void;
       accent: "primary" | "success" | "muted";
     }> = [];
-
-    if (freeSlots > 0 && potentialRevenue > 0 && todaysAppts.length < 6) {
-      list.push({
-        key: "rev",
-        icon: TrendingUp,
-        label: `Er valt vandaag nog ${formatEuro(potentialRevenue)} omzet te halen`,
-        hint: "GlowSuite ziet nog ruimte in de agenda vandaag.",
-        cta: "Vul lege plekken",
-        onClick: () => navigate("/wachtlijst"),
-        accent: "success",
-      });
-    }
 
     if (rebookReady > 0) {
       list.push({
@@ -140,7 +112,7 @@ export function RevenueOpportunities() {
     <section aria-label="Omzetkansen vandaag">
       <div className="mb-2.5">
         <h2 className="text-section-title">Omzetkansen vandaag</h2>
-        <p className="text-meta mt-0.5">Waar GlowSuite extra ruimte ziet</p>
+        <p className="text-meta mt-0.5">Klanten om vandaag op te volgen</p>
       </div>
       <div
         className="rounded-2xl border border-border/60 bg-card/70 divide-y divide-border/40 overflow-hidden"

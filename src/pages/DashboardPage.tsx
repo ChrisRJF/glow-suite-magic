@@ -114,7 +114,6 @@ export default function DashboardPage() {
 
   const monthlyGrowthRevenue = paidRevenueThisMonth;
   const membershipRevenue = payments.filter((p: any) => p.payment_type === "membership" && p.status === "paid").reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
-  const glowSuiteWeekRevenue = report.revenue.week + aiRevenue;
 
   const vipCustomers = customers.filter((c) => (Number(c.total_spent) || 0) > 500);
   const newLeads = leads.filter((l) => l.status === "nieuw").length;

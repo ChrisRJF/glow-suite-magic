@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, CreditCard, CalendarClock, Crown, Sparkles, CheckCircle2 } from "lucide-react";
+import { ArrowRight, CreditCard, Crown, Sparkles, CheckCircle2 } from "lucide-react";
 import { useAppointments, useCustomerMemberships } from "@/hooks/useSupabaseData";
 import { usePayments } from "@/hooks/usePayments";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -10,7 +10,6 @@ import { cn } from "@/lib/utils";
  * "Today" command-center card.
  * Calm, factual signals based on real data only — no AI guesses.
  *  - open payments today
- *  - empty slots today (rough heuristic from today's appointments)
  *  - memberships expiring within 14 days
  *  - quiet-day nudge (only when today is genuinely quiet)
  */
@@ -48,9 +47,6 @@ export function TodayBriefing({ variant = "default", title, hideHeader = false, 
       return created || due;
     });
 
-    // Heuristic: assume an 8-slot day; show free slots only if there's real room
-    const ROUGH_SLOT_TARGET = 8;
-    const freeSlots = Math.max(0, ROUGH_SLOT_TARGET - todaysAppts.length);
 
     const in14 = new Date();
     in14.setDate(in14.getDate() + 14);
@@ -81,17 +77,6 @@ export function TodayBriefing({ variant = "default", title, hideHeader = false, 
         why: "Betalingen voor vandaag die nog openstaan.",
         onClick: () => navigate("/glowpay?filter=pending"),
         tone: "warning",
-      });
-    }
-
-    if (freeSlots > 0 && todaysAppts.length < 6) {
-      list.push({
-        key: "slot",
-        icon: CalendarClock,
-        label: `${freeSlots} ${freeSlots === 1 ? "lege plek" : "lege plekken"} vandaag`,
-        why: "Op basis van je agenda van vandaag.",
-        onClick: () => navigate("/agenda"),
-        tone: "primary",
       });
     }
 
