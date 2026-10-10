@@ -241,6 +241,9 @@ function autoDetect(headers: string[], type: ImportType): Record<string, string>
   return map;
 }
 
+// Customers are saved in chunks; each chunk is registered for undo before the next starts.
+export const CUSTOMER_CHUNK = 200;
+
 type Step = 0 | 1 | 2 | 3 | 4 | 5;
 
 interface ImportError {
@@ -916,6 +919,8 @@ export function ImportWizard() {
           errors.push({ row: rowNum, reason: "Onverwachte fout", fix: rowErr?.message ?? "", original: row });
         }
       }
+
+      await flushCustomers();
 
       // Persist tracked items in batches
       if (trackedItems.length > 0) {
