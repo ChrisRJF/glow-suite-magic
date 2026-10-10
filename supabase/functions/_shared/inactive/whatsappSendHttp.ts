@@ -47,6 +47,8 @@ export interface HttpEnv {
   build(): BuiltDeps | null;
   /** auth.getUser(token) -> sub. Throws/null = not authenticated. */
   verifyJwt(token: string): Promise<{ sub: string } | null>;
+  /** Minimal structured log sink (reason codes only). */
+  log?: (e: Record<string, unknown>) => void;
 }
 
 export async function handleWhatsAppSendHttp(req: Request, env: HttpEnv): Promise<Response> {
@@ -86,6 +88,6 @@ export async function handleWhatsAppSendHttp(req: Request, env: HttpEnv): Promis
     // Any unexpected adapter failure before transport: refuse. (Transport/finalize errors are handled in the guard.)
     result = { ok: false, status: 503, reason: "dependency_failed" };
   }
-  console.log("wa-send-http", { status: result.status, reason: result.ok ? result.result : result.reason });
+  env.log?.({ ev: "wa-send-http", status: result.status, reason: result.ok ? result.result : result.reason });
   return fromResult(result);
 }

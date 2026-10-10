@@ -34,7 +34,8 @@ Deno.serve((req) => handleWhatsAppSendHttp(req, {
     LOVABLE_API_KEY: Deno.env.get("LOVABLE_API_KEY"),
     TWILIO_API_KEY: Deno.env.get("TWILIO_API_KEY"),
     WA_FROM_NUMBER: Deno.env.get("WA_FROM_NUMBER"),
-  }, { fetch, now: Date.now }),
+  }, { fetch, now: Date.now, log: (e) => console.log(e) }),
+  log: (e) => console.log(e),
   async verifyJwt(token) {
     const { data, error } = await admin.auth.getUser(token);
     return error || !data?.user?.id ? null : { sub: data.user.id };

@@ -88,7 +88,7 @@ async function one(db: Db, table: string, cols: string, eq: Record<string, strin
 export interface BuiltDeps { deps: Deps; service: ServiceVerifyDeps }
 
 /** null = configuration missing/invalid -> the HTTP layer answers 503 before any read. */
-export function buildDeps(db: Db, env: AdapterEnv, io: { fetch: typeof fetch; now(): number; timeoutMs?: number }): BuiltDeps | null {
+export function buildDeps(db: Db, env: AdapterEnv, io: { fetch: typeof fetch; now(): number; timeoutMs?: number; log?: (e: Record<string, unknown>) => void }): BuiltDeps | null {
   const claimKey = key32(env.WA_CLAIM_HMAC_KEY);
   const from = env.WA_FROM_NUMBER;
   if (!claimKey || !env.WA_CONTACT_REF_KEYS || !env.LOVABLE_API_KEY || !env.TWILIO_API_KEY) return null;
@@ -174,7 +174,7 @@ export function buildDeps(db: Db, env: AdapterEnv, io: { fetch: typeof fetch; no
     async finalize(tenantId, key, state, log: MinimalLog) {
       const r = await db.rpc("wa_finalize_send", { _tenant: tenantId, _key: key, _state: state, _to_masked: log.to_masked, _provider_code: log.provider_code });
       // Minimal structured log: no message text, no full number, no links/tokens, no raw provider text.
-      console.log("wa-send", { tenant: log.tenant_id, kind: log.kind, purpose: log.purpose, to: log.to_masked,
+      io.log?.({ ev: "wa-send", tenant: log.tenant_id, kind: log.kind, purpose: log.purpose, to: log.to_masked,
         content_fp: log.content_fp.slice(0, 12), status: state, code: log.provider_code, finalized: r.data === true && !r.error });
       if (r.error || r.data !== true) throw new Error("finalize_failed");
     },
