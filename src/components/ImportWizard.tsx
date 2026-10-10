@@ -1010,7 +1010,7 @@ export function ImportWizard() {
   }
 
   return (
-    <div className="glass-card p-4 sm:p-6 space-y-6 w-full min-w-0 max-w-full break-words pb-[env(safe-area-inset-bottom)]">
+    <div className="glass-card p-4 sm:p-6 space-y-6 w-full min-w-0 max-w-full break-words">
       <div>
         <h2 className="text-xl font-semibold mb-1">Gegevens importeren</h2>
         <p className="text-sm text-muted-foreground">
@@ -1025,7 +1025,7 @@ export function ImportWizard() {
       {/* Stepper */}
       <div aria-label="Importstappen" className="flex w-full min-w-0 items-center gap-2 overflow-x-auto max-w-full pb-2 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
         {["Upload", "Bron", "Type", "Mapping", "Preview", "Klaar"].map((label, i) => (
-          <div key={i} aria-current={i === step ? "step" : undefined} ref={(node) => { if (node && i === step) node.parentElement?.scrollTo({ left: Math.max(0, node.offsetLeft - node.parentElement.offsetLeft - 8) }); }} className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+          <div key={i} aria-current={i === step ? "step" : undefined} ref={(node) => { if (node && i === step) node.parentElement?.scrollTo?.({ left: Math.max(0, node.offsetLeft - node.parentElement.offsetLeft - 8) }); }} className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             <div
               className={`w-6 h-6 sm:w-7 sm:h-7 shrink-0 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-semibold ${
                 i <= step ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
