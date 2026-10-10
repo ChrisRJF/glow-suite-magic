@@ -154,7 +154,12 @@ const SERVICE_KINDS: Record<ServiceCaller, Partial<Record<string, { purpose: Mes
     review: { purpose: "marketing", event: "appointment" },
     no_show: { purpose: "transactional", event: "appointment" },
   },
-  "automation-scheduler": { automation: { purpose: "marketing", event: "automation_run" } },
+  // Automation reminder triggers must send kind "reminder" with the appointment event ref, so the
+  // claim key equals the reminder-scheduler's key (caller-independent) and only one is ever sent.
+  "automation-scheduler": {
+    automation: { purpose: "marketing", event: "automation_run" },
+    reminder: { purpose: "transactional", event: "appointment", slot: true },
+  },
   "auto-rebook": { auto_rebook: { purpose: "marketing", event: "rebook_action" } },
   "booking-confirmation": { confirmation: { purpose: "transactional", event: "appointment" } },
   "payment-webhook": { confirmation: { purpose: "transactional", event: "appointment" } },
@@ -203,6 +208,8 @@ export interface Deps {
   /** throw = lookup failed (-> blocked) */
   isStopped(tenantId: string, e164: string): Promise<boolean>;
   whatsappEnabled(tenantId: string): Promise<boolean>;
+  /** Emergency stop (tenant_feature_flags). true / throw / non-boolean = paused: no claim, no provider. */
+  sendingPaused(tenantId: string): Promise<boolean>;
   isDemoTenant(tenantId: string): Promise<boolean>;
   /** Atomic: INSERT ... ON CONFLICT DO NOTHING, then read existing row. */
   claim(tenantId: string, key: string, fingerprint: string): Promise<ClaimResult>;
@@ -297,6 +304,17 @@ export async function guardedSend(identity: Identity, req: SendRequest, d: Deps)
   if (customer.user_id !== tenantId) return no(403, "customer_not_in_tenant");
   if (appt && appt.user_id !== tenantId) return no(403, "appointment_not_in_tenant");
 
+  // Emergency stop first; then salon settings. test=true never skips either.
+  let paused: unknown, demo: unknown, enabled: unknown;
+  try { paused = await d.sendingPaused(tenantId); } catch { return no(503, "sending_paused"); }
+  if (paused !== false) return no(503, "sending_paused");
+  try { demo = await d.isDemoTenant(tenantId); } catch { return no(503, "settings_lookup_failed"); }
+  if (typeof demo !== "boolean") return no(503, "settings_lookup_failed");
+  if (!demo) {
+    try { enabled = await d.whatsappEnabled(tenantId); } catch { return no(503, "settings_lookup_failed"); }
+    if (enabled !== true) return no(409, "whatsapp_disabled");
+  }
+
   // 3b. Service sends: the signed event_ref is only a claim. Verify the event row itself.
   if (identity.kind === "service") {
     const m = EVENT_REF.exec(req.event_ref as string)!;
@@ -314,7 +332,7 @@ export async function guardedSend(identity: Identity, req: SendRequest, d: Deps)
   }
 
   // Consent: STOP first. Lookup errors / odd values are never read as "not stopped".
-  let stopped: unknown, pref: unknown, enabled: unknown;
+  let stopped: unknown, pref: unknown;
   try { stopped = await d.isStopped(tenantId, dest); } catch { return no(503, "consent_lookup_failed"); }
   if (typeof stopped !== "boolean") return no(503, "consent_lookup_failed");
   if (stopped) return no(409, "customer_stopped");
@@ -322,10 +340,6 @@ export async function guardedSend(identity: Identity, req: SendRequest, d: Deps)
   if (pref !== true && pref !== false && pref !== null) return no(503, "consent_lookup_failed");
   const c = evaluateWhatsAppConsent({ purpose, tenantId, customer, stoppedInTenant: false, preferenceWhatsappOptOut: pref as boolean | null });
   if (c.allowed === false) return no(409, c.reason);
-  if (req.test !== true) {
-    try { enabled = await d.whatsappEnabled(tenantId); } catch { return no(503, "settings_lookup_failed"); }
-    if (enabled !== true) return no(409, "whatsapp_disabled");
-  }
 
   const key = await d.hmac("claim", `${tenantId}|${slot.slot}`);
   const contentFp = await d.hmac("content", req.message);
@@ -341,7 +355,7 @@ export async function guardedSend(identity: Identity, req: SendRequest, d: Deps)
   const base = { tenant_id: tenantId, customer_id: customer.id, appointment_id: appointmentId, kind, purpose,
     to_masked: maskPhone(dest), content_fp: contentFp };
 
-  if (await d.isDemoTenant(tenantId)) {
+  if (demo === true) {
     await d.finalize(tenantId, key, "sent", { ...base, provider_sid: null, provider_code: null, status: "sent" });
     return { ok: true, status: 200, result: "simulated" };
   }

@@ -25,12 +25,36 @@ export type EventRow =
 
 export type EventResolver = (type: EventType, id: string) => Promise<EventRow | null>;
 
-/** Proposed reminder moments. The current reminderEngine uses ONE "reminder" type for both
- *  (shared marker, see audit); callers must send ":24h" / ":2h" after their separate change. */
+/** Reminder moments, derived from the existing schedulers (read-only):
+ *  - whatsapp-reminder-scheduler: target = hours_before (default 24) +/- 15 min
+ *  - automation-scheduler: appointment_reminder_24h / _2h at hours +/- 1 h
+ *  The verifier accepts the widest existing tolerance (+/- 1 h) and nothing more, so the two
+ *  windows never overlap and a mis-slotted or late scheduler run is refused.
+ *  Product decision (documented): salons with a custom reminder_hours_before other than 24/2
+ *  are refused (fail-closed) until an explicit extra slot is approved. */
 export const REMINDER_WINDOWS_MS: Record<string, [number, number]> = {
-  "24h": [2 * 3600e3, 30 * 3600e3],  // start - now in (2h, 30h]
-  "2h": [0, 4 * 3600e3],             // start - now in (0, 4h]
+  "24h": [23 * 3600e3, 25 * 3600e3], // start - now in (23h, 25h]
+  "2h": [1 * 3600e3, 3 * 3600e3],    // start - now in (1h, 3h]
 };
+
+/** Salon wall-clock (Europe/Amsterdam by default) -> epoch ms, DST-correct.
+ *  Returns null for malformed input or a non-existent local time (spring-forward gap). */
+export function localToEpochMs(date: string, time: string, tz = "Europe/Amsterdam"): number | null {
+  const dm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date), tm = /^(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(time);
+  if (!dm || !tm) return null;
+  const [y, mo, da, h, mi] = [+dm[1], +dm[2], +dm[3], +tm[1], +tm[2]];
+  if (mo < 1 || mo > 12 || da < 1 || da > 31 || h > 23 || mi > 59) return null;
+  const wall = Date.UTC(y, mo - 1, da, h, mi);
+  const fmt = new Intl.DateTimeFormat("en-GB", { timeZone: tz, hourCycle: "h23", year: "numeric", month: "2-digit",
+    day: "2-digit", hour: "2-digit", minute: "2-digit" });
+  const asWall = (ms: number) => {
+    const p = Object.fromEntries(fmt.formatToParts(new Date(ms)).map((x) => [x.type, x.value]));
+    return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute);
+  };
+  // Try both possible offsets; on ambiguity (autumn fold) take the earlier instant.
+  const cands = [-3, -2, -1, 0, 1, 2].map((o) => wall + o * 3600e3).filter((ms) => asWall(ms) === wall);
+  return cands.length ? Math.min(...cands) : null;
+}
 export const CANCELLED_APPOINTMENT = "geannuleerd"; // value written by _shared/cancelAppointment.ts
 
 export interface EventCheckInput {
