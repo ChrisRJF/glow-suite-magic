@@ -72,7 +72,7 @@ type R = [string, string, string, string, string];
 function buildFixture(): { rows: R[]; expect: { fresh: number; dupes: number; conflicts: number; missing: number; invalid: number } } {
   const rows: R[] = [];
   const variants = (n: number) => [`+316${n}`, `00316${n}`, `+31 (0)6 ${n}`];
-  for (let i = 0; i < (Number(process.env.FX_PAIRS) || 6623); i++) {
+  for (let i = 0; i < 6623; i++) {
     const n = 10000000 + i;
     rows.push([`Fictief ${i}`, `f${i}@voorbeeld.test`, `06${n}`, "01-01-1990", ""]);
     rows.push([` Fictief ${i} `, ` F${i}@Voorbeeld.TEST `, variants(n)[i % 3], "", ""]);
@@ -85,7 +85,7 @@ function buildFixture(): { rows: R[]; expect: { fresh: number; dupes: number; co
   for (let i = 0; i < 10; i++) rows.push(["", "", "", "", "alleen notitie"]);
   for (let i = 0; i < 20; i++) rows.push([`Alleen Naam ${i}`, "", "", "", ""]);
   for (let i = 0; i < 5; i++) rows.push([`Alleen Naam ${i}`, "", "", "", "naam herhaald"]);
-  const singles = (Number(process.env.FX_TOTAL) || 15902) - rows.length;
+  const singles = 15902 - rows.length;
   for (let i = 0; i < singles; i++) {
     const mode = i % 3;
     rows.push([`Enkel ${i}`, mode !== 1 ? `  S${i}@Voorbeeld.test ` : "", mode !== 2 ? `06${30000000 + i}` : "", "", ""]);
