@@ -54,7 +54,7 @@ function world(o: W = {}) {
     now: () => o.now ?? NOW,
     resolveEvent: async (type, id) => {
       const appts: Record<string, [string, string | null]> = { [APPT_A]: [SA, CA], [APPT_B]: [SB, CB], [APPT_NOCUST]: [SA, null] };
-      if (type === "appointment" && appts[id]) return { type, id, user_id: appts[id][0], customer_id: appts[id][1], status: "gepland", starts_at_ms: NOW + 20 * 3600e3 };
+      if (type === "appointment" && appts[id]) return { type, id, user_id: appts[id][0], customer_id: appts[id][1], status: "gepland", starts_at_ms: NOW + 24 * 3600e3 };
       if (type === "automation_run" && id === RUN_1) return { type, id, user_id: SA, customer_id: CA, appointment_id: null, status: "scheduled" };
       if (type === "rebook_action" && id === RUN_1) return { type, id, user_id: SA, customer_id: CA, appointment_id: null, reversed_at: null };
       return null;
@@ -142,8 +142,8 @@ describe("1b. idempotency: internal sends bound to the business event", () => {
     const w = world(); const s = await svc();
     expect(await guardedSend(s, reminder, w.deps)).toMatchObject({ ok: true });
     expect(await guardedSend(s, reminder, w.deps)).toMatchObject({ reason: "duplicate" });
-    // 2h slot is a separate claim; checked 1h before start (8D reminder windows).
-    const w2 = world({ now: NOW + 19 * 3600e3 });
+    // 2h slot is a separate claim; checked 2h before start (8D reminder windows).
+    const w2 = world({ now: NOW + 22 * 3600e3 });
     expect(await guardedSend(s, { ...reminder, event_ref: `appointment:${APPT_A}:2h` }, w2.deps)).toMatchObject({ ok: true });
     expect(w.transport).toHaveBeenCalledTimes(1); expect(w2.transport).toHaveBeenCalledTimes(1);
   });

@@ -92,7 +92,7 @@ describe("8D-B business events: appointment reminders", () => {
     expect(await guardedSend(s, rem("24h"), world([appt({ starts_at_ms: NOW + H })]).deps)).toMatchObject({ reason: "reminder_outside_window" });
     expect(await guardedSend(s, rem("2h"), world([appt()]).deps)).toMatchObject({ reason: "reminder_outside_window" });
     expect(await guardedSend(s, rem("2h"), world([appt({ starts_at_ms: NOW - H })]).deps)).toMatchObject({ reason: "reminder_outside_window" });
-    expect(await guardedSend(s, rem("2h"), world([appt({ starts_at_ms: NOW + H })]).deps)).toMatchObject({ ok: true });
+    expect(await guardedSend(s, rem("2h"), world([appt({ starts_at_ms: NOW + 2 * H })]).deps)).toMatchObject({ ok: true });
     expect(await guardedSend(s, rem("24h"), world([appt({ starts_at_ms: null })]).deps)).toMatchObject({ reason: "event_time_unknown" });
   });
   it("cancelled appointment -> no reminder / confirmation", async () => {
