@@ -143,6 +143,7 @@ describe("ImportWizard Salonized re-import (synthetic)", () => {
     expect({ fresh: card("Wordt geïmporteerd"), dupes: card("Dubbel (overgeslagen)"), conflicts: card("Conflict (handmatig)"), missing: card("Gegevens ontbreken"), invalid: card("Ongeldige waarden") }).toEqual(FX.expect);
     await startImport();
     await waitFor(() => expect(toast.warning).toHaveBeenCalled(), { timeout: 60000 });
+    { const names = new Set(customers().map((c) => c.name)); console.log("MISSING", FX.rows.filter((r) => r[0].startsWith("Enkel") || r[0].startsWith("Alleen")).filter((r) => !names.has(r[0].trim())).slice(0, 25).map((r) => r.join("|")).join("\n"), toast.warning.mock.calls); }
     expect(customers().length).toBe(FX.expect.fresh);
     // batched: ceil(9.229 / 200) = 47 inserts instead of 9.229
     expect(counters.customerInsertCalls).toBe(Math.ceil(FX.expect.fresh / 200));
