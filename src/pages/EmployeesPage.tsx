@@ -224,7 +224,7 @@ export default function EmployeesPage() {
     }));
   };
 
-  const useFixedHours = (on: boolean) => {
+  const applyFixedHours = (on: boolean) => {
     setForm((f) => {
       if (!on) return { ...f, weekly_schedule: null };
       const next: WeeklySchedule = {};
@@ -496,7 +496,7 @@ export default function EmployeesPage() {
                         type="checkbox"
                         className="mt-1"
                         checked={!!form.weekly_schedule}
-                        onChange={(ev) => useFixedHours(ev.target.checked)}
+                        onChange={(ev) => applyFixedHours(ev.target.checked)}
                       />
                       <span>
                         Vaste werktijden per dag
