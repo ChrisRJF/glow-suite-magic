@@ -8,7 +8,7 @@ import { templateActions, allowedLinksIn, type SafeEmailLinks, type TemplateKey 
 export type TemplateResult = { subject: string; preview: string; html: string; text: string; links: string[] };
 type Action = { label: string; url?: string };
 
-function escapeHtml(value: unknown) {
+export function escapeHtml(value: unknown) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -16,9 +16,10 @@ function escapeHtml(value: unknown) {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 }
-function validReplyTo(value: unknown) {
+const EMAIL = /^[^\s@<>"',;]+@[^\s@<>"',;]+\.[^\s@<>"',;]+$/;
+export function validEmail(value: unknown): string | undefined {
   const email = String(value || "").trim().toLowerCase();
-  return z.string().email().safeParse(email).success ? email : undefined;
+  return email.length <= 255 && EMAIL.test(email) ? email : undefined;
 }
 
 function hexColor(value: unknown, fallback: string) {
@@ -100,3 +101,132 @@ const AUTO_REBOOK_STRINGS: Record<string, { subject: (s: string) => string; titl
     cta: "Reservar cita",
   },
 };
+
+const btn = (accent: string, url: string, label: string) => `<a href="${escapeHtml(url)}" style="display:block;background:${accent};color:#ffffff;text-decoration:none;border-radius:14px;padding:15px 18px;font-size:15px;font-weight:800;text-align:center;margin:0 0 10px;">${escapeHtml(label)}</a>`;
+
+export function renderTemplate(key: TemplateKey, data: Record<string, unknown>, salonName: string, branding: any, lang: EmailLang, links: SafeEmailLinks): TemplateResult {
+  const s = emailStrings(lang);
+  const sh = s.shared;
+  const firstName = String(data.customer_name || data.recipient_name || "").trim().split(/\s+/)[0] || "";
+  const accent = hexColor(branding?.primary_color, "#7B61FF");
+  const secondary = hexColor(branding?.secondary_color, "#C850C0");
+  const base = { salonName, logoUrl: branding?.logo_url || "", accent, secondary, lang, footerText: sh.footer(salonName) };
+  const acts = templateActions(key, links);
+  const allowed = allowedLinksIn(acts);
+  const act = (label: string, slot: "primary" | "secondary"): Action | undefined => acts[slot] ? { label, url: acts[slot]!.url } : undefined;
+  const supportEmail = validEmail(data.support_email) || validEmail(data.salon_contact_email) || validEmail(branding?.contact_email) || "";
+  const out = (subject: string, preview: string, html: string, text: string): TemplateResult => ({ subject, preview, html, text, links: allowed });
+
+  if (key === "booking_confirmation") {
+    const t = s.booking_confirmation;
+    const dateShort = formatDateShort(data.appointment_date || data.date, lang);
+    const intro = firstName ? t.intro_named(firstName, salonName) : t.intro(salonName);
+    const rows = infoRows([
+      [sh.row_customer, data.customer_name || data.recipient_name],
+      [sh.row_date, formatDateLong(data.appointment_date || data.date, lang)],
+      [sh.row_time, data.time || data.start_time],
+      [sh.row_service, data.service_name],
+      [sh.row_staff, data.employee || data.staff_name],
+      [sh.row_location, data.location || data.address],
+      [sh.row_reference, data.reference],
+      [sh.row_total, data.total_amount ? formatCurrency(data.total_amount, lang) : undefined],
+    ]);
+    const body = rows + noteBlock(t.note_title, [t.note_1, t.note_2]);
+    const manage = act(t.cta_manage, "primary");
+    return out(dateShort ? t.subject(salonName, dateShort) : t.subject_no_date(salonName), intro,
+      shell({ ...base, title: t.title, intro, body, primaryAction: manage }),
+      `${t.title}\n${intro}\n${String(data.service_name || "")}\n${formatDateLong(data.appointment_date || data.date, lang)} ${String(data.time || data.start_time || "")}${manage?.url ? `\n${t.cta_manage}: ${manage.url}` : ""}`);
+  }
+
+  if (key === "payment_receipt") {
+    const t = s.payment_receipt;
+    const intro = t.intro(salonName);
+    const totalStr = formatCurrency(data.total_amount || data.amount, lang);
+    const vatStr = data.vat_amount ? formatCurrency(data.vat_amount, lang) : "";
+    const vatLine = vatStr ? (data.vat_rate ? t.vat_line(vatStr, String(data.vat_rate)) : t.vat_no_rate(vatStr)) : undefined;
+    const rows = infoRows([
+      [sh.row_method, data.method || data.payment_method],
+      [sh.row_description, data.description || data.service_name || data.membership_name],
+      [sh.row_date, formatDateLong(data.paid_at || data.date, lang)],
+      [sh.row_reference, data.reference || data.receipt_number],
+      [sh.row_vat, data.vat_amount ? formatCurrency(data.vat_amount, lang) : data.vat_enabled ? sh.row_vat_active : undefined],
+    ]);
+    const body = amountSummary({ total: totalStr, totalLabel: t.total_label, vatLine }) + rows;
+    return out(t.subject(salonName, String(data.reference || "")).trim(), intro,
+      shell({ ...base, title: t.title, intro, body, primaryAction: act(t.cta_appointment, "primary") }),
+      `${t.title}\n${intro}\n${totalStr}\n${String(data.method || data.payment_method || "")}`);
+  }
+
+  if (key === "appointment_reminder") {
+    const t = s.appointment_reminder;
+    const dateShort = formatDateShort(data.appointment_date || data.date, lang);
+    const intro = firstName ? t.intro_named(firstName, salonName) : t.intro(salonName);
+    const rows = infoRows([
+      [sh.row_date, formatDateLong(data.appointment_date || data.date, lang)],
+      [sh.row_time, data.time || data.start_time],
+      [sh.row_service, data.service_name],
+      [sh.row_staff, data.employee || data.staff_name],
+      [sh.row_location, data.location || data.address],
+    ]);
+    const cf = acts.confirmFlow;
+    const confirmBlock = cf ? `<div style="margin:18px 0 10px;"><p style="margin:0 0 10px;color:#111827;font-size:14px;font-weight:700;text-align:center;">${escapeHtml(t.confirm_intro)}</p>${btn(accent, cf.confirmUrl, t.cta_confirm)}<a href="${escapeHtml(cf.declineUrl)}" style="display:block;background:#ffffff;color:#111827;text-decoration:none;border:1px solid #E5E7EB;border-radius:14px;padding:13px 18px;font-size:14px;font-weight:700;text-align:center;margin:0;">${escapeHtml(t.cta_decline)}</a></div>` : "";
+    const body = rows + confirmBlock + noteBlock(t.note_title, [data.preparation_tip || t.note_default_tip, t.note_reschedule, data.aftercare_note]);
+    const manage = act(t.cta_manage, "primary");
+    return out(t.subject(salonName, dateShort || ""), intro,
+      shell({ ...base, title: t.title, intro, body, primaryAction: cf ? undefined : manage, secondaryAction: cf ? manage : undefined }),
+      `${t.title}\n${intro}\n${formatDateLong(data.appointment_date || data.date, lang)} ${String(data.time || data.start_time || "")}${cf ? `\n\n${t.confirm_intro}\n${t.cta_confirm}: ${cf.confirmUrl}\n${t.cta_decline}: ${cf.declineUrl}` : ""}${manage?.url ? `\n${t.cta_manage}: ${manage.url}` : ""}`);
+  }
+
+  if (key === "booking_cancellation") {
+    const t = s.booking_cancellation;
+    const intro = t.intro(salonName);
+    const rows = infoRows([
+      [sh.row_status, t.status_cancelled],
+      [sh.row_service, data.service_name],
+      [sh.row_date, formatDateLong(data.appointment_date || data.date, lang)],
+      [sh.row_time, data.time || data.start_time],
+      [sh.row_reference, data.reference],
+      [sh.row_support, supportEmail],
+    ]);
+    const body = rows + noteBlock(t.note_title, [t.note_check, supportEmail ? t.note_contact(supportEmail) : t.note_help]);
+    return out(t.subject(salonName), intro, shell({ ...base, title: t.title, intro, body, primaryAction: act(t.cta_new, "primary") }), `${t.title}\n${intro}`);
+  }
+
+  if (key === "membership_notification") {
+    const t = s.membership_notification;
+    const intro = firstName ? t.intro_named(firstName, salonName) : t.intro(salonName);
+    const benefits = Array.isArray(data.benefits) ? data.benefits : [data.benefit_1, data.benefit_2, data.benefit_3];
+    const rows = infoRows([
+      [sh.row_membership, data.membership_name],
+      [sh.row_status, data.status || t.status_active],
+      [sh.row_credits, data.credits ?? data.credits_status],
+      [sh.row_next_payment, formatDateLong(data.next_payment_at, lang)],
+      [sh.row_monthly, data.amount ? formatCurrency(data.amount, lang) : undefined],
+    ]);
+    const labels = { membership: t.cta_manage, booking: t.cta_book } as Record<string, string>;
+    const p = acts.primary ? { label: labels[acts.primary.slot], url: acts.primary.url } : undefined;
+    const sc = acts.secondary ? { label: labels[acts.secondary.slot], url: acts.secondary.url } : undefined;
+    return out(t.subject(salonName), intro, shell({ ...base, title: t.title, intro, body: rows + noteBlock(t.benefits_title, benefits), primaryAction: p, secondaryAction: sc }), `${t.title}\n${intro}\n${String(data.membership_name || "")}`);
+  }
+
+  if (key === "auto_rebook") {
+    const t = AUTO_REBOOK_STRINGS[lang] || AUTO_REBOOK_STRINGS.nl;
+    const intro = t.intro(firstName, salonName);
+    const rows = infoRows([[sh.row_service, data.service_name], [sh.row_date, formatDateLong(data.last_visit_date, lang)]]);
+    const body = rows + `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.65;">${escapeHtml(t.body)}</p>`;
+    const p = act(t.cta, "primary");
+    return out(t.subject(salonName), intro, shell({ ...base, title: t.title, intro, body, primaryAction: p }), `${t.title}\n${intro}${p?.url ? `\n${p.url}` : ""}`);
+  }
+
+  const t = s.review_request;
+  const intro = firstName ? t.intro_named(firstName, salonName) : t.intro(salonName);
+  const body = infoRows([
+    [sh.row_service, data.service_name],
+    [sh.row_date, formatDateLong(data.appointment_date || data.completed_at || data.date, lang)],
+    [sh.row_staff, data.employee || data.staff_name],
+  ]) + `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.65;">${escapeHtml(t.body_text)}</p>`;
+  const labels = { review: t.cta_review, booking: t.cta_rebook } as Record<string, string>;
+  const p = acts.primary ? { label: labels[acts.primary.slot], url: acts.primary.url } : undefined;
+  const sc = acts.secondary ? { label: labels[acts.secondary.slot], url: acts.secondary.url } : undefined;
+  return out(t.subject(salonName), intro, shell({ ...base, title: t.title, intro, body, primaryAction: p, secondaryAction: sc }), `${t.title}\n${intro}`);
+}
