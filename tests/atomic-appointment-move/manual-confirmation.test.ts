@@ -30,6 +30,7 @@ function mk(over: Partial<Deps> = {}, a: any = apt) {
     release: async (k) => { claimed.delete(k); },
     send,
     rendererTokenOnlyManageLink: true,
+    allowedRecipients: new Set(["test@voorbeeld.test"]),
     ...over,
   };
   return { deps, send, payments };

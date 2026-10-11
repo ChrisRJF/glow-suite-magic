@@ -13,7 +13,7 @@ export const CONFIRM_ROLES = new Set(["eigenaar", "admin", "manager", "receptie"
 export type SkipReason =
   | "not_requested" | "not_authenticated" | "forbidden" | "not_found" | "incomplete" | "cancelled"
   | "no_email" | "demo" | "opted_out" | "paused" | "unknown_time" | "already_sent" | "send_failed"
-  | "not_manual" | "status_not_allowed" | "payment_not_allowed" | "renderer_unsafe";
+  | "not_manual" | "status_not_allowed" | "payment_not_allowed" | "renderer_unsafe" | "recipient_not_allowed";
 
 /** Allow-list (fail closed): anything else, incl. cancelled/no-show/pending holdings, gets no mail. */
 export const ALLOWED_STATUSES = new Set(["gepland", "bevestigd", "confirmed", "geboekt"]);
@@ -46,6 +46,9 @@ export interface Deps {
   /** Existing send-white-label-email path (service caller, template booking_confirmation). */
   send: (payload: Record<string, unknown>) => Promise<{ ok: boolean }>;
   release: (key: string) => Promise<void>;
+  /** Test phase: only explicitly allowed test addresses (exact, lowercased). Empty/missing = nobody (fail closed).
+   *  Full activation replaces this with an explicit "all recipients" decision, never by default. */
+  allowedRecipients: ReadonlySet<string> | "all";
   /** true only once the template diff in bookingConfirmationManageAction.ts is live in the renderer. */
   rendererTokenOnlyManageLink: boolean;
 }
@@ -77,7 +80,15 @@ export async function dispatchManualConfirmation(
   const roles = await deps.rolesForUser(userId);
   if (!tenant || !roles || !roles.some((r) => CONFIRM_ROLES.has(r))) return skip("forbidden");
 
-  const apt = await deps.loadAppointment(tenant.tenantId, req.appointmentId);
+  return sendForTenant(tenant, req.appointmentId, deps);
+}
+
+/** All checks after authentication. Used by the direct route and by the outbox worker. */
+export async function sendForTenant(
+  tenant: { tenantId: string; isDemo: boolean }, appointmentId: string,
+  deps: Omit<Deps, "verifyUser" | "tenantForUser" | "rolesForUser">,
+): Promise<Result> {
+  const apt = await deps.loadAppointment(tenant.tenantId, appointmentId);
   if (!apt || apt.user_id !== tenant.tenantId || apt.is_demo !== tenant.isDemo) return skip("not_found");
   if (apt.source !== "manual") return skip("not_manual");
   const status = (apt.status || "").trim().toLowerCase();
@@ -98,7 +109,9 @@ export async function dispatchManualConfirmation(
   if (!customer || !service) return skip("incomplete");
   const email = (customer.email || "").trim().toLowerCase();
   if (!EMAIL.test(email)) return skip("no_email");
-  if (!(await deps.emailAllowed(tenant.tenantId, apt.customer_id))) return skip("opted_out");
+  const allow = deps.allowedRecipients;
+  if (allow !== "all" && !(allow instanceof Set && allow.has(email))) return skip("recipient_not_allowed");
+  if (!(await deps.emailAllowed(tenant.tenantId, apt.customer_id).catch(() => false))) return skip("opted_out");
   if (!(await deps.sendingAllowed().catch(() => false))) return skip("paused");
 
   if (deps.rendererTokenOnlyManageLink !== true) return skip("renderer_unsafe");
