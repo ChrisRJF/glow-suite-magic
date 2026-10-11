@@ -573,7 +573,7 @@ export default function CalendarPage() {
       service_id: searchParams.get('behandeling') || f.service_id,
     }));
     setJourneyLink(journeyId ? { id: journeyId, session: sessionNr } : null);
-    resetCreateRequest();
+    startCreateRequest();
     setShowAdd(true);
     const next = new URLSearchParams(searchParams);
     ['nieuw', 'klant', 'behandeling', 'traject', 'sessie'].forEach(k => next.delete(k));
@@ -599,7 +599,13 @@ export default function CalendarPage() {
   const savingRef = useRef(false);
   const requestIdRef = useRef<string>(crypto.randomUUID());
   const pendingBodyRef = useRef<CreateBody | null>(null);
-  const resetCreateRequest = () => { requestIdRef.current = crypto.randomUUID(); pendingBodyRef.current = null; };
+  // Unknown outcome: the exact request stays pending and is shown instead of the form until resolved.
+  const [pendingBody, setPendingBodyState] = useState<CreateBody | null>(null);
+  const setPending = (b: CreateBody | null) => { pendingBodyRef.current = b; setPendingBodyState(b); };
+  const resetCreateRequest = () => { requestIdRef.current = crypto.randomUUID(); setPending(null); };
+  /** New id only when no request is pending; a pending request survives closing and reopening. */
+  const startCreateRequest = () => { if (!pendingBodyRef.current) resetCreateRequest(); };
+  const closeAdd = () => { if (savingRef.current) return; setShowAdd(false); setShowConfirmation(false); };
 
   const finishCreated = (groupCount: number) => {
     toast.success(groupCount > 0 ? `Groepsboeking aangemaakt (${groupCount + 1} personen)` : "Afspraak staat in de agenda", {
@@ -631,7 +637,11 @@ export default function CalendarPage() {
     }
     const out = await createViaRoute((name, opts) => supabase.functions.invoke(name, opts) as any, body);
     if (out.kind === "created") { finishCreated(body.sub_appointments?.length ?? 0); return; }
-    if (out.kind === "unknown") { pendingBodyRef.current = body; toast.error(out.message); return; }
+    if (pendingBodyRef.current && out.kind === "refused" && out.code !== "request_mismatch") {
+      // A retry was answered: the earlier attempt did not create anything. Back to the form.
+      setPending(null);
+    }
+    if (out.kind === "unknown") { setPending(body); toast.error(out.message); return; }
     if (out.code === "request_mismatch") resetCreateRequest();
     toast.error(out.message);
   };
@@ -790,7 +800,7 @@ export default function CalendarPage() {
   };
 
   const openAddModal = (date: string, time: string) => {
-    resetCreateRequest();
+    startCreateRequest();
     setShowAdd(true);
     setShowConfirmation(false);
     setPlacementOptions([]);
@@ -1300,8 +1310,24 @@ export default function CalendarPage() {
 
       {/* Add Modal */}
       {showAdd && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => { setShowAdd(false); setShowConfirmation(false); }}>
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={closeAdd}>
           <div className="glass-card p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            {pendingBody ? (
+              <div role="alert" aria-label="Onbekende opslaguitkomst">
+                <h3 className="text-lg font-semibold mb-2">Opslaan niet bevestigd</h3>
+                <p className="text-sm text-muted-foreground mb-3">We weten niet zeker of deze afspraak is opgeslagen. Opnieuw versturen gebruikt exact dezelfde aanvraag, er ontstaat geen dubbele afspraak.</p>
+                <div className="p-3 rounded-xl bg-secondary/30 border border-border text-sm mb-4">
+                  <p className="font-medium">{customers.find((c) => c.id === pendingBody.customer_id)?.name || "Klant"}</p>
+                  <p className="text-muted-foreground">{services.find((sv) => sv.id === pendingBody.service_id)?.name || "Behandeling"} · {pendingBody.date} om {pendingBody.time}</p>
+                  {pendingBody.sub_appointments && <p className="text-muted-foreground">Groepsboeking: {pendingBody.sub_appointments.length + 1} personen</p>}
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button variant="outline" className="flex-1" disabled={saving} onClick={() => { refetch(); refetchApptEmps(); toast.info("Agenda vernieuwd. Staat de afspraak erin, kies dan 'Afspraak staat in agenda'."); }}>Agenda controleren</Button>
+                  <Button variant="outline" className="flex-1" disabled={saving} onClick={() => { resetCreateRequest(); closeAdd(); refetch(); }}>Afspraak staat in agenda</Button>
+                  <Button variant="gradient" className="flex-1" disabled={saving} onClick={handleAdd}>{saving ? "Opslaan..." : "Opnieuw versturen"}</Button>
+                </div>
+              </div>
+            ) : <>
 
             {showConfirmation ? (
               <>
@@ -1547,13 +1573,14 @@ export default function CalendarPage() {
                   )}
                 </div>
                 <div className="flex gap-2 mt-4">
-                  <Button variant="outline" className="flex-1" onClick={() => { setShowAdd(false); setShowConfirmation(false); }}>Annuleren</Button>
+                  <Button variant="outline" className="flex-1" onClick={closeAdd} disabled={saving}>Annuleren</Button>
                   <Button variant="gradient" className="flex-1" onClick={handlePrepareConfirmation} disabled={saving}>
                     {saving ? 'Opslaan...' : subAppts.length > 0 ? 'Bekijk plaatsing' : 'Afspraak maken'}
                   </Button>
                 </div>
               </>
             )}
+            </>}
           </div>
         </div>
       )}
