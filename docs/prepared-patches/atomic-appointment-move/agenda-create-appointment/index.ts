@@ -10,19 +10,22 @@
 // - The only write is rpc("create_appointment_atomic_as"), which re-checks salon, role, flag and membership.
 // - Confirmation mail is NOT connected here (onCreated omitted) until the mail activation is approved.
 
-import { createClient } from "npm:@supabase/supabase-js@2";
-import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { handleCreate, messageFor, type ActorContext, type RouteDeps } from "../agendaCreateRoute.ts";
 
-const URL_ = Deno.env.get("SUPABASE_URL")!;
-const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
-const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+// Same CORS pattern as the existing GlowSuite Edge Functions (e.g. public-booking).
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
 
 function json(status: number, body: unknown) {
   return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
 
-export function makeDeps(admin: ReturnType<typeof createClient>, anon: ReturnType<typeof createClient>): RouteDeps {
+export function makeDeps(admin: SupabaseClient, anon: SupabaseClient): RouteDeps {
   return {
     verifyUser: async (jwt) => {
       const { data, error } = await anon.auth.getUser(jwt);
@@ -72,6 +75,9 @@ if (import.meta.main) {
     const jwt = auth.startsWith("Bearer ") ? auth.slice(7) : null;
     let body: unknown = null;
     try { body = await req.json(); } catch { body = null; }
+    const URL_ = Deno.env.get("SUPABASE_URL"); const ANON = Deno.env.get("SUPABASE_ANON_KEY");
+    const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!URL_ || !ANON || !SERVICE) return json(503, { ok: false, code: "unavailable", message: messageFor("unavailable") });
     const admin = createClient(URL_, SERVICE, { auth: { persistSession: false, autoRefreshToken: false } });
     const anon = createClient(URL_, ANON, { auth: { persistSession: false, autoRefreshToken: false } });
     const r = await handleCreate({ jwt, body }, makeDeps(admin, anon));

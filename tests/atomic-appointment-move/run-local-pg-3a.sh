@@ -54,11 +54,22 @@ TP() { Q "select string_agg(p, ',' order by p) from unnest(array['SELECT','INSER
 ok "G01 reproduces production: service_role has UPDATE before fix" "$(Q "select has_table_privilege('service_role','public.agenda_create_requests','UPDATE')")" "t"
 ok "G01 reproduces production: sandbox_exec has SELECT,INSERT" "$(TP sandbox_exec)" "INSERT,SELECT"
 python3 - "$BASE/2026-10-11_agenda_create_requests_grants_fix.sql" "$BASE/badfix.sql" <<'PY2'
-import sys; s=open(sys.argv[1]).read(); k=s.index('DO $v$')
+import sys; s=open(sys.argv[1]).read(); k=s.index('-- Final verification')
 open(sys.argv[2],'w').write(s[:k]+"GRANT UPDATE ON public.agenda_create_requests TO service_role;\n"+s[k:])
 PY2
 chown $RUNUID "$BASE/badfix.sql"
-AS bash -c "$P -d gs_move -1 -v ON_ERROR_STOP=1 -f $BASE/badfix.sql" >/dev/null 2>&1 && echo "FAIL: G02 bad fix passed" || echo "PASS: G02 fix self-check aborts on stray UPDATE"
+OUT=$(AS bash -c "$P -d gs_move -1 -v ON_ERROR_STOP=1 -f $BASE/badfix.sql" 2>&1 >/dev/null || true)
+echo "$OUT" | grep -q "service_role still has UPDATE" && echo "PASS: G02 fix self-check aborts on stray UPDATE" || echo "FAIL: G02 UPDATE not stopped: $OUT"
+for BAD in "GRANT TRUNCATE ON public.agenda_create_requests TO service_role;" "GRANT REFERENCES ON public.agenda_create_requests TO service_role;" "GRANT TRIGGER ON public.agenda_create_requests TO service_role;" "GRANT MAINTAIN ON public.agenda_create_requests TO service_role;" "GRANT SELECT ON public.agenda_create_requests TO PUBLIC;" "GRANT DELETE ON public.agenda_create_requests TO authenticated;" "CREATE ROLE gs_inherit_probe NOLOGIN; GRANT UPDATE ON public.agenda_create_requests TO gs_inherit_probe; GRANT gs_inherit_probe TO service_role;" "CREATE ROLE gs_inherit_probe2 NOLOGIN; GRANT INSERT ON public.agenda_create_requests TO gs_inherit_probe2; GRANT gs_inherit_probe2 TO anon;" "REVOKE DELETE ON public.agenda_create_requests FROM service_role;"; do
+  python3 - "$BASE/2026-10-11_agenda_create_requests_grants_fix.sql" "$BASE/badfix.sql" "$BAD" <<'PY2'
+import sys; s=open(sys.argv[1]).read(); k=s.index('-- Final verification')
+open(sys.argv[2],'w').write(s[:k]+sys.argv[3]+"\n"+s[k:])
+PY2
+  chown $RUNUID "$BASE/badfix.sql"
+  OUT=$(AS bash -c "$P -d gs_move -1 -v ON_ERROR_STOP=1 -f $BASE/badfix.sql" 2>&1 >/dev/null || true)
+  if echo "$OUT" | grep -q "agenda_create_requests_grants_fix:"; then echo "PASS: G02 single stray right stops via self-check + rolls back: ${BAD:0:60}"; else echo "FAIL: G02 not stopped by self-check: $BAD :: $OUT"; fi
+done
+ok "G02 rollback left no probe roles" "$(Q "select count(*) from pg_roles where rolname like 'gs_inherit_probe%'")" "0"
 ok "G02 abort left service_role unchanged" "$(TP service_role)" "DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
 AS bash -c "$P -d gs_move -1 -v ON_ERROR_STOP=1 -f $BASE/2026-10-11_agenda_create_requests_grants_fix.sql" >/dev/null && echo "PASS: G03 grants fix applies in one transaction"
 ok "G03 service_role exactly SELECT,INSERT,DELETE" "$(TP service_role)" "DELETE,INSERT,SELECT"
