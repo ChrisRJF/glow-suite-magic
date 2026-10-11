@@ -98,3 +98,11 @@ Status: proposal only. Nothing applied, nothing deployed, nothing in `src/` chan
 - Terugval: vlag uit = direct terug naar huidige code (vóór stap 4). Na stap 4: vlag uit blokkeert.
 - Blokkades voor aanzetten: groepsregel zonder eigen tijd wordt geweigerd (formulier moet tijd per persoon tonen);
   afspraken met meerdere medewerkers niet verplaatsbaar; weergave/herinneringen lezen nog ruwe `appointment_date`.
+
+## Stap 3A server route (2026-10-11, inactief)
+- Nieuw: `agendaCreateRoute.ts` (toekomstige Edge Function `agenda-create-appointment`), `docs/proposed-migrations/2026-10-11_agenda_create_route.sql` (NIET toegepast, niet in PostgreSQL getest), tests `tests/atomic-appointment-move/agenda-create-route.test.ts`.
+- Route: login -> salon via current_tenant_id-regel -> rol -> vlag (onleesbaar = blokkeren, uit = weigeren) -> duurzame claim op `request_id` -> één RPC-aanroep met `_source='manual'` -> pas daarna bevestigingsmail-hand-off.
+- BLOKKADE 1: live `create_appointment_atomic` gebruikt `auth.uid()` als salon én voor de vlag. Met service_role is dat NULL (`not_authenticated`); met een receptie/manager-login is het de verkeerde salon. Een service_role-only wrapper met (actor, tenant) is nodig (databasewijziging, aparte goedkeuring).
+- BLOKKADE 2: de RPC kent geen idempotency-sleutel; zonder de voorgestelde tabel `agenda_create_requests` kan een herhaald verzoek zonder medewerker een tweede afspraak maken.
+- BLOKKADE 3 (bestaand): groepsregel zonder eigen tijd, verplaatsen met meerdere medewerkers, oude lezers van ruwe `appointment_date`.
+- Activatie: (1) wrapper + tabel, (2) route deployen, (3) frontend achter vlag, (4) tests, (5) vlag aan voor demosalon, één fictieve afspraak per scenario, (6) Beautycare alleen na toestemming Chris. Terugdraaien: vlag uit (agenda gebruikt weer huidige code), of grant intrekken; bestaande afspraken blijven staan.
