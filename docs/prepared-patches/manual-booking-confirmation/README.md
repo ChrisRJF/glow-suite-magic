@@ -42,3 +42,10 @@ moet de voorbereide `emailSendAuth.ts`-controle live staan, zodat alleen de serv
 5. Frontend met schakelaar publiceren, eerst voor een demosalon (mail onderdrukt),
    daarna één testmail op een eigen adres, pas daarna Beautycare.
 Terugval: schakelaar verbergen of functie uitzetten; afspraken blijven werken.
+
+## Correctie 2026-10-11 (inactief)
+
+- Gat A (verzonnen beheerlink): de ACTIEVE renderer in `send-white-label-email` maakt zonder `manage_url` nog steeds `https://<slug>.glowsuite.nl/afspraak/beheer`. Afgedekt door `bookingConfirmationManageAction.ts` (inactieve template-diff, alleen exacte `https://glowsuite.nl/mijn-afspraak/<uuid>` toegestaan, anders geen knop). De kern verstuurt niets zolang `rendererTokenOnlyManageLink !== true` (fail closed). VEREISTE voor activatie: deze diff eerst apart goedgekeurd deployen; een test faalt bewust zodra de actieve fallback verdwijnt, als signaal om de status bij te werken.
+- Gat B (bron/status): alleen `source === "manual"`; allow-list status `gepland|bevestigd|confirmed|geboekt`; allow-list betaalstatus leeg/`unpaid`/`none`/`paid`. Online, public_booking, auto_rebook, geannuleerd/cancelled, no-show, pending_confirmation, open/pending/failed/expired holdings krijgen niets. Let op: de huidige actieve `handleAdd` zet geen `source`; pas na Agenda 3.0 stap 3 (`create_appointment_atomic` met `source: "manual"`) kan deze route mails sturen.
+- Afzender: gelijk aan publieke bevestiging (`salon_slug` = `public_slug`, geen `sender_legacy_name_id`).
+- Beperking: claim/idempotency is alleen met een in-memory mock getest. Dat is GEEN geteste database-idempotency. Unieke claimtabel, serverrechten, demo-mode-checks en de hele Agenda 3.0 stap 3 moeten afzonderlijk worden gebouwd, getest en geactiveerd.
