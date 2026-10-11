@@ -599,17 +599,46 @@ export default function CalendarPage() {
   const savingRef = useRef(false);
   const requestIdRef = useRef<string>(crypto.randomUUID());
   const pendingBodyRef = useRef<CreateBody | null>(null);
+  const pendingOwnerRef = useRef<{ userId: string; tenantId: string } | null>(null);
   // Unknown outcome: the exact request stays pending and is shown instead of the form until resolved.
   const [pendingBody, setPendingBodyState] = useState<CreateBody | null>(null);
   const setPending = (b: CreateBody | null) => { pendingBodyRef.current = b; setPendingBodyState(b); };
-  const resetCreateRequest = () => { requestIdRef.current = crypto.randomUUID(); setPending(null); };
+  const resetCreateRequest = () => {
+    const o = pendingOwnerRef.current;
+    if (o) clearPending(o.userId, o.tenantId);
+    pendingOwnerRef.current = null;
+    requestIdRef.current = crypto.randomUUID(); setPending(null);
+  };
   /** New id only when no request is pending; a pending request survives closing and reopening. */
   const startCreateRequest = () => { if (!pendingBodyRef.current) resetCreateRequest(); };
   const closeAdd = () => { if (savingRef.current) return; setShowAdd(false); setShowConfirmation(false); };
 
-  const finishCreated = (groupCount: number) => {
+  // Restore a pending request of THIS user and salon after a page refresh or in-app navigation.
+  useEffect(() => {
+    let cancelled = false;
+    pendingOwnerRef.current = null; requestIdRef.current = crypto.randomUUID(); setPending(null);
+    if (!user?.id) return;
+    (async () => {
+      try {
+        const t = await supabase.rpc("current_tenant_id" as any);
+        if (cancelled || t.error || typeof t.data !== "string" || !t.data) return;
+        purgeOtherPending(user.id, t.data);
+        const body = loadPending(user.id, t.data);
+        if (!body || cancelled) return;
+        pendingOwnerRef.current = { userId: user.id, tenantId: t.data };
+        requestIdRef.current = body.request_id;
+        setPending(body);
+        setShowAdd(true);
+      } catch { /* nothing restored */ }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  const finishCreated = (body: CreateBody) => {
+    const groupCount = body.sub_appointments?.length ?? 0;
     toast.success(groupCount > 0 ? `Groepsboeking aangemaakt (${groupCount + 1} personen)` : "Afspraak staat in de agenda", {
-      description: `${customers.find((customer) => customer.id === form.customer_id)?.name || "Klant"} · ${form.date} om ${form.time}`,
+      description: `${customers.find((customer) => customer.id === body.customer_id)?.name || "Klant"} · ${body.date} om ${body.time}`,
     });
     setShowAdd(false);
     setShowConfirmation(false);
@@ -622,9 +651,10 @@ export default function CalendarPage() {
     refetchApptEmps();
   };
 
-  const atomicCreate = async () => {
+  const atomicCreate = async (tenantId: string | null) => {
     let body = pendingBodyRef.current;
     if (!body) {
+      if (!user?.id || !tenantId) { toast.error(BLOCKED_MESSAGE); return; }
       const built = buildCreateBody(requestIdRef.current, {
         customer_id: form.customer_id, service_id: form.service_id, date: form.date, time: form.time,
         employee_ids: selectedEmployeeIds,
@@ -634,25 +664,28 @@ export default function CalendarPage() {
       });
       if (built.ok === false) { toast.error((built as { message: string }).message); return; }
       body = built.body;
+      // Persist id + exact body BEFORE the first server call; no safe storage = no call.
+      if (!savePending(user.id, tenantId, body)) { toast.error("Opslaan kon niet veilig worden voorbereid. Er is niets opgeslagen."); return; }
+      pendingOwnerRef.current = { userId: user.id, tenantId };
+      setPending(body);
     }
     const out = await createViaRoute((name, opts) => supabase.functions.invoke(name, opts) as any, body);
-    if (out.kind === "created") { finishCreated(body.sub_appointments?.length ?? 0); return; }
-    if (pendingBodyRef.current && out.kind === "refused" && out.code !== "request_mismatch") {
-      // A retry was answered: the earlier attempt did not create anything. Back to the form.
-      setPending(null);
-    }
-    if (out.kind === "unknown") { setPending(body); toast.error(out.message); return; }
-    if (out.code === "request_mismatch") resetCreateRequest();
-    toast.error(out.message);
+    if (out.kind === "created") { finishCreated(body); return; }
+    if (out.kind === "unknown") { toast.error(out.message); return; }
+    if (NON_DEFINITIVE_REFUSALS.has(out.code)) { toast.error(`${out.message} De openstaande aanvraag blijft bewaard.`); return; }
+    // Definitive refusal (e.g. conflict): nothing was created. Back to the form with a fresh id.
+    resetCreateRequest();
+    toast.error(out.code === "request_mismatch" ? out.message : `Afspraak is niet opgeslagen. ${out.message}`);
   };
 
   const handleAdd = async () => {
     if (savingRef.current) return;
     savingRef.current = true; setSaving(true);
     try {
-      const mode = pendingBodyRef.current ? "atomic" : await readAgendaMode(supabase as any);
+      if (pendingBodyRef.current) { await atomicCreate(pendingOwnerRef.current?.tenantId ?? null); return; }
+      const { mode, tenantId } = await readAgendaContext(supabase as any);
       if (mode === "blocked") { toast.error(BLOCKED_MESSAGE); return; }
-      if (mode === "atomic") { await atomicCreate(); return; }
+      if (mode === "atomic") { await atomicCreate(tenantId); return; }
       await legacyHandleAdd();
     } finally {
       savingRef.current = false; setSaving(false);
