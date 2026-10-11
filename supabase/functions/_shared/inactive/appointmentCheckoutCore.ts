@@ -134,7 +134,7 @@ export async function handleCheckout(
   if (req.method !== "terminal" && req.method !== "link") return no("invalid_method", q.quote);
   const method = req.method;
   const terminalId = typeof req.terminalId === "string" && req.terminalId ? req.terminalId : undefined;
-  if (method === "terminal" && !terminalId) return no("invalid_method", q.quote);
+  if (method === "terminal" && (!terminalId || !/^[0-9a-f-]{36}$/i.test(terminalId))) return no("invalid_method", q.quote);
   if (!(await deps.providerReady(t.tenantId, method, apt.is_demo).catch(() => false))) return no("provider_not_ready", q.quote);
 
   // Same key until a confirmed payment changes paidCents: double clicks and parallel tabs share one claim.

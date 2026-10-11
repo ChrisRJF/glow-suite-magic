@@ -28,7 +28,7 @@ function mk(o: { tenant?: string; payments?: StoredPayment[]; ledger?: LedgerRow
   };
   return { deps, startProvider };
 }
-const start = { jwt: "jwt-ok", action: "start", appointmentId: AID, method: "terminal", terminalId: "term-demo" };
+const start = { jwt: "jwt-ok", action: "start", appointmentId: AID, method: "terminal", terminalId: "22222222-2222-4222-8222-222222222222" };
 
 describe("afrekenen vanuit afspraak", () => {
   it("volledige betaling: start voor de volledige vastgelegde prijs", async () => {
