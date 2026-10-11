@@ -53,7 +53,7 @@ globalThis.fetch = (async (input: Request | URL | string, init?: RequestInit) =>
 
 let handler: (r: Request) => Promise<Response>;
 (Deno as any).serve = (h: any) => { handler = h; return {} as any; };
-await import("../../supabase/functions/_shared/inactive/sendWhiteLabelEmail.prepared.ts");
+await import("../../supabase/functions/send-white-label-email/index.ts");
 
 const T = (name: string, fn: () => Promise<void>) => Deno.test({ name, fn, sanitizeOps: false, sanitizeResources: false });
 const call = async (auth: string | null, body: Record<string, unknown>) => {
