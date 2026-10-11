@@ -87,3 +87,14 @@ Status: proposal only. Nothing applied, nothing deployed, nothing in `src/` chan
 - Het SQL-bestand bevat bewust geen BEGIN/COMMIT: de Lovable-migratietool (Drizzle) en de Supabase CLI zetten elk migratiebestand al in één transactie. Een eigen COMMIT zou die transactie te vroeg afsluiten.
 - Handmatig alleen: `psql -1 -v ON_ERROR_STOP=1 -f 2026-10-10_atomic_appointment_move.sql`.
 - Het script weigert te draaien buiten één transactie (transactie-lokale markering) en controleert vóór de commit via `has_function_privilege` en `pg_proc.proacl` dat PUBLIC, anon, authenticated en service_role niets mogen uitvoeren en dat `atomic_agenda_enabled` uit staat. Elke fout draait kolom en functies volledig terug.
+
+## Stap 3 offline voorbereiding (2026-10-11, vervangt de oude stap-3-tekst hierboven)
+- Nieuw: `agendaWriteCore.ts` (modus per salon, `guardedCreate`, `guardedPlaceWaitlist`), `wachtlijst.place.patch.md`;
+  bijgewerkt: `calendarPage.create.patch.md` (vlag vóór de RPC), `calendarPage.applyMove.patch.md`.
+- Modus: vlag `true` = alleen RPC, nooit terugval; vlag `false` of geen rij = huidige code ongewijzigd; vlag onleesbaar = niets opslaan.
+  Publiceren verandert dus niets voor salons met de vlag uit.
+- Activatie: (a) frontend publiceren, alle salons blijven op huidige code; (b) GRANT uit `..._activate_agenda.sql`;
+  (c) vlag aan voor één demosalon, één fictieve test per route; (d) pas na GO van Chris Beautycare; (e) guard (stap 4) pas als alle salons aan staan, daarna legacy-code verwijderen.
+- Terugval: vlag uit = direct terug naar huidige code (vóór stap 4). Na stap 4: vlag uit blokkeert.
+- Blokkades voor aanzetten: groepsregel zonder eigen tijd wordt geweigerd (formulier moet tijd per persoon tonen);
+  afspraken met meerdere medewerkers niet verplaatsbaar; weergave/herinneringen lezen nog ruwe `appointment_date`.
