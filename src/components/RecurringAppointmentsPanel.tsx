@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Repeat, Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  RECURRING_COUNTS, amsterdamDate, batchKey, biweeklyDates, buildBatch, loadBatch, recurringTemplate, routeCreate, runBatch,
+  RECURRING_COUNTS, recurringCountLabel, amsterdamDate, batchKey, biweeklyDates, buildBatch, loadBatch, recurringTemplate, routeCreate, runBatch,
   type Batch, type RunResult, type SourceAppointment, type Store,
 } from "@/lib/recurringAppointments";
 
@@ -62,16 +62,18 @@ export function RecurringAppointmentsPanel({ appointment, links, userId, tenantI
       {tpl.ok && !batch && (
         <>
           <div className="flex flex-wrap gap-2" role="group" aria-label="Aantal extra afspraken">
-            {RECURRING_COUNTS.map((n) => <Button key={n} size="sm" variant={n === count ? "default" : "outline"} onClick={() => setCount(n)}>{n}</Button>)}
+            {RECURRING_COUNTS.map((n) => <Button key={n} size="sm" variant={n === count ? "default" : "outline"} onClick={() => setCount(n)}>{recurringCountLabel(n)}</Button>)}
           </div>
           <p className="text-xs text-muted-foreground">Zelfde klant, behandeling en medewerker, om {tpl.time}. De huidige afspraak blijft zoals hij is. Er wordt geen bevestiging verstuurd.</p>
-          <ul className="space-y-1 text-sm">{dates.map((d) => <li key={d}>{fmt(d)} · {tpl.time}</li>)}</ul>
+          <p className="text-sm font-medium">{count} extra afspraken · iedere 2 weken</p>
+          <ul className="max-h-60 overflow-y-auto space-y-1 text-sm rounded-xl border border-border p-2">{dates.map((d) => <li key={d}>{fmt(d)} · {tpl.time}</li>)}</ul>
           <Button className="w-full" disabled={busy} onClick={confirm}>{count} afspraken inplannen</Button>
         </>
       )}
       {batch && (
         <div className="space-y-3 text-sm">
-          <ul className="space-y-1">{batch.items.map((i) => (
+          <p className="font-medium">{created.length} van {batch.items.length} ingepland{busy ? " · bezig met inplannen..." : ""}</p>
+          <ul className="max-h-60 overflow-y-auto space-y-1 rounded-xl border border-border p-2">{batch.items.map((i) => (
             <li key={i.body.request_id} className="flex justify-between gap-2"><span>{fmt(i.date)} · {i.body.time}</span>
               <span className="text-muted-foreground">{i.status === "created" ? "Ingepland" : i.status === "refused" ? "Geblokkeerd" : i.status === "unknown" ? "Onzeker" : "Nog niet"}</span></li>
           ))}</ul>
