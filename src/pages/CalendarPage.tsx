@@ -1349,15 +1349,14 @@ export default function CalendarPage() {
             {pendingBody ? (
               <div role="alert" aria-label="Onbekende opslaguitkomst">
                 <h3 className="text-lg font-semibold mb-2">Opslaan niet bevestigd</h3>
-                <p className="text-sm text-muted-foreground mb-3">We weten niet zeker of deze afspraak is opgeslagen. Opnieuw versturen gebruikt exact dezelfde aanvraag, er ontstaat geen dubbele afspraak.</p>
+                <p className="text-sm text-muted-foreground mb-3">We weten niet zeker of deze afspraak is opgeslagen. 'Opnieuw versturen' herhaalt precies dezelfde aanvraag. Was deze nog niet verwerkt, dan wordt hij alsnog opgeslagen. Was deze al verwerkt, dan geeft de server dezelfde afspraak terug en ontstaat er geen dubbele afspraak.</p>
                 <div className="p-3 rounded-xl bg-secondary/30 border border-border text-sm mb-4">
                   <p className="font-medium">{customers.find((c) => c.id === pendingBody.customer_id)?.name || "Klant"}</p>
                   <p className="text-muted-foreground">{services.find((sv) => sv.id === pendingBody.service_id)?.name || "Behandeling"} · {pendingBody.date} om {pendingBody.time}</p>
                   {pendingBody.sub_appointments && <p className="text-muted-foreground">Groepsboeking: {pendingBody.sub_appointments.length + 1} personen</p>}
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2">
-                  <Button variant="outline" className="flex-1" disabled={saving} onClick={() => { refetch(); refetchApptEmps(); toast.info("Agenda vernieuwd. Kies 'Uitkomst bevestigen' om de uitkomst bij de server na te vragen."); }}>Agenda controleren</Button>
-                  <Button variant="outline" className="flex-1" disabled={saving} onClick={handleAdd}>Uitkomst bevestigen</Button>
+                  <Button variant="outline" className="flex-1" disabled={saving} onClick={() => { refetch(); refetchApptEmps(); toast.info("Agenda vernieuwd. Staat de afspraak er al? 'Opnieuw versturen' bevestigt de uitkomst zonder dubbele afspraak."); }}>Agenda controleren</Button>
                   <Button variant="gradient" className="flex-1" disabled={saving} onClick={handleAdd}>{saving ? "Bezig..." : "Opnieuw versturen"}</Button>
                 </div>
               </div>
