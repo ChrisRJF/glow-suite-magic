@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { handleCheckout, type Deps, type StoredPayment, type LedgerRow } from "../../supabase/functions/_shared/inactive/appointmentCheckoutCore";
+import { handleCheckout, type Deps, type StoredPayment, type LedgerRow } from "../../supabase/functions/appointment-checkout/core";
 import { checkoutVisible } from "../../src/lib/appointmentCheckoutClient";
 
 const T = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";

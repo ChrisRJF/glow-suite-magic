@@ -1,4 +1,4 @@
-// INACTIVE: "Afrekenen" vanuit een agenda-afspraak. Not imported by any deployed entrypoint.
+// "Afrekenen" vanuit een agenda-afspraak (Edge Function appointment-checkout, gated per salon by appointment_checkout_enabled).
 // Pure server logic: every read/write is injected. It never marks anything paid and never touches total_spent.
 // Truth for "paid" = public.payment_ledger (service-role only, written by record_provider_payment after a
 // verified Viva/Mollie confirmation). A payments row with status 'paid' is NOT proof (client-writable).
