@@ -37,7 +37,7 @@ BEGIN
       RAISE EXCEPTION 'agenda_create_requests_grants_fix: service_role still has %', _p;
     END IF;
   END LOOP;
-  FOREACH _r IN ARRAY ARRAY['anon','authenticated'] LOOP
+  FOREACH _r IN ARRAY ARRAY['public','anon','authenticated'] LOOP
     FOREACH _p IN ARRAY _all LOOP
       IF has_table_privilege(_r, _tbl, _p) THEN
         RAISE EXCEPTION 'agenda_create_requests_grants_fix: % has %', _r, _p;
