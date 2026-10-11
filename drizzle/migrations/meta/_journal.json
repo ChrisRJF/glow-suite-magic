@@ -57,6 +57,13 @@
       "when": 1791700324728,
       "tag": "0007_atomic_appointment_activate_booking",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791722003995,
+      "tag": "0008_agenda_create_route",
+      "breakpoints": true
     }
   ]
 }

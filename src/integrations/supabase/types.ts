@@ -53,6 +53,39 @@ export type Database = {
         }
         Relationships: []
       }
+      agenda_create_requests: {
+        Row: {
+          actor_id: string
+          appointment_id: string
+          body_hash: string
+          booking_group_id: string | null
+          created_at: string
+          request_id: string
+          send_confirmation: boolean
+          tenant_id: string
+        }
+        Insert: {
+          actor_id: string
+          appointment_id: string
+          body_hash: string
+          booking_group_id?: string | null
+          created_at?: string
+          request_id: string
+          send_confirmation: boolean
+          tenant_id: string
+        }
+        Update: {
+          actor_id?: string
+          appointment_id?: string
+          body_hash?: string
+          booking_group_id?: string | null
+          created_at?: string
+          request_id?: string
+          send_confirmation?: boolean
+          tenant_id?: string
+        }
+        Relationships: []
+      }
       analytics_events: {
         Row: {
           created_at: string
@@ -5433,6 +5466,13 @@ export type Database = {
       }
     }
     Functions: {
+      agenda_actor_tenant: {
+        Args: { _actor: string }
+        Returns: {
+          role: string
+          tenant_id: string
+        }[]
+      }
       amsterdam_wall_to_utc: {
         Args: { _date: string; _time: string }
         Returns: string
@@ -5550,6 +5590,23 @@ export type Database = {
           _notes: string
           _service_id: string
           _source: string
+          _sub_appointments: Json
+          _time: string
+        }
+        Returns: Json
+      }
+      create_appointment_atomic_as: {
+        Args: {
+          _actor: string
+          _customer_id: string
+          _date: string
+          _employee_ids: string[]
+          _journey_id: string
+          _journey_session: number
+          _notes: string
+          _request_id: string
+          _send_confirmation: boolean
+          _service_id: string
           _sub_appointments: Json
           _time: string
         }
