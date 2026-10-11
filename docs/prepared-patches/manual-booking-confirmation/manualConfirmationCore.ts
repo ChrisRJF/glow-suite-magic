@@ -37,7 +37,7 @@ export interface Deps {
   rolesForUser: (userId: string) => Promise<string[] | null>;
   /** Reads with service role, filtered on id AND tenant; returns null when not that salon's. */
   loadAppointment: (tenantId: string, appointmentId: string) => Promise<StoredAppointment | null>;
-  loadEmployeeLinks: (appointmentId: string) => Promise<{ employee_id: string; is_primary: boolean; name: string | null }[]>;
+  loadEmployeeLinks: (appointmentId: string, tenantId: string) => Promise<{ employee_id: string; is_primary: boolean; name: string | null }[]>;
   loadCustomer: (tenantId: string, customerId: string) => Promise<{ name: string | null; email: string | null; language: string | null } | null>;
   loadService: (tenantId: string, serviceId: string) => Promise<{ name: string } | null>;
   loadSalon: (tenantId: string) => Promise<{ salon_name: string | null; public_slug: string | null; demo_mode: boolean | null; is_demo: boolean | null } | null>;
@@ -109,7 +109,7 @@ export async function sendForTenant(
   const [customer, service, links] = await Promise.all([
     deps.loadCustomer(tenant.tenantId, apt.customer_id),
     deps.loadService(tenant.tenantId, apt.service_id),
-    deps.loadEmployeeLinks(apt.id),
+    deps.loadEmployeeLinks(apt.id, tenant.tenantId),
   ]);
   if (!customer || !service) return skip("incomplete");
   const email = (customer.email || "").trim().toLowerCase();
