@@ -1065,6 +1065,30 @@ export type Database = {
           },
         ]
       }
+      customer_email_controls: {
+        Row: {
+          id: boolean
+          reason: string | null
+          sending_enabled: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: boolean
+          reason?: string | null
+          sending_enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: boolean
+          reason?: string | null
+          sending_enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       customer_memberships: {
         Row: {
           cancel_at_period_end: boolean
@@ -5609,6 +5633,27 @@ export type Database = {
       }
       claim_manual_confirmations: {
         Args: { _lease_seconds: number; _limit: number }
+        Returns: {
+          appointment_id: string
+          attempts: number
+          created_at: string
+          last_reason: string | null
+          lease_until: string | null
+          request_id: string
+          sent_at: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "manual_confirmation_outbox"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      claim_manual_confirmations_for_tenant: {
+        Args: { _lease_seconds: number; _limit: number; _tenant_id: string }
         Returns: {
           appointment_id: string
           attempts: number
