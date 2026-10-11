@@ -765,7 +765,7 @@ export default function BookingPage() {
           service_id: selectedService,
           employee: toServerEmployee(selectedPlacements[0]?.employee || mainAssignedEmployee),
           group_members: groupPayload,
-          payment: { required: Boolean(paymentDecision?.required), amount: paymentDecision?.amount || 0, type: paymentDecision?.type || "deposit", method: selectedMethod },
+          payment: { required: Boolean(paymentDecision?.required), amount: paymentDecision?.amount || 0, type: paymentRequestType(paymentDecision?.type), method: selectedMethod },
           notes: "",
           language: i18n.language,
           rebook_token: rebookToken,
