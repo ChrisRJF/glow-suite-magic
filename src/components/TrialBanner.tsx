@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { trialExtensionText } from "@/lib/trialExtension";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
