@@ -19,6 +19,7 @@ export interface LedgerDeps {
 
 /** Appointment status derived only from proven money. */
 export function derivePaymentStatus(priceCents: number | null, paidCents: number, refundedCents: number): string {
+  // Values match those already used in appointments.payment_status (betaald / unpaid) plus explicit states.
   if (refundedCents > 0) return refundedCents >= paidCents ? "terugbetaald" : "gedeeltelijk_terugbetaald";
   if (paidCents <= 0) return "unpaid";
   if (priceCents != null && paidCents >= priceCents) return "betaald";
