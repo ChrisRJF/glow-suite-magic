@@ -66,8 +66,8 @@ describe("payment.type mapping for create_booking", () => {
     expect(requestType(decision({ type: "iets-anders" as any }))).toBe("deposit");
   });
 
-  it("no-show risk decision still yields deposit with rounded amount", () => {
-    const risk = calculateNoShowRisk({ no_show_count: 2, cancellation_count: 0, total_spent: 0 });
+  it("elevated no-show risk still resolves to the deposit branch", () => {
+    const risk = calculateNoShowRisk({ no_show_count: 2, cancellation_count: 0 });
     expect(risk.isElevated).toBe(true);
   });
 });
