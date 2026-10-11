@@ -66,3 +66,13 @@ describe("agenda create client (fictional data, mocks only)", () => {
     expect(seen[1].request_id).toBe(RID);
   });
 });
+
+import { manualConfirmationUiFor as uiFor } from "@/lib/agendaCreateClient";
+describe("mail choice scope", () => {
+  it("shows the choice only for Studio Nova and The Beautycare Clinic with Agenda 3.0 on", () => {
+    expect(uiFor("atomic", "1c6c885e-c944-4717-b2ef-9cfdb9fa15ae")).toBe(true);
+    expect(uiFor("atomic", "5dbfcbd4-48ff-4010-a1cc-07ed737880ce")).toBe(true);
+    expect(uiFor("legacy", "1c6c885e-c944-4717-b2ef-9cfdb9fa15ae")).toBe(false);
+    expect(uiFor("atomic", "00000000-0000-4000-8000-000000000001")).toBe(false);
+  });
+});
