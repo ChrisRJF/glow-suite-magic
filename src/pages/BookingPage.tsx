@@ -33,6 +33,19 @@ function trackEvent(event: string, data?: Record<string, any>) {
   } catch {}
 }
 
+/**
+ * Maps the frontend payment decision to the payment type the booking server accepts.
+ * The server (public-booking) only accepts "deposit", "full" or "remainder" and decides
+ * on its own whether payment is required. When no payment is needed ("none") or the
+ * decision is missing (free treatment), the neutral placeholder "deposit" is sent with
+ * required:false and amount:0.
+ */
+export function paymentRequestType(
+  type: string | null | undefined
+): "deposit" | "full" | "remainder" {
+  return type === "full" || type === "remainder" || type === "deposit" ? type : "deposit";
+}
+
 const SLOT_LABEL_KEYS: Record<string, { key: string; tone: "primary" | "success" | "muted" }> = {
   "09:00": { key: "booking.slot.firstAvailable", tone: "primary" },
   "10:00": { key: "booking.slot.todayStillSlots", tone: "success" },
