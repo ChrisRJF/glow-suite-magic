@@ -1,3 +1,9 @@
+// send-white-label-email: secured sender (caller authorization, platform-admin allowlist, valid manage link only).
+// Activation (separate approval): copy to send-white-label-email/index.ts, move emailSendAuth.ts and
+// bookingConfirmationManageAction.ts next to it (or _shared/) and fix the three import paths.
+// Changes vs live: (1) caller authorization, (2) booking_confirmation manage button only with a valid
+// https://glowsuite.nl/mijn-afspraak/<uuid> link, (3) Idempotency-Key as HTTP request header (live puts it
+// in the e-mail headers, which Resend does not use for dedup) + best-effort repeat guard on sent logs.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { z } from "https://esm.sh/zod@3.23.8";
 import {
@@ -8,6 +14,8 @@ import {
   normalizeEmailLang,
   type EmailLang,
 } from "../_shared/emailTranslations.ts";
+import { authorizeEmailRequest, parseAllowlist } from "./emailSendAuth.ts";
+import { bookingConfirmationManageAction } from "./bookingConfirmationManageAction.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -204,7 +212,7 @@ function template(key: TemplateKey, data: Record<string, unknown>, salonName: st
     return {
       subject: dateShort ? t.subject(salonName, dateShort) : t.subject_no_date(salonName),
       preview: intro,
-      html: shell({ ...base, title, intro, body, primaryAction: { label: t.cta_manage, url: manageUrl }, secondaryAction: { label: t.cta_route, url: contactUrl } }),
+      html: shell({ ...base, title, intro, body, primaryAction: bookingConfirmationManageAction(data, t.cta_manage), secondaryAction: { label: t.cta_route, url: contactUrl } }),
       text: `${title}\n${intro}\n${String(data.service_name || "")}\n${formatDateLong(data.appointment_date || data.date, lang)} ${String(data.time || data.start_time || "")}`,
     };
   }
@@ -385,7 +393,44 @@ Deno.serve(async (req) => {
     const parsed = BodySchema.safeParse(await req.json());
     if (!parsed.success) return json({ error: "Ongeldige invoer", details: parsed.error.flatten().fieldErrors }, 400);
 
-    const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const admin = createClient(Deno.env.get("SUPABASE_URL")!, serviceRoleKey);
+
+    // Authorization BEFORE any salon data is read. Server processes (service-role key) keep working;
+    // a user may only act for their own salon, preview needs eigenaar/admin/manager, a real send
+    // needs eigenaar/admin AND a recipient that is a stored customer of that salon.
+    const auth = await authorizeEmailRequest(req.headers.get("Authorization"), parsed.data.user_id, {
+      serviceRoleKey,
+      // Platform admin (internal email templates page): explicit secrets only, unset = nobody.
+      platformAdminIds: parseAllowlist(Deno.env.get("PLATFORM_ADMIN_USER_IDS")),
+      platformTestRecipients: parseAllowlist(Deno.env.get("PLATFORM_TEST_RECIPIENTS")),
+      verifyUser: async (jwt) => { const { data, error } = await admin.auth.getUser(jwt); return error ? null : data.user?.id ?? null; },
+      tenantForUser: async (uid) => {
+        const { data: own, error: e1 } = await admin.from("user_roles").select("role").eq("user_id", uid).eq("role", "eigenaar").limit(1);
+        if (e1) throw e1;
+        if (own && own.length) return uid;
+        const { data: rows, error: e2 } = await admin.from("user_access").select("owner_user_id").eq("member_user_id", uid).eq("status", "active").limit(2);
+        if (e2) throw e2;
+        return rows && rows.length === 1 ? (rows[0] as any).owner_user_id : null;
+      },
+      rolesForUser: async (uid) => {
+        const { data: r1, error: e1 } = await admin.from("user_roles").select("role").eq("user_id", uid);
+        if (e1) throw e1;
+        if ((r1 ?? []).some((x: any) => x.role === "eigenaar")) return (r1 ?? []).map((x: any) => String(x.role));
+        const { data: r2, error: e2 } = await admin.from("user_access").select("role").eq("member_user_id", uid).eq("status", "active").limit(2);
+        if (e2) throw e2;
+        return r2 && r2.length === 1 ? [String((r2[0] as any).role)] : null;
+      },
+      recipientAllowed: async (tenantId, email) => {
+        const { data, error } = await admin.from("customers").select("id").eq("user_id", tenantId).ilike("email", email).limit(1);
+        if (error) throw error;
+        return !!data && data.length > 0;
+      },
+    }, parsed.data.preview_only ? { mode: "preview" } : { mode: "send", recipientEmail: parsed.data.recipient_email });
+    if (!auth.ok) {
+      const msg = auth.status === 401 ? "Niet ingelogd" : auth.status === 500 ? "Controle tijdelijk niet mogelijk" : "Geen toegang tot deze salon";
+      return json({ error: msg, code: auth.error }, auth.status);
+    }
     const { data: settings, error: settingsError } = await admin
       .from("settings")
       .select("user_id, salon_name, public_slug, whitelabel_branding, demo_mode, is_demo, language")
@@ -444,12 +489,24 @@ Deno.serve(async (req) => {
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
     if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY is niet geconfigureerd");
 
+    // Best-effort repeat guard: an earlier SENT log with the same key for this salon = no new send.
+    // Not atomic (two simultaneous calls can both pass); exactly-once needs the caller's own claim.
+    const { data: earlier, error: earlierError } = await admin.from("white_label_email_logs").select("id, provider_message_id")
+      .eq("user_id", parsed.data.user_id).eq("template_key", parsed.data.template_key).eq("status", "sent")
+      .eq("metadata->>idempotency_key", parsed.data.idempotency_key).limit(1);
+    if (earlierError) throw earlierError;
+    if (earlier && earlier.length) {
+      return json({ success: true, duplicate: true, provider_message_id: (earlier[0] as any).provider_message_id ?? null });
+    }
+
     const response = await fetch(`${GATEWAY_URL}/emails`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${LOVABLE_API_KEY}`,
         "X-Connection-Api-Key": RESEND_API_KEY,
         "Content-Type": "application/json",
+        // Resend's request-level idempotency header. Forwarding by the gateway is NOT proven.
+        "Idempotency-Key": parsed.data.idempotency_key,
       },
       body: JSON.stringify({
         from: `${salonName} <${fromEmail}>`,
@@ -458,7 +515,6 @@ Deno.serve(async (req) => {
         html: rendered.html,
         text: rendered.text,
         ...(replyTo ? { reply_to: replyTo } : {}),
-        headers: { "Idempotency-Key": parsed.data.idempotency_key },
       }),
     });
     const result = await response.json().catch(() => ({}));
