@@ -6,6 +6,8 @@ const A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const TOKEN = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const SVC = "svc-key-fictief-0000000000";
+const P = "dddddddd-dddd-4ddd-8ddd-dddddddddddd"; // fictional platform admin, no salon roles
+const TESTADDR = "test@glowsuite-fictief.test";
 
 Deno.env.set("SUPABASE_URL", "http://mock.local");
 Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", SVC);
@@ -29,6 +31,7 @@ globalThis.fetch = (async (input: Request | URL | string, init?: RequestInit) =>
     const t = (req.headers.get("authorization") || "").replace(/^Bearer /, "");
     if (t === "jwt-owner-A") return j({ id: A, aud: "authenticated" });
     if (t === "jwt-owner-B") return j({ id: B, aud: "authenticated" });
+    if (t === "jwt-platform") return j({ id: P, aud: "authenticated" });
     return j({ message: "invalid" }, 401);
   }
   const t = u.pathname.replace("/rest/v1/", "");
@@ -109,3 +112,33 @@ T("own salon user: only to a stored customer of that salon", async () => {
   assertEquals((await call("jwt-owner-A", booking({ idempotency_key: "own-fictief-2" }))).status, 200);
   assertEquals(sends.length, before + 1);
 });
+
+const withPlatformEnv = async (fn: () => Promise<void>) => {
+  Deno.env.set("PLATFORM_ADMIN_USER_IDS", P);
+  Deno.env.set("PLATFORM_TEST_RECIPIENTS", TESTADDR);
+  try { await fn(); } finally { Deno.env.delete("PLATFORM_ADMIN_USER_IDS"); Deno.env.delete("PLATFORM_TEST_RECIPIENTS"); }
+};
+
+T("platform admin (allowlist) previews another salon's template", () => withPlatformEnv(async () => {
+  const r = await call("jwt-platform", booking({ user_id: B, salon_slug: "fictief-b", preview_only: true, idempotency_key: "admin-preview-b" }));
+  assertEquals(r.status, 200); assertEquals(r.body.preview_only, true);
+}));
+
+T("platform admin test send: only to approved test address", () => withPlatformEnv(async () => {
+  const before = sends.length;
+  const bad = await call("jwt-platform", booking({ user_id: B, salon_slug: "fictief-b", idempotency_key: "admin-test-real" }));
+  assertEquals(bad.status, 403); assertEquals(sends.length, before);
+  const ok = await call("jwt-platform", booking({ user_id: B, salon_slug: "fictief-b", recipient_email: TESTADDR, idempotency_key: "admin-test-ok" }));
+  assertEquals(ok.status, 200); assertEquals(sends.length, before + 1);
+  assertEquals(sends.at(-1)!.body.to, [TESTADDR]);
+}));
+
+T("no allowlist configured: nobody is platform admin (fail-closed)", async () => {
+  const r = await call("jwt-platform", booking({ user_id: B, salon_slug: "fictief-b", preview_only: true, idempotency_key: "admin-preview-noenv" }));
+  assertEquals(r.status, 403);
+});
+
+T("salon owner role gives no platform rights: owner A cannot preview salon B even with allowlist set", () => withPlatformEnv(async () => {
+  const r = await call("jwt-owner-A", booking({ user_id: B, salon_slug: "fictief-b", preview_only: true, idempotency_key: "a-preview-b" }));
+  assertEquals(r.status, 403);
+}));
