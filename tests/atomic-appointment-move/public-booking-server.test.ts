@@ -68,10 +68,15 @@ describe("interpretAtomicResult: never a partial or fallback booking", () => {
 describe("prepared server file", () => {
   const atomic = readFileSync(resolve(DIR, "public-booking.atomic.index.ts"), "utf8");
   const ref = readFileSync(resolve(DIR, "public-booking.reference.index.ts"), "utf8");
+  // Historical pre-step-2b server (before the approved atomic publication), kept for the save-block diff.
+  const pre = readFileSync(resolve(DIR, "public-booking.reference-pre-step2b.index.ts"), "utf8");
   const live = readFileSync(resolve(__dirname, "../../supabase/functions/public-booking/index.ts"), "utf8");
   it("reference copy equals the active server byte for byte", () => {
     const h = (s: string) => createHash("sha256").update(s).digest("hex");
     expect(h(ref)).toBe(h(live));
+  });
+  it("active server is exactly the approved step-2b atomic file", () => {
+    expect(live).toBe(atomic);
   });
   it("no direct appointment insert and no separate employee-link write", () => {
     expect(atomic).not.toMatch(/from\("appointments"\)\s*\.insert/);
@@ -84,7 +89,7 @@ describe("prepared server file", () => {
   });
   it("everything outside the save block is unchanged", () => {
     const strip = (s: string) => s.split("\n").filter((l) => !/groupId|booking_group_id|publicBookingAtomic|PREPARED|reference of|Reference/i.test(l));
-    const a = strip(atomic), r = strip(ref);
+    const a = strip(atomic), r = strip(pre);
     const cut = (x: string[], from: string, to: string) => [...x.slice(0, x.findIndex((l) => l.includes(from))), ...x.slice(x.findIndex((l) => l.includes(to)))];
     expect(cut(a, "ATOMIC SAVE", "if (rebookAction && appointments?.[0])")).toEqual(cut(r, "const stillAvailable", "if (rebookAction && appointments?.[0])"));
   });
