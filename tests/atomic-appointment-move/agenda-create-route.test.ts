@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { handleCreate, type RouteDeps, type RouteResult } from "../../docs/prepared-patches/atomic-appointment-move/agendaCreateRoute";
+import { handleCreate, type RouteDeps } from "../../docs/prepared-patches/atomic-appointment-move/agendaCreateRoute";
 import { dispatchManualConfirmation, type Deps as MailDeps } from "../../docs/prepared-patches/manual-booking-confirmation/manualConfirmationCore";
 
 const T = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -8,33 +8,28 @@ const E2 = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee2";
 const body = { request_id: "11111111-1111-4111-8111-111111111111", customer_id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
   service_id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd", date: "2026-10-25", time: "10:00", employee_ids: [E1] };
 
-/** Fictional in-memory "database": the RPC writes all rows of one call, or none. */
+/** Fictional in-memory "database" mirroring create_appointment_atomic_as: request row + rows in one step. */
 function mk(over: Partial<RouteDeps> = {}, rpcImpl?: (args: any) => any) {
   const rows: any[] = [];
-  const store = new Map<string, { hash: string; state: "in_progress" | "done"; result?: RouteResult }>();
+  const requests = new Map<string, { hash: string; id: string; group: string | null; send: boolean }>();
   const busy = new Set<string>();
   const callCreateAs = vi.fn(async (_actor: string, tenant: string, args: any) => {
+    const hash = JSON.stringify({ ...args, _request_id: undefined });
+    const prev = requests.get(args._request_id);
+    if (prev) return prev.hash === hash ? { ok: true, code: "created", replay: true, appointment_id: prev.id, booking_group_id: prev.group, send_confirmation: prev.send } : { ok: false, code: "request_mismatch" };
     if (rpcImpl) { const r = rpcImpl(args); if (r) return r; }
-    const key = `${args._date} ${args._time} ${args._employee_ids.join(",")}`;
     for (const e of args._employee_ids) if (busy.has(`${args._date} ${args._time} ${e}`)) return { ok: false, code: "conflict" };
     args._employee_ids.forEach((e: string) => busy.add(`${args._date} ${args._time} ${e}`));
-    const id = `apt-${rows.length + 1}`;
-    rows.push({ id, tenant, source: args._source, key });
-    return { ok: true, code: "created", appointment_id: id, booking_group_id: args._sub_appointments ? "grp-1" : null };
+    const id = `apt-${rows.length + 1}`; const group = args._sub_appointments ? "grp-1" : null;
+    rows.push({ id, tenant, source: "manual" });
+    requests.set(args._request_id, { hash, id, group, send: args._send_confirmation });
+    return { ok: true, code: "created", replay: false, appointment_id: id, booking_group_id: group, send_confirmation: args._send_confirmation };
   });
   const deps: RouteDeps = {
     verifyUser: async (j) => (j === "jwt-ok" ? "u-receptie" : null),
     tenantForUser: async () => ({ tenantId: T, isDemo: true }),
     rolesForUser: async () => ["receptie"],
     readFlag: async () => ({ data: { atomic_agenda_enabled: true }, error: null }),
-    claim: async (t, r, h) => {
-      const k = `${t}:${r}`; const s = store.get(k);
-      if (!s) { store.set(k, { hash: h, state: "in_progress" }); return { state: "new" }; }
-      if (s.hash !== h) return { state: "mismatch" };
-      return s.state === "done" ? { state: "done", result: s.result! } : { state: "in_progress" };
-    },
-    finish: async (t, r, result) => { const s = store.get(`${t}:${r}`)!; s.state = "done"; s.result = result; },
-    release: async (t, r) => { store.delete(`${t}:${r}`); },
     callCreateAs,
     ...over,
   };
@@ -47,7 +42,8 @@ describe("step 3A server route (fictional salon, mocks only)", () => {
     const { deps, rows, callCreateAs } = mk();
     expect(await call(deps)).toMatchObject({ status: 200, ok: true, appointment_id: "apt-1" });
     expect(callCreateAs.mock.calls[0][1]).toBe(T);
-    expect(callCreateAs.mock.calls[0][2]).toMatchObject({ _source: "manual", _employee_ids: [E1] });
+    expect(callCreateAs.mock.calls[0][2]).toMatchObject({ _request_id: body.request_id, _employee_ids: [E1] });
+    expect(callCreateAs.mock.calls[0][2]).not.toHaveProperty("_source"); // fixed inside the database
     expect(rows).toHaveLength(1);
   });
   it("2. multiple employees by UUID; names or duplicates refused", async () => {
@@ -83,20 +79,20 @@ describe("step 3A server route (fictional salon, mocks only)", () => {
     await call(deps, { ...body, date: "2026-03-29", time: "03:30" });
     expect(callCreateAs.mock.calls[0][2]).toMatchObject({ _date: "2026-03-29", _time: "03:30" });
   });
-  it("8. failed transaction: error, no rows, claim released so a retry may run", async () => {
-    const { deps, rows } = mk({ callCreateAs: vi.fn().mockRejectedValue(new Error("db down")) });
-    expect(await call(deps)).toMatchObject({ status: 503, code: "failed" });
-    expect(rows).toHaveLength(0);
-    expect(await deps.claim(T, body.request_id, "x")).toEqual({ state: "new" });
+  it("8. lost connection / failed call: retry with same id never creates a second appointment", async () => {
+    const m = mk();
+    const real = m.callCreateAs.getMockImplementation()!;
+    m.callCreateAs.mockImplementationOnce(async (...a: any[]) => { await (real as any)(...a); throw new Error("response lost after commit"); });
+    expect(await call(m.deps)).toMatchObject({ status: 503, code: "failed" });
+    expect(await call(m.deps)).toMatchObject({ ok: true, appointment_id: "apt-1", replay: true });
+    expect(m.rows).toHaveLength(1);
   });
-  it("9. double click and repeated request: one RPC call, replay returns the same id", async () => {
-    const { deps, rows, callCreateAs } = mk();
+  it("9. double click and repeated request: one appointment, replay returns the same id; changed content refused", async () => {
+    const { deps, rows } = mk();
     const [a, b] = await Promise.all([call(deps), call(deps)]);
-    expect([a, b].filter((r) => r.ok)).toHaveLength(1);
-    expect([a, b].find((r) => !r.ok)).toMatchObject({ code: "in_progress" });
-    expect(await call(deps)).toMatchObject({ ok: true, appointment_id: "apt-1", replay: true });
-    expect(await call(deps, { ...body, time: "11:00" })).toMatchObject({ code: "request_mismatch" });
-    expect(callCreateAs).toHaveBeenCalledTimes(1);
+    expect(a.ok && b.ok && (a as any).appointment_id === (b as any).appointment_id).toBe(true);
+    expect(await call(deps, { ...body, time: "11:00" })).toMatchObject({ status: 409, code: "request_mismatch" });
+    expect(await call(deps, { ...body, send_confirmation: true })).toMatchObject({ code: "request_mismatch" });
     expect(rows).toHaveLength(1);
   });
   it("10. flag off = route refuses; flag unreadable = blocked; never an RPC or legacy write", async () => {
