@@ -12,13 +12,19 @@ export const CONFIRM_ROLES = new Set(["eigenaar", "admin", "manager", "receptie"
 
 export type SkipReason =
   | "not_requested" | "not_authenticated" | "forbidden" | "not_found" | "incomplete" | "cancelled"
-  | "no_email" | "demo" | "opted_out" | "paused" | "unknown_time" | "already_sent" | "send_failed";
+  | "no_email" | "demo" | "opted_out" | "paused" | "unknown_time" | "already_sent" | "send_failed"
+  | "not_manual" | "status_not_allowed" | "payment_not_allowed" | "renderer_unsafe";
+
+/** Allow-list (fail closed): anything else, incl. cancelled/no-show/pending holdings, gets no mail. */
+export const ALLOWED_STATUSES = new Set(["gepland", "bevestigd", "confirmed", "geboekt"]);
+/** Allow-list for payment state; pending/open/failed/expired/canceled/refunded holdings are refused. */
+export const ALLOWED_PAYMENT_STATUSES = new Set(["", "unpaid", "none", "paid"]);
 
 export interface StoredAppointment {
   id: string; user_id: string; is_demo: boolean; status: string; source: string | null;
   customer_id: string | null; service_id: string | null; appointment_date: string;
   start_time: string | null; end_time: string | null; booking_token: string | null;
-  booking_reference: string | null;
+  booking_reference: string | null; payment_status: string | null;
 }
 
 export interface Deps {
@@ -40,6 +46,8 @@ export interface Deps {
   /** Existing send-white-label-email path (service caller, template booking_confirmation). */
   send: (payload: Record<string, unknown>) => Promise<{ ok: boolean }>;
   release: (key: string) => Promise<void>;
+  /** true only once the template diff in bookingConfirmationManageAction.ts is live in the renderer. */
+  rendererTokenOnlyManageLink: boolean;
 }
 
 export type Result = { sent: true; key: string } | { sent: false; reason: SkipReason };
@@ -71,7 +79,11 @@ export async function dispatchManualConfirmation(
 
   const apt = await deps.loadAppointment(tenant.tenantId, req.appointmentId);
   if (!apt || apt.user_id !== tenant.tenantId || apt.is_demo !== tenant.isDemo) return skip("not_found");
-  if (apt.status === "geannuleerd") return skip("cancelled");
+  if (apt.source !== "manual") return skip("not_manual");
+  const status = (apt.status || "").trim().toLowerCase();
+  if (["geannuleerd", "cancelled", "canceled"].includes(status)) return skip("cancelled");
+  if (!ALLOWED_STATUSES.has(status)) return skip("status_not_allowed");
+  if (!ALLOWED_PAYMENT_STATUSES.has((apt.payment_status || "").trim().toLowerCase())) return skip("payment_not_allowed");
   if (!apt.customer_id || !apt.service_id || !apt.start_time || !apt.end_time) return skip("incomplete");
 
   const salon = await deps.loadSalon(tenant.tenantId);
@@ -89,6 +101,8 @@ export async function dispatchManualConfirmation(
   if (!(await deps.emailAllowed(tenant.tenantId, apt.customer_id))) return skip("opted_out");
   if (!(await deps.sendingAllowed().catch(() => false))) return skip("paused");
 
+  if (deps.rendererTokenOnlyManageLink !== true) return skip("renderer_unsafe");
+
   const slot = amsterdamSlot(apt.appointment_date, apt.start_time);
   if (!slot) return skip("unknown_time");
 
@@ -103,7 +117,9 @@ export async function dispatchManualConfirmation(
     recipient_email: email,
     recipient_name: customer.name ?? "",
     idempotency_key: key,
-    sender_legacy_name_id: true,
+    // Same From as the public booking_confirmation: normal public_slug, NO sender_legacy_name_id.
+    salon_slug: salon.public_slug ?? undefined,
+    salon_name: salon.salon_name ?? undefined,
     language: customer.language ?? undefined,
     template_data: {
       customer_name: customer.name ?? "",
