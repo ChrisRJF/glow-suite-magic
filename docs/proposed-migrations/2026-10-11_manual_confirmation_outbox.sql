@@ -27,6 +27,8 @@ CREATE INDEX manual_confirmation_outbox_due ON public.manual_confirmation_outbox
 
 -- Server only. No app role reads or writes it; the worker uses the two functions below.
 REVOKE ALL ON public.manual_confirmation_outbox FROM PUBLIC, anon, authenticated, service_role;
+-- sandbox_exec is a platform role that may hold default privileges; keep it out too.
+REVOKE ALL PRIVILEGES ON TABLE public.manual_confirmation_outbox FROM sandbox_exec;
 GRANT SELECT ON public.manual_confirmation_outbox TO service_role;
 ALTER TABLE public.manual_confirmation_outbox ENABLE ROW LEVEL SECURITY;
 -- no policies on purpose: locked for every non-owner role
