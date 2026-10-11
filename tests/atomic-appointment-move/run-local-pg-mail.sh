@@ -8,7 +8,7 @@ finish() { local rc=$?; AS pg_ctl -D "$BASE/data" -m immediate stop >/dev/null 2
   local np nf; np=$(grep -c '^PASS' "$LOG" || true); nf=$(grep -cE '^FAIL|ERROR' "$LOG" || true)
   echo "SUMMARY: pass=$np fail=$nf"; rm -f "$LOG"; if [ "$rc" -ne 0 ] || [ "$nf" -ne 0 ] || [ "$np" -eq 0 ]; then exit 1; fi; exit 0; }
 HERE="$(cd "$(dirname "$0")" && pwd)"; ROOT="$(cd "$HERE/../.." && pwd)"; PM="$ROOT/docs/proposed-migrations"
-BASE=/tmp/glowsuite-pg-mail; RUNUID=4711
+BASE=/tmp/glowsuite-pg-mail; RUNUID=$(id -u lovable 2>/dev/null || echo 4711)
 rm -rf "$BASE"; mkdir -p "$BASE/data" "$BASE/sock"
 cp "$PM"/2026-10-10_atomic_appointment_*.sql "$PM/2026-10-11_agenda_create_route.sql" "$PM/2026-10-11_agenda_create_requests_grants_fix.sql" "$HERE"/*.sql "$BASE/"
 chown -R $RUNUID:$RUNUID "$BASE"; chmod 700 "$BASE/sock"
