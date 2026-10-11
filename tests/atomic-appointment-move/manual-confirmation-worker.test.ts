@@ -182,3 +182,15 @@ describe("form choice in the create request", () => {
     expect(off.ok && off.body.send_confirmation).toBe(false);
   });
 });
+
+import { manualConfirmationUiFor } from "../../src/lib/agendaCreateClient";
+describe("mail choice visibility (test phase)", () => {
+  const NOVA = "5dbfcbd4-48ff-4010-a1cc-07ed737880ce";
+  it("visible only for Studio Nova with Agenda 3.0 on", () => {
+    expect(manualConfirmationUiFor("atomic", NOVA)).toBe(true);
+    expect(manualConfirmationUiFor("legacy", NOVA)).toBe(false);
+    expect(manualConfirmationUiFor("blocked", NOVA)).toBe(false);
+    expect(manualConfirmationUiFor("atomic", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")).toBe(false);
+    expect(manualConfirmationUiFor("atomic", null)).toBe(false);
+  });
+});
