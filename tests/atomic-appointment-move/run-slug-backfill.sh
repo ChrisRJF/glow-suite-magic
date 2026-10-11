@@ -42,7 +42,7 @@ SEED="insert into settings(id,user_id,created_at,salon_name,public_slug) values
  $(row 1 'Glans Kliniek Noord' 5 null), $(row 2 'GLANS kliniek  noord' 1 null),
  $(row 3 'Demo Salon' 4 null), $(row 4 'demo salon' 2 null), $(row 5 'Démo  Salon!' 3 null), $(row 6 'DEMO-SALON' 6 null), $(row 7 'Demo Salón' 7 null),
  $(row 8 'Uniek Één' 1 null), $(row 9 'Bloem & Co' 1 ''); update settings set is_demo=true where id::text like 'aa000002%';"
-reset "$SEED"; S0=$(snap)
+reset "$SEED"; S0=$(snap); Q -c "select count(*) from settings"; Q -c "$SEED" | head -3
 ok "dry run OK with 2 resolvable groups" "$(DRY)" "total=9 missing=9 empty_derived=0 conflict_groups=2 suffixed=5 duplicate_after=0 live_rows=1 live_plain=1 would_update=9 verdict=OK"
 ok "dry run wrote nothing" "$(snap)" "$S0"
 ok "wrong expected stops" "$(FILL 8 | grep -c STOP)" "1"
