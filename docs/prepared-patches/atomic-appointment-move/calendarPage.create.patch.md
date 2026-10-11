@@ -1,40 +1,32 @@
-# Prepared change: agenda create + wachtlijst through one RPC (NOT applied)
+# Prepared change: agenda "Nieuwe afspraak" through one RPC (NOT applied)
 
-## CalendarPage "Nieuwe afspraak"
-Replace `insert(...)` + `appointment_employees` insert + `sub_appointments` loop with:
+Correction vs. previous version: the gate was checked AFTER the RPC. Now the mode is decided
+first; `guardedCreate` refuses to call the server unless mode is `atomic`.
 
 ```tsx
-const { data: res, error } = await (supabase.rpc as any)("create_appointment_atomic", {
-  _customer_id: form.customer_id,
-  _service_id: form.service_id,
-  _date: form.date,                 // Amsterdam local date
-  _time: form.time,                 // Amsterdam wall clock; server stores real UTC
-  _employee_ids: selectedEmployeeIds, // UUIDs only, first = primary; [] = not assigned
-  _notes: subAppts.length > 0 ? `Groepsboeking: ${subAppts.length + 1} personen` : "",
-  _source: "manual",
-  _journey_id: journeyLink?.id ?? null,
-  _journey_session: journeyLink?.session ?? null,
-  // each extra person = own appointment row in the same booking_group_id, own time/service/employee
-  _sub_appointments: subAppts.filter(s => s.person_name && s.service_id).map(s => ({
-    person_name: s.person_name, service_id: s.service_id,
-    time: s.assigned_time || form.time,             // required; no time => refused, never guessed
-    employee_id: s.assigned_employee_id ?? null,     // UUID only; names are never sent
-  })),
-});
-if (!isAgendaGateOn(flags)) { toast.error("Afspraak opslaan is even niet beschikbaar."); return; }
-if (error || !res?.ok) { toast.error(createMessage(res?.code, error)); return; }  // no fallback insert
+import { routeAgendaWrite, guardedCreate, BLOCKED_MESSAGE } from "@/lib/agendaWriteCore";
+// agendaMode = agendaModeFromFlagRead(await supabase.from("tenant_feature_flags")
+//   .select("atomic_agenda_enabled").eq("tenant_id", tenantId).maybeSingle())
+
+const res = await routeAgendaWrite(
+  agendaMode,
+  () => guardedCreate({
+    customerId: form.customer_id, serviceId: form.service_id,
+    date: form.date, time: form.time,                 // Amsterdam wall clock; server stores real UTC
+    employeeIds: selectedEmployeeIds,                 // UUIDs only, first = primary
+    notes: subAppts.length > 0 ? `Groepsboeking: ${subAppts.length + 1} personen` : "",
+    source: "manual", journey: journeyLink,
+    group: subAppts.map(s => ({ personName: s.person_name, serviceId: s.service_id,
+      time: s.assigned_time || null, employeeId: s.assigned_employee_id ?? null })),
+  }, { mode: agendaMode, rpc: rpcAdapter }),
+  () => legacyCreate(),                               // LEGACY-UNCHANGED: today's code, flag off only
+  () => ({ ok: false, code: "disabled", message: BLOCKED_MESSAGE }),
+);
+if (!res.ok) { toast.error(res.message); return; }   // no fallback insert in atomic mode
 ```
-- Names are no longer written as "Medewerker: X" for new rows (the links are the truth).
-- Error or missing RPC => message "Afspraak opslaan is even niet beschikbaar. Er is niets opgeslagen."
 
-## WachtlijstPage "Plaats in agenda"
-Today: `appointment_date = new Date()+1 day at preferred_time` in browser time, no start/end, no employee.
-Prepared: same RPC with `_date` = tomorrow in Amsterdam, `_time` = `preferred_time || "10:00"`,
-`_employee_ids` = `[]` (preferred_employee is a name: never resolved), `_source: "waitlist"`.
-Refused (busy, closed, absent) => message, entry stays on the waitlist (status not changed).
-The waitlist status update runs only after `res.ok`.
-
-## Read side (agenda display, reminders, no-show, confirmations)
-Use `appointmentLocalSlot` / `appointmentInstant` / `reminderDue` from `moveAppointmentCore.ts`
-instead of `appointment_date.slice(0,10)` and raw instants. Unknown time => shown with a warning,
-no reminder sent (flagged), never shifted.
+- Group line without own time: refused (`group_line_needs_time`) in atomic mode, never guessed.
+  The group form must show a time per person before a salon is switched on.
+- The client pre-check on identical start times stays only in `legacyCreate`.
+- `legacyCreate` = the current body of `handleAdd` moved into a function, byte-identical.
+  It is deleted together with the guard (step 4).
