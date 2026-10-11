@@ -4,7 +4,8 @@ import { buildCreateBody, createViaRoute, NON_DEFINITIVE_REFUSALS, type AgendaMo
 
 export const RECURRING_TENANTS: ReadonlySet<string> = new Set(["1c6c885e-c944-4717-b2ef-9cfdb9fa15ae", "cbd7d158-0133-4f2f-a504-4b82f73f2e20"]);
 const ROLES = new Set(["eigenaar", "admin", "manager", "receptie"]);
-export const RECURRING_COUNTS = [2, 4, 6, 8] as const;
+export const RECURRING_COUNTS = [2, 4, 6, 8, 26] as const;
+export const recurringCountLabel = (n: number) => (n === 26 ? "Heel jaar (26 afspraken)" : String(n));
 export const RECURRING_NOTE = "Herhaalafspraak (elke 2 weken)";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

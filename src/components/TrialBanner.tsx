@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { trialExtensionText } from "@/lib/trialExtension";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Sparkles, X, Loader2, AlertTriangle, Lock, CreditCard } from "lucide-react";
@@ -11,10 +13,31 @@ export function TrialBanner() {
   const navigate = useNavigate();
   const [dismissed, setDismissed] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [tenant, setTenant] = useState<{ subId: string; id: string | null } | null>(null);
+  const subId = sub?.id ?? null;
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!subId) return;
+    supabase.rpc("current_tenant_id" as any).then((r: any) => {
+      if (!cancelled) setTenant({ subId, id: !r.error && typeof r.data === "string" ? r.data : null });
+    }, () => { if (!cancelled) setTenant({ subId, id: null }); });
+    return () => { cancelled = true; };
+  }, [subId]);
 
   if (!sub) return null;
   // expired handled by TrialExpiredModal — no banner needed
   if (isReadOnly) return null;
+
+  const extension = tenant && tenant.subId === sub.id ? trialExtensionText(tenant.id, sub) : null;
+  if (extension) {
+    return (
+      <div className="px-4 py-2.5 text-sm flex items-center justify-center gap-2 border-b bg-primary/5 border-primary/20 text-center">
+        <Sparkles className="w-4 h-4 shrink-0" />
+        <span className="font-medium leading-tight">{extension}</span>
+      </div>
+    );
+  }
 
   // Agreed free period (e.g. preparation + free month). Informational only:
   // no checkout button until a tested SaaS checkout exists.
