@@ -41,7 +41,8 @@ import { useDossierStatus } from "@/hooks/useDossierStatus";
 import { findConflict, snapToFine, timeToMinutes, minutesToTime } from "@/lib/agendaMove";
 import { useNavigate as useRouterNavigate, useSearchParams } from "react-router-dom";
 import { cancelAppointment } from "@/lib/cancelAppointment";
-import { readAgendaMode, buildCreateBody, createViaRoute, BLOCKED_MESSAGE, type CreateBody } from "@/lib/agendaCreateClient";
+import { readAgendaContext, buildCreateBody, createViaRoute, BLOCKED_MESSAGE, NON_DEFINITIVE_REFUSALS, type CreateBody } from "@/lib/agendaCreateClient";
+import { savePending, loadPending, clearPending, purgeOtherPending } from "@/lib/agendaPendingStore";
 
 
 type View = 'day' | 'columns' | 'week';
@@ -1355,9 +1356,9 @@ export default function CalendarPage() {
                   {pendingBody.sub_appointments && <p className="text-muted-foreground">Groepsboeking: {pendingBody.sub_appointments.length + 1} personen</p>}
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2">
-                  <Button variant="outline" className="flex-1" disabled={saving} onClick={() => { refetch(); refetchApptEmps(); toast.info("Agenda vernieuwd. Staat de afspraak erin, kies dan 'Afspraak staat in agenda'."); }}>Agenda controleren</Button>
-                  <Button variant="outline" className="flex-1" disabled={saving} onClick={() => { resetCreateRequest(); closeAdd(); refetch(); }}>Afspraak staat in agenda</Button>
-                  <Button variant="gradient" className="flex-1" disabled={saving} onClick={handleAdd}>{saving ? "Opslaan..." : "Opnieuw versturen"}</Button>
+                  <Button variant="outline" className="flex-1" disabled={saving} onClick={() => { refetch(); refetchApptEmps(); toast.info("Agenda vernieuwd. Kies 'Uitkomst bevestigen' om de uitkomst bij de server na te vragen."); }}>Agenda controleren</Button>
+                  <Button variant="outline" className="flex-1" disabled={saving} onClick={handleAdd}>Uitkomst bevestigen</Button>
+                  <Button variant="gradient" className="flex-1" disabled={saving} onClick={handleAdd}>{saving ? "Bezig..." : "Opnieuw versturen"}</Button>
                 </div>
               </div>
             ) : <>
