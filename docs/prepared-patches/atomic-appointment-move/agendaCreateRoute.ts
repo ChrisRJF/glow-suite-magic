@@ -7,10 +7,8 @@
 // date "YYYY-MM-DD", time "HH:MM" (Europe/Amsterdam wall time), employee_ids (UUIDs),
 // notes, journey_id/session, sub_appointments. Tenant, demo mode, source and role are server-side.
 //
-// BLOCKER (see README 3A): the live create_appointment_atomic uses auth.uid() as tenant and for the
-// flag lookup. Called with service_role, auth.uid() is NULL -> not_authenticated; called as a
-// receptie/manager login, tenant != auth.uid(). The injected `callCreateAs` therefore requires the
-// proposed service_role-only wrapper in docs/proposed-migrations/2026-10-11_agenda_create_route.sql.
+// Requires docs/proposed-migrations/2026-10-11_agenda_create_route.sql (service_role-only wrapper with
+// transactional idempotency), tested in tests/atomic-appointment-move/run-local-pg-3a.sh.
 
 import { agendaModeFromFlagRead, type CreateCode } from "./agendaWriteCore";
 
@@ -33,14 +31,9 @@ export interface RouteDeps {
   rolesForUser: (userId: string) => Promise<string[] | null>;
   /** Service-role read of tenant_feature_flags for the RESOLVED tenant; error = fail closed. */
   readFlag: (tenantId: string) => Promise<{ data: unknown; error: unknown }>;
-  /** Durable claim (proposed table agenda_create_requests, unique (tenant_id, request_id)).
-   *  Returns "new", or the stored result of an earlier identical request, or "in_progress". */
-  claim: (tenantId: string, requestId: string, bodyHash: string) =>
-    Promise<{ state: "new" } | { state: "done"; result: RouteResult } | { state: "in_progress" } | { state: "mismatch" }>;
-  finish: (tenantId: string, requestId: string, result: RouteResult) => Promise<void>;
-  release: (tenantId: string, requestId: string) => Promise<void>;
-  /** Proposed wrapper create_appointment_atomic_as(_actor, _tenant, ...); source is fixed by the route. */
-  callCreateAs: (actor: string, tenantId: string, args: Record<string, unknown>) => Promise<RpcResult>;
+  /** service_role rpc("create_appointment_atomic_as", { _actor, ...args }). The DB resolves and re-checks
+   *  the salon itself; tenantId is passed only for logging. Source is fixed to manual inside the DB. */
+  callCreateAs: (actor: string, tenantId: string, args: Record<string, unknown>) => Promise<RpcResult & { replay?: boolean; send_confirmation?: boolean }>;
   /** Optional hand-off to the INACTIVE manual confirmation (only after a complete create). */
   onCreated?: (info: { tenantId: string; appointmentId: string; sendToCustomer: boolean }) => Promise<void>;
 }
@@ -82,32 +75,26 @@ export async function handleCreate(req: { jwt: string | null; body: unknown }, d
   if (mode === "blocked") return fail(503, "unavailable");
   if (mode === "legacy") return fail(403, "disabled");
 
-  const c = await deps.claim(tenant.tenantId, body.request_id, bodyHash(body)).catch(() => null);
-  if (!c) return fail(503, "unavailable");
-  if (c.state === "done") return c.result.ok ? { ...c.result, replay: true } : c.result;
-  if (c.state === "in_progress") return fail(409, "in_progress");
-  if (c.state === "mismatch") return fail(409, "request_mismatch");
-
-  let rpc: RpcResult;
+  // Idempotency lives in the database: request row + appointment in ONE transaction
+  // (create_appointment_atomic_as). No separate claim/finish step, nothing can hang in_progress.
+  let rpc: RpcResult & { replay?: boolean; send_confirmation?: boolean };
   try {
     rpc = await deps.callCreateAs(userId, tenant.tenantId, {
+      _request_id: body.request_id, _send_confirmation: body.send_confirmation === true,
       _customer_id: body.customer_id, _service_id: body.service_id, _date: body.date, _time: body.time,
-      _employee_ids: body.employee_ids, _notes: body.notes ?? null, _source: "manual",
+      _employee_ids: body.employee_ids, _notes: body.notes ?? null,
       _journey_id: body.journey_id ?? null, _journey_session: body.journey_session ?? null,
       _sub_appointments: body.sub_appointments ?? null,
     });
   } catch {
-    await deps.release(tenant.tenantId, body.request_id).catch(() => {});
-    return fail(503, "failed"); // the RPC is one transaction: an error means nothing was saved
+    return fail(503, "failed"); // unknown outcome: the client retries with the SAME request_id; the DB replays or creates once
   }
   if (!rpc.ok) {
-    const result = fail(rpc.code === "conflict" || rpc.code === "slot_unavailable" ? 409 : 422, rpc.code as CreateCode);
-    await deps.release(tenant.tenantId, body.request_id).catch(() => {}); // user may correct and retry
-    return result;
+    const code = rpc.code === "request_mismatch" ? "request_mismatch" : rpc.code;
+    return fail(code === "conflict" || code === "slot_unavailable" || code === "request_mismatch" ? 409 : code === "forbidden" || code === "disabled" ? 403 : 422, code as CreateCode);
   }
-  const result: RouteResult = { status: 200, ok: true, code: "created", appointment_id: rpc.appointment_id, booking_group_id: rpc.booking_group_id ?? null };
-  await deps.finish(tenant.tenantId, body.request_id, result).catch(() => {});
-  // Confirmation only after a complete create, never on replay or failure; its own guards still apply.
-  if (deps.onCreated) await deps.onCreated({ tenantId: tenant.tenantId, appointmentId: rpc.appointment_id, sendToCustomer: body.send_confirmation === true }).catch(() => {});
+  const result: RouteResult = { status: 200, ok: true, code: "created", appointment_id: rpc.appointment_id, booking_group_id: rpc.booking_group_id ?? null, ...(rpc.replay ? { replay: true } : {}) };
+  // Confirmation only after a committed first create, never on replay; the stored choice is authoritative.
+  if (!rpc.replay && deps.onCreated) await deps.onCreated({ tenantId: tenant.tenantId, appointmentId: rpc.appointment_id, sendToCustomer: rpc.send_confirmation === true }).catch(() => {});
   return result;
 }
