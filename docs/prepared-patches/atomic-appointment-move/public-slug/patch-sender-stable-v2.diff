@@ -1,0 +1,26 @@
+# Replaces patch-sender-stable.diff (that one is insufficient: callers forward
+# public_slug as salon_slug, so reminder/rebook From would still change).
+# Rule source + tests: supabase/functions/_shared/inactive/senderLocalPart.ts,
+# src/test/sender-stable.test.ts. Not deployed.
+
+--- a/supabase/functions/send-white-label-email/index.ts
++++ b/supabase/functions/send-white-label-email/index.ts
+@@ request schema
+   salon_slug: z.string().trim().min(1).max(80).optional(),
++  sender_legacy_name_id: z.boolean().optional(),
+@@ function uniqueSalonSlug
+-  replace body with senderLocalPart() from senderLocalPart.ts (copied inline)
++  - legacyNameId or no salon_slug      -> slugify(salon_name) + 8 id chars (as today)
++  - salon_slug equals stored public_slug -> slugify(salon_name) (what callers sent before fill)
++  - other explicit salon_slug          -> slugify(salon_slug) (as today)
+@@ call site (line ~403)
+-  uniqueSalonSlug({ requested, publicSlug, salonName, userId })
++  uniqueSalonSlug({ requested, publicSlug, salonName, userId, legacyNameId: parsed.data.sender_legacy_name_id === true })
+
+--- a/supabase/functions/whatsapp-reminder-scheduler/index.ts   (line ~706)
++                sender_legacy_name_id: true,
+--- a/supabase/functions/auto-rebook-send/index.ts               (line ~192)
++        sender_legacy_name_id: true,
+--- a/supabase/functions/_shared/autoRebookPass.ts              (line ~335)
++        sender_legacy_name_id: true,
+# autoRebookPass is bundled by its importing functions; redeploy those too.
