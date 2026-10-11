@@ -10,7 +10,7 @@ finish() { local rc=$?; AS pg_ctl -D "$BASE/data" -m immediate stop >/dev/null 2
 HERE="$(cd "$(dirname "$0")" && pwd)"; ROOT="$(cd "$HERE/../.." && pwd)"; PM="$ROOT/docs/proposed-migrations"
 BASE=/tmp/glowsuite-pg-3a; RUNUID=4711
 rm -rf "$BASE"; mkdir -p "$BASE/data" "$BASE/sock"
-cp "$PM"/2026-10-10_atomic_appointment_*.sql "$PM/2026-10-11_agenda_create_route.sql" "$HERE"/*.sql "$BASE/"
+cp "$PM"/2026-10-10_atomic_appointment_*.sql "$PM/2026-10-11_agenda_create_route.sql" "$PM/2026-10-11_agenda_create_requests_grants_fix.sql" "$HERE"/*.sql "$BASE/"
 chown -R $RUNUID:$RUNUID "$BASE"; chmod 700 "$BASE/sock"
 AS() { env -i PATH="$PATH" HOME=/tmp setpriv --reuid=$RUNUID --regid=$RUNUID --clear-groups "$@"; }
 AS initdb -D "$BASE/data" -U testsuper -A trust >/dev/null
@@ -30,6 +30,10 @@ Q "CREATE TABLE public.user_access (id uuid PRIMARY KEY DEFAULT gen_random_uuid(
  ('11111111-1111-1111-1111-111111111111','66666666-6666-6666-6666-666666666666','receptie'),
  ('22222222-2222-2222-2222-222222222222','66666666-6666-6666-6666-666666666666','receptie');
  INSERT INTO public.tenant_feature_flags (tenant_id) VALUES ('11111111-1111-1111-1111-111111111111'),('22222222-2222-2222-2222-222222222222') ON CONFLICT DO NOTHING;" >/dev/null
+# emulate production default table privileges (pg_default_acl of the migration role in public)
+Q "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='sandbox_exec') THEN CREATE ROLE sandbox_exec NOLOGIN; END IF; END \$\$;
+ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
+ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT ON TABLES TO sandbox_exec;" >/dev/null
 SNAP="select md5(string_agg(p.oid::regprocedure::text||coalesce(p.proacl::text,'-')||md5(p.prosrc),'|' order by p.oid::regprocedure::text)) from pg_proc p where pronamespace='public'::regnamespace and proname not in ('create_appointment_atomic_as','agenda_actor_tenant')"
 TSNAP="select md5(string_agg(table_name||'.'||column_name||':'||data_type||coalesce(column_default,''),'|' order by table_name,column_name)) from information_schema.columns where table_schema='public' and table_name<>'agenda_create_requests'"
 F0=$(Q "$SNAP"); T0=$(Q "$TSNAP")
@@ -45,6 +49,25 @@ AS bash -c "$P -d gs_move -1 -v ON_ERROR_STOP=1 -f $BASE/2026-10-11_agenda_creat
 ok "M03 existing functions (source + ACL) unchanged" "$(Q "$SNAP")" "$F0"
 ok "M03 existing table columns unchanged" "$(Q "$TSNAP")" "$T0"
 ok "M04 flags still off after migration" "$(Q "select count(*) filter (where atomic_agenda_enabled) from tenant_feature_flags")" "0"
+# ---- G: table privileges (production default privileges reproduced) ----
+TP() { Q "select string_agg(p, ',' order by p) from unnest(array['SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER','MAINTAIN']) p where has_table_privilege('$1','public.agenda_create_requests',p)"; }
+ok "G01 reproduces production: service_role has UPDATE before fix" "$(Q "select has_table_privilege('service_role','public.agenda_create_requests','UPDATE')")" "t"
+ok "G01 reproduces production: sandbox_exec has SELECT,INSERT" "$(TP sandbox_exec)" "INSERT,SELECT"
+python3 - "$BASE/2026-10-11_agenda_create_requests_grants_fix.sql" "$BASE/badfix.sql" <<'PY2'
+import sys; s=open(sys.argv[1]).read(); k=s.index('DO $v$')
+open(sys.argv[2],'w').write(s[:k]+"GRANT UPDATE ON public.agenda_create_requests TO service_role;\n"+s[k:])
+PY2
+chown $RUNUID "$BASE/badfix.sql"
+AS bash -c "$P -d gs_move -1 -v ON_ERROR_STOP=1 -f $BASE/badfix.sql" >/dev/null 2>&1 && echo "FAIL: G02 bad fix passed" || echo "PASS: G02 fix self-check aborts on stray UPDATE"
+ok "G02 abort left service_role unchanged" "$(TP service_role)" "DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+AS bash -c "$P -d gs_move -1 -v ON_ERROR_STOP=1 -f $BASE/2026-10-11_agenda_create_requests_grants_fix.sql" >/dev/null && echo "PASS: G03 grants fix applies in one transaction"
+ok "G03 service_role exactly SELECT,INSERT,DELETE" "$(TP service_role)" "DELETE,INSERT,SELECT"
+ok "G03 sandbox_exec untouched" "$(TP sandbox_exec)" "INSERT,SELECT"
+ok "G03 anon none" "$(TP anon)" ""
+ok "G03 authenticated none" "$(TP authenticated)" ""
+ok "G03 functions (source + ACL) still unchanged" "$(Q "$SNAP")" "$F0"
+ok "G03 wrapper EXECUTE service_role only" "$(Q "select has_function_privilege('service_role','public.create_appointment_atomic_as(uuid,uuid,boolean,uuid,uuid,text,text,uuid[],text,uuid,int,jsonb)','EXECUTE')::text||has_function_privilege('authenticated','public.create_appointment_atomic_as(uuid,uuid,boolean,uuid,uuid,text,text,uuid[],text,uuid,int,jsonb)','EXECUTE')::text||has_function_privilege('anon','public.create_appointment_atomic_as(uuid,uuid,boolean,uuid,uuid,text,text,uuid[],text,uuid,int,jsonb)','EXECUTE')::text")" "truefalsefalse"
+ok "G04 service_role cannot UPDATE request rows directly" "$(AS $P -d gs_move -c "set role service_role; update public.agenda_create_requests set send_confirmation=true" 2>&1 | grep -c 'permission denied')" "1"
 # existing suites with the flag on (as in step 3 activation), proving public booking + RPCs unchanged
 Q "update tenant_feature_flags set atomic_agenda_enabled=true" >/dev/null
 for F in tests.sql tests-phase2.sql tests-phase3.sql tests-phase4.sql tests-3a.sql; do
