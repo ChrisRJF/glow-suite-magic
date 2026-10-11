@@ -14,7 +14,7 @@ import {
   normalizeEmailLang,
   type EmailLang,
 } from "../emailTranslations.ts";
-import { authorizeEmailRequest } from "./emailSendAuth.ts";
+import { authorizeEmailRequest, parseAllowlist } from "./emailSendAuth.ts";
 import { bookingConfirmationManageAction } from "./bookingConfirmationManageAction.ts";
 
 const corsHeaders = {
@@ -401,6 +401,9 @@ Deno.serve(async (req) => {
     // needs eigenaar/admin AND a recipient that is a stored customer of that salon.
     const auth = await authorizeEmailRequest(req.headers.get("Authorization"), parsed.data.user_id, {
       serviceRoleKey,
+      // Platform admin (internal email templates page): explicit secrets only, unset = nobody.
+      platformAdminIds: parseAllowlist(Deno.env.get("PLATFORM_ADMIN_USER_IDS")),
+      platformTestRecipients: parseAllowlist(Deno.env.get("PLATFORM_TEST_RECIPIENTS")),
       verifyUser: async (jwt) => { const { data, error } = await admin.auth.getUser(jwt); return error ? null : data.user?.id ?? null; },
       tenantForUser: async (uid) => {
         const { data: own, error: e1 } = await admin.from("user_roles").select("role").eq("user_id", uid).eq("role", "eigenaar").limit(1);
