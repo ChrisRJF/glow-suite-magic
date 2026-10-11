@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import { appointmentDisplayDate, navStepDays, isSingleDayView } from "@/lib/calendarView";
-import { isEmployeeWorkingOn, normalizeWeeklySchedule } from "@/lib/employeeSchedule";
 
 describe("agenda navigation", () => {
   it("Dag and Per medewerker move 1 day, Week moves 7", () => {
