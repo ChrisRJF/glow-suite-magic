@@ -39,16 +39,23 @@ type Client = {
   from: (t: string) => any;
 };
 
-export async function readAgendaMode(client: Client): Promise<AgendaMode> {
+export async function readAgendaContext(client: Client): Promise<{ mode: AgendaMode; tenantId: string | null }> {
   try {
     const tenant = await client.rpc("current_tenant_id");
-    if (tenant.error || typeof tenant.data !== "string") return "blocked";
+    if (tenant.error || typeof tenant.data !== "string" || !tenant.data) return { mode: "blocked", tenantId: null };
     const flag = await client.from("tenant_feature_flags").select("atomic_agenda_enabled").eq("tenant_id", tenant.data).maybeSingle();
-    return agendaModeFromReads(tenant, flag);
+    return { mode: agendaModeFromReads(tenant, flag), tenantId: tenant.data };
   } catch {
-    return "blocked";
+    return { mode: "blocked", tenantId: null };
   }
 }
+
+export async function readAgendaMode(client: Client): Promise<AgendaMode> {
+  return (await readAgendaContext(client)).mode;
+}
+
+/** Refusals that do NOT prove the earlier attempt left nothing behind: keep the pending request. */
+export const NON_DEFINITIVE_REFUSALS = new Set(["disabled", "unavailable", "not_authenticated", "forbidden", "mode_mismatch"]);
 
 export interface GroupLineInput { person_name: string; service_id: string; assigned_time?: string; assigned_employee?: string }
 export interface CreateFormInput {
