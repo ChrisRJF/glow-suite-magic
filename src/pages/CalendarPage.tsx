@@ -20,6 +20,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserRole } from "@/hooks/useUserRole";
+import { AppointmentCheckoutPanel } from "@/components/AppointmentCheckoutPanel";
+import { readCheckoutVisible } from "@/lib/appointmentCheckoutClient";
 import { useDemoMode } from "@/hooks/useDemoMode";
 import { GuidanceHint } from "@/components/demo/GuidanceHint";
 
@@ -124,6 +127,14 @@ export default function CalendarPage() {
   const isMobile = useIsMobile();
   const [moveSheetOpen, setMoveSheetOpen] = useState(false);
   const [dossierAppt, setDossierAppt] = useState<any | null>(null);
+  const { roles: myRoles } = useUserRole();
+  const [checkoutVisible, setCheckoutVisible] = useState(false);
+  useEffect(() => {
+    const role = (myRoles || []).find((r: string) => ['eigenaar', 'admin', 'manager', 'receptie'].includes(r));
+    let alive = true;
+    readCheckoutVisible(role).then((v) => { if (alive) setCheckoutVisible(v); });
+    return () => { alive = false; };
+  }, [myRoles]);
   const [moveTargetAppt, setMoveTargetAppt] = useState<any | null>(null);
   const [dragPrefill, setDragPrefill] = useState<MoveTarget | null>(null);
   const [reflowOpen, setReflowOpen] = useState(false);
@@ -1928,6 +1939,11 @@ export default function CalendarPage() {
               </p>
             )}
           </SheetHeader>
+          {dossierAppt && checkoutVisible && (
+            <div className="mt-4">
+              <AppointmentCheckoutPanel appointmentId={dossierAppt.id} />
+            </div>
+          )}
           {dossierAppt && (
             <div className="mt-4">
               <AppointmentDossierBlock
