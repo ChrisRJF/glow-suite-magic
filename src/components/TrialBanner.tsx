@@ -12,23 +12,13 @@ export function TrialBanner() {
   const navigate = useNavigate();
   const [dismissed, setDismissed] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [tenant, setTenant] = useState<{ subId: string; id: string | null } | null>(null);
-  const subId = sub?.id ?? null;
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!subId) return;
-    supabase.rpc("current_tenant_id" as any).then((r: any) => {
-      if (!cancelled) setTenant({ subId, id: !r.error && typeof r.data === "string" ? r.data : null });
-    }, () => { if (!cancelled) setTenant({ subId, id: null }); });
-    return () => { cancelled = true; };
-  }, [subId]);
-
   if (!sub) return null;
   // expired handled by TrialExpiredModal — no banner needed
   if (isReadOnly) return null;
 
-  const extension = tenant && tenant.subId === sub.id ? trialExtensionText(tenant.id, sub) : null;
+  // sub comes from useMySubscription(): filtered by .eq("user_id", auth.user.id) under RLS
+  // "Users view own subscription", so sub.user_id is the signed-in user's own id.
+  const extension = trialExtensionText(sub.user_id, sub);
   if (extension) {
     return (
       <div className="px-4 py-2.5 text-sm flex items-center justify-center gap-2 border-b bg-primary/5 border-primary/20 text-center">
