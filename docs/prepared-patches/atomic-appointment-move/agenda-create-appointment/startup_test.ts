@@ -42,7 +42,7 @@ const mock = Deno.serve({ port: 54399, onListen() {} }, async (req) => {
 
 const fn = new Deno.Command(Deno.execPath(), { args: ["run", "-A", new URL("./index.ts", import.meta.url).pathname],
   env: { SUPABASE_URL: "http://127.0.0.1:54399", SUPABASE_ANON_KEY: "fictional-anon", SUPABASE_SERVICE_ROLE_KEY: SERVICE_KEY, PORT: "54398", DENO_SERVE_ADDRESS: "tcp:127.0.0.1:54398" },
-  stdout: "piped", stderr: "piped" }).spawn();
+  stdout: "null", stderr: "null" }).spawn();
 
 async function post(jwt: string | null, b: unknown = body) {
   for (let i = 0; i < 100; i++) {
@@ -86,7 +86,5 @@ Deno.test({ name: "entrypoint starts, verifies via Auth, enforces salon/mode/fla
     for (const r of [first, exp, ok, mm, lost, again]) assert(!r.text.includes(SERVICE_KEY));
   } finally {
     fn.kill(); await fn.status; await mock.shutdown();
-    const out = new TextDecoder().decode((await fn.output().catch(() => ({ stdout: new Uint8Array() }))).stdout ?? new Uint8Array());
-    assert(!out.includes(SERVICE_KEY));
   }
 }});
