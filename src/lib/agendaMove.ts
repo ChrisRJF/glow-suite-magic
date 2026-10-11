@@ -1,3 +1,4 @@
+import { appointmentDisplayDate } from "@/lib/calendarView";
 // Helpers for moving / rescheduling appointments on the agenda.
 // Pure functions kept separate so CalendarPage stays focused on rendering.
 
@@ -54,7 +55,7 @@ export interface ConflictCheckArgs {
   services: any[];
 }
 
-const getApptDate = (a: any) => String(a.appointment_date).slice(0, 10);
+const getApptDate = (a: any) => appointmentDisplayDate(a);
 const getApptStart = (a: any): string => {
   if (a.start_time) return String(a.start_time).slice(0, 5);
   const m = String(a.appointment_date).match(/T(\d{2}:\d{2})/);
