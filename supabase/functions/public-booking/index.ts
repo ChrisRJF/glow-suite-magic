@@ -1,9 +1,12 @@
+// PREPARED, INACTIVE replacement for supabase/functions/public-booking/index.ts (Agenda 3.0 step 2b).
+// Do not deploy without separate approval. Reference of the current server: public-booking.reference.index.ts
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { z } from "https://esm.sh/zod@3.23.8";
 import { createVivaOrder, vivaCheckoutUrl, isVivaConfigured } from "../_shared/viva.ts";
 import { getDefaultMessageTemplate, normalizeMessageLang, renderMessage, intlLocale } from "../_shared/messageTranslations.ts";
 import { decideDeposit } from "../_shared/depositDecision.ts";
 import { amsterdamToUtc, utcToAmsterdam, busyFromAppointments, normalizeBusyEmployees, resolveBooking, availabilitySlots, startTimes, canDoService, type ScheduleEmployee } from "../_shared/employeeSchedule.ts";
+import { buildAtomicBookingArgs, interpretAtomicResult, UNAVAILABLE_MSG } from "./publicBookingAtomic.ts";
 import { appendConfirmationBlock, buildConfirmationLink, claimReminderDispatch } from "../_shared/reminderEngine.ts";
 
 const corsHeaders = {
@@ -372,7 +375,6 @@ Deno.serve(async (req) => {
     const mainService = serviceMap.get(data.service_id);
     if (!mainService) return json({ error: "Deze behandeling is niet meer beschikbaar." }, 410);
 
-    const groupId = crypto.randomUUID();
     const bookingRows = [
       { name: data.customer.name, service: mainService, time: data.time, employee: data.employee || null },
       ...data.group_members.map((member) => {
@@ -508,7 +510,7 @@ Deno.serve(async (req) => {
         payment_required: serverPayment.required,
         deposit_amount: serverPayment.required ? serverPayment.amount : 0,
         source: index === 0 && rebookAction ? "auto_rebook" : "online_booking",
-        booking_group_id: bookingRows.length > 1 ? groupId : null,
+        booking_group_id: null, // set by the RPC; this array is only used for rebook attribution prices
         payment_type: serverPayment.type,
         accepted_glowsuite_terms: Boolean(data.customer.accepted_glowsuite_terms),
         accepted_salon_terms: Boolean(data.customer.accepted_salon_terms),
@@ -516,32 +518,49 @@ Deno.serve(async (req) => {
       };
     });
 
-    const stillAvailable = await assertAvailability(supabase, ctx, data.date, bookingRows);
-    if ("code" in stillAvailable || stillAvailable.ids.some((id, i) => id !== bookingRows[i].employee)) return json({ error: "Deze tijd is net volgeboekt. Kies een nieuw moment.", code: "slot_unavailable" }, 409);
-
-    const { data: appointments, error: appointmentError } = await supabase
-      .from("appointments")
-      .insert(appointmentsToInsert)
-      .select("id, booking_token, booking_reference, appointment_date, start_time, end_time, employee_id, service_id, payment_status, status");
-    if (appointmentError) {
-      // Postgres unique violation (23505) on the slot index = race-condition double-book.
-      if ((appointmentError as any).code === "23505") {
-        console.error("Slot taken (race condition)", { user_id: ctx.settings.user_id, date: data.date, time: data.time, detail: appointmentError.message });
-        return json({ error: "Dit tijdslot is net geboekt. Kies een andere tijd.", code: "slot_unavailable" }, 409);
-      }
-      console.error("appointment insert error", appointmentError);
-      return json({ error: "Boeking kon niet worden opgeslagen. Probeer het opnieuw of kies een ander tijdstip." }, 500);
+    // ---- ATOMIC SAVE (Agenda 3.0) ----
+    // Lock + re-check + insert of every line + employee links in ONE database transaction
+    // (create_public_booking_atomic, service_role only). No direct insert fallback, ever.
+    const atomicArgs = buildAtomicBookingArgs({
+      slug: ctx.settings.public_slug,
+      date: data.date,
+      rows: bookingRows.map((r) => ({ name: r.name, time: r.time, employee: r.employee, service: r.service })),
+      notes: data.notes,
+      depositTag: decision.required ? `[deposit:${decision.reason} · risk=${decision.risk_level}/${decision.risk_score}]` : null,
+      customerId: customerId!,
+      paymentRequired: serverPayment.required,
+      paymentAmount: serverPayment.amount,
+      paymentType: serverPayment.type,
+      rebook: Boolean(rebookAction),
+      acceptedGlowsuiteTerms: Boolean(data.customer.accepted_glowsuite_terms),
+      acceptedSalonTerms: Boolean(data.customer.accepted_salon_terms),
+      acceptedTermsAt: data.customer.accepted_terms_at,
+      nowIso: new Date().toISOString(),
+    });
+    if (!atomicArgs) {
+      console.error("[public-booking] atomic booking refused before call", { salon_id: ctx.settings.user_id, has_slug: Boolean(ctx.settings.public_slug) });
+      return json({ error: UNAVAILABLE_MSG, code: "booking_unavailable" }, 503);
     }
+    let rpcRes: { data: unknown; error: unknown };
+    try {
+      rpcRes = await supabase.rpc("create_public_booking_atomic", atomicArgs);
+    } catch (e) {
+      rpcRes = { data: null, error: e };
+    }
+    if (rpcRes.error) console.error("[public-booking] create_public_booking_atomic error", (rpcRes.error as any)?.code || "exception");
+    const outcome = interpretAtomicResult(rpcRes, bookingRows.length);
+    if (!outcome.ok) return json(outcome.body, outcome.status);
+    const bookingGroupId = outcome.bookingGroupId;
 
-    // Link verified employees so the internal calendar shows the booking in the right column.
-    const links = (appointments || []).filter((a: any) => a.employee_id).map((a: any, i: number) => ({
-      appointment_id: a.id, employee_id: a.employee_id, user_id: ctx.settings.user_id,
-      is_demo: Boolean(ctx.settings.is_demo || ctx.settings.demo_mode), is_primary: true,
+    // booking_reference is set by the existing insert trigger; read it after commit (read-only).
+    const { data: refs } = await supabase.from("appointments").select("id, booking_reference")
+      .eq("user_id", ctx.settings.user_id).in("id", outcome.appointments.map((a) => a.id));
+    const refById = new Map(((refs || []) as any[]).map((r) => [r.id, r.booking_reference]));
+    const appointments = outcome.appointments.map((a) => ({
+      id: a.id, booking_token: a.booking_token, booking_reference: refById.get(a.id) ?? null,
+      appointment_date: a.appointment_date, start_time: a.start_time, end_time: a.end_time,
+      employee_id: a.employee_id, service_id: a.service_id, payment_status: a.payment_status, status: a.status,
     }));
-    if (links.length) {
-      const { error: linkError } = await supabase.from("appointment_employees").insert(links);
-      if (linkError) console.error("appointment_employees link failed", linkError.message);
-    }
 
     if (rebookAction && appointments?.[0]) {
       // GROUP BOOKINGS: attribute only the single appointment that belongs to
@@ -713,7 +732,7 @@ Deno.serve(async (req) => {
       }
 
       const nextPaymentStatus = paymentStatus === "paid" ? "paid" : paymentInitError ? "payment_failed" : "pending";
-      await supabase.from("appointments").update({ payment_status: nextPaymentStatus, status: paymentStatus === "paid" ? "confirmed" : "pending_confirmation" }).eq("booking_group_id", groupId);
+      if (bookingGroupId) await supabase.from("appointments").update({ payment_status: nextPaymentStatus, status: paymentStatus === "paid" ? "confirmed" : "pending_confirmation" }).eq("booking_group_id", bookingGroupId).eq("user_id", ctx.settings.user_id);
       await supabase.from("appointments").update({ payment_status: nextPaymentStatus, status: paymentStatus === "paid" ? "confirmed" : "pending_confirmation" }).eq("id", primaryAppointment.id);
     }
 
