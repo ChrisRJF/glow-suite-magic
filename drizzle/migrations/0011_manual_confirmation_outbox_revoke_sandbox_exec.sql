@@ -1,0 +1,1 @@
+REVOKE ALL PRIVILEGES ON TABLE public.manual_confirmation_outbox FROM sandbox_exec;
