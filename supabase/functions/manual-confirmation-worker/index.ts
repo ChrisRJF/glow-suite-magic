@@ -22,14 +22,25 @@ function sameSecret(a: string, b: string): boolean {
   return d === 0;
 }
 
+/** The project's public anon key (as used by the schedule): role claim anon, accepted by this project's API. */
+async function isProjectAnonKey(url: string, token: string): Promise<boolean> {
+  try {
+    const part = token.split(".")[1]; if (!part) return false;
+    const claims = JSON.parse(atob(part.replace(/-/g, "+").replace(/_/g, "/")));
+    if (claims?.role !== "anon") return false;
+    const r = await fetch(`${url}/auth/v1/settings`, { headers: { apikey: token }, signal: AbortSignal.timeout(5000) });
+    await r.body?.cancel();
+    return r.status === 200;
+  } catch { return false; }
+}
+
 Deno.serve(async (req) => {
   const url = Deno.env.get("SUPABASE_URL") ?? "";
   const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
   const bearer = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
   // Scheduler tick: the request carries no input (no tenant, recipient or appointment is read from it),
   // scope comes only from server secrets, and a lock prevents overlapping runs.
-  const anon = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-  const viaCron = sameSecret(bearer, anon);
+  const viaCron = !!url && await isProjectAnonKey(url, bearer);
   if (!url || !key || !(viaCron || sameSecret(bearer, key))) return new Response(JSON.stringify({ error: "Niet toegestaan" }), { status: 401 });
 
   const tenants = new Set(list(Deno.env.get("MANUAL_CONFIRMATION_TENANTS")).filter((t) => UUID.test(t)));
