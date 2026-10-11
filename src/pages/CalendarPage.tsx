@@ -1548,8 +1548,8 @@ export default function CalendarPage() {
                 </div>
                 <div className="flex gap-2 mt-4">
                   <Button variant="outline" className="flex-1" onClick={() => { setShowAdd(false); setShowConfirmation(false); }}>Annuleren</Button>
-                  <Button variant="gradient" className="flex-1" onClick={handlePrepareConfirmation}>
-                    {subAppts.length > 0 ? 'Bekijk plaatsing' : 'Afspraak maken'}
+                  <Button variant="gradient" className="flex-1" onClick={handlePrepareConfirmation} disabled={saving}>
+                    {saving ? 'Opslaan...' : subAppts.length > 0 ? 'Bekijk plaatsing' : 'Afspraak maken'}
                   </Button>
                 </div>
               </>
