@@ -71,6 +71,13 @@
       "when": 1791723329781,
       "tag": "0009_agenda_create_requests_grants_fix",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791728475033,
+      "tag": "0010_manual_confirmation_outbox",
+      "breakpoints": true
     }
   ]
 }

@@ -2603,6 +2603,45 @@ export type Database = {
           },
         ]
       }
+      manual_confirmation_outbox: {
+        Row: {
+          appointment_id: string
+          attempts: number
+          created_at: string
+          last_reason: string | null
+          lease_until: string | null
+          request_id: string
+          sent_at: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          appointment_id: string
+          attempts?: number
+          created_at?: string
+          last_reason?: string | null
+          lease_until?: string | null
+          request_id: string
+          sent_at?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          appointment_id?: string
+          attempts?: number
+          created_at?: string
+          last_reason?: string | null
+          lease_until?: string | null
+          request_id?: string
+          sent_at?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       membership_plans: {
         Row: {
           benefits: Json
@@ -5568,6 +5607,27 @@ export type Database = {
           token_expires_at: string
         }[]
       }
+      claim_manual_confirmations: {
+        Args: { _lease_seconds: number; _limit: number }
+        Returns: {
+          appointment_id: string
+          attempts: number
+          created_at: string
+          last_reason: string | null
+          lease_until: string | null
+          request_id: string
+          sent_at: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "manual_confirmation_outbox"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       claim_reminder_dispatch: {
         Args: {
           _appointment_id: string
@@ -5652,6 +5712,15 @@ export type Database = {
           _tenant_id: string
         }
         Returns: Json
+      }
+      finish_manual_confirmation: {
+        Args: {
+          _appointment_id: string
+          _attempt: number
+          _outcome: string
+          _reason: string
+        }
+        Returns: boolean
       }
       get_scheduler_cursor: { Args: { _name: string }; Returns: string }
       has_any_role: {
