@@ -21,7 +21,7 @@ describe("calendar", () => {
   it("past source: next future biweekly date", () => {
     expect(biweeklyDates("2026-09-01", "2026-10-11", 2)).toEqual(["2026-10-13", "2026-10-27"]);
   });
-  it("only 2/4/6/8", () => { expect(biweeklyDates("2026-10-20", "2026-10-11", 9)).toEqual([]); });
+  it("only 2/4/6/8/26", () => { expect(biweeklyDates("2026-10-20", "2026-10-11", 9)).toEqual([]); });
 });
 
 describe("gate", () => {
