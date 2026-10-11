@@ -4,12 +4,12 @@
 -- Run: psql -X -At -v ON_ERROR_STOP=1 -v live_user=<uuid> -f 01b_dry_run_readonly_inline.sql
 BEGIN TRANSACTION READ ONLY;
 WITH s AS (
-  SELECT id, user_id, is_demo, public_slug, (public_slug IS NULL OR btrim(public_slug) = '') AS missing,
+  SELECT id, user_id, created_at, public_slug, (public_slug IS NULL OR btrim(public_slug) = '') AS missing,
          btrim(regexp_replace(lower(regexp_replace(normalize(coalesce(salon_name, ''), NFKD), '[\u0300-\u036f]', '', 'g')), '[^a-z0-9]+', '-', 'g'), '-') AS derived
   FROM public.settings
 ), r AS (
   SELECT s.*, row_number() OVER (PARTITION BY derived ORDER BY (user_id = :'live_user'::uuid) DESC, created_at, id) AS rn
-  FROM s JOIN public.settings USING (id) WHERE missing AND derived <> ''
+  FROM s WHERE missing AND derived <> ''
 ), target AS (
   SELECT s.id, s.missing, s.derived, s.user_id,
          CASE WHEN NOT s.missing THEN s.public_slug WHEN r.rn = 1 THEN s.derived
