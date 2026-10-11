@@ -27,3 +27,14 @@ Niet geïmporteerd door `src/` of een Edge Function. Geen DB, geen deploy, geen 
 1. Review + migratie claimtabel. 2. Patches poll/webhook/create-viva-payment, eerst testen met Viva demo. 3. Deploy `appointment-checkout`. 4. Knop achter per-salon flag, aan voor demo-salon Mijn Salon, één fictieve demo-betaling via terminal-demo. 5. Pas daarna, met expliciete toestemming van Chris, Beautycare.
 
 Tests: `bunx vitest run --config tests/appointment-checkout/vitest.config.ts`.
+
+## Correctie 2026-10-11 (P0 review)
+1. **Prijs**: alleen de vastgelegde `appointments.price`. Null/0/ongeldig = stop (`no_price`); geen terugval op de huidige behandelprijs. Groepsboeking (`booking_group_id`) en aanbetaling > prijs = fail closed.
+2. **Betaald is geen bewijs**: een `payments`-rij met `status='paid'` telt niet mee. RLS laat salongebruikers `payments` invoegen/wijzigen (incl. `provider`, `metadata`, `webhook_received_at`, `mollie_payment_id`, `amount`); KassaPage schrijft zelf `paid`/`glowpay`. Daarom zijn al die velden onbetrouwbaar.
+   - Enige server-only spoor vandaag: `payment_status_history` (authenticated alleen SELECT), geschreven door `viva-terminal-payment-status` (poll) en `viva-webhook` (webhook). Dit bevat **geen bedrag** en het schrijven is best-effort (fout wordt alleen gelogd).
+   - `mollie-webhook` schrijft geen beschermd spoor: Mollie-betalingen zijn niet verifieerbaar.
+   - Gevolg: elke afspraak met een `paid`-rij of `amount_paid` > 0 wordt nu geblokkeerd (`unverified_payment`). Alleen volledig onbetaalde afspraken zouden kunnen starten.
+3. **Refunds**: `refunded_amount` > 0, `refunded_at` of refundstatus blokkeert (`refund_present`) tot er veilige reconciliatie is. Onbekende status of onleesbare data blokkeert ook (`uncertain_status`).
+
+## Extra blokkade (NO-GO live)
+6. Een server-only betalingsgrootboek met bevestigd bedrag per providertransactie (Viva en Mollie), niet schrijfbaar door app-gebruikers, plus intrekken van client INSERT/UPDATE op provider-velden van `payments`. Zonder dit is een aanbetaling niet verifieerbaar en kan restbedrag niet veilig berekend worden. Voorstel nog niet geschreven; vereist aparte goedkeuring.
