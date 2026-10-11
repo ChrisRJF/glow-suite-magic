@@ -70,7 +70,10 @@ export interface CreateFormInput {
 export const MANUAL_CONFIRMATION_UI_ENABLED = false;
 /** Test phase: the choice is only shown for these salons, and only while Agenda 3.0 is on.
  *  Display only; the server worker enforces its own tenant and recipient allow-lists. */
-export const MANUAL_CONFIRMATION_UI_TENANTS: ReadonlySet<string> = new Set(["5dbfcbd4-48ff-4010-a1cc-07ed737880ce"]);
+export const MANUAL_CONFIRMATION_UI_TENANTS: ReadonlySet<string> = new Set([
+  "5dbfcbd4-48ff-4010-a1cc-07ed737880ce", // Studio Nova (test)
+  "1c6c885e-c944-4717-b2ef-9cfdb9fa15ae", // The Beautycare Clinic (live)
+]);
 export function manualConfirmationUiFor(mode: AgendaMode, tenantId: string | null): boolean {
   return mode === "atomic" && !!tenantId && MANUAL_CONFIRMATION_UI_TENANTS.has(tenantId);
 }

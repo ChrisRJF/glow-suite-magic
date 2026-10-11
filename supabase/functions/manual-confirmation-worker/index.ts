@@ -44,9 +44,15 @@ Deno.serve(async (req) => {
   const viaCron = await isSchedulerSecret(req.headers.get("x-worker-secret") ?? "");
   if (!url || !key || !(viaCron || sameSecret(bearer, key))) return new Response(JSON.stringify({ error: "Niet toegestaan" }), { status: 401 });
 
+  // Test tenants: mail only to the recipient allow-list. Live tenants (MANUAL_CONFIRMATION_LIVE_TENANTS):
+  // mail only to the stored email of that salon's own customer (core still checks salon, consent, stop switch).
   const tenants = new Set(list(Deno.env.get("MANUAL_CONFIRMATION_TENANTS")).filter((t) => UUID.test(t)));
+  const liveTenants = new Set(list(Deno.env.get("MANUAL_CONFIRMATION_LIVE_TENANTS")).filter((t) => UUID.test(t) && !tenants.has(t)));
   const recipients = new Set(list(Deno.env.get("MANUAL_CONFIRMATION_RECIPIENTS")));
-  if (tenants.size === 0 || recipients.size === 0) return Response.json({ processed: 0, reason: "scope_empty" });
+  const scopes: { allowedTenants: Set<string>; allowedRecipients: ReadonlySet<string> | "all" }[] = [];
+  if (tenants.size > 0 && recipients.size > 0) scopes.push({ allowedTenants: tenants, allowedRecipients: recipients });
+  if (liveTenants.size > 0) scopes.push({ allowedTenants: liveTenants, allowedRecipients: "all" });
+  if (scopes.length === 0) return Response.json({ processed: 0, reason: "scope_empty" });
 
   const db = createClient(url, key, { auth: { persistSession: false } });
   const one = async <T>(q: PromiseLike<{ data: T | null; error: unknown }>) => { const r = await q; if (r.error) throw r.error; return r.data; };
@@ -55,8 +61,9 @@ Deno.serve(async (req) => {
   const lock = await db.rpc("try_acquire_scheduler_lock", { _name: "manual-confirmation-worker", _ttl_seconds: 240, _holder: crypto.randomUUID() });
   if (lock.error || lock.data !== true) return Response.json({ processed: 0, reason: "locked" });
   try {
-  const summary = await processOutbox({
-    allowedTenants: tenants,
+  const results = [];
+  for (const scope of scopes) results.push(await processOutbox({
+    allowedTenants: scope.allowedTenants,
     claim: async (tenantId, limit, lease) =>
       (await one(db.rpc("claim_manual_confirmations_for_tenant", { _tenant_id: tenantId, _limit: limit, _lease_seconds: lease }))) as OutboxRow[] ?? [],
     finish: async (id, attempt, outcome: Outcome, reason) =>
@@ -67,7 +74,7 @@ Deno.serve(async (req) => {
       return r.data.is_demo === true || r.data.demo_mode === true;
     },
     core: {
-      allowedRecipients: recipients,
+      allowedRecipients: scope.allowedRecipients,
       rendererTokenOnlyManageLink: true, // live sender only renders a manage button for a valid token
       loadAppointment: async (t, id) => one(db.from("appointments").select("id,user_id,is_demo,status,source,customer_id,service_id,appointment_date,start_time,end_time,booking_token,booking_reference,payment_status").eq("id", id).eq("user_id", t).maybeSingle()),
       // No FK appointment_employees -> employees: two separate queries, both limited to the same salon.
@@ -106,8 +113,8 @@ Deno.serve(async (req) => {
         } catch { return { ok: false, uncertain: true }; }
       },
     },
-  });
-  return Response.json(summary);
+  }));
+  return Response.json(results);
   } finally {
     await db.rpc("release_scheduler_lock", { _name: "manual-confirmation-worker" });
   }

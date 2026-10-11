@@ -46,7 +46,7 @@ BEGIN
                        WHEN _outcome = 'defer' THEN 'pending'
                        WHEN o.attempts >= 5 THEN 'failed'
                        ELSE 'pending' END,
-         attempts = CASE WHEN _outcome = 'defer' THEN pg_catalog.greatest(o.attempts - 1, 0) ELSE o.attempts END,
+         attempts = CASE WHEN _outcome = 'defer' THEN GREATEST(o.attempts - 1, 0) ELSE o.attempts END,
          sent_at = CASE WHEN _outcome = 'sent' THEN now() ELSE o.sent_at END,
          last_reason = pg_catalog.left(_reason, 64),
          lease_until = CASE WHEN _outcome = 'defer' THEN now() + interval '5 minutes' ELSE NULL END,

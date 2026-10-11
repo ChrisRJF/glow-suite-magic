@@ -99,6 +99,13 @@
       "when": 1791730056999,
       "tag": "0013_manual_confirmation_worker_scope",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1791731733937,
+      "tag": "0014_fix_finish_manual_confirmation_greatest",
+      "breakpoints": true
     }
   ]
 }
