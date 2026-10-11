@@ -7,7 +7,7 @@ import { useAppointments, useCustomers, useServices, useEmployees, useAppointmen
 import { parseBreaks, getAbsenceForDate, isSlotInBreaks, isSlotBlockedByException, dayOfWeekIso, statusMeta, type EmployeeBreak, type ExceptionRow } from "@/lib/employeeAvailability";
 import { useCrud } from "@/hooks/useCrud";
 import { formatEuro } from "@/lib/data";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { ChevronLeft, ChevronRight, Plus, Clock, Trash2, Sparkles, Users, AlertCircle, CheckCircle2, Zap, CalendarDays, Filter, User, UserPlus2, Columns3, ArrowRightLeft, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -41,6 +41,7 @@ import { useDossierStatus } from "@/hooks/useDossierStatus";
 import { findConflict, snapToFine, timeToMinutes, minutesToTime } from "@/lib/agendaMove";
 import { useNavigate as useRouterNavigate, useSearchParams } from "react-router-dom";
 import { cancelAppointment } from "@/lib/cancelAppointment";
+import { readAgendaMode, buildCreateBody, createViaRoute, BLOCKED_MESSAGE, type CreateBody } from "@/lib/agendaCreateClient";
 
 
 type View = 'day' | 'columns' | 'week';
@@ -572,6 +573,7 @@ export default function CalendarPage() {
       service_id: searchParams.get('behandeling') || f.service_id,
     }));
     setJourneyLink(journeyId ? { id: journeyId, session: sessionNr } : null);
+    resetCreateRequest();
     setShowAdd(true);
     const next = new URLSearchParams(searchParams);
     ['nieuw', 'klant', 'behandeling', 'traject', 'sessie'].forEach(k => next.delete(k));
@@ -592,7 +594,63 @@ export default function CalendarPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appointments, searchParams]);
 
+  // Agenda 3.0 step 3A: one request id per opened form, reused on double click and unknown outcome.
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const requestIdRef = useRef<string>(crypto.randomUUID());
+  const pendingBodyRef = useRef<CreateBody | null>(null);
+  const resetCreateRequest = () => { requestIdRef.current = crypto.randomUUID(); pendingBodyRef.current = null; };
+
+  const finishCreated = (groupCount: number) => {
+    toast.success(groupCount > 0 ? `Groepsboeking aangemaakt (${groupCount + 1} personen)` : "Afspraak staat in de agenda", {
+      description: `${customers.find((customer) => customer.id === form.customer_id)?.name || "Klant"} · ${form.date} om ${form.time}`,
+    });
+    setShowAdd(false);
+    setShowConfirmation(false);
+    setJourneyLink(null);
+    setSubAppts([]);
+    setSelectedEmployeeIds([]);
+    setPlacementOptions([]);
+    resetCreateRequest();
+    refetch();
+    refetchApptEmps();
+  };
+
+  const atomicCreate = async () => {
+    let body = pendingBodyRef.current;
+    if (!body) {
+      const built = buildCreateBody(requestIdRef.current, {
+        customer_id: form.customer_id, service_id: form.service_id, date: form.date, time: form.time,
+        employee_ids: selectedEmployeeIds,
+        notes: subAppts.length > 0 ? `Groepsboeking: ${subAppts.length + 1} personen` : null,
+        journey: journeyLink,
+        group: subAppts.map((s) => ({ person_name: s.person_name, service_id: s.service_id, assigned_time: s.assigned_time, assigned_employee: s.assigned_employee })),
+      });
+      if (built.ok === false) { toast.error((built as { message: string }).message); return; }
+      body = built.body;
+    }
+    const out = await createViaRoute((name, opts) => supabase.functions.invoke(name, opts) as any, body);
+    if (out.kind === "created") { finishCreated(body.sub_appointments?.length ?? 0); return; }
+    if (out.kind === "unknown") { pendingBodyRef.current = body; toast.error(out.message); return; }
+    if (out.code === "request_mismatch") resetCreateRequest();
+    toast.error(out.message);
+  };
+
   const handleAdd = async () => {
+    if (savingRef.current) return;
+    savingRef.current = true; setSaving(true);
+    try {
+      const mode = pendingBodyRef.current ? "atomic" : await readAgendaMode(supabase as any);
+      if (mode === "blocked") { toast.error(BLOCKED_MESSAGE); return; }
+      if (mode === "atomic") { await atomicCreate(); return; }
+      await legacyHandleAdd();
+    } finally {
+      savingRef.current = false; setSaving(false);
+    }
+  };
+
+  // LEGACY-UNCHANGED: used only while atomic_agenda_enabled is off for this salon.
+  const legacyHandleAdd = async () => {
     if (!form.customer_id || !form.service_id || !form.date || !form.time) { toast.error("Vul alle velden in"); return; }
     const svc = services.find(s => s.id === form.service_id);
     const mainEmployee = placementOptions.length > 0 ? placementOptions[selectedOption].placements[0]?.employee : '';
@@ -732,6 +790,7 @@ export default function CalendarPage() {
   };
 
   const openAddModal = (date: string, time: string) => {
+    resetCreateRequest();
     setShowAdd(true);
     setShowConfirmation(false);
     setPlacementOptions([]);
@@ -1298,7 +1357,7 @@ export default function CalendarPage() {
                 </div>
                 <div className="flex gap-2 mt-4">
                   <Button variant="outline" className="flex-1" onClick={() => setShowConfirmation(false)}>Terug</Button>
-                  <Button variant="gradient" className="flex-1" onClick={handleAdd}>Bevestigen & Opslaan</Button>
+                  <Button variant="gradient" className="flex-1" onClick={handleAdd} disabled={saving}>{saving ? "Opslaan..." : "Bevestigen & Opslaan"}</Button>
                 </div>
               </>
             ) : (
@@ -1489,8 +1548,8 @@ export default function CalendarPage() {
                 </div>
                 <div className="flex gap-2 mt-4">
                   <Button variant="outline" className="flex-1" onClick={() => { setShowAdd(false); setShowConfirmation(false); }}>Annuleren</Button>
-                  <Button variant="gradient" className="flex-1" onClick={handlePrepareConfirmation}>
-                    {subAppts.length > 0 ? 'Bekijk plaatsing' : 'Afspraak maken'}
+                  <Button variant="gradient" className="flex-1" onClick={handlePrepareConfirmation} disabled={saving}>
+                    {saving ? 'Opslaan...' : subAppts.length > 0 ? 'Bekijk plaatsing' : 'Afspraak maken'}
                   </Button>
                 </div>
               </>
