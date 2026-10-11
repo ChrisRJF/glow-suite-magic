@@ -26,7 +26,7 @@ export function AppointmentCheckoutPanel({ appointmentId }: { appointmentId: str
       callCheckout({ action: "quote", appointment_id: appointmentId }),
       supabase.from("viva_terminals").select("id, terminal_name, is_default"),
     ]);
-    if (q.ok) setQuote(q.quote); else { setQuote(q.quote ?? null); setError(q.message); }
+    if (q.ok === true) setQuote(q.quote); else { setQuote(q.quote ?? null); setError((q as { message: string }).message); }
     const list = ((t.data as Terminal[] | null) ?? []);
     setTerminals(list);
     setTerminalId((list.find((x) => x.is_default) ?? list[0])?.id ?? "");
@@ -38,7 +38,7 @@ export function AppointmentCheckoutPanel({ appointmentId }: { appointmentId: str
     inFlight.current = true; setBusy(true); setError(null);
     const r = await callCheckout({ action: "start", appointment_id: appointmentId, method, ...(method === "terminal" ? { terminal_id: terminalId } : {}) });
     if (r.ok && r.started) setStarted({ method, amountCents: r.started.amountCents, checkoutUrl: r.started.checkoutUrl });
-    else if (!r.ok) setError(r.message);
+    else if (r.ok === false) setError((r as { message: string }).message);
     setBusy(false); inFlight.current = false;
   };
 
