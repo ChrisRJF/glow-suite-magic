@@ -1,6 +1,5 @@
-// INACTIVE. Future Edge Function entrypoint `agenda-create-appointment`. NOT deployed, NOT imported.
-// Activation (separate approval): copy this folder to supabase/functions/agenda-create-appointment/ and
-// copy agendaCreateRoute.ts + agendaWriteCore.ts next to it (or into _shared), adjusting the import below.
+// Edge Function `agenda-create-appointment` (Agenda 3.0 step 3A). Deployed; NOT used by the frontend yet.
+// Writes only when tenant_feature_flags.atomic_agenda_enabled is true for the resolved salon.
 //
 // Security:
 // - The user is verified with Supabase Auth (auth.getUser(jwt)): signature, expiry and revocation are checked
@@ -67,7 +66,7 @@ export function makeDeps(admin: SupabaseClient, anon: SupabaseClient): RouteDeps
   };
 }
 
-if (import.meta.main) {
+{
   Deno.serve(async (req) => {
     if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
     if (req.method !== "POST") return json(405, { ok: false, code: "invalid_input", message: messageFor("invalid_input") });
