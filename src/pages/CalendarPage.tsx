@@ -25,6 +25,8 @@ import { AppointmentCheckoutPanel } from "@/components/AppointmentCheckoutPanel"
 import { readCheckoutVisible } from "@/lib/appointmentCheckoutClient";
 import { DemoCheckoutPanel } from "@/components/DemoCheckoutPanel";
 import { readDemoCheckoutVisible } from "@/lib/demoCheckout";
+import { RecurringAppointmentsPanel } from "@/components/RecurringAppointmentsPanel";
+import { recurringVisible } from "@/lib/recurringAppointments";
 import { useDemoMode } from "@/hooks/useDemoMode";
 import { GuidanceHint } from "@/components/demo/GuidanceHint";
 
@@ -626,6 +628,15 @@ export default function CalendarPage() {
     readAgendaContext(supabase as any).then(({ mode, tenantId }) => { if (!cancelled) setConfirmationUi(manualConfirmationUiFor(mode, tenantId)); }).catch(() => {});
     return () => { cancelled = true; };
   }, [user?.id]);
+  // Herhaalafspraken: tijdelijke allowlist, alleen Agenda 3.0 (atomic) + bevoegde rol. Twijfel = verborgen.
+  const [recurringCtx, setRecurringCtx] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    setRecurringCtx(null);
+    if (!user?.id) return;
+    readAgendaContext(supabase as any).then(({ mode, tenantId }) => { if (!cancelled && recurringVisible(mode, tenantId, myRoles || [])) setRecurringCtx(tenantId); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [user?.id, myRoles]);
   const savingRef = useRef(false);
   const requestIdRef = useRef<string>(crypto.randomUUID());
   const pendingBodyRef = useRef<CreateBody | null>(null);
@@ -1955,6 +1966,11 @@ export default function CalendarPage() {
           {dossierAppt && !checkoutVisible && demoCheckoutOn && (
             <div className="mt-4">
               <DemoCheckoutPanel appointmentId={dossierAppt.id} price={dossierAppt.price} />
+            </div>
+          )}
+          {dossierAppt && recurringCtx && user?.id && (
+            <div className="mt-4">
+              <RecurringAppointmentsPanel appointment={dossierAppt} links={(apptEmployees as any[]) || []} userId={user.id} tenantId={recurringCtx} onCreated={() => { refetch(); refetchApptEmps(); }} />
             </div>
           )}
           {dossierAppt && (
