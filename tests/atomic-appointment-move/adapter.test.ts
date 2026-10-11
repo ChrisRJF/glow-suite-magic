@@ -50,7 +50,7 @@ describe("guardedMove: fail closed, never legacy writes", () => {
       const src = readFileSync(resolve(dir, f), "utf8").replace(/^\s*(\/\/|#|>).*$/gm, "");
       expect(src).not.toMatch(/from\(["']appointments["']\)/);
       expect(src).not.toMatch(/from\(["']appointment_employees["']\)/);
-      expect(src).not.toMatch(/applyMoveLegacy/);
+      for (const l of src.split("\n").filter((x) => /applyMoveLegacy/.test(x))) expect(l).toMatch(/LEGACY-UNCHANGED/);
     }
   });
 });

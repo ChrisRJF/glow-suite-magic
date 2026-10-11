@@ -6,3 +6,4 @@
 - Employee availability rules live only in supabase/functions/_shared/inactive/employeeSchedule.ts (re-exported by src/lib/employeeSchedule.ts) and are used by calendar, booking page and public-booking; why: one rule set prevents calendar and online booking from disagreeing.
 - Onboarding quick start and extended setup share OnboardingWizard's saveSalon and finish paths; why: one completion path preserves preview isolation, default-service seeding and existing gate flags.
 - Sidebar collapse preferences use the versioned v2 storage key and migrate legacy non-default groups; why: former default-open AI preferences must not override daily-first navigation while deliberate other choices survive.
+- Agenda writes route per salon through agendaWriteCore's mode (flag true = atomic RPC only, false/missing = unchanged legacy until the slot guard, unreadable = no write); why: publishing must not block salons that are not switched on, and atomic salons must never fall back.
