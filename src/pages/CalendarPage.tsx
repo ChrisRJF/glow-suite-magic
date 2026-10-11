@@ -1963,7 +1963,7 @@ export default function CalendarPage() {
               <AppointmentCheckoutPanel appointmentId={dossierAppt.id} />
             </div>
           )}
-          {dossierAppt && !checkoutVisible && demoCheckoutOn && (
+          {dossierAppt && demoCheckoutOn && (
             <div className="mt-4">
               <DemoCheckoutPanel appointmentId={dossierAppt.id} price={dossierAppt.price} />
             </div>

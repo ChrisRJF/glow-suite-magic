@@ -8,7 +8,7 @@ vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: (...a: unkno
 import { demoCheckoutVisible, readDemoCheckoutVisible } from "@/lib/demoCheckout";
 
 const BC = "1c6c885e-c944-4717-b2ef-9cfdb9fa15ae";
-const NOVA = "cbd7d158-0133-4f2f-a504-4b82f73f2e20";
+const OTHER = "00000000-0000-4000-8000-000000000999";
 
 describe("demo checkout gate", () => {
   it("Beautycare + allowed roles visible", () => {
@@ -20,11 +20,17 @@ describe("demo checkout gate", () => {
     expect(demoCheckoutVisible(BC, [], false)).toBe(false);
   });
   it("other salons hidden", () => {
-    expect(demoCheckoutVisible(NOVA, ["eigenaar"], false)).toBe(false);
+    expect(demoCheckoutVisible(OTHER, ["eigenaar"], false)).toBe(false);
     expect(demoCheckoutVisible(null, ["eigenaar"], false)).toBe(false);
   });
   it("real checkout visible = demo hidden", () => {
     expect(demoCheckoutVisible(BC, ["eigenaar"], true)).toBe(false);
+  });
+  it("Studio Nova: simulatie ook naast echte Viva-demo checkout", () => {
+    const SN = "cbd7d158-0133-4f2f-a504-4b82f73f2e20";
+    expect(demoCheckoutVisible(SN, ["eigenaar"], true)).toBe(true);
+    expect(demoCheckoutVisible(SN, ["admin"], false)).toBe(true);
+    expect(demoCheckoutVisible(SN, ["medewerker"], true)).toBe(false);
   });
   it("RPC error or throw = hidden", async () => {
     rpc.mockResolvedValueOnce({ data: BC, error: { message: "x" } });
