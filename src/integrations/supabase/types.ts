@@ -5652,6 +5652,27 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      claim_manual_confirmations_for_tenant: {
+        Args: { _lease_seconds: number; _limit: number; _tenant_id: string }
+        Returns: {
+          appointment_id: string
+          attempts: number
+          created_at: string
+          last_reason: string | null
+          lease_until: string | null
+          request_id: string
+          sent_at: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "manual_confirmation_outbox"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       claim_reminder_dispatch: {
         Args: {
           _appointment_id: string

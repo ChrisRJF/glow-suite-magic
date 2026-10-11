@@ -92,6 +92,13 @@
       "when": 1791730025231,
       "tag": "0012_customer_email_controls",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1791730056999,
+      "tag": "0013_manual_confirmation_worker_scope",
+      "breakpoints": true
     }
   ]
 }
