@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { paymentRequestType } from "@/pages/BookingPage";
 import { calculateNoShowRisk } from "@/lib/noShowRisk";
-import type { PaymentDecision } from "@/hooks/usePaymentRules";
 
 /**
  * Targeted regression test for the create_booking payment.type mapping.
@@ -9,6 +8,13 @@ import type { PaymentDecision } from "@/hooks/usePaymentRules";
  * The frontend must never send "none"; when no payment is needed it sends the
  * neutral placeholder "deposit" with required:false and amount:0.
  */
+
+interface PaymentDecision {
+  required: boolean;
+  type: "none" | "deposit" | "full";
+  amount: number;
+  reason: string;
+}
 
 const decision = (partial: Partial<PaymentDecision>): PaymentDecision => ({
   required: false,
