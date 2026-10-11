@@ -115,3 +115,24 @@ Status: proposal only. Nothing applied, nothing deployed, nothing in `src/` chan
 - Lokale test: `bash tests/atomic-appointment-move/run-local-pg-3a.sh` (240/240, waarvan 50 nieuw voor 3A).
 - Referentie public-booking bijgewerkt naar de actieve server (= goedgekeurde stap-2b-versie); vorige versie bewaard als `public-booking.reference-pre-step2b.index.ts`.
 - Bekende beperking: demo/live van de medewerker wordt niet apart vergeleken; de eigenaar-instelling bepaalt de modus. Aanvraagregels worden niet automatisch opgeruimd (kleine tabel; opruimbeleid apart).
+
+## Step 3A: server route (INACTIVE) and grants fix (PROPOSED)
+
+Files:
+- `agendaCreateRoute.ts`: route core (pure, injected deps).
+- `agenda-create-appointment/index.ts`: future Edge Function entrypoint, not deployed.
+- `docs/proposed-migrations/2026-10-11_agenda_create_requests_grants_fix.sql`: service_role on agenda_create_requests back to SELECT, INSERT, DELETE. sandbox_exec untouched (platform role, same on every public table).
+
+Security chain: Auth `getUser(jwt)` -> actor id -> server-side salon/role/membership (owner = eigenaar; staff = exactly one active user_access owner, single mode) -> demo/live check (staff user_access.is_demo must equal salon settings mode) -> flag read (unreadable = blocked, off = refused) -> `create_appointment_atomic_as` (DB re-checks salon, role, owner, flag, membership). Unknown outcome returns `retry_same_request: true`; browser must reuse the request_id.
+
+Confirmation mail and lost connections (NOT built, required before mail activation):
+the route-side hand-off (`onCreated`) is lost when the server dies after COMMIT, and a replay never sends. Fix: an outbox row (appointment_id, send_confirmation, status pending) written in the SAME transaction as the appointment inside `create_appointment_atomic_as`; a scheduled service_role worker claims pending rows (status sending, claimed_at with timeout), sends through the existing manual confirmation core, and marks sent/skipped. Retries are idempotent through the outbox row, the existing claim in the mail core and the stored send_confirmation choice. Needs its own migration and approval.
+
+Activation order (each step a separate decision):
+1. Grants fix migration.
+2. Deploy route `agenda-create-appointment` (copy folder + core files into supabase/functions).
+3. Frontend: CalendarPage create through the route when the flag is on (request_id per opened form, reused on retry).
+4. Flag on for one demo salon only.
+5. Practice tests with fictional appointments.
+6. Beautycare Groningen only after Chris' separate approval.
+Rollback: flag off, or REVOKE EXECUTE on the wrapper from service_role.

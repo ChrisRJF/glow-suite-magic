@@ -1,0 +1,81 @@
+// INACTIVE. Future Edge Function entrypoint `agenda-create-appointment`. NOT deployed, NOT imported.
+// Activation (separate approval): copy this folder to supabase/functions/agenda-create-appointment/ and
+// copy agendaCreateRoute.ts + agendaWriteCore.ts next to it (or into _shared), adjusting the import below.
+//
+// Security:
+// - The user is verified with Supabase Auth (auth.getUser(jwt)): signature, expiry and revocation are checked
+//   by the Auth server. A decoded but unverified JWT is never used.
+// - The actor id comes only from that verified user. Salon, role and demo mode are read server-side.
+// - SUPABASE_SERVICE_ROLE_KEY stays in the function environment; it is never returned or logged.
+// - The only write is rpc("create_appointment_atomic_as"), which re-checks salon, role, flag and membership.
+// - Confirmation mail is NOT connected here (onCreated omitted) until the mail activation is approved.
+
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { handleCreate, messageFor, type ActorContext, type RouteDeps } from "../agendaCreateRoute.ts";
+
+const URL_ = Deno.env.get("SUPABASE_URL")!;
+const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
+const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+function json(status: number, body: unknown) {
+  return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+}
+
+export function makeDeps(admin: ReturnType<typeof createClient>, anon: ReturnType<typeof createClient>): RouteDeps {
+  return {
+    verifyUser: async (jwt) => {
+      const { data, error } = await anon.auth.getUser(jwt);
+      return error || !data?.user?.id ? null : data.user.id;
+    },
+    actorContext: async (userId): Promise<ActorContext | null> => {
+      const owner = await admin.from("user_roles").select("user_id").eq("user_id", userId).eq("role", "eigenaar").limit(1);
+      if (owner.error) throw owner.error;
+      let tenantId: string; let role: string; let membershipIsDemo: boolean | null = null;
+      if ((owner.data ?? []).length > 0) {
+        tenantId = userId; role = "eigenaar";
+      } else {
+        const m = await admin.from("user_access").select("owner_user_id, role, is_demo, created_at")
+          .eq("member_user_id", userId).eq("status", "active").order("created_at", { ascending: true });
+        if (m.error) throw m.error;
+        const owners = new Set((m.data ?? []).map((r: any) => r.owner_user_id));
+        if (owners.size !== 1) return null; // none or ambiguous: refuse
+        const rows = (m.data ?? []) as any[];
+        const modes = new Set(rows.map((r) => r.is_demo === true));
+        if (modes.size !== 1) return null; // mixed demo/live memberships for one salon: refuse
+        tenantId = rows[0].owner_user_id; role = String(rows[0].role); membershipIsDemo = rows[0].is_demo === true;
+      }
+      const s = await admin.from("settings").select("is_demo, demo_mode, created_at").eq("user_id", tenantId)
+        .order("created_at", { ascending: false }).limit(1);
+      if (s.error) throw s.error;
+      const row = (s.data ?? [])[0] as any;
+      if (!row) return null; // salon without settings: refuse
+      return { tenantId, role, salonIsDemo: row.is_demo === true || row.demo_mode === true, membershipIsDemo };
+    },
+    readFlag: async (tenantId) => {
+      const r = await admin.from("tenant_feature_flags").select("atomic_agenda_enabled").eq("tenant_id", tenantId).maybeSingle();
+      return { data: r.data, error: r.error };
+    },
+    callCreateAs: async (actor, _tenantId, args) => {
+      const { data, error } = await admin.rpc("create_appointment_atomic_as", { _actor: actor, ...args });
+      if (error) throw new Error("rpc_failed"); // outcome unknown: browser retries with the same request_id
+      return data;
+    },
+  };
+}
+
+if (import.meta.main) {
+  Deno.serve(async (req) => {
+    if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+    if (req.method !== "POST") return json(405, { ok: false, code: "invalid_input", message: messageFor("invalid_input") });
+    const auth = req.headers.get("Authorization") ?? "";
+    const jwt = auth.startsWith("Bearer ") ? auth.slice(7) : null;
+    let body: unknown = null;
+    try { body = await req.json(); } catch { body = null; }
+    const admin = createClient(URL_, SERVICE, { auth: { persistSession: false, autoRefreshToken: false } });
+    const anon = createClient(URL_, ANON, { auth: { persistSession: false, autoRefreshToken: false } });
+    const r = await handleCreate({ jwt, body }, makeDeps(admin, anon));
+    const { status, ...out } = r;
+    return json(status, out);
+  });
+}

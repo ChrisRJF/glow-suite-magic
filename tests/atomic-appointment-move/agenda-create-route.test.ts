@@ -3,6 +3,7 @@ import { handleCreate, type RouteDeps } from "../../docs/prepared-patches/atomic
 import { dispatchManualConfirmation, type Deps as MailDeps } from "../../docs/prepared-patches/manual-booking-confirmation/manualConfirmationCore";
 
 const T = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const U = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const E1 = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1";
 const E2 = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee2";
 const body = { request_id: "11111111-1111-4111-8111-111111111111", customer_id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
@@ -26,9 +27,8 @@ function mk(over: Partial<RouteDeps> = {}, rpcImpl?: (args: any) => any) {
     return { ok: true, code: "created", replay: false, appointment_id: id, booking_group_id: group, send_confirmation: args._send_confirmation };
   });
   const deps: RouteDeps = {
-    verifyUser: async (j) => (j === "jwt-ok" ? "u-receptie" : null),
-    tenantForUser: async () => ({ tenantId: T, isDemo: true }),
-    rolesForUser: async () => ["receptie"],
+    verifyUser: async (j) => (j === "jwt-ok" ? U : null),
+    actorContext: async () => ({ tenantId: T, role: "receptie", salonIsDemo: true, membershipIsDemo: true }),
     readFlag: async () => ({ data: { atomic_agenda_enabled: true }, error: null }),
     callCreateAs,
     ...over,
@@ -105,8 +105,8 @@ describe("step 3A server route (fictional salon, mocks only)", () => {
   });
   it("11. no login, employee role, no tenant, client-chosen tenant/source: refused", async () => {
     expect(await call(mk().deps, body, null)).toMatchObject({ status: 401 });
-    expect(await call(mk({ rolesForUser: async () => ["medewerker"] }).deps)).toMatchObject({ status: 403, code: "forbidden" });
-    expect(await call(mk({ tenantForUser: async () => null }).deps)).toMatchObject({ status: 403 });
+    expect(await call(mk({ actorContext: async () => ({ tenantId: T, role: "medewerker", salonIsDemo: true, membershipIsDemo: true }) }).deps)).toMatchObject({ status: 403, code: "forbidden" });
+    expect(await call(mk({ actorContext: async () => null }).deps)).toMatchObject({ status: 403 });
     for (const extra of [{ tenant_id: "other" }, { source: "online_booking" }, { user_id: "other" }, { is_demo: false }])
       expect(await call(mk().deps, { ...body, ...extra })).toMatchObject({ status: 400, code: "invalid_input" });
   });
@@ -135,5 +135,71 @@ describe("step 3A server route (fictional salon, mocks only)", () => {
     const { deps } = mk({ onCreated: async ({ appointmentId, sendToCustomer }) => { await dispatchManualConfirmation({ jwt: "jwt-ok", appointmentId, sendToCustomer }, mailDeps(appointmentId)); } });
     await call(deps, { ...body, send_confirmation: true });
     expect(send).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("step 3A route hardening (fictional salons, mocks only)", () => {
+  const ctx = (role: string, salonIsDemo: boolean, membershipIsDemo: boolean | null) => async () => ({ tenantId: T, role, salonIsDemo, membershipIsDemo });
+  it("H1. owner, manager and receptie with valid access create; actor is the verified user", async () => {
+    for (const [role, m] of [["eigenaar", null], ["manager", false], ["receptie", false], ["admin", false]] as const) {
+      const { deps, callCreateAs } = mk({ actorContext: ctx(role, false, m) });
+      expect(await call(deps)).toMatchObject({ status: 200, ok: true, message: "Afspraak opgeslagen." });
+      expect(callCreateAs.mock.calls[0][0]).toBe(U);
+    }
+  });
+  it("H2. medewerker and financieel refused with Dutch message, no RPC", async () => {
+    for (const role of ["medewerker", "financieel"]) {
+      const { deps, callCreateAs } = mk({ actorContext: ctx(role, false, false) });
+      const r = await call(deps);
+      expect(r).toMatchObject({ status: 403, code: "forbidden" });
+      expect(r.message).toMatch(/geen rechten/);
+      expect(callCreateAs).not.toHaveBeenCalled();
+    }
+  });
+  it("H3. other salon: no/ambiguous membership refused; DB re-check 'forbidden' passes through", async () => {
+    expect(await call(mk({ actorContext: async () => null }).deps)).toMatchObject({ status: 403, code: "forbidden" });
+    const db = mk({}, () => ({ ok: false, code: "forbidden" }));
+    expect(await call(db.deps)).toMatchObject({ status: 403, code: "forbidden" });
+    expect(db.rows).toHaveLength(0);
+  });
+  it("H4. demo/live separation: staff mode must equal salon mode; unreadable context blocks", async () => {
+    for (const [s, m, ok] of [[true, true, true], [false, false, true], [true, false, false], [false, true, false]] as const) {
+      const { deps, callCreateAs } = mk({ actorContext: ctx("receptie", s, m) });
+      const r = await call(deps);
+      expect(r.ok).toBe(ok);
+      if (!ok) { expect(r).toMatchObject({ status: 403, code: "mode_mismatch" }); expect(callCreateAs).not.toHaveBeenCalled(); }
+    }
+    expect(await call(mk({ actorContext: ctx("receptie", true, null) }).deps)).toMatchObject({ code: "mode_mismatch" });
+    expect(await call(mk({ actorContext: async () => { throw new Error("db"); } }).deps)).toMatchObject({ status: 503, code: "unavailable" });
+  });
+  it("H5. invalid, expired or non-uuid identity refused before any read", async () => {
+    const actorContext = vi.fn();
+    expect(await call(mk({ actorContext }).deps, body, "jwt-expired")).toMatchObject({ status: 401, code: "not_authenticated" });
+    expect(await call(mk({ actorContext, verifyUser: async () => { throw new Error("auth down"); } }).deps)).toMatchObject({ status: 401 });
+    expect(await call(mk({ actorContext, verifyUser: async () => "not-a-uuid" }).deps)).toMatchObject({ status: 401 });
+    expect(actorContext).not.toHaveBeenCalled();
+  });
+  it("H6. unexpected database error: unknown outcome, retry flag, no mail; retry with same id creates once", async () => {
+    const onCreated = vi.fn().mockResolvedValue(undefined);
+    const m = mk({ onCreated });
+    m.callCreateAs.mockImplementationOnce(async () => { throw new Error("rpc_failed"); });
+    expect(await call(m.deps, { ...body, send_confirmation: true })).toMatchObject({ status: 503, code: "failed", retry_same_request: true });
+    expect(onCreated).not.toHaveBeenCalled();
+    expect(await call(m.deps, { ...body, send_confirmation: true })).toMatchObject({ ok: true, appointment_id: "apt-1" });
+    expect(m.rows).toHaveLength(1);
+    expect(onCreated).toHaveBeenCalledTimes(1);
+  });
+  it("H7. unknown body keys (salon, actor, mode) refused", async () => {
+    for (const extra of [{ salon_id: T }, { actor: U }, { demo: true }, { _actor: U }])
+      expect(await call(mk().deps, { ...body, ...extra })).toMatchObject({ status: 400, code: "invalid_input" });
+  });
+  it("H8. lost response after commit: no mail on replay, stored choice returned", async () => {
+    const onCreated = vi.fn().mockResolvedValue(undefined);
+    const m = mk({ onCreated });
+    const real = m.callCreateAs.getMockImplementation()!;
+    m.callCreateAs.mockImplementationOnce(async (...a: any[]) => { await (real as any)(...a); throw new Error("lost"); });
+    await call(m.deps, { ...body, send_confirmation: true });
+    expect(await call(m.deps, { ...body, send_confirmation: true })).toMatchObject({ ok: true, replay: true });
+    expect(onCreated).not.toHaveBeenCalled(); // known gap: needs the server-side outbox before mail activation
   });
 });
