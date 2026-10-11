@@ -106,3 +106,12 @@ Status: proposal only. Nothing applied, nothing deployed, nothing in `src/` chan
 - BLOKKADE 2: de RPC kent geen idempotency-sleutel; zonder de voorgestelde tabel `agenda_create_requests` kan een herhaald verzoek zonder medewerker een tweede afspraak maken.
 - BLOKKADE 3 (bestaand): groepsregel zonder eigen tijd, verplaatsen met meerdere medewerkers, oude lezers van ruwe `appointment_date`.
 - Activatie: (1) wrapper + tabel, (2) route deployen, (3) frontend achter vlag, (4) tests, (5) vlag aan voor demosalon, één fictieve afspraak per scenario, (6) Beautycare alleen na toestemming Chris. Terugdraaien: vlag uit (agenda gebruikt weer huidige code), of grant intrekken; bestaande afspraken blijven staan.
+
+## Stap 3A databasefunctie (2026-10-11, offline getest, NIET toegepast)
+- `docs/proposed-migrations/2026-10-11_agenda_create_route.sql`: tabel `agenda_create_requests` (alleen ids, hash, mailkeuze), helper `agenda_actor_tenant` (niemand mag hem direct aanroepen), wrapper `create_appointment_atomic_as` (alleen service_role). Vervangt blokkade 1 en 2 hierboven.
+- Wrapper bepaalt zelf de salon (eigenaar, of precies één actieve `user_access`; dubbelzinnig = weigeren), rol eigenaar/admin/manager/receptie, vlag (uit of geen rij = `disabled`), en roept de ONGEWIJZIGDE `create_appointment_atomic` aan met de eigenaar-identiteit, alleen binnen de transactie.
+- Aanvraagregel en afspraak in één transactie; gelijktijdige gelijke ID wacht op de primaire sleutel en krijgt dezelfde afspraak terug; andere inhoud of andere mailkeuze = `request_mismatch`; geweigerde of mislukte poging laat niets achter.
+- Gebruik: `agendaCreateRoute.ts` roept alleen deze wrapper aan; `GRANT ... TO authenticated` uit `..._activate_agenda.sql` is voor 3A NIET nodig.
+- Lokale test: `bash tests/atomic-appointment-move/run-local-pg-3a.sh` (240/240, waarvan 50 nieuw voor 3A).
+- Referentie public-booking bijgewerkt naar de actieve server (= goedgekeurde stap-2b-versie); vorige versie bewaard als `public-booking.reference-pre-step2b.index.ts`.
+- Bekende beperking: demo/live van de medewerker wordt niet apart vergeleken; de eigenaar-instelling bepaalt de modus. Aanvraagregels worden niet automatisch opgeruimd (kleine tabel; opruimbeleid apart).
