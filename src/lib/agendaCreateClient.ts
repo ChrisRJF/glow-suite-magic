@@ -66,8 +66,14 @@ export interface CreateFormInput {
   send_confirmation?: boolean;
 }
 
-/** Manual confirmation mail: OFF until the separate mail activation (outbox migration, worker, renderer fix). */
+/** Manual confirmation mail: OFF for every salon by default (legacy agenda never sends). */
 export const MANUAL_CONFIRMATION_UI_ENABLED = false;
+/** Test phase: the choice is only shown for these salons, and only while Agenda 3.0 is on.
+ *  Display only; the server worker enforces its own tenant and recipient allow-lists. */
+export const MANUAL_CONFIRMATION_UI_TENANTS: ReadonlySet<string> = new Set(["5dbfcbd4-48ff-4010-a1cc-07ed737880ce"]);
+export function manualConfirmationUiFor(mode: AgendaMode, tenantId: string | null): boolean {
+  return mode === "atomic" && !!tenantId && MANUAL_CONFIRMATION_UI_TENANTS.has(tenantId);
+}
 export interface CreateBody {
   request_id: string; customer_id: string | null; service_id: string; date: string; time: string;
   employee_ids: string[]; notes: string | null; journey_id: string | null; journey_session: number | null;
