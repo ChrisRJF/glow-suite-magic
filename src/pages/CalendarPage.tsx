@@ -41,7 +41,7 @@ import { useDossierStatus } from "@/hooks/useDossierStatus";
 import { findConflict, snapToFine, timeToMinutes, minutesToTime } from "@/lib/agendaMove";
 import { useNavigate as useRouterNavigate, useSearchParams } from "react-router-dom";
 import { cancelAppointment } from "@/lib/cancelAppointment";
-import { readAgendaContext, buildCreateBody, createViaRoute, BLOCKED_MESSAGE, NON_DEFINITIVE_REFUSALS, type CreateBody } from "@/lib/agendaCreateClient";
+import { readAgendaContext, buildCreateBody, createViaRoute, BLOCKED_MESSAGE, NON_DEFINITIVE_REFUSALS, MANUAL_CONFIRMATION_UI_ENABLED, type CreateBody } from "@/lib/agendaCreateClient";
 import { savePending, loadPending, clearPending, purgeOtherPending } from "@/lib/agendaPendingStore";
 
 
@@ -597,6 +597,7 @@ export default function CalendarPage() {
 
   // Agenda 3.0 step 3A: one request id per opened form, reused on double click and unknown outcome.
   const [saving, setSaving] = useState(false);
+  const [sendConfirmation, setSendConfirmation] = useState(false);
   const savingRef = useRef(false);
   const requestIdRef = useRef<string>(crypto.randomUUID());
   const pendingBodyRef = useRef<CreateBody | null>(null);
@@ -647,6 +648,7 @@ export default function CalendarPage() {
     setSubAppts([]);
     setSelectedEmployeeIds([]);
     setPlacementOptions([]);
+    setSendConfirmation(false);
     resetCreateRequest();
     refetch();
     refetchApptEmps();
@@ -661,6 +663,7 @@ export default function CalendarPage() {
         employee_ids: selectedEmployeeIds,
         notes: subAppts.length > 0 ? `Groepsboeking: ${subAppts.length + 1} personen` : null,
         journey: journeyLink,
+        send_confirmation: sendConfirmation,
         group: subAppts.map((s) => ({ person_name: s.person_name, service_id: s.service_id, assigned_time: s.assigned_time, assigned_employee: s.assigned_employee })),
       });
       if (built.ok === false) { toast.error((built as { message: string }).message); return; }
@@ -688,6 +691,7 @@ export default function CalendarPage() {
       if (mode === "blocked") { toast.error(BLOCKED_MESSAGE); return; }
       if (mode === "atomic") { await atomicCreate(tenantId); return; }
       await legacyHandleAdd();
+      if (MANUAL_CONFIRMATION_UI_ENABLED && sendConfirmation) toast.info("Er is geen bevestigingsmail verstuurd: dit kan nog niet in deze agenda.");
     } finally {
       savingRef.current = false; setSaving(false);
     }
@@ -1504,6 +1508,17 @@ export default function CalendarPage() {
                         Selecteer één of meerdere medewerkers. Dubbele boekingen worden gecontroleerd.
                       </p>
                     </div>
+                  )}
+
+                  {MANUAL_CONFIRMATION_UI_ENABLED && (
+                    <label className="flex items-start gap-2 text-sm cursor-pointer">
+                      <input type="checkbox" className="mt-0.5 accent-primary" checked={sendConfirmation}
+                        disabled={saving || !!pendingBody} onChange={e => setSendConfirmation(e.target.checked)} />
+                      <span>
+                        Bevestigingsmail versturen
+                        <span className="block text-xs text-muted-foreground">Alleen als de klant een e-mailadres heeft en mails niet heeft uitgezet.</span>
+                      </span>
+                    </label>
                   )}
 
                   <button

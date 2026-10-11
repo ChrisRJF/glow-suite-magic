@@ -24,7 +24,7 @@ export function loadPending(userId: string, tenantId: string, store = defaultSto
     if (!raw) return null;
     const p = JSON.parse(raw);
     const ok = p?.v === 1 && p.userId === userId && p.tenantId === tenantId && typeof p.savedAt === "number"
-      && now - p.savedAt < PENDING_TTL_MS && typeof p.body?.request_id === "string" && p.body.send_confirmation === false;
+      && now - p.savedAt < PENDING_TTL_MS && typeof p.body?.request_id === "string" && typeof p.body.send_confirmation === "boolean";
     if (!ok) { store.removeItem(key); return null; }
     return p.body as CreateBody;
   } catch { try { store.removeItem(key); } catch { /* ignore */ } return null; }
