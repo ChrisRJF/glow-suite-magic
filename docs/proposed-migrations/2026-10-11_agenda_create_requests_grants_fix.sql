@@ -25,7 +25,7 @@ DECLARE
   _wrap constant text := 'public.create_appointment_atomic_as(uuid, uuid, boolean, uuid, uuid, text, text, uuid[], text, uuid, int, jsonb)';
 BEGIN
   IF current_setting('server_version_num')::int >= 170000 THEN
-    _all := _all || 'MAINTAIN'; _bad := _bad || 'MAINTAIN';
+    _all := array_append(_all, 'MAINTAIN'); _bad := array_append(_bad, 'MAINTAIN');
   END IF;
   FOREACH _p IN ARRAY ARRAY['SELECT','INSERT','DELETE'] LOOP
     IF NOT has_table_privilege('service_role', _tbl, _p) THEN
