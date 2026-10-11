@@ -9,7 +9,7 @@ export type PrepareDeps = EmailAuthDeps & {
 };
 
 export type PrepareResult =
-  | { ok: true; caller: "service" | "user"; tenantId: string; links: CustomerEmailLinks }
+  | { ok: true; caller: "service" | "user" | "platform_admin"; tenantId: string; links: CustomerEmailLinks }
   | { ok: false; status: number; error: string };
 
 export async function prepareCustomerEmail(
