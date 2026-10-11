@@ -51,20 +51,25 @@ export function makeDeps(admin: SupabaseClient, anon: SupabaseClient, jwt: strin
       return r.data as any;
     },
     loadPayments: async (tid, aid) => {
-      const r = await admin.from("payments").select("id, appointment_id, user_id, amount, status, is_demo, refunded_amount, refunded_at, checkout_url")
+      const r = await admin.from("payments").select("id, appointment_id, user_id, amount, status, is_demo, refunded_amount, refunded_at, metadata")
         .eq("user_id", tid).eq("appointment_id", aid);
-      return r.error ? null : (r.data as any);
+      // Payment links live in payments.metadata.checkout_url (there is no checkout_url column).
+      return r.error ? null : (r.data as any[]).map(({ metadata, ...p }) => ({ ...p, checkout_url: metadata?.checkout_url ?? null }));
     },
     loadLedger: async (tid, aid) => {
       const r = await admin.from("payment_ledger").select("payment_id, tenant_id, appointment_id, kind, amount_cents, currency")
         .eq("tenant_id", tid).eq("appointment_id", aid);
       return r.error ? null : (r.data as any);
     },
-    providerReady: async (tid, method) => {
+    providerReady: async (tid, method, isDemo) => {
+      const s = await admin.from("settings").select("viva_demo_enabled, viva_live_enabled").eq("user_id", tid).order("created_at", { ascending: false }).limit(1);
+      if (s.error || !s.data?.[0]) return false;
+      if (isDemo ? s.data[0].viva_demo_enabled !== true : s.data[0].viva_live_enabled !== true) return false;
       if (method === "terminal") {
-        const r = await admin.from("viva_terminals").select("id").eq("user_id", tid).limit(1);
+        const r = await admin.from("viva_terminals").select("id").eq("user_id", tid).eq("is_demo", isDemo).limit(1);
         return !r.error && (r.data ?? []).length > 0;
       }
+      if (isDemo) return true;
       const r = await admin.from("glowpay_connected_merchants").select("id").eq("user_id", tid).limit(1);
       return !r.error && (r.data ?? []).length > 0;
     },
@@ -76,10 +81,17 @@ export function makeDeps(admin: SupabaseClient, anon: SupabaseClient, jwt: strin
     attach: async (key, pid) => { await admin.rpc("attach_checkout_claim", { _key: key, _payment_id: pid }); },
     release: async (key) => { await admin.rpc("release_checkout_claim", { _key: key }); },
     startProvider: async (a) => {
-      // Reuses the existing provider functions with the caller's own login; amount is server-computed here.
+      // Reuses the existing provider functions with the caller's own login; amount and demo/live are server-decided.
+      let providerTerminalId: string | undefined;
+      if (a.method === "terminal") {
+        // Browser sends the INTERNAL viva_terminals.id; map it to the provider terminal_id within this salon + mode.
+        const t = await admin.from("viva_terminals").select("terminal_id").eq("id", a.terminalId!).eq("user_id", a.tenantId).eq("is_demo", a.isDemo).maybeSingle();
+        if (t.error || !t.data?.terminal_id) return { ok: false, definitive: true };
+        providerTerminalId = t.data.terminal_id;
+      }
       const r = a.method === "terminal"
-        ? await callFn("create-viva-terminal-payment", { terminal_id: a.terminalId, appointment_id: a.appointmentId, customer_id: a.customerId, amount_cents: a.amountCents, tip_cents: 0, idempotency_key: a.idempotencyKey })
-        : await callFn("create-viva-payment", { appointment_id: a.appointmentId, customer_id: a.customerId, amount_cents: a.amountCents, payment_type: "appointment_checkout", idempotency_key: a.idempotencyKey });
+        ? await callFn("create-viva-terminal-payment", { terminal_id: providerTerminalId, is_demo: a.isDemo, appointment_id: a.appointmentId, customer_id: a.customerId, amount_cents: a.amountCents, tip_cents: 0, idempotency_key: a.idempotencyKey })
+        : await callFn("create-viva-payment", { appointment_id: a.appointmentId, customer_id: a.customerId, amount_cents: a.amountCents, payment_type: "appointment_checkout", is_demo: a.isDemo, idempotency_key: a.idempotencyKey });
       const pid = r.data?.payment_id ?? r.data?.id;
       if (r.status >= 200 && r.status < 300 && typeof pid === "string") return { ok: true, paymentId: pid, checkoutUrl: r.data?.checkout_url ?? null };
       return { ok: false, definitive: r.status >= 400 && r.status < 500 };
