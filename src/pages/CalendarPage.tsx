@@ -1,4 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
+import { appointmentDisplayDate, isSingleDayView, navStepDays } from "@/lib/calendarView";
 import { CustomerPicker } from "@/components/CustomerPicker";
 import { workingWindow } from "@/lib/employeeSchedule";
 import { Button } from "@/components/ui/button";
@@ -53,7 +54,7 @@ const formatLocalDate = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
-const getAppointmentDate = (appointment: { appointment_date: string }) => appointment.appointment_date.slice(0, 10);
+const getAppointmentDate = (appointment: { appointment_date: string; start_time?: string | null }) => appointmentDisplayDate(appointment);
 const getAppointmentTime = (appointment: { appointment_date: string; start_time?: string | null }) => {
   if (appointment.start_time) return appointment.start_time.slice(0, 5);
   const match = appointment.appointment_date.match(/T(\d{2}:\d{2})/);
@@ -374,7 +375,7 @@ export default function CalendarPage() {
 
   const navigate = (dir: number) => {
     const d = new Date(currentDate);
-    d.setDate(d.getDate() + (view === 'day' ? dir : dir * 7));
+    d.setDate(d.getDate() + dir * navStepDays(view));
     setCurrentDate(d);
   };
 
@@ -1088,8 +1089,8 @@ export default function CalendarPage() {
             </Button>
             <div className="flex flex-1 lg:flex-none rounded-xl border border-border overflow-hidden min-w-0">
               <button onClick={() => setView('day')} className={cn("flex-1 lg:flex-none px-3 py-2 text-sm font-medium transition-colors", view === 'day' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')}>Dag</button>
-              <button onClick={() => setView('columns')} className={cn("flex-1 lg:flex-none px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-1", view === 'columns' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')} title="Kolommen per medewerker">
-                <Columns3 className="w-3.5 h-3.5" />Kolommen
+              <button onClick={() => setView('columns')} className={cn("flex-1 lg:flex-none px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-1", view === 'columns' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')} title="Eén dag, alle medewerkers die werken naast elkaar">
+                <Columns3 className="w-3.5 h-3.5" />Per medewerker
               </button>
               <button onClick={() => setView('week')} className={cn("flex-1 lg:flex-none px-3 py-2 text-sm font-medium transition-colors", view === 'week' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')}>Week</button>
             </div>
@@ -1503,7 +1504,7 @@ export default function CalendarPage() {
           <div className="flex items-center gap-3">
             <button className="p-2 rounded-lg hover:bg-secondary transition-colors" onClick={() => navigate(-1)}><ChevronLeft className="w-4 h-4" /></button>
             <h3 className="text-base font-semibold">
-              {view === 'day'
+              {isSingleDayView(view)
                 ? currentDate.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
                 : `${weekDays[0].toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })} – ${weekDays[5].toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })}`
               }
@@ -1511,7 +1512,7 @@ export default function CalendarPage() {
             <button className="p-2 rounded-lg hover:bg-secondary transition-colors" onClick={() => navigate(1)}><ChevronRight className="w-4 h-4" /></button>
           </div>
           <span className="text-sm text-muted-foreground">
-            {view === 'day' ? `${dayAppts.length} afspraken` : `${filterByEmployee(appointments.filter(a => weekDays.some(d => getAppointmentDate(a) === formatLocalDate(d)))).length} afspraken`}
+            {isSingleDayView(view) ? `${dayAppts.length} afspraken` : `${filterByEmployee(appointments.filter(a => weekDays.some(d => getAppointmentDate(a) === formatLocalDate(d)))).length} afspraken`}
             {selectedEmployee !== 'alle' && ` · ${displayEmployees.find((e: any) => e.id === selectedEmployee || e.name === selectedEmployee)?.name || selectedEmployee}`}
           </span>
         </div>

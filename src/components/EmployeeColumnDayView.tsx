@@ -1,4 +1,5 @@
 import { useDraggable, useDroppable } from "@dnd-kit/core";
+import { appointmentDisplayDate } from "@/lib/calendarView";
 import { CSS } from "@dnd-kit/utilities";
 import { Clock, GripVertical, ArrowRightLeft } from "lucide-react";
 import { EmployeeAvatarStack } from "@/components/EmployeeAvatar";
@@ -175,7 +176,7 @@ export function EmployeeColumnDayView(props: ColumnViewProps) {
   // Hour labels appear once per hour
   const hourSlots = fineSlots.filter(s => s.endsWith(":00"));
 
-  const aptsForDate = appointments.filter(a => String(a.appointment_date).slice(0, 10) === date);
+  const aptsForDate = appointments.filter(a => appointmentDisplayDate(a) === date);
 
   return (
     <div className="overflow-x-auto -mx-2 px-2">
