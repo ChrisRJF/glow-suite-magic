@@ -13,7 +13,11 @@ export const CONFIRM_ROLES = new Set(["eigenaar", "admin", "manager", "receptie"
 export type SkipReason =
   | "not_requested" | "not_authenticated" | "forbidden" | "not_found" | "incomplete" | "cancelled"
   | "no_email" | "demo" | "opted_out" | "paused" | "unknown_time" | "already_sent" | "send_failed"
-  | "not_manual" | "status_not_allowed" | "payment_not_allowed" | "renderer_unsafe" | "recipient_not_allowed";
+  | "not_manual" | "status_not_allowed" | "payment_not_allowed" | "renderer_unsafe" | "recipient_not_allowed"
+  // Temporary/technical: never a final skip, never counted as a customer opt-out.
+  | "consent_unreadable" | "controls_unreadable"
+  // Provider outcome unknown (network loss, timeout, 5xx, unreadable answer): NOT sent, NOT final success.
+  | "send_uncertain";
 
 /** Allow-list (fail closed): anything else, incl. cancelled/no-show/pending holdings, gets no mail. */
 export const ALLOWED_STATUSES = new Set(["gepland", "bevestigd", "confirmed", "geboekt"]);
@@ -44,7 +48,8 @@ export interface Deps {
   /** Atomic claim on the idempotency key (unique insert). false = already claimed. */
   claim: (key: string) => Promise<boolean>;
   /** Existing send-white-label-email path (service caller, template booking_confirmation). */
-  send: (payload: Record<string, unknown>) => Promise<{ ok: boolean }>;
+  /** ok=true only on a confirmed success. uncertain=true when the mail may or may not have left. */
+  send: (payload: Record<string, unknown>) => Promise<{ ok: boolean; uncertain?: boolean }>;
   release: (key: string) => Promise<void>;
   /** Test phase: only explicitly allowed test addresses (exact, lowercased). Empty/missing = nobody (fail closed).
    *  Full activation replaces this with an explicit "all recipients" decision, never by default. */
@@ -111,8 +116,13 @@ export async function sendForTenant(
   if (!EMAIL.test(email)) return skip("no_email");
   const allow = deps.allowedRecipients;
   if (allow !== "all" && !(allow instanceof Set && allow.has(email))) return skip("recipient_not_allowed");
-  if (!(await deps.emailAllowed(tenant.tenantId, apt.customer_id).catch(() => false))) return skip("opted_out");
-  if (!(await deps.sendingAllowed().catch(() => false))) return skip("paused");
+  // A read error is technical (retry later); only an explicit false is a real customer opt-out.
+  const consent = await deps.emailAllowed(tenant.tenantId, apt.customer_id).then((v) => v === true ? "yes" : "no", () => "err");
+  if (consent === "err") return skip("consent_unreadable");
+  if (consent === "no") return skip("opted_out");
+  const sending = await deps.sendingAllowed().then((v) => v === true ? "yes" : "no", () => "err");
+  if (sending === "err") return skip("controls_unreadable");
+  if (sending === "no") return skip("paused");
 
   if (deps.rendererTokenOnlyManageLink !== true) return skip("renderer_unsafe");
 
@@ -143,7 +153,8 @@ export async function sendForTenant(
       reference: apt.booking_reference ?? undefined,
       ...(manageUrl ? { manage_url: manageUrl } : {}), // only with a valid token, never invented
     },
-  }).catch(() => ({ ok: false }));
-  if (!res.ok) { await deps.release(key).catch(() => {}); return skip("send_failed"); }
-  return { sent: true, key };
+  }).catch(() => ({ ok: false, uncertain: true }));
+  if (res.ok === true && res.uncertain !== true) return { sent: true, key };
+  if (res.uncertain === true) return skip("send_uncertain"); // keep the claim: never silently resend or mark sent
+  await deps.release(key).catch(() => {}); return skip("send_failed");
 }
