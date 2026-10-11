@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
     finish: async (id, attempt, outcome: Outcome, reason) =>
       (await one(db.rpc("finish_manual_confirmation", { _appointment_id: id, _attempt: attempt, _outcome: outcome, _reason: reason }))) === true,
     tenantIsDemo: async (tenantId) => {
-      const r = await db.from("salon_settings").select("is_demo, demo_mode").eq("user_id", tenantId).maybeSingle();
+      const r = await db.from("settings").select("is_demo, demo_mode").eq("user_id", tenantId).maybeSingle();
       if (r.error || !r.data) return null;
       return r.data.is_demo === true || r.data.demo_mode === true;
     },
@@ -56,14 +56,14 @@ Deno.serve(async (req) => {
       },
       loadCustomer: async (t, id) => one(db.from("customers").select("name,email,language").eq("id", id).eq("user_id", t).maybeSingle()),
       loadService: async (t, id) => one(db.from("services").select("name").eq("id", id).eq("user_id", t).maybeSingle()),
-      loadSalon: async (t) => one(db.from("salon_settings").select("salon_name,public_slug,demo_mode,is_demo").eq("user_id", t).maybeSingle()),
+      loadSalon: async (t) => one(db.from("settings").select("salon_name,public_slug,demo_mode,is_demo").eq("user_id", t).maybeSingle()),
       emailAllowed: async (t, c) => {
-        const r = await db.from("customer_message_preferences").select("email_opt_in").eq("user_id", t).eq("customer_id", c).maybeSingle();
+        const r = await db.from("customer_message_preferences").select("email_opt_out").eq("user_id", t).eq("customer_id", c).maybeSingle();
         if (r.error) throw r.error;           // technical -> defer, never treated as opt-out
-        return r.data ? r.data.email_opt_in !== false : true;
+        return r.data ? r.data.email_opt_out !== true : true;
       },
       sendingAllowed: async () => {
-        const r = await db.from("customer_email_controls").select("sending_enabled").limit(1).maybeSingle();
+        const r = await db.from("customer_email_controls").select("sending_enabled").eq("id", true).maybeSingle();
         if (r.error || !r.data) throw r.error ?? new Error("controls_missing"); // unreadable -> defer
         return r.data.sending_enabled === true;
       },
