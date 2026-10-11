@@ -19,7 +19,7 @@ snap() { Q -c "select md5(string_agg(id||':'||coalesce(public_slug,'∅'),',' or
 LIVE=11111111-0000-0000-0000-000000000001
 V="-v live_user=$LIVE"
 # row helper: n = salon number (hex), name, created day, slug
-row() { echo "('aa00000$1-0000-0000-0000-000000000000','11111111-0000-0000-0000-00000000000$1','2026-01-0$3','$2',$4)"; }
+row() { echo "('$1$1aa000$1-0000-0000-0000-000000000000','11111111-0000-0000-0000-00000000000$1','2026-01-0$3','$2',$4)"; }
 DRY() { Q $V -f $BASE/01b_dry_run_readonly_inline.sql | tail -1; }
 FILL() { Q -1 -v expected=$1 $V $F -f $BASE/02_backfill.sql; }
 SLUGF='lower(regexp_replace(normalize(x, NFKD), $r$[\u0300-\u036f]$r$, $r$$r$, $r$g$r$))'
@@ -41,7 +41,7 @@ done
 SEED="insert into settings(id,user_id,created_at,salon_name,public_slug) values
  $(row 1 'Glans Kliniek Noord' 5 null), $(row 2 'GLANS kliniek  noord' 1 null),
  $(row 3 'Demo Salon' 4 null), $(row 4 'demo salon' 2 null), $(row 5 'Démo  Salon!' 3 null), $(row 6 'DEMO-SALON' 6 null), $(row 7 'Demo Salón' 7 null),
- $(row 8 'Uniek Één' 1 null), $(row 9 'Bloem & Co' 1 "''"); update settings set is_demo=true where id::text like 'aa000002%';"
+ $(row 8 'Uniek Één' 1 null), $(row 9 'Bloem & Co' 1 "''"); update settings set is_demo=true where id::text like '22aa%';"
 reset "$SEED"; S0=$(snap)
 ok "dry run OK with 2 resolvable groups" "$(DRY)" "total=9 missing=9 empty_derived=0 conflict_groups=2 suffixed=5 duplicate_after=0 live_rows=1 live_plain=1 would_update=9 verdict=OK"
 ok "dry run wrote nothing" "$(snap)" "$S0"
@@ -49,7 +49,7 @@ ok "wrong expected stops" "$(FILL 8 | grep -c STOP)" "1"
 ok "nothing written after stop" "$(snap)" "$S0"
 FILL 9 >/dev/null
 ok "live keeps plain link (even though demo is older)" "$(Q -c "select public_slug from settings where user_id='$LIVE'")" "glans-kliniek-noord"
-ok "demo in group B suffixed" "$(Q -c "select public_slug from settings where id::text like 'aa000002%'")" "glans-kliniek-noord-aa0000"
+ok "demo in group B suffixed" "$(Q -c "select public_slug from settings where id::text like '22aa%'")" "glans-kliniek-noord-22aa00"
 ok "group A: oldest keeps plain" "$(Q -c "select salon_name from settings where public_slug='demo-salon'")" "demo salon"
 ok "group A: 4 suffixed" "$(Q -c "select count(*) from settings where public_slug like 'demo-salon-%'")" "4"
 ok "unique salons plain" "$(Q -c "select string_agg(public_slug,',' order by public_slug) from settings where salon_name in ('Uniek Één','Bloem & Co')")" "bloem-co,uniek-een"
@@ -66,7 +66,7 @@ done
 for u in "Uniek%20%C3%89%C3%A9n" "UNIEK-EEN" "bloem-co" "Bloem%20%26%20Co"; do
   ok "new server $u found" "$(NEWS "$u" | grep -vc NOT_FOUND)" "1"
 done
-ok "suffixed demo link works on both" "$(NEWS glans-kliniek-noord-aa0000)|$(CURS GLANS-KLINIEK-NOORD-AA0000)" "GLANS kliniek  noord|GLANS kliniek  noord"
+ok "suffixed demo link works on both" "$(NEWS glans-kliniek-noord-22aa00)|$(CURS GLANS-KLINIEK-NOORD-22AA00)" "GLANS kliniek  noord|GLANS kliniek  noord"
 reset "$SEED"
 ok "before fill: current server for live address is ambiguous (2 matching salons)" "$(Q $F -c "select count(*) from settings where pg_temp.gs_slug(salon_name)='glans-kliniek-noord'")" "2"
 ok "before fill: new server finds nothing" "$(NEWS glans-kliniek-noord)" "NOT_FOUND"
@@ -76,13 +76,13 @@ reset "insert into settings(id,user_id,created_at,salon_name,public_slug) values
 ok "collides with existing: dry STOP" "$(DRY | grep -o 'verdict=.*')" "verdict=STOP"
 ok "collides with existing: fill stops" "$(FILL 1 | grep -c collide)" "1"
 ok "collides: untouched" "$(Q -c "select count(public_slug) from settings")" "1"
-reset "insert into settings(id,user_id,created_at,salon_name,public_slug) values $(row 1 'Goed' 1 null), $(row 2 '!!!' 1 null), ('aa000003-0000-0000-0000-000000000000','11111111-0000-0000-0000-000000000003','2026-01-01',null,null);"
+reset "insert into settings(id,user_id,created_at,salon_name,public_slug) values $(row 1 'Goed' 1 null), $(row 2 '!!!' 1 null), ('33aa0003-0000-0000-0000-000000000000','11111111-0000-0000-0000-000000000003','2026-01-01',null,null);"
 ok "no usable name: STOP" "$(FILL 3 | grep -c 'no usable name')" "1"
 ok "no usable name: 0 written" "$(Q -c "select count(public_slug) from settings")" "0"
 reset "insert into settings(id,user_id,created_at,salon_name,public_slug) values $(row 2 'Demo' 1 null), $(row 3 'Demo' 2 null);"
 ok "live salon missing: dry STOP" "$(DRY | grep -o 'live_rows=0.*STOP' | wc -l)" "1"
 ok "live salon missing: fill stops, 0 written" "$(FILL 2 | grep -c 'live salon')|$(Q -c "select count(public_slug) from settings")" "1|0"
-reset "insert into settings(id,user_id,created_at,salon_name,public_slug) values $(row 1 'Demo' 1 null), $(row 2 'Demo' 2 null), ('aa000002-0000-0000-0000-000000000001','11111111-0000-0000-0000-000000000003','2026-01-03','Demo-',null);"
+reset "insert into settings(id,user_id,created_at,salon_name,public_slug) values $(row 1 'Demo' 1 null), $(row 2 'Demo' 2 null), ('22aa0002-0000-0000-0000-000000000001','11111111-0000-0000-0000-000000000003','2026-01-03','Demo-',null);"
 ok "suffix collision (same id prefix): STOP, 0 written" "$(FILL 3 | grep -c collide)|$(Q -c "select count(public_slug) from settings")" "1|0"
 
 # 5. rollback
