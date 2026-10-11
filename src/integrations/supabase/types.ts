@@ -122,6 +122,33 @@ export type Database = {
         }
         Relationships: []
       }
+      appointment_checkout_claims: {
+        Row: {
+          appointment_id: string
+          claim_key: string
+          created_at: string
+          expires_at: string
+          payment_id: string | null
+          tenant_id: string
+        }
+        Insert: {
+          appointment_id: string
+          claim_key: string
+          created_at?: string
+          expires_at: string
+          payment_id?: string | null
+          tenant_id: string
+        }
+        Update: {
+          appointment_id?: string
+          claim_key?: string
+          created_at?: string
+          expires_at?: string
+          payment_id?: string | null
+          tenant_id?: string
+        }
+        Relationships: []
+      }
       appointment_employees: {
         Row: {
           appointment_id: string
@@ -2884,6 +2911,51 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_ledger: {
+        Row: {
+          amount_cents: number
+          appointment_id: string | null
+          created_at: string
+          currency: string
+          id: string
+          is_demo: boolean
+          kind: string
+          payment_id: string
+          provider: string
+          provider_transaction_id: string
+          source: string
+          tenant_id: string
+        }
+        Insert: {
+          amount_cents: number
+          appointment_id?: string | null
+          created_at?: string
+          currency: string
+          id?: string
+          is_demo: boolean
+          kind: string
+          payment_id: string
+          provider: string
+          provider_transaction_id: string
+          source: string
+          tenant_id: string
+        }
+        Update: {
+          amount_cents?: number
+          appointment_id?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          is_demo?: boolean
+          kind?: string
+          payment_id?: string
+          provider?: string
+          provider_transaction_id?: string
+          source?: string
+          tenant_id?: string
+        }
+        Relationships: []
+      }
       payment_links: {
         Row: {
           amount: number
@@ -4400,6 +4472,7 @@ export type Database = {
       }
       tenant_feature_flags: {
         Row: {
+          appointment_checkout_enabled: boolean
           atomic_agenda_enabled: boolean
           history_csv_import_enabled: boolean
           history_csv_preview_enabled: boolean
@@ -4407,6 +4480,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          appointment_checkout_enabled?: boolean
           atomic_agenda_enabled?: boolean
           history_csv_import_enabled?: boolean
           history_csv_preview_enabled?: boolean
@@ -4414,6 +4488,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          appointment_checkout_enabled?: boolean
           atomic_agenda_enabled?: boolean
           history_csv_import_enabled?: boolean
           history_csv_preview_enabled?: boolean
@@ -5562,6 +5637,13 @@ export type Database = {
           status: string
         }[]
       }
+      appointment_ledger_totals: {
+        Args: { _appointment_id: string; _tenant_id: string }
+        Returns: {
+          paid_cents: number
+          refunded_cents: number
+        }[]
+      }
       appointment_slot_check: {
         Args: {
           _date: string
@@ -5576,6 +5658,10 @@ export type Database = {
           _tenant: string
         }
         Returns: string
+      }
+      attach_checkout_claim: {
+        Args: { _key: string; _payment_id: string }
+        Returns: undefined
       }
       auto_rebook_candidates: {
         Args: { _max_customers?: number; _offset?: number }
@@ -5610,6 +5696,15 @@ export type Database = {
       can_view_finance: { Args: { _user_id: string }; Returns: boolean }
       check_public_rate_limit: {
         Args: { _bucket: string; _max: number; _window_seconds: number }
+        Returns: boolean
+      }
+      claim_appointment_checkout: {
+        Args: {
+          _appointment_id: string
+          _key: string
+          _tenant_id: string
+          _ttl_seconds: number
+        }
         Returns: boolean
       }
       claim_auto_rebook: {
@@ -5809,6 +5904,20 @@ export type Database = {
         Args: { _order_id: string }
         Returns: boolean
       }
+      record_provider_payment: {
+        Args: {
+          _amount_cents: number
+          _currency: string
+          _kind: string
+          _payment_id: string
+          _provider: string
+          _source: string
+          _tenant_id: string
+          _transaction_id: string
+        }
+        Returns: string
+      }
+      release_checkout_claim: { Args: { _key: string }; Returns: undefined }
       release_document_share_download: {
         Args: { _share_id: string }
         Returns: undefined
