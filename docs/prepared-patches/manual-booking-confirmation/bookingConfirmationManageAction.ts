@@ -16,7 +16,7 @@
 // shell() already omits the button when primaryAction.url is empty, so returning undefined
 // yields an e-mail with NO manage button and NO /afspraak/beheer URL in the HTML.
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 export const MANAGE_BASE = "https://glowsuite.nl/mijn-afspraak/";
 
 /** Fail-closed: only the exact main-domain Mijn afspraak URL with a valid UUID token passes. */
