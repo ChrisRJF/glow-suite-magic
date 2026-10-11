@@ -6,7 +6,7 @@ const BC = "1c6c885e-c944-4717-b2ef-9cfdb9fa15ae";
 const OTHER = "cbd7d158-0133-4f2f-a504-4b82f73f2e20";
 
 // Guard: the banner must not run any extra query of its own.
-const rpc = vi.fn(() => Promise.resolve({ data: null, error: { message: "nope" } }));
+const rpc = vi.fn((..._args: unknown[]) => Promise.resolve({ data: null, error: { message: "nope" } }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: (...a: unknown[]) => rpc(...a) } }));
 vi.mock("@/hooks/useSubscription", () => ({ startMollieCheckout: vi.fn() }));
 
