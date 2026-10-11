@@ -50,11 +50,18 @@ Deno.serve(async (req) => {
       allowedRecipients: recipients,
       rendererTokenOnlyManageLink: true, // live sender only renders a manage button for a valid token
       loadAppointment: async (t, id) => one(db.from("appointments").select("id,user_id,is_demo,status,source,customer_id,service_id,appointment_date,start_time,end_time,booking_token,booking_reference,payment_status").eq("id", id).eq("user_id", t).maybeSingle()),
-      loadEmployeeLinks: async (id) => {
-        const rows = (await one(db.from("appointment_employees").select("employee_id,is_primary,employees(name)").eq("appointment_id", id))) as any[] ?? [];
-        return rows.map((r) => ({ employee_id: r.employee_id, is_primary: r.is_primary === true, name: r.employees?.name ?? null }));
+      // No FK appointment_employees -> employees: two separate queries, both limited to the same salon.
+      loadEmployeeLinks: async (id, t) => {
+        const links = ((await one(db.from("appointment_employees").select("employee_id,is_primary").eq("appointment_id", id).eq("user_id", t))) as any[] | null) ?? [];
+        if (links.length === 0) return [];
+        const emps = ((await one(db.from("employees").select("id,name").eq("user_id", t).in("id", links.map((l) => l.employee_id)))) as any[] | null) ?? [];
+        const names = new Map(emps.map((e) => [e.id, e.name ?? null]));
+        return links.map((l) => ({ employee_id: l.employee_id, is_primary: l.is_primary === true, name: names.get(l.employee_id) ?? null }));
       },
-      loadCustomer: async (t, id) => one(db.from("customers").select("name,email,language").eq("id", id).eq("user_id", t).maybeSingle()),
+      loadCustomer: async (t, id) => {
+        const c = (await one(db.from("customers").select("name,email,preferred_language").eq("id", id).eq("user_id", t).maybeSingle())) as any;
+        return c ? { name: c.name ?? null, email: c.email ?? null, language: c.preferred_language ?? null } : null;
+      },
       loadService: async (t, id) => one(db.from("services").select("name").eq("id", id).eq("user_id", t).maybeSingle()),
       loadSalon: async (t) => one(db.from("settings").select("salon_name,public_slug,demo_mode,is_demo").eq("user_id", t).maybeSingle()),
       emailAllowed: async (t, c) => {
