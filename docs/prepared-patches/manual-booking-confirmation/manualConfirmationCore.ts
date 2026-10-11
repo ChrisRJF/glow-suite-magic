@@ -157,5 +157,4 @@ export async function sendForTenant(
   if (res.ok === true && res.uncertain !== true) return { sent: true, key };
   if (res.uncertain === true) return skip("send_uncertain"); // keep the claim: never silently resend or mark sent
   await deps.release(key).catch(() => {}); return skip("send_failed");
-  return { sent: true, key };
 }
