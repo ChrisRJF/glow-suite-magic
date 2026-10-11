@@ -108,7 +108,6 @@ RETURNS void LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
   DELETE FROM public.appointment_checkout_claims WHERE claim_key = _key;
 $$;
 
--- Default privileges also hand EXECUTE to sandbox_exec-free roles only; still revoke explicitly.
 REVOKE ALL ON FUNCTION public.record_provider_payment(uuid,uuid,text,text,text,integer,text,text) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.claim_appointment_checkout(text,uuid,uuid,integer) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.attach_checkout_claim(text,uuid) FROM PUBLIC, anon, authenticated;
