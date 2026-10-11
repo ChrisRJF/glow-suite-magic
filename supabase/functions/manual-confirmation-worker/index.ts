@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
       return r.data.is_demo === true || r.data.demo_mode === true;
     },
     core: {
-      allowedRecipients: recipients,
+      allowedRecipients: scope.allowedRecipients,
       rendererTokenOnlyManageLink: true, // live sender only renders a manage button for a valid token
       loadAppointment: async (t, id) => one(db.from("appointments").select("id,user_id,is_demo,status,source,customer_id,service_id,appointment_date,start_time,end_time,booking_token,booking_reference,payment_status").eq("id", id).eq("user_id", t).maybeSingle()),
       // No FK appointment_employees -> employees: two separate queries, both limited to the same salon.
@@ -113,8 +113,8 @@ Deno.serve(async (req) => {
         } catch { return { ok: false, uncertain: true }; }
       },
     },
-  });
-  return Response.json(summary);
+  }));
+  return Response.json(results);
   } finally {
     await db.rpc("release_scheduler_lock", { _name: "manual-confirmation-worker" });
   }
