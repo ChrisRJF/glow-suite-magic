@@ -19,7 +19,7 @@ NAMES=("Studio Één" "Salon Bloem & Co" "  BEAUTY   lounge " "Café Noïr" "Nai
 reset ""
 for n in "${NAMES[@]}"; do
   js=$(bun -e 'const s=v=>v.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"");console.log(s(process.argv[1]))' "$n")
-  inl=$(Q -c "select $(echo "$EXPR" | sed "s/salon_name/\$q\$$n\$q\$/")")
+  inl=$(Q -c "truncate settings; insert into settings(salon_name) values (\$q\$$n\$q\$); select $EXPR from settings")
   fn=$(Q -f "$BASE/00_slug_function.sql" -c "select pg_temp.gs_slug(\$q\$$n\$q\$)")
   ok "inline = server = migration: '$js'" "$inl|$fn" "$js|$js"
 done
@@ -32,7 +32,7 @@ C0=$(Q -c "$CAT"); P0=$(Q -c "$PROC"); S0=$(Q -c "select md5(string_agg(id||coal
 ok "9/9 OK" "$(run)" "total=9 missing=9 empty_derived=0 duplicate_after=0 same_name_salons=0 would_update=9 verdict=OK"
 ok "no objects created" "$(Q -c "$CAT")|$(Q -c "$PROC")" "$C0|$P0"
 ok "no data changed" "$(Q -c "select md5(string_agg(id||coalesce(public_slug,'~'),',')) from settings")" "$S0"
-ok "file has no writes/DDL/volatile calls" "$(grep -viE '^\s*--' "$B" | grep -ciE 'insert|update|delete|create|alter|drop|grant|truncate|copy|nextval|setval|set_config|pg_temp|lock |do \$')" "0"
+ok "file has no writes/DDL/volatile calls" "$(grep -viE '^\s*--' "$B" | sed 's/would_update//g' | grep -ciwE 'insert|update|delete|create|alter|drop|grant|truncate|copy|nextval|setval|set_config|pg_temp|lock|do|call|perform|function')" "0"
 ok "write inside its transaction is refused" "$(sed 's/^ROLLBACK;/CREATE TEMP TABLE x(i int);\nROLLBACK;/' "$B" > "$BASE/w.sql"; chown $RUNUID "$BASE/w.sql"; Q -f "$BASE/w.sql" | grep -c 'read-only transaction')" "1"
 # conflicts
 reset "insert into public.settings(salon_name) values ('Studio Een'),('studio één'),('Ander');"
