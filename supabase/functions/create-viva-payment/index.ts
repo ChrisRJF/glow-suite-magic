@@ -12,6 +12,7 @@ import {
   isvWarn,
   maskId,
 } from "../_shared/vivaIsv.ts";
+import { CHECKOUT_MARKER, isInternalCheckoutCall, resolveCheckoutTenant, tenantIsDemo, loadLiveKyc, liveKycReady, environmentMatches } from "../_shared/checkoutGuard.ts";
 
 
 const corsHeaders = {
@@ -32,7 +33,7 @@ const BodySchema = z.object({
   offer_id: z.string().uuid().optional().nullable(),
   membership_id: z.string().uuid().optional().nullable(),
   amount_cents: z.number().int().positive().max(10_000_00),
-  payment_type: z.enum(["deposit", "full", "subscription", "other"]).default("deposit"),
+  payment_type: z.enum(["deposit", "full", "subscription", "other", "appointment_checkout"]).default("deposit"),
   source: z.enum(["public_booking", "auto_revenue", "membership", "manual"]).default("manual"),
   description: z.string().max(255).optional(),
   customer: z.object({
@@ -68,15 +69,33 @@ Deno.serve(async (req) => {
     }
 
     const input = parsed.data;
+    // Appointment checkout: only via the appointment-checkout function, salon from membership, mode from settings.
+    const isCheckout = input.payment_type === "appointment_checkout";
+    let ownerId = user.id;
+    if (isCheckout) {
+      if (!isInternalCheckoutCall(req) || !input.appointment_id) return json({ error: "Niet toegestaan." }, 403);
+      const t = await resolveCheckoutTenant(admin, user.id);
+      if (!t) return json({ error: "Geen rechten voor afrekenen in deze salon." }, 403);
+      ownerId = t.tenantId;
+      const demo = await tenantIsDemo(admin, ownerId);
+      if (demo === null) return json({ error: "Salonmodus onduidelijk." }, 409);
+      input.is_demo = demo;
+      if (!demo) {
+        if (!environmentMatches(false, Deno.env.get("VIVA_ENVIRONMENT"))) return json({ error: "Live betaalomgeving niet actief." }, 409);
+        if (!liveKycReady(await loadLiveKyc(admin, ownerId), "link")) {
+          return json({ error: "Verificatie (KYC) of online betalen is nog niet actief voor deze salon.", code: "kyc_not_ready" }, 409);
+        }
+      }
+    }
     const { data: settings } = await admin
       .from("settings")
       .select("id, demo_mode, is_demo, payment_provider, viva_status, viva_live_enabled, viva_demo_enabled")
-      .eq("user_id", user.id)
+      .eq("user_id", ownerId)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    const demoMode = input.is_demo === true || Boolean(settings?.is_demo || settings?.demo_mode);
+    const demoMode = isCheckout ? input.is_demo === true : (input.is_demo === true || Boolean(settings?.is_demo || settings?.demo_mode));
     let amountCents = input.amount_cents;
 
     // ---- SERVER-SIDE ENFORCEMENT: verify amount + prevent duplicates for appointment-linked payments ----
@@ -88,10 +107,11 @@ Deno.serve(async (req) => {
         .maybeSingle();
       if (!appt) return json({ error: "Afspraak niet gevonden." }, 404);
       // Cross-tenant guard: caller must own the appointment
-      if (appt.user_id !== user.id) return json({ error: "Niet geautoriseerd voor deze afspraak." }, 403);
+      if (appt.user_id !== ownerId) return json({ error: "Niet geautoriseerd voor deze afspraak." }, 403);
 
       // If the appointment requires a deposit, the requested amount cannot be lower.
-      if (appt.payment_required) {
+      // Checkout amount = open balance computed from the ledger by the checkout route; never raised to the deposit.
+      if (appt.payment_required && !isCheckout) {
         const requiredCents = Math.round(Number(appt.deposit_amount || 0) * 100);
         if (requiredCents > 0 && amountCents < requiredCents) {
           console.warn("[create-viva-payment] amount_cents below required deposit — overriding", {
@@ -108,7 +128,7 @@ Deno.serve(async (req) => {
         .from("payments")
         .select("id, status")
         .eq("appointment_id", input.appointment_id)
-        .in("status", ["pending", "open", "paid"]);
+        .in("status", isCheckout ? ["pending", "open"] : ["pending", "open", "paid"]);
       if (existingPayments && existingPayments.length > 0) {
         return json({
           error: "Er is al een actieve betaallink voor deze afspraak.",
@@ -143,6 +163,7 @@ Deno.serve(async (req) => {
       offer_id: input.offer_id ?? null,
       membership_id: input.membership_id ?? null,
       payment_type: input.payment_type,
+      ...(isCheckout ? { checkout: CHECKOUT_MARKER, created_by_user_id: user.id } : {}),
       total_amount_cents: amountCents,
     };
 
@@ -152,13 +173,13 @@ Deno.serve(async (req) => {
       const { data: payment, error: insertErr } = await admin
         .from("payments")
         .insert({
-          user_id: user.id,
+          user_id: ownerId,
           appointment_id: input.appointment_id,
           customer_id: input.customer_id,
           membership_id: input.membership_id,
           amount: amountEuros,
           currency: "EUR",
-          payment_type: input.payment_type === "subscription" ? "membership" : input.payment_type === "other" ? "full" : input.payment_type,
+          payment_type: input.payment_type === "subscription" ? "membership" : (input.payment_type === "other" || isCheckout) ? "full" : input.payment_type,
           status: "pending",
           method: "viva",
           is_demo: true,
@@ -192,7 +213,7 @@ Deno.serve(async (req) => {
     // ---- ISV MERCHANT SCOPE ----
     // The merchant is derived from the authenticated user only. Never from the
     // request body, the frontend, or a URL parameter.
-    const merchantResult = await requireMerchantContext(admin, user.id);
+    const merchantResult = await requireMerchantContext(admin, ownerId);
     if (!merchantResult.ok || !merchantResult.context) {
       isvWarn("merchant_context_missing", {
         fn: "create-viva-payment",
@@ -263,13 +284,13 @@ Deno.serve(async (req) => {
     const { data: payment, error: insertErr } = await admin
       .from("payments")
       .insert({
-        user_id: user.id,
+        user_id: ownerId,
         appointment_id: input.appointment_id,
         customer_id: input.customer_id,
         membership_id: input.membership_id,
         amount: amountEuros,
         currency: "EUR",
-        payment_type: input.payment_type === "subscription" ? "membership" : input.payment_type === "other" ? "full" : input.payment_type,
+        payment_type: input.payment_type === "subscription" ? "membership" : (input.payment_type === "other" || isCheckout) ? "full" : input.payment_type,
         status: "pending",
         method: "viva",
         is_demo: false,
@@ -290,7 +311,7 @@ Deno.serve(async (req) => {
       .single();
     if (insertErr) return json({ error: insertErr.message }, 500);
 
-    if (input.appointment_id) {
+    if (input.appointment_id && !isCheckout) {
       await admin.from("appointments").update({ payment_status: "in_afwachting" }).eq("id", input.appointment_id);
     }
 
