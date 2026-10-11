@@ -31,13 +31,13 @@ export default function CustomersPage() {
   const [searchParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [visibleCount, setVisibleCount] = useState(100);
-  useEffect(() => { setVisibleCount(100); }, [search, filterLabel]);
   const [selectedCustomer, setSelectedCustomer] = useState<Tables<"customers"> | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [showDup, setShowDup] = useState(false);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ name: '', phone: '', email: '', notes: '' });
   const [filterLabel, setFilterLabel] = useState<string>(() => {
+  useEffect(() => { setVisibleCount(100); }, [search, filterLabel]);
     const f = searchParams.get("filter");
     return f || "alle";
   });
