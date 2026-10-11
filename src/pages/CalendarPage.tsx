@@ -626,7 +626,7 @@ export default function CalendarPage() {
         journey: journeyLink,
         group: subAppts.map((s) => ({ person_name: s.person_name, service_id: s.service_id, assigned_time: s.assigned_time, assigned_employee: s.assigned_employee })),
       });
-      if (!built.ok) { toast.error(built.message); return; }
+      if (built.ok === false) { toast.error((built as { message: string }).message); return; }
       body = built.body;
     }
     const out = await createViaRoute((name, opts) => supabase.functions.invoke(name, opts) as any, body);
