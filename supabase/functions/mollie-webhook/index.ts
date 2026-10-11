@@ -1,5 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getDefaultMessageTemplate, normalizeMessageLang, renderMessage, intlLocale, resolveCustomerLanguage } from "../_shared/messageTranslations.ts";
+import { isCheckoutPayment, makeLedgerDeps } from "../_shared/checkoutGuard.ts";
+import { applyEvidence, syncAppointment } from "../_shared/providerLedger.ts";
 import { appendConfirmationBlock, buildConfirmationLink, claimReminderDispatch } from "../_shared/reminderEngine.ts";
 
 const corsHeaders = {
@@ -119,7 +121,18 @@ Deno.serve(async (req) => {
     const arSources = ["auto_revenue_deposit", "auto_revenue_full"];
     const isAutoRevenue = arSources.includes((payment.metadata as any)?.source) || arSources.includes(metadata?.source);
 
-    if (appointmentId) {
+    if (appointmentId && isCheckoutPayment(payment.metadata)) {
+      // Appointment checkout: only the amount Mollie's API returned reaches the ledger; totals come from the ledger.
+      const ld = makeLedgerDeps(supabase);
+      const cents = Math.round(Number(molliePayment?.amount?.value) * 100);
+      if (status === "paid" && Number.isInteger(cents) && cents > 0) {
+        const res = await applyEvidence({ tenantId: payment.user_id, paymentId: payment.id, provider: "mollie", transactionId: String(molliePayment.id || molliePaymentId),
+          kind: "payment", amountCents: cents, currency: String(molliePayment?.amount?.currency || ""), source: "webhook" }, appointmentId, ld);
+        console.log("mollie checkout_ledger", JSON.stringify({ payment_id: payment.id, result: res }));
+      } else if (["failed", "expired", "canceled", "cancelled"].includes(status)) {
+        await syncAppointment(payment.user_id, appointmentId, ld).catch(() => {});
+      }
+    } else if (appointmentId) {
       const amountPaid = status === "paid" ? Number(payment.amount || 0) : 0;
       // For auto-revenue deposits, paid → 'gepland' (Dutch convention used in this app)
       const apptStatusToSet = isAutoRevenue && status === "paid"
