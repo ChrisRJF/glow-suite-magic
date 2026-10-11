@@ -11,12 +11,16 @@ export type EmailAuthDeps = {
   rolesForUser: (userId: string) => Promise<string[] | null>;
   /** Manual sends only: true if recipient email is a stored customer of this tenant. Missing = deny. */
   recipientAllowed?: (tenantId: string, email: string) => Promise<boolean>;
+  /** Server-side allowlist of verified platform-admin user IDs (secret). Empty/missing = nobody. */
+  platformAdminIds?: ReadonlySet<string>;
+  /** Server-side allowlist of approved test addresses for platform-admin sends. Empty = nobody. */
+  platformTestRecipients?: ReadonlySet<string>;
 };
 
 export type EmailAuthMode = { mode: "preview" } | { mode: "send"; recipientEmail: string };
 
 export type EmailAuthResult =
-  | { ok: true; caller: "service" | "user"; tenantId: string }
+  | { ok: true; caller: "service" | "user" | "platform_admin"; tenantId: string }
   | { ok: false; status: 401 | 403 | 500; error: string };
 
 export const PREVIEW_ROLES = new Set(["eigenaar", "admin", "manager"]);
@@ -54,6 +58,17 @@ export async function authorizeEmailRequest(
   try {
     const uid = await deps.verifyUser(token);
     if (!uid) return { ok: false, status: 401, error: "unauthenticated" };
+    // Platform admin: ONLY via the explicit server-side allowlist. Salon roles never grant this.
+    // Preview: any salon. Send: only to an approved test address, never to real customers.
+    if (deps.platformAdminIds?.has(uid)) {
+      if (access.mode === "send") {
+        const email = (access.recipientEmail ?? "").trim().toLowerCase();
+        if (!email || !deps.platformTestRecipients?.has(email)) {
+          return { ok: false, status: 403, error: "recipient_not_allowed" };
+        }
+      }
+      return { ok: true, caller: "platform_admin", tenantId: requestedUserId };
+    }
     const tenant = await deps.tenantForUser(uid);
     if (!tenant || tenant !== requestedUserId) return { ok: false, status: 403, error: "forbidden" };
     const roles = await deps.rolesForUser(uid);
@@ -69,4 +84,9 @@ export async function authorizeEmailRequest(
   } catch {
     return { ok: false, status: 500, error: "auth_unavailable" };
   }
+}
+
+/** Parse a comma/whitespace separated secret into a lowercase set. Missing/empty = empty set (fail-closed). */
+export function parseAllowlist(raw: string | undefined | null): Set<string> {
+  return new Set((raw ?? "").split(/[\s,]+/).map((x) => x.trim().toLowerCase()).filter(Boolean));
 }
