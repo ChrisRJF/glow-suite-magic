@@ -37,10 +37,10 @@ export default function CustomersPage() {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ name: '', phone: '', email: '', notes: '' });
   const [filterLabel, setFilterLabel] = useState<string>(() => {
-  useEffect(() => { setVisibleCount(100); }, [search, filterLabel]);
     const f = searchParams.get("filter");
     return f || "alle";
   });
+  useEffect(() => { setVisibleCount(100); }, [search, filterLabel]);
 
   // Open a specific dossier straight away when the route names a customer.
   useEffect(() => {
