@@ -16,12 +16,12 @@ AS() { env -i PATH="$PATH" HOME=/tmp setpriv --reuid=$RUNUID --regid=$RUNUID --c
 AS initdb -D "$BASE/data" -U testsuper -A trust >/dev/null
 AS pg_ctl -D "$BASE/data" -l "$BASE/log" -o "-c listen_addresses='' -k $BASE/sock" -w start >/dev/null
 trap finish EXIT
-P="psql -X -q -At -h $BASE/sock -U testsuper"; Q() { AS $P -d gs3a -c "$1"; }
+P="psql -X -q -At -h $BASE/sock -U testsuper"; Q() { AS $P -d gs_move -c "$1"; }
 ok() { if [ "$2" = "$3" ]; then echo "PASS: $1"; else echo "FAIL: $1 (got '$2' want '$3')"; fi; }
-AS $P -d postgres -c "create database gs3a" >/dev/null
-AS bash -c "$P -d gs3a -v ON_ERROR_STOP=1 -f $BASE/fixture.sql" >/dev/null
-AS bash -c "$P -d gs3a -1 -v ON_ERROR_STOP=1 -f $BASE/2026-10-10_atomic_appointment_move.sql" >/dev/null
-AS bash -c "$P -d gs3a -v ON_ERROR_STOP=1 -f $BASE/2026-10-10_atomic_appointment_activate_booking.sql -f $BASE/2026-10-10_atomic_appointment_activate_agenda.sql" >/dev/null
+AS $P -d postgres -c "create database gs_move" >/dev/null
+AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/fixture.sql" >/dev/null
+AS bash -c "$P -d gs_move -1 -v ON_ERROR_STOP=1 -f $BASE/2026-10-10_atomic_appointment_move.sql" >/dev/null
+AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/2026-10-10_atomic_appointment_activate_booking.sql -f $BASE/2026-10-10_atomic_appointment_activate_agenda.sql" >/dev/null
 # fictional salon memberships (structure as live user_access)
 Q "CREATE TABLE public.user_access (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), owner_user_id uuid NOT NULL, member_user_id uuid, role public.app_role NOT NULL, status text NOT NULL DEFAULT 'active', is_demo boolean NOT NULL DEFAULT false, created_at timestamptz NOT NULL DEFAULT now());
  INSERT INTO public.user_access (owner_user_id, member_user_id, role) VALUES
@@ -39,22 +39,22 @@ import sys; s=open(sys.argv[1]).read(); k=s.index('-- final verification')
 open(sys.argv[2],'w').write(s[:k]+"GRANT EXECUTE ON FUNCTION public.agenda_actor_tenant(uuid) TO authenticated;\n"+s[k:])
 PY
 chown $RUNUID "$BASE/bad.sql"
-AS bash -c "$P -d gs3a -1 -v ON_ERROR_STOP=1 -f $BASE/bad.sql" >/dev/null 2>&1 && echo "FAIL: M01 stray grant passed" || echo "PASS: M01 stray grant aborts migration"
+AS bash -c "$P -d gs_move -1 -v ON_ERROR_STOP=1 -f $BASE/bad.sql" >/dev/null 2>&1 && echo "FAIL: M01 stray grant passed" || echo "PASS: M01 stray grant aborts migration"
 ok "M01 nothing left after abort" "$(Q "select count(*) from pg_proc where proname in ('create_appointment_atomic_as','agenda_actor_tenant')")/$(Q "select count(*) from pg_class where relname='agenda_create_requests'")" "0/0"
-AS bash -c "$P -d gs3a -1 -v ON_ERROR_STOP=1 -f $BASE/2026-10-11_agenda_create_route.sql" >/dev/null && echo "PASS: M02 3A migration applies in one transaction"
+AS bash -c "$P -d gs_move -1 -v ON_ERROR_STOP=1 -f $BASE/2026-10-11_agenda_create_route.sql" >/dev/null && echo "PASS: M02 3A migration applies in one transaction"
 ok "M03 existing functions (source + ACL) unchanged" "$(Q "$SNAP")" "$F0"
 ok "M03 existing table columns unchanged" "$(Q "$TSNAP")" "$T0"
 ok "M04 flags still off after migration" "$(Q "select count(*) filter (where atomic_agenda_enabled) from tenant_feature_flags")" "0"
 # existing suites with the flag on (as in step 3 activation), proving public booking + RPCs unchanged
 Q "update tenant_feature_flags set atomic_agenda_enabled=true" >/dev/null
 for F in tests.sql tests-phase2.sql tests-phase3.sql tests-phase4.sql tests-3a.sql; do
-  AS bash -c "$P -d gs3a -v ON_ERROR_STOP=1 -f $BASE/$F 2>&1" | grep -E "PASS|FAIL|ERROR" | sed 's/^psql:[^:]*:[0-9]*: NOTICE:  //'
+  AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/$F 2>&1" | grep -E "PASS|FAIL|ERROR" | sed 's/^psql:[^:]*:[0-9]*: NOTICE:  //'
 done
 # ---- races: s1 holds its transaction 2 s, s2 starts 0.5 s later ----
 call() { # tag actor reqid date time
   echo "BEGIN; SET LOCAL ROLE service_role; SELECT '$1:'||(r->>'code')||':'||coalesce(r->>'replay','')||':'||coalesce(r->>'appointment_id','') FROM (SELECT public.create_appointment_atomic_as('$2','$3',false,NULL,'a0000000-0000-0000-0000-000000000060','$4','$5',ARRAY['e0000000-0000-0000-0000-00000000000a']::uuid[],'',NULL,NULL,NULL) r) x; SELECT pg_sleep(2); COMMIT;"; }
 race() { echo "$2" > "$BASE/s1.sql"; echo "$3" > "$BASE/s2.sql"; chown $RUNUID "$BASE"/s?.sql
-  AS bash -c "$P -d gs3a -f $BASE/s1.sql > $BASE/s1.out 2>&1 & sleep 0.5; $P -d gs3a -f $BASE/s2.sql > $BASE/s2.out 2>&1; wait"
+  AS bash -c "$P -d gs_move -f $BASE/s1.sql > $BASE/s1.out 2>&1 & sleep 0.5; $P -d gs_move -f $BASE/s2.sql > $BASE/s2.out 2>&1; wait"
   grep -h '^s[12]:' "$BASE/s1.out" "$BASE/s2.out" | tr '\n' ' '; }
 R=$(race x "$(call s1 11111111-1111-1111-1111-111111111111 60000000-0000-4000-8000-000000000001 2026-11-09 10:00)" "$(call s2 11111111-1111-1111-1111-111111111111 60000000-0000-4000-8000-000000000001 2026-11-09 10:00)")
 A1=$(echo "$R" | sed -n 's/.*s1:created:false:\([0-9a-f-]*\).*/\1/p'); A2=$(echo "$R" | sed -n 's/.*s2:created:true:\([0-9a-f-]*\).*/\1/p')
