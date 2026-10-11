@@ -19,6 +19,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { useCustomerIntelligence } from "@/hooks/useCustomerIntelligence";
 import { calculateNoShowRisk } from "@/lib/noShowRisk";
 import { searchAfterUpdate } from "@/lib/customerDuplicates";
+import { filterCustomerList } from "@/lib/customerSearch";
 import { DuplicateCustomersReview } from "@/components/customers/DuplicateCustomersReview";
 
 export default function CustomersPage() {
