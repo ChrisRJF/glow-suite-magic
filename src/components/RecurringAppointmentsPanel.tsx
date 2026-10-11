@@ -42,7 +42,7 @@ export function RecurringAppointmentsPanel({ appointment, links, userId, tenantI
     const existing = loadBatch(store, key);
     if (existing) { setBatch(existing); return; }
     const b = buildBatch(appointment.id, tpl, dates, () => crypto.randomUUID());
-    if (!b.ok) { setError(b.message); return; }
+    if (b.ok === false) { setError(b.message); return; }
     setBatch(b.batch); run(b.batch);
   };
 
@@ -58,7 +58,7 @@ export function RecurringAppointmentsPanel({ appointment, links, userId, tenantI
   return (
     <div className="rounded-2xl border border-border bg-card p-4 space-y-4">
       <h3 className="text-sm font-semibold">Herhaalafspraken · elke 2 weken</h3>
-      {!tpl.ok && <p className="flex gap-2 rounded-xl bg-destructive/10 p-3 text-sm text-destructive"><AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />{tpl.message}</p>}
+      {tpl.ok === false && <p className="flex gap-2 rounded-xl bg-destructive/10 p-3 text-sm text-destructive"><AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />{tpl.message}</p>}
       {tpl.ok && !batch && (
         <>
           <div className="flex flex-wrap gap-2" role="group" aria-label="Aantal extra afspraken">

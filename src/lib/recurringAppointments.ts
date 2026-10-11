@@ -65,7 +65,7 @@ export function buildBatch(sourceId: string, t: { customer_id: string; service_i
   const items: BatchItem[] = [];
   for (const date of dates) {
     const b = buildCreateBody(newId(), { customer_id: t.customer_id, service_id: t.service_id, date, time: t.time, employee_ids: t.employee_ids, notes: RECURRING_NOTE, group: [], send_confirmation: false }, { uiEnabled: false });
-    if (!b.ok) return b;
+    if (b.ok === false) return { ok: false, message: b.message };
     items.push({ date, body: { ...b.body, send_confirmation: false }, status: "pending" });
   }
   return { ok: true, batch: { v: 1, sourceId, items } };
