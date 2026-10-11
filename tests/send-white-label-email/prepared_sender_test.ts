@@ -52,6 +52,7 @@ let handler: (r: Request) => Promise<Response>;
 (Deno as any).serve = (h: any) => { handler = h; return {} as any; };
 await import("../../supabase/functions/_shared/inactive/sendWhiteLabelEmail.prepared.ts");
 
+const T = (name: string, fn: () => Promise<void>) => Deno.test({ name, fn, sanitizeOps: false, sanitizeResources: false });
 const call = async (auth: string | null, body: Record<string, unknown>) => {
   const res = await handler(new Request("http://x/send", { method: "POST", headers: { "content-type": "application/json", ...(auth ? { authorization: `Bearer ${auth}` } : {}) }, body: JSON.stringify(body) }));
   return { status: res.status, body: await res.json() };
@@ -62,7 +63,7 @@ const booking = (over: Record<string, unknown> = {}) => ({
   template_data: { date: "2026-10-16", time: "10:30", service_name: "Fictieve behandeling" }, ...over,
 });
 
-Deno.test("public booking (service caller) with token: sent, valid manage button, HTTP idempotency header", async () => {
+T("public booking (service caller) with token: sent, valid manage button, HTTP idempotency header", async () => {
   const r = await call(SVC, booking({ template_data: { date: "2026-10-16", time: "10:30", manage_url: `https://glowsuite.nl/mijn-afspraak/${TOKEN}` } }));
   assertEquals(r.status, 200);
   const s = sends.at(-1)!;
@@ -72,13 +73,13 @@ Deno.test("public booking (service caller) with token: sent, valid manage button
   assertEquals(s.body.headers, undefined);
 });
 
-Deno.test("repeat with the same key: no second provider call", async () => {
+T("repeat with the same key: no second provider call", async () => {
   const before = sends.length;
   const r = await call(SVC, booking({ template_data: { manage_url: `https://glowsuite.nl/mijn-afspraak/${TOKEN}` } }));
   assertEquals(r.status, 200); assertEquals(r.body.duplicate, true); assertEquals(sends.length, before);
 });
 
-Deno.test("missing or invalid manage link: no manage button, no invented link", async () => {
+T("missing or invalid manage link: no manage button, no invented link", async () => {
   for (const [i, md] of [{}, { manage_url: "https://fictief-a.glowsuite.nl/afspraak/beheer" }, { manage_url: "https://glowsuite.nl/mijn-afspraak/niet-een-token" }].entries()) {
     await call(SVC, booking({ idempotency_key: `no-link-fictief-${i}`, template_data: { date: "2026-10-16", ...md } }));
     const html: string = sends.at(-1)!.body.html;
@@ -86,7 +87,7 @@ Deno.test("missing or invalid manage link: no manage button, no invented link", 
   }
 });
 
-Deno.test("invalid callers are refused before anything is read or sent", async () => {
+T("invalid callers are refused before anything is read or sent", async () => {
   const before = sends.length;
   assertEquals((await call(null, booking({ idempotency_key: "x-fictief-1" }))).status, 401);
   assertEquals((await call("verzonnen-token", booking({ idempotency_key: "x-fictief-2" }))).status, 401);
@@ -94,14 +95,14 @@ Deno.test("invalid callers are refused before anything is read or sent", async (
   assertEquals(sends.length, before);
 });
 
-Deno.test("other salon: owner of B cannot send or preview for A", async () => {
+T("other salon: owner of B cannot send or preview for A", async () => {
   const before = sends.length;
   assertEquals((await call("jwt-owner-B", booking({ idempotency_key: "other-fictief-1" }))).status, 403);
   assertEquals((await call("jwt-owner-B", booking({ idempotency_key: "other-fictief-2", preview_only: true }))).status, 403);
   assertEquals(sends.length, before);
 });
 
-Deno.test("own salon user: only to a stored customer of that salon", async () => {
+T("own salon user: only to a stored customer of that salon", async () => {
   const before = sends.length;
   assertEquals((await call("jwt-owner-A", booking({ idempotency_key: "own-fictief-1", recipient_email: "vreemd@voorbeeld.test" }))).status, 403);
   assertEquals(sends.length, before);
