@@ -12,7 +12,7 @@ trap 'AS pg_ctl -D "$BASE/data" -m immediate stop >/dev/null 2>&1; rm -rf "$BASE
 Q() { AS psql -X -q -At -h "$BASE/sock" -U t -d postgres -v ON_ERROR_STOP=1 "$@" 2>&1; }
 ok() { if [ "$2" = "$3" ]; then echo "PASS $1"; PASS=$((PASS+1)); else echo "FAIL $1: got [$2] want [$3]"; FAIL=$((FAIL+1)); fi; }
 B="$BASE/01b_dry_run_readonly_inline.sql"
-reset() { Q -c "drop table if exists public.settings; create table public.settings(id serial primary key, salon_name text, public_slug text);
+reset() { Q -c "drop table if exists public.settings; create table public.settings(id uuid primary key default gen_random_uuid(), user_id uuid default gen_random_uuid(), created_at timestamptz default clock_timestamp(), salon_name text, public_slug text);
   create unique index on public.settings(public_slug) where public_slug is not null;" >/dev/null; [ -n "$1" ] && Q -c "$1" >/dev/null; }
 EXPR=$(grep -o "btrim(regexp_replace(lower.*'-') AS derived" "$B" | sed 's/ AS derived$//')
 NAMES=("Studio Één" "Salon Bloem & Co" "  BEAUTY   lounge " "Café Noïr" "Nail-Bar_24/7" "Ångström Spa" "Œuvre Beauté" "ﬁne Hair" "Kelvin K Salon" "İstanbul Kuaför" "Salon Ø" "日本 Salon" "Hair—by Ann")
@@ -25,22 +25,26 @@ for n in "${NAMES[@]}"; do
 done
 CAT="select md5(string_agg(oid::text||relname,',' order by oid)) from pg_class"
 PROC="select count(*) from pg_proc"
-run() { Q -f "$B" | tail -1; }
+LIVE=11111111-0000-0000-0000-000000000001
+run() { Q -v live_user=$LIVE -f "$B" | tail -1; }
+live() { Q -c "update public.settings set user_id='$LIVE' where id=(select id from public.settings order by created_at limit 1)" >/dev/null; }
 # happy: 9 fictional salons, all missing
-reset "insert into public.settings(salon_name) select 'Fictief Salon '||chr(64+g) from generate_series(1,9) g;"
+reset "insert into public.settings(salon_name) select 'Fictief Salon '||chr(64+g) from generate_series(1,9) g;"; live
 C0=$(Q -c "$CAT"); P0=$(Q -c "$PROC"); S0=$(Q -c "select md5(string_agg(id||coalesce(public_slug,'~'),',')) from settings"); X0=$(Q -c "select txid_current_if_assigned() is null")
-ok "9/9 OK" "$(run)" "total=9 missing=9 empty_derived=0 duplicate_after=0 same_name_salons=0 would_update=9 verdict=OK"
+ok "9/9 OK" "$(run)" "total=9 missing=9 empty_derived=0 conflict_groups=0 suffixed=0 duplicate_after=0 live_rows=1 live_plain=1 would_update=9 verdict=OK"
 ok "no objects created" "$(Q -c "$CAT")|$(Q -c "$PROC")" "$C0|$P0"
 ok "no data changed" "$(Q -c "select md5(string_agg(id||coalesce(public_slug,'~'),',')) from settings")" "$S0"
 ok "file has no writes/DDL/volatile calls" "$(grep -viE '^\s*--' "$B" | sed 's/would_update//g' | grep -ciwE 'insert|update|delete|create|alter|drop|grant|truncate|copy|nextval|setval|set_config|pg_temp|lock|do|call|perform|function')" "0"
-ok "write inside its transaction is refused" "$(sed 's/^ROLLBACK;/CREATE TEMP TABLE x(i int);\nROLLBACK;/' "$B" > "$BASE/w.sql"; chown $RUNUID "$BASE/w.sql"; Q -f "$BASE/w.sql" | grep -c 'read-only transaction')" "1"
+ok "write inside its transaction is refused" "$(sed 's/^ROLLBACK;/CREATE TEMP TABLE x(i int);\nROLLBACK;/' "$B" > "$BASE/w.sql"; chown $RUNUID "$BASE/w.sql"; Q -v live_user=$LIVE -f "$BASE/w.sql" | grep -c 'read-only transaction')" "1"
 # conflicts
-reset "insert into public.settings(salon_name) values ('Studio Een'),('studio één'),('Ander');"
-ok "similar names STOP" "$(run | grep -o 'same_name_salons=[0-9]* would_update=[0-9]* verdict=.*')" "same_name_salons=1 would_update=3 verdict=STOP"
-reset "insert into public.settings(salon_name,public_slug) values ('A','salon-x'),('Salon X',null);"
+reset "insert into public.settings(salon_name) values ('Studio Een'),('studio één'),('Ander');"; live
+ok "similar names resolved by suffix" "$(run | grep -o 'conflict_groups=.*')" "conflict_groups=1 suffixed=1 duplicate_after=0 live_rows=1 live_plain=1 would_update=3 verdict=OK"
+reset "insert into public.settings(salon_name) values ('Studio Een'),('Ander');"
+ok "live salon absent STOP" "$(run | grep -o 'live_rows=0.*verdict=STOP' | wc -l)" "1"
+reset "insert into public.settings(salon_name,public_slug) values ('A','salon-x'),('Salon X',null);"; live
 ok "collides with existing STOP" "$(run | grep -o 'duplicate_after=1.*verdict=STOP' | wc -l)" "1"
-reset "insert into public.settings(salon_name) values ('!!!'),(null),('Goed');"
-ok "no usable name STOP" "$(run)" "total=3 missing=3 empty_derived=2 duplicate_after=0 same_name_salons=0 would_update=1 verdict=STOP"
-reset "insert into public.settings(salon_name,public_slug) values ('Studio Één',null),('Bloem',' '),('Café','eigen');"
-ok "existing kept, mixed OK" "$(run)" "total=3 missing=2 empty_derived=0 duplicate_after=0 same_name_salons=0 would_update=2 verdict=OK"
-ok "rerun identical" "$(run)" "total=3 missing=2 empty_derived=0 duplicate_after=0 same_name_salons=0 would_update=2 verdict=OK"
+reset "insert into public.settings(salon_name) values ('Goed'),('!!!'),(null);"; live
+ok "no usable name STOP" "$(run)" "total=3 missing=3 empty_derived=2 conflict_groups=0 suffixed=0 duplicate_after=0 live_rows=1 live_plain=1 would_update=1 verdict=STOP"
+reset "insert into public.settings(salon_name,public_slug) values ('Studio Één',null),('Bloem',' '),('Café','eigen');"; live
+ok "existing kept, mixed OK" "$(run)" "total=3 missing=2 empty_derived=0 conflict_groups=0 suffixed=0 duplicate_after=0 live_rows=1 live_plain=1 would_update=2 verdict=OK"
+ok "rerun identical" "$(run)" "total=3 missing=2 empty_derived=0 conflict_groups=0 suffixed=0 duplicate_after=0 live_rows=1 live_plain=1 would_update=2 verdict=OK"

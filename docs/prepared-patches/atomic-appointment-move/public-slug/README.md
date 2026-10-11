@@ -5,10 +5,13 @@ The atomic server requires a stored `public_slug`. Filling it with exactly that 
 every existing `/boeken/<address>` working on both the old and new server.
 
 Order (each step needs approval; counts only, never names or links):
-1. `00` + `01_dry_run.sql` (read-only). Continue only on `verdict=OK`.
-2. `00` + `02_backfill.sql` with `-1 -v expected=<missing>`. All or nothing; stops on drift,
-   empty names, same-name salons or collisions. A second run changes 0 rows.
-3. `00` + `03_post_check.sql`: expect `missing=0 address_wrong=0 duplicates=0`.
+Same-name rule: per derived link the live salon (`-v live_user=<uuid>`) keeps the plain link,
+otherwise the oldest salon (created_at, then id). The others get `<link>-<first 6 hex of settings.id>`.
+
+1. `01b_dry_run_readonly_inline.sql -v live_user=<uuid>` (read-only, creates nothing). Continue only on `verdict=OK`.
+2. `00` + `02_backfill.sql` with `-1 -v expected=<missing> -v live_user=<uuid>`. All or nothing; stops on drift,
+   empty names, live salon not found once, or any collision. A second run changes 0 rows.
+3. `00` + `03_post_check.sql -v live_user=<uuid>`: expect `missing=0 duplicates=0 live_plain=1`.
 4. Emergency only: `04_rollback.sql` (refuses if a salon changed its link afterwards).
 
 Side effects of a filled link (live code that already reads `public_slug`):
@@ -16,4 +19,8 @@ Side effects of a filled link (live code that already reads `public_slug`):
 - auto-rebook-send: rebook links go to `/boeken/<slug>?rb=...` instead of `/boeken?rb=...`.
 - public-shop / public-memberships: those pages can now find the salon (today they cannot).
 
-Test: `bash tests/atomic-appointment-move/run-slug-backfill.sh` (throwaway PostgreSQL, fictional salons).
+New salons: before onboarding (saveSalon) creates or names a salon, it must set public_slug to the
+derived link and, on a unique-index conflict, retry with the same `-<6 hex id>` suffix. Not built yet;
+separate approval.
+
+Test: `bash tests/atomic-appointment-move/run-slug-backfill.sh` and `run-slug-dryrun-inline.sh` (throwaway PostgreSQL, fictional salons).
