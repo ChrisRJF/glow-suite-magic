@@ -33,6 +33,7 @@ const LangSchema = z.enum(["nl", "en", "de", "fr", "es"]);
 const BodySchema = z.object({
   user_id: z.string().uuid(),
   salon_slug: z.string().trim().min(1).max(80).optional(),
+  sender_legacy_name_id: z.boolean().optional(),
   salon_name: z.string().trim().min(1).max(120).optional(),
   recipient_email: z.string().trim().email().max(255),
   recipient_name: z.string().trim().max(120).optional().default(""),
@@ -66,9 +67,14 @@ function slugify(value: string) {
   return slug || "salon";
 }
 
-function uniqueSalonSlug(args: { requested?: string; publicSlug?: string | null; salonName: string; userId: string }) {
-  const hasStableSlug = Boolean(args.requested || args.publicSlug);
-  const base = slugify(args.requested || args.publicSlug || args.salonName);
+// From local part must not change when settings.public_slug is filled or edited.
+function uniqueSalonSlug(args: { requested?: string; publicSlug?: string | null; salonName: string; userId: string; legacyNameId?: boolean }) {
+  const stored = args.publicSlug ? slugify(args.publicSlug) : null;
+  let base: string;
+  let hasStableSlug: boolean;
+  if (args.legacyNameId || !args.requested) { base = slugify(args.salonName); hasStableSlug = false; }
+  else if (stored && slugify(args.requested) === stored) { base = slugify(args.salonName); hasStableSlug = true; }
+  else { base = slugify(args.requested); hasStableSlug = true; }
   const safeBase = RESERVED_LOCAL_PARTS.has(base) ? `salon${base}` : base;
   if (hasStableSlug) return safeBase.slice(0, 60);
   return `${safeBase.slice(0, 48)}${args.userId.replace(/-/g, "").slice(0, 8)}`.slice(0, 60);
@@ -400,7 +406,7 @@ Deno.serve(async (req) => {
 
     const branding = (settings as any).whitelabel_branding || {};
     const salonName = parsed.data.salon_name || (settings as any).salon_name || branding.salon_name || "Salon";
-    const salonSlug = uniqueSalonSlug({ requested: parsed.data.salon_slug, publicSlug: (settings as any).public_slug, salonName, userId: parsed.data.user_id });
+    const salonSlug = uniqueSalonSlug({ requested: parsed.data.salon_slug, publicSlug: (settings as any).public_slug, salonName, userId: parsed.data.user_id, legacyNameId: parsed.data.sender_legacy_name_id === true });
     const fromEmail = `${salonSlug}@${SENDER_DOMAIN}`;
     const replyTo = validReplyTo((parsed.data.template_data as any).salon_contact_email || branding.contact_email || (profile as any)?.email);
     const lang = await resolveLanguage(admin, parsed.data.language, parsed.data.user_id, parsed.data.recipient_email, settings);

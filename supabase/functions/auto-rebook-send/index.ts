@@ -190,6 +190,7 @@ Deno.serve(async (req) => {
         user_id: userId,
         salon_name: salonName,
         salon_slug: slug || undefined,
+        sender_legacy_name_id: true,
         recipient_email: customer.email,
         recipient_name: customer.name || "",
         template_key: "auto_rebook",
