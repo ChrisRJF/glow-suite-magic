@@ -62,19 +62,24 @@ export interface CreateFormInput {
   customer_id: string; service_id: string; date: string; time: string;
   employee_ids: string[]; notes?: string | null; journey?: { id: string; session: number } | null;
   group: GroupLineInput[];
+  /** Form choice "Bevestigingsmail versturen". Only honoured when the switch is enabled. */
+  send_confirmation?: boolean;
 }
+
+/** Manual confirmation mail: OFF until the separate mail activation (outbox migration, worker, renderer fix). */
+export const MANUAL_CONFIRMATION_UI_ENABLED = false;
 export interface CreateBody {
   request_id: string; customer_id: string | null; service_id: string; date: string; time: string;
   employee_ids: string[]; notes: string | null; journey_id: string | null; journey_session: number | null;
   sub_appointments: { person_name: string; service_id: string; time: string; employee_id: null }[] | null;
-  send_confirmation: false;
+  send_confirmation: boolean;
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 /** Only allowed fields. Group lines need an own time; a name-based employee choice is refused, never mapped. */
-export function buildCreateBody(requestId: string, f: CreateFormInput): { ok: true; body: CreateBody } | { ok: false; message: string } {
+export function buildCreateBody(requestId: string, f: CreateFormInput, opts: { uiEnabled?: boolean } = {}): { ok: true; body: CreateBody } | { ok: false; message: string } {
   if (!UUID.test(f.service_id) || (f.customer_id && !UUID.test(f.customer_id)) || !/^\d{4}-\d{2}-\d{2}$/.test(f.date) || !HHMM.test(f.time))
     return { ok: false, message: MESSAGES.invalid_input };
   if (f.employee_ids.some((e) => !UUID.test(e)) || new Set(f.employee_ids).size !== f.employee_ids.length)
@@ -91,7 +96,8 @@ export function buildCreateBody(requestId: string, f: CreateFormInput): { ok: tr
     employee_ids: [...f.employee_ids], notes: f.notes ?? null,
     journey_id: f.journey?.id ?? null, journey_session: f.journey?.session ?? null,
     sub_appointments: lines.length ? lines.map((g) => ({ person_name: g.person_name.trim(), service_id: g.service_id, time: g.assigned_time!, employee_id: null })) : null,
-    send_confirmation: false, // mail stays off until the separate mail activation
+    // Stored with the request (part of its hash), so a retry keeps the same choice.
+    send_confirmation: (opts.uiEnabled ?? MANUAL_CONFIRMATION_UI_ENABLED) === true && f.send_confirmation === true,
   } };
 }
 
