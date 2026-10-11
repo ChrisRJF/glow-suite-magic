@@ -34,3 +34,32 @@ export function searchCustomers<T extends SearchableCustomer>(customers: T[], qu
   }
   return [...starts, ...other].slice(0, limit);
 }
+
+const fold = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+/**
+ * Full-list filter for the customer page: searches EVERY loaded customer (no limit).
+ * Each word of the query must appear in name or email (accent- and case-insensitive,
+ * word order free: "jansen anna" finds "Anna Jansen"). Phone-like queries also match
+ * Dutch phone variants (06 / +31 / 0031).
+ */
+export function filterCustomerList<T extends SearchableCustomer>(customers: T[], query: string): T[] {
+  const q = query.trim();
+  if (!q) return customers;
+  const digits = q.replace(/\D/g, "");
+  const isPhoneLike = digits.length >= 3 && /^[\d\s+()\-.]+$/.test(q);
+  if (isPhoneLike) {
+    const qPhone = phoneKey(q);
+    const tail = digits.replace(/^(00)?31(0)?|^0/, "");
+    return customers.filter((c) => {
+      if (!c.phone) return false;
+      const p = phoneKey(c.phone);
+      return p.includes(qPhone) || (tail.length >= 3 && p.includes(tail));
+    });
+  }
+  const words = fold(q).split(/\s+/).filter(Boolean);
+  return customers.filter((c) => {
+    const hay = fold(`${c.name ?? ""} ${c.email ?? ""} ${c.phone ?? ""}`);
+    return words.every((w) => hay.includes(w));
+  });
+}

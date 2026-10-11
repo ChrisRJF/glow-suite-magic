@@ -19,10 +19,11 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { useCustomerIntelligence } from "@/hooks/useCustomerIntelligence";
 import { calculateNoShowRisk } from "@/lib/noShowRisk";
 import { searchAfterUpdate } from "@/lib/customerDuplicates";
+import { filterCustomerList } from "@/lib/customerSearch";
 import { DuplicateCustomersReview } from "@/components/customers/DuplicateCustomersReview";
 
 export default function CustomersPage() {
-  const { data: customers, loading, refetch } = useCustomers();
+  const { data: customers, loading, error: loadError, refetch } = useCustomers();
   const { data: appointments } = useAppointments();
   const { byId: intelById } = useCustomerIntelligence();
   const { insert, update } = useCrud("customers");
@@ -30,7 +31,6 @@ export default function CustomersPage() {
   const [searchParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [visibleCount, setVisibleCount] = useState(100);
-  useEffect(() => { setVisibleCount(100); }, [search]);
   const [selectedCustomer, setSelectedCustomer] = useState<Tables<"customers"> | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [showDup, setShowDup] = useState(false);
@@ -40,6 +40,7 @@ export default function CustomersPage() {
     const f = searchParams.get("filter");
     return f || "alle";
   });
+  useEffect(() => { setVisibleCount(100); }, [search, filterLabel]);
 
   // Open a specific dossier straight away when the route names a customer.
   useEffect(() => {
@@ -65,12 +66,10 @@ export default function CustomersPage() {
     });
   }, [customers, appointments]);
 
-  const filtered = customerIntel.filter(c => {
-    const q = search.toLowerCase().trim();
-    const matchSearch = !q || (c.name ?? '').toLowerCase().includes(q) || (c.email ?? '').toLowerCase().includes(q) || (c.phone ?? '').includes(q);
-    const matchLabel = filterLabel === "alle" || c.label.toLowerCase() === filterLabel;
-    return matchSearch && matchLabel;
-  });
+  const filtered = useMemo(
+    () => filterCustomerList(customerIntel, search).filter(c => filterLabel === "alle" || c.label.toLowerCase() === filterLabel),
+    [customerIntel, search, filterLabel],
+  );
 
   const handleAdd = async () => {
     if (!can("customers:create")) { toast.error("Je hebt geen rechten om klanten toe te voegen."); return; }
@@ -155,6 +154,21 @@ export default function CustomersPage() {
         </div>
         {can("customers:delete") && <Button variant="outline" size="sm" onClick={() => setShowDup(true)}>Dubbele klanten controleren</Button>}
       </div>
+
+      {!loading && loadError && (
+        <div className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive flex items-center justify-between gap-3">
+          <span>Niet alle klanten konden worden geladen. Zoeken werkt dan niet volledig.</span>
+          <Button variant="outline" size="sm" onClick={() => refetch()}>Opnieuw laden</Button>
+        </div>
+      )}
+      {!loading && (
+        <p className="mb-3 text-xs text-muted-foreground" aria-live="polite">
+          {search.trim() || filterLabel !== "alle"
+            ? `${filtered.length} van ${customers.length} klanten gevonden`
+            : `${customers.length} klanten`}
+          {filtered.length > visibleCount && ` · eerste ${visibleCount} getoond`}
+        </p>
+      )}
 
       <div className="flex gap-6">
         <div className={cn("flex-1 space-y-2 opacity-0 animate-fade-in-up", selectedCustomer && "hidden lg:block")} style={{ animationDelay: '200ms' }}>

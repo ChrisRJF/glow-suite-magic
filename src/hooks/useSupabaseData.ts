@@ -14,6 +14,7 @@ export function useSupabaseQuery<T extends AnyTableName>(
   const { user } = useAuth();
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<unknown>(null);
 
   const fetch = useCallback(async () => {
     if (!user) { setData([]); setLoading(false); return; }
@@ -27,6 +28,7 @@ export function useSupabaseQuery<T extends AnyTableName>(
       }
       return query.order("id", { ascending: true }).range(from, to);
     });
+    setError(error ?? null);
     if (!error && result) setData(result);
     setLoading(false);
   }, [user, table, options?.orderBy, options?.ascending]);
@@ -36,7 +38,7 @@ export function useSupabaseQuery<T extends AnyTableName>(
     fetch();
   }, [fetch, options?.enabled]);
 
-  return { data, loading, refetch: fetch };
+  return { data, loading, error, refetch: fetch };
 }
 
 export function useCustomers() {
