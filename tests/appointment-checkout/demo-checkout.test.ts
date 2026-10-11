@@ -26,6 +26,12 @@ describe("demo checkout gate", () => {
   it("real checkout visible = demo hidden", () => {
     expect(demoCheckoutVisible(BC, ["eigenaar"], true)).toBe(false);
   });
+  it("Studio Nova: simulatie ook naast echte Viva-demo checkout", () => {
+    const SN = "cbd7d158-0133-4f2f-a504-4b82f73f2e20";
+    expect(demoCheckoutVisible(SN, ["eigenaar"], true)).toBe(true);
+    expect(demoCheckoutVisible(SN, ["admin"], false)).toBe(true);
+    expect(demoCheckoutVisible(SN, ["medewerker"], true)).toBe(false);
+  });
   it("RPC error or throw = hidden", async () => {
     rpc.mockResolvedValueOnce({ data: BC, error: { message: "x" } });
     expect(await readDemoCheckoutVisible(["eigenaar"], false)).toBe(false);

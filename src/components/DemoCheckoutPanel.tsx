@@ -12,7 +12,7 @@ export function DemoCheckoutPanel({ appointmentId, price }: { appointmentId: str
   useEffect(() => { setStep("closed"); }, [appointmentId]);
 
   if (step === "closed") {
-    return <Button variant="outline" className="w-full" onClick={() => setStep("choose")}><FlaskConical className="w-4 h-4" /> Demo afrekenen</Button>;
+    return <Button variant="outline" className="w-full" onClick={() => setStep("choose")}><FlaskConical className="w-4 h-4" /> Demo afrekenen (simulatie)</Button>;
   }
   const amount = Number(price) || 0;
 

@@ -32,6 +32,12 @@ describe("gate", () => {
     expect(recurringVisible("blocked", BC, ["eigenaar"])).toBe(false);
     expect(recurringVisible("atomic", U(9), ["eigenaar"])).toBe(false);
   });
+  it("Studio Nova alleen in atomic mode", () => {
+    const SN = "cbd7d158-0133-4f2f-a504-4b82f73f2e20";
+    expect(recurringVisible("atomic", SN, ["eigenaar"])).toBe(true);
+    expect(recurringVisible("legacy", SN, ["eigenaar"])).toBe(false);
+    expect(recurringVisible("atomic", SN, ["medewerker"])).toBe(false);
+  });
   it("blocks group/journey/legacy assignment", () => {
     expect(recurringTemplate({ ...src, booking_group_id: U(5) }, links).ok).toBe(false);
     expect(recurringTemplate({ ...src, journey_id: U(5) }, links).ok).toBe(false);
