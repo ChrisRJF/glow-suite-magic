@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { applyEvidence, syncAppointment, derivePaymentStatus, type LedgerDeps, type Evidence } from "../../supabase/functions/_shared/inactive/providerLedger";
+import { applyEvidence, syncAppointment, derivePaymentStatus, type LedgerDeps, type Evidence } from "../../supabase/functions/_shared/providerLedger";
 
 const T = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", A = "a1111111-1111-4111-8111-111111111111";
 // Fictional in-memory ledger that mirrors record_provider_payment's rules.

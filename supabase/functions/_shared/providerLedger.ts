@@ -1,5 +1,5 @@
-// INACTIVE: shared provider-evidence step for viva-terminal-payment-status, viva-webhook and mollie-webhook.
-// Not imported by any deployed function. Activation needs a separate GO (touches live payments).
+// Shared provider-evidence step, used ONLY for payments marked metadata.checkout = "appointment_checkout".
+// Older payments keep their existing flow and are never recalculated from the ledger.
 // Rules: only provider-verified data reaches the ledger; appointment totals come only from the ledger;
 // a failed/cancelled attempt never lowers an already proven deposit.
 

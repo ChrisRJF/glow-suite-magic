@@ -3,6 +3,8 @@
 // viva_webhook_events ledger BEFORE side-effects so duplicates and
 // failures are recoverable. Returns 2xx fast.
 
+import { isCheckoutPayment, makeLedgerDeps } from "../_shared/checkoutGuard.ts";
+import { applyEvidence, syncAppointment } from "../_shared/providerLedger.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getVivaTransaction } from "../_shared/viva.ts";
 import { getIsvTransactionById, hasResellerBasicCredentials } from "../_shared/vivaIsv.ts";
@@ -529,6 +531,7 @@ Deno.serve(async (req) => {
     let providerFeeCents: number | null = null;
     let txAmountCents: number | null = null;
     let resolvedStatus = status;
+    let txVerified = false; // true only when Viva's API itself returned this transaction
     if (transactionId) {
       try {
         // Prefer reseller/merchant-scoped retrieval when the merchant is known
@@ -546,6 +549,7 @@ Deno.serve(async (req) => {
         resolvedStatus = mapVivaStatus(String(tx.statusId || ""), eventTypeId || undefined);
         resolvedOrderCode = resolvedOrderCode || tx.orderCode;
         txAmountCents = tx.amountCents ?? null;
+        txVerified = Number.isInteger(txAmountCents) && (txAmountCents as number) > 0;
         const txAny: any = tx.raw || {};
         const fee = txAny.totalFee ?? txAny.TotalFee;
         if (typeof fee === "number") providerFeeCents = Math.round(fee * 100);
@@ -707,7 +711,19 @@ Deno.serve(async (req) => {
     const isAutoRevenue = arSources.includes(existingMeta?.source);
     const appointmentId = payment.appointment_id || existingMeta?.appointment_id || null;
 
-    if (appointmentId && !isRefund) {
+    if (appointmentId && isCheckoutPayment(existingMeta)) {
+      // Appointment checkout: totals only from provider-verified ledger rows; never a direct amount write.
+      const ld = makeLedgerDeps(supabase);
+      if (txVerified && (isPaid || isRefund || isReversedTarget)) {
+        const res = await applyEvidence({ tenantId: payment.user_id, paymentId: payment.id, provider: "viva", transactionId,
+          kind: isPaid ? "payment" : "refund", amountCents: txAmountCents as number, currency: "EUR", source: "webhook" }, appointmentId, ld);
+        console.log("[viva-webhook] checkout_ledger", JSON.stringify({ payment_id: payment.id, result: res }));
+      } else if (isFailed) {
+        await syncAppointment(payment.user_id, appointmentId, ld).catch(() => {});
+      } else {
+        console.warn("[viva-webhook] checkout_ledger_skipped_unverified", JSON.stringify({ payment_id: payment.id, to: targetStatus }));
+      }
+    } else if (appointmentId && !isRefund) {
       const amountPaid = isPaid ? Number(payment.amount || 0) : 0;
       const apptStatus = isReversedTarget ? "pending_confirmation"
         : isAutoRevenue && isPaid ? "gepland"

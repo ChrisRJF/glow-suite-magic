@@ -2,6 +2,8 @@
 // POST /functions/v1/viva-terminal-payment-status  { payment_id }
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { vivaPosEnv, getVivaPosAccessToken, isVivaPosConfigured } from "../_shared/viva.ts";
+import { isCheckoutPayment, resolveCheckoutTenant, makeLedgerDeps } from "../_shared/checkoutGuard.ts";
+import { applyEvidence, syncAppointment } from "../_shared/providerLedger.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -73,13 +75,22 @@ Deno.serve(async (req) => {
     if (!payment_id) return json({ error: "payment_id_required" }, 400);
 
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    const { data: payment, error } = await admin
+    const { data: ownPayment, error } = await admin
       .from("payments")
       .select("*")
       .eq("id", payment_id)
       .eq("user_id", userId)
       .maybeSingle();
     if (error) return json({ error: "lookup_failed", detail: error.message }, 500);
+    let payment = ownPayment;
+    // Salon staff (admin/manager/receptie) may follow an appointment checkout of their own salon.
+    if (!payment) {
+      const t = await resolveCheckoutTenant(admin, userId);
+      if (t) {
+        const { data: tp } = await admin.from("payments").select("*").eq("id", payment_id).eq("user_id", t.tenantId).maybeSingle();
+        if (tp && isCheckoutPayment(tp.metadata)) payment = tp;
+      }
+    }
     if (!payment) return json({ error: "not_found" }, 404);
     if (payment.method !== "terminal" || payment.provider !== "viva") {
       return json({ error: "not_a_terminal_payment" }, 400);
@@ -208,7 +219,20 @@ Deno.serve(async (req) => {
       }
 
       // Sync appointment payment_status only after the payment row update succeeds.
-      if (!updErr && updatedPayment && payment.appointment_id) {
+      if (!updErr && updatedPayment && payment.appointment_id && isCheckoutPayment(meta)) {
+        // Checkout payments: money only from the ledger, with the amount Viva reported for this session.
+        const ld = makeLedgerDeps(admin);
+        if (newStatus === "paid") {
+          const reported = Number(findStringValue(providerData, ["amount", "Amount"]));
+          const res = Number.isInteger(reported)
+            ? await applyEvidence({ tenantId: payment.user_id, paymentId: payment.id, provider: "viva", transactionId: txStr,
+                kind: "payment", amountCents: reported, currency: "EUR", source: "poll" }, payment.appointment_id, ld)
+            : "invalid";
+          console.log("[viva-terminal-payment-status] checkout_ledger", JSON.stringify({ payment_id: payment.id, result: res }));
+        } else {
+          await syncAppointment(payment.user_id, payment.appointment_id, ld).catch(() => {});
+        }
+      } else if (!updErr && updatedPayment && payment.appointment_id) {
         const apptUpd: Record<string, any> = {};
         if (newStatus === "paid") apptUpd.payment_status = "paid";
         else if (newStatus === "failed" || newStatus === "cancelled" || newStatus === "expired") apptUpd.payment_status = "unpaid";

@@ -3,6 +3,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { vivaPosEnv, getVivaPosAccessToken, isVivaPosConfigured, vivaPosSourceCode, vivaPosCredentialKind } from "../_shared/viva.ts";
 import { requireMerchantContext, isvWarn, maskId } from "../_shared/vivaIsv.ts";
+import { CHECKOUT_MARKER, isInternalCheckoutCall, resolveCheckoutTenant, tenantIsDemo, loadLiveKyc, liveKycReady, environmentMatches } from "../_shared/checkoutGuard.ts";
 
 
 const corsHeaders = {
@@ -30,9 +31,11 @@ Deno.serve(async (req) => {
     );
     const { data: claims } = await userClient.auth.getClaims(authHeader.replace("Bearer ", ""));
     if (!claims?.claims?.sub) return json({ error: "unauthorized" }, 401);
-    const userId = claims.claims.sub as string;
+    const actorId = claims.claims.sub as string;
 
     const body = await req.json().catch(() => ({}));
+    const isCheckout = body?.checkout === CHECKOUT_MARKER;
+    let userId = actorId; // salon owner id used for all salon-scoped lookups
     const {
       terminal_id,
       appointment_id = null,
@@ -40,10 +43,9 @@ Deno.serve(async (req) => {
       amount_cents,
       description = "Terminal payment",
       source = "manual",
-      is_demo = false,
       idempotency_key = null,
-      tip_cents = 0,
     } = body || {};
+    let { is_demo = false, tip_cents = 0 } = body || {};
 
     let amt = Number(amount_cents);
     if (!Number.isFinite(amt) || amt < 30) return json({ error: "amount_too_small", message: "amount_cents must be >= 30" }, 400);
@@ -52,6 +54,25 @@ Deno.serve(async (req) => {
     if (!allowedSources.includes(source)) return json({ error: "invalid_source" }, 400);
 
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+    // Appointment checkout: only via the appointment-checkout function; salon from membership,
+    // demo/live from salon settings, live requires verified KYC + terminal capability.
+    if (isCheckout) {
+      if (!isInternalCheckoutCall(req) || !appointment_id) return json({ error: "forbidden" }, 403);
+      const t = await resolveCheckoutTenant(admin, actorId);
+      if (!t) return json({ error: "forbidden" }, 403);
+      userId = t.tenantId;
+      const demo = await tenantIsDemo(admin, userId);
+      if (demo === null) return json({ error: "mode_unclear" }, 409);
+      is_demo = demo;
+      tip_cents = 0;
+      if (!environmentMatches(demo, Deno.env.get("VIVA_POS_ENVIRONMENT") || Deno.env.get("VIVA_ENVIRONMENT"))) {
+        return json({ error: "environment_mismatch", message: "Betaalomgeving past niet bij de salonmodus." }, 409);
+      }
+      if (!demo && !liveKycReady(await loadLiveKyc(admin, userId), "terminal")) {
+        return json({ error: "kyc_not_ready", message: "Verificatie (KYC) of pinbevoegdheid is nog niet actief voor deze salon." }, 409);
+      }
+    }
 
     // Verify terminal ownership and active status
     const { data: terminal, error: terErr } = await admin
@@ -113,7 +134,7 @@ Deno.serve(async (req) => {
     if (appointment_id) {
       const { data: appt, error: apptErr } = await admin
         .from("appointments")
-        .select("id, user_id, total_price, amount_paid, payment_status, customer_id")
+        .select("id, user_id, price, amount_paid, payment_status, customer_id")
         .eq("id", appointment_id)
         .maybeSingle();
       if (apptErr) return json({ error: "appointment_lookup_failed", detail: apptErr.message }, 500);
@@ -121,11 +142,16 @@ Deno.serve(async (req) => {
       if (appt.user_id !== userId) return json({ error: "appointment_not_yours" }, 403);
       appointmentRef = appt;
       const tipC = Math.max(0, Number(tip_cents) || 0);
-      const outstandingCents = Math.max(0, Math.round((Number(appt.total_price || 0) - Number(appt.amount_paid || 0)) * 100));
-      const maxAllowed = outstandingCents + tipC;
-      if (outstandingCents > 0 && amt > maxAllowed) amt = maxAllowed;
-      if (appt.payment_status === "paid" && amt > tipC) {
-        return json({ error: "appointment_already_paid" }, 409);
+      if (isCheckout) {
+        // Amount was computed from the ledger by the checkout route; it may never exceed the price.
+        if (amt > Math.round(Number(appt.price || 0) * 100)) return json({ error: "amount_exceeds_price" }, 409);
+      } else {
+        const outstandingCents = Math.max(0, Math.round((Number(appt.price || 0) - Number(appt.amount_paid || 0)) * 100));
+        const maxAllowed = outstandingCents + tipC;
+        if (outstandingCents > 0 && amt > maxAllowed) amt = maxAllowed;
+        if (appt.payment_status === "paid" && amt > tipC) {
+          return json({ error: "appointment_already_paid" }, 409);
+        }
       }
     }
 
@@ -184,7 +210,8 @@ Deno.serve(async (req) => {
           session_id: sessionId,
           idempotency_key: idemKey,
           tip_cents: Math.max(0, Number(tip_cents) || 0),
-          appointment_total: appointmentRef?.total_price ?? null,
+          appointment_total: appointmentRef?.price ?? null,
+          ...(isCheckout ? { checkout: CHECKOUT_MARKER, created_by_user_id: actorId } : {}),
           environment: is_demo ? "demo" : (Deno.env.get("VIVA_ENVIRONMENT") || "demo"),
         },
       })
