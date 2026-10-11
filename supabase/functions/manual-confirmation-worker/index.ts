@@ -11,6 +11,7 @@
 // Empty/missing = nothing processed / nobody receives mail.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import postgres from "https://deno.land/x/postgresjs@v3.4.4/mod.js";
 import { processOutbox, interpretSenderReply, type OutboxRow, type Outcome } from "./manualConfirmationWorker.ts";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -22,25 +23,25 @@ function sameSecret(a: string, b: string): boolean {
   return d === 0;
 }
 
-/** The project's public anon key (as used by the schedule): role claim anon, accepted by this project's API. */
-async function isProjectAnonKey(url: string, token: string): Promise<boolean> {
+/** Scheduler auth: the x-worker-secret header must equal the private Vault secret
+ *  'manual_confirmation_worker_cron', read server-side via the direct DB connection. Never public. */
+async function isSchedulerSecret(secret: string): Promise<boolean> {
+  const dbUrl = Deno.env.get("SUPABASE_DB_URL") ?? "";
+  if (!dbUrl || secret.length < 32 || secret.length > 256) return false;
+  const sql = postgres(dbUrl, { max: 1, prepare: false, idle_timeout: 5, connect_timeout: 5 });
   try {
-    const part = token.split(".")[1]; if (!part) return false;
-    const claims = JSON.parse(atob(part.replace(/-/g, "+").replace(/_/g, "/")));
-    if (claims?.role !== "anon") return false;
-    const r = await fetch(`${url}/auth/v1/settings`, { headers: { apikey: token }, signal: AbortSignal.timeout(5000) });
-    await r.body?.cancel();
-    return r.status === 200;
-  } catch { return false; }
+    const rows = await sql`select decrypted_secret from vault.decrypted_secrets where name = 'manual_confirmation_worker_cron' limit 1`;
+    const stored = (rows[0]?.decrypted_secret as string | undefined) ?? "";
+    return stored.length >= 32 && sameSecret(secret, stored);
+  } catch { return false; } finally { await sql.end({ timeout: 2 }).catch(() => {}); }
 }
 
 Deno.serve(async (req) => {
   const url = Deno.env.get("SUPABASE_URL") ?? "";
   const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
   const bearer = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
-  // Scheduler tick: the request carries no input (no tenant, recipient or appointment is read from it),
-  // scope comes only from server secrets, and a lock prevents overlapping runs.
-  const viaCron = !!url && await isProjectAnonKey(url, bearer);
+  // Only the service-role key or the private scheduler secret. Public anon keys and user logins are refused.
+  const viaCron = await isSchedulerSecret(req.headers.get("x-worker-secret") ?? "");
   if (!url || !key || !(viaCron || sameSecret(bearer, key))) return new Response(JSON.stringify({ error: "Niet toegestaan" }), { status: 401 });
 
   const tenants = new Set(list(Deno.env.get("MANUAL_CONFIRMATION_TENANTS")).filter((t) => UUID.test(t)));
