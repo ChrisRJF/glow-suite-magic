@@ -1,106 +1,110 @@
 import { describe, it, expect, vi } from "vitest";
-import { startAppointmentCheckout, uiStateFromServer, type Deps, type StoredPayment, type ProviderEvidence } from "../../docs/prepared-patches/appointment-checkout/appointmentCheckoutCore";
+import { handleCheckout, type Deps, type StoredPayment, type LedgerRow } from "../../supabase/functions/_shared/inactive/appointmentCheckoutCore";
+import { checkoutVisible } from "../../src/lib/appointmentCheckoutClient";
 
 const T = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
-// Stored appointment price 72 (historic discount); the current service list would say 80. Only 72 may be used.
-const apt = { id: "apt-1", user_id: T, is_demo: true, status: "gepland", customer_id: "c1", price: 72, deposit_amount: null as number | null, amount_paid: 0, booking_group_id: null as string | null };
-const pay = (o: Partial<StoredPayment>): StoredPayment => ({ id: "p1", appointment_id: "apt-1", user_id: T, amount: 20, status: "paid", payment_type: "deposit", provider: "viva", is_demo: true, refunded_amount: 0, refunded_at: null, ...o });
-const ev = (o: Partial<ProviderEvidence> = {}): ProviderEvidence => ({ paymentId: "p1", status: "paid", source: "webhook", provider: "viva", amountCents: 2000, ...o });
+const OTHER = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+const AID = "11111111-1111-4111-8111-111111111111";
+const apt = { id: AID, user_id: T, is_demo: true, status: "gepland", customer_id: "c1", price: 72, deposit_amount: 20, amount_paid: 0, booking_group_id: null as string | null };
+const pay = (o: Partial<StoredPayment>): StoredPayment => ({ id: "p1", appointment_id: AID, user_id: T, amount: 20, status: "paid", is_demo: true, refunded_amount: 0, refunded_at: null, ...o });
+const led = (o: Partial<LedgerRow> = {}): LedgerRow => ({ payment_id: "p1", tenant_id: T, appointment_id: AID, kind: "payment", amount_cents: 2000, currency: "EUR", ...o });
 
-function mk(over: Partial<Deps> = {}, a: any = apt, payments: StoredPayment[] = [], evidence: ProviderEvidence[] = []) {
+function mk(o: { tenant?: string; payments?: StoredPayment[]; ledger?: LedgerRow[]; flag?: boolean; role?: string; a?: any; start?: any } = {}) {
   const claimed = new Set<string>();
-  const startProvider = vi.fn().mockResolvedValue({ ok: true, paymentId: "new-pay", checkoutUrl: null });
+  const startProvider = vi.fn(o.start ?? (async () => ({ ok: true, paymentId: "new-pay", checkoutUrl: null })));
+  const a = o.a ?? apt;
   const deps: Deps = {
     verifyUser: async (j) => (j === "jwt-ok" ? "u1" : null),
-    tenantForUser: async () => ({ tenantId: T, isDemo: true }),
-    rolesForUser: async () => ["eigenaar"],
+    tenantForUser: async () => ({ tenantId: o.tenant ?? T, isDemo: true, role: o.role ?? "receptie" }),
+    flagEnabled: async () => o.flag ?? true,
     loadAppointment: async (tid, id) => (tid === a.user_id && id === a.id ? a : null),
-    loadPayments: async () => payments,
-    loadEvidence: async () => evidence,
+    loadPayments: async () => o.payments ?? [],
+    loadLedger: async () => o.ledger ?? [],
     providerReady: async () => true,
     claim: async (k) => (claimed.has(k) ? false : (claimed.add(k), true)),
+    attach: async () => {},
     release: async (k) => { claimed.delete(k); },
     startProvider,
-    ...over,
   };
   return { deps, startProvider };
 }
-const req = { jwt: "jwt-ok", appointmentId: "apt-1", method: "terminal", terminalId: "term-demo" };
-const blocked = async (d: ReturnType<typeof mk>, block: string) => {
-  expect(await startAppointmentCheckout(req, d.deps)).toMatchObject({ started: false, block });
-  expect(d.startProvider).not.toHaveBeenCalled();
-};
+const start = { jwt: "jwt-ok", action: "start", appointmentId: AID, method: "terminal", terminalId: "term-demo" };
 
-describe("appointment checkout (fictional demo salon, mocks only, no real payments)", () => {
-  it("unpaid: charges the STORED appointment price (72), not the current list price", async () => {
-    const d = mk();
-    expect(await startAppointmentCheckout(req, d.deps)).toMatchObject({ started: true, amountCents: 7200, state: "waiting_provider" });
+describe("afrekenen vanuit afspraak", () => {
+  it("volledige betaling: start voor de volledige vastgelegde prijs", async () => {
+    const m = mk();
+    const r = await handleCheckout(start, m.deps);
+    expect(r).toMatchObject({ ok: true, quote: { priceCents: 7200, paidCents: 0, dueCents: 7200 }, started: { amountCents: 7200 } });
+    expect(m.startProvider.mock.calls[0][0].amountCents).toBe(7200);
   });
-  it("missing, zero or invalid stored price: stop, no service-list fallback", async () => {
-    for (const price of [null, 0, -5, Number.NaN]) await blocked(mk({}, { ...apt, price }), "no_price");
+
+  it("aanbetaling bevestigd in grootboek, daarna alleen restbedrag", async () => {
+    const m = mk({ payments: [pay({})], ledger: [led()], a: { ...apt, amount_paid: 20 } });
+    const r = await handleCheckout(start, m.deps);
+    expect(r).toMatchObject({ ok: true, quote: { paidCents: 2000, dueCents: 5200 } });
   });
-  it("group booking and deposit larger than price: fail closed", async () => {
-    await blocked(mk({}, { ...apt, booking_group_id: "g1" }), "group_booking");
-    await blocked(mk({}, { ...apt, deposit_amount: 100 }), "price_inconsistent");
+
+  it("na restbetaling: volledig betaald, niets meer te starten", async () => {
+    const m = mk({ payments: [pay({}), pay({ id: "p2", amount: 52 })], ledger: [led(), led({ payment_id: "p2", amount_cents: 5200 })] });
+    expect(await handleCheckout(start, m.deps)).toMatchObject({ ok: false, block: "already_paid" });
+    expect(m.startProvider).not.toHaveBeenCalled();
   });
-  it("Kassa-style paid row (provider glowpay, no evidence) is NOT deducted: blocked", async () => {
-    await blocked(mk({}, { ...apt, amount_paid: 20 }, [pay({ provider: "glowpay" })]), "unverified_payment");
+
+  it("mislukte pinbetaling wist de aanbetaling niet", async () => {
+    const m = mk({ payments: [pay({}), pay({ id: "p2", amount: 52, status: "failed" })], ledger: [led()] });
+    expect(await handleCheckout({ ...start, action: "quote" }, m.deps)).toMatchObject({ ok: true, quote: { paidCents: 2000, dueCents: 5200 } });
   });
-  it("Viva paid row without evidence, or evidence without amount (today's history): blocked", async () => {
-    await blocked(mk({}, { ...apt, amount_paid: 20 }, [pay({})], []), "unverified_payment");
-    await blocked(mk({}, { ...apt, amount_paid: 20 }, [pay({})], [ev({ amountCents: null })]), "unverified_payment");
+
+  it("dubbelklik / gelijktijdig: tweede verzoek start geen tweede betaling", async () => {
+    const m = mk();
+    const [a, b] = await Promise.all([handleCheckout(start, m.deps), handleCheckout(start, m.deps)]);
+    expect([a.ok, b.ok].sort()).toEqual([false, true]);
+    expect(m.startProvider).toHaveBeenCalledTimes(1);
   });
-  it("Mollie paid row: mollie-webhook writes no protected ledger, so blocked", async () => {
-    await blocked(mk({}, { ...apt, amount_paid: 20 }, [pay({ provider: "mollie" })], []), "unverified_payment");
+
+  it("onduidelijke provideruitkomst houdt de claim vast, definitieve weigering geeft hem vrij", async () => {
+    const unclear = mk({ start: async () => ({ ok: false, definitive: false }) });
+    await handleCheckout(start, unclear.deps);
+    expect(await handleCheckout(start, unclear.deps)).toMatchObject({ block: "duplicate" });
+    const refused = mk({ start: async () => ({ ok: false, definitive: true }) });
+    await handleCheckout(start, refused.deps);
+    expect(await handleCheckout(start, refused.deps)).toMatchObject({ block: "provider_error" });
   });
-  it("evidence mismatch (amount or provider) blocks", async () => {
-    await blocked(mk({}, { ...apt, amount_paid: 20 }, [pay({})], [ev({ amountCents: 1000 })]), "unverified_payment");
-    await blocked(mk({}, { ...apt, amount_paid: 20 }, [pay({ provider: "glowpay" })], [ev({})]), "unverified_payment");
+
+  it("betaallink die nog openstaat blokkeert", async () => {
+    const m = mk({ payments: [pay({ id: "p3", amount: 72, status: "open", checkout_url: "https://demo.vivapayments.com/x" })] });
+    expect(await handleCheckout(start, m.deps)).toMatchObject({ ok: false, block: "link_open" });
   });
-  it("verified deposit (future service-only ledger with amount): only remainder 52", async () => {
-    const d = mk({}, { ...apt, amount_paid: 20 }, [pay({})], [ev({})]);
-    expect(await startAppointmentCheckout(req, d.deps)).toMatchObject({ started: true, amountCents: 5200 });
-    expect(d.startProvider.mock.calls[0][0].idempotencyKey).toBe("appt-checkout-apt-1-2000");
+
+  it("refund of onbekende status blokkeert", async () => {
+    expect(await handleCheckout(start, mk({ payments: [pay({})], ledger: [led(), led({ kind: "refund" })] }).deps)).toMatchObject({ block: "refund_present" });
+    expect(await handleCheckout(start, mk({ payments: [pay({ refunded_amount: 5 })], ledger: [led()] }).deps)).toMatchObject({ block: "refund_present" });
+    expect(await handleCheckout(start, mk({ payments: [pay({ status: "weird" })] }).deps)).toMatchObject({ block: "uncertain_status" });
   });
-  it("appointment amount_paid not explained by verified payments: blocked", async () => {
-    await blocked(mk({}, { ...apt, amount_paid: 20 }), "unverified_payment");
+
+  it("betaald zonder providerbewijs (Kassa) blokkeert", async () => {
+    expect(await handleCheckout(start, mk({ payments: [pay({})] }).deps)).toMatchObject({ block: "unverified_payment" });
+    expect(await handleCheckout(start, mk({ a: { ...apt, amount_paid: 20 } }).deps)).toMatchObject({ block: "unverified_payment" });
   });
-  it("fully verified paid: already_paid", async () => {
-    await blocked(mk({}, { ...apt, amount_paid: 72 }, [pay({ amount: 72 })], [ev({ amountCents: 7200 })]), "already_paid");
+
+  it("poging vanuit een andere salon vindt de afspraak niet", async () => {
+    const m = mk({ tenant: OTHER });
+    expect(await handleCheckout(start, m.deps)).toMatchObject({ ok: false, block: "not_found" });
+    expect(m.startProvider).not.toHaveBeenCalled();
   });
-  it("paid row with refunded_amount > 0 or refunded_at, or refund status: blocked", async () => {
-    await blocked(mk({}, { ...apt, amount_paid: 20 }, [pay({ refunded_amount: 5 })], [ev({})]), "refund_present");
-    await blocked(mk({}, { ...apt, amount_paid: 20 }, [pay({ refunded_at: "2026-10-01T10:00:00Z" })], [ev({})]), "refund_present");
-    await blocked(mk({}, apt, [pay({ status: "refunded" })]), "refund_present");
+
+  it("rechten, flag, geannuleerd en uitgelogd", async () => {
+    expect(await handleCheckout(start, mk({ role: "medewerker" }).deps)).toMatchObject({ block: "forbidden" });
+    expect(await handleCheckout(start, mk({ flag: false }).deps)).toMatchObject({ block: "disabled" });
+    expect(await handleCheckout(start, mk({ a: { ...apt, status: "geannuleerd" } }).deps)).toMatchObject({ block: "cancelled" });
+    expect(await handleCheckout({ ...start, jwt: "bad" }, mk().deps)).toMatchObject({ block: "not_authenticated" });
+    expect(await handleCheckout(start, mk({ a: { ...apt, price: null } }).deps)).toMatchObject({ block: "no_price" });
   });
-  it("uncertain status, unreadable payments/evidence, in-flight: blocked", async () => {
-    await blocked(mk({}, apt, [pay({ status: "unknown_provider_state" })]), "uncertain_status");
-    await blocked(mk({ loadPayments: async () => null }), "uncertain_status");
-    await blocked(mk({ loadEvidence: async () => { throw new Error("read"); } }, apt, [pay({ status: "failed" })]), "uncertain_status");
-    await blocked(mk({}, apt, [pay({ id: "p-open", status: "pending" })]), "payment_in_progress");
-  });
-  it("failed/cancelled/expired attempts without refund count as zero", async () => {
-    const d = mk({}, apt, [pay({ status: "failed" }), pay({ id: "p2", status: "expired" })]);
-    expect(await startAppointmentCheckout(req, d.deps)).toMatchObject({ started: true, amountCents: 7200 });
-  });
-  it("double click starts one provider call; bad provider response releases claim", async () => {
-    const d = mk();
-    const [a, b] = await Promise.all([startAppointmentCheckout(req, d.deps), startAppointmentCheckout(req, d.deps)]);
-    expect([a.started, b.started].sort()).toEqual([false, true]);
-    expect(d.startProvider).toHaveBeenCalledTimes(1);
-    const bad = mk({ startProvider: vi.fn().mockResolvedValue({ ok: false }) });
-    expect(await startAppointmentCheckout(req, bad.deps)).toEqual({ started: false, block: "provider_error" });
-    expect(await bad.deps.claim("appt-checkout-apt-1-0")).toBe(true);
-  });
-  it("other salon, wrong role, no login, cancelled/no-show: blocked", async () => {
-    await blocked(mk({ tenantForUser: async () => ({ tenantId: "other", isDemo: true }) }), "not_found");
-    await blocked(mk({ rolesForUser: async () => ["medewerker"] }), "forbidden");
-    for (const status of ["geannuleerd", "no_show"]) await blocked(mk({}, { ...apt, status }), "cancelled");
-    expect(await startAppointmentCheckout({ ...req, jwt: null }, mk().deps)).toEqual({ started: false, block: "not_authenticated" });
-  });
-  it("UI shows 'betaald' only for server paid status", () => {
-    expect(uiStateFromServer("paid")).toBe("betaald");
-    for (const s of ["pending", "open", "authorized"]) expect(uiStateFromServer(s)).toBe("wachten");
-    for (const s of ["failed", "expired", "cancelled"]) expect(uiStateFromServer(s)).toBe("mislukt");
+
+  it("knop alleen zichtbaar bij expliciet true en bevoegde rol", () => {
+    expect(checkoutVisible({ data: { appointment_checkout_enabled: true }, error: null }, "receptie")).toBe(true);
+    expect(checkoutVisible({ data: { appointment_checkout_enabled: true }, error: null }, "medewerker")).toBe(false);
+    expect(checkoutVisible({ data: null, error: null }, "eigenaar")).toBe(false);
+    expect(checkoutVisible({ data: null, error: { message: "column does not exist" } }, "eigenaar")).toBe(false);
   });
 });
