@@ -74,7 +74,7 @@ describe("manual confirmation outbox worker (fictional data, mocks only)", () =>
     ["opted out", { core: { emailAllowed: async () => false } }, "opted_out"],
     ["no email", { core: { loadCustomer: async () => ({ name: "X", email: "", language: "nl" }) } }, "no_email"],
     ["invalid appointment (cancelled)", { apt: { ...baseApt, status: "geannuleerd" } }, "cancelled"],
-    ["invalid appointment (missing)", { apt: { ...baseApt, id: "other" } }, "not_found"],
+    ["invalid appointment (missing)", { apt: { ...baseApt, id: "other" }, rows: [{ appointment_id: "apt-1", tenant_id: T, attempts: 1 }] }, "not_found"],
     ["not manual", { apt: { ...baseApt, source: "online" } }, "not_manual"],
     ["renderer still invents a manage link", { core: { rendererTokenOnlyManageLink: false } }, "renderer_unsafe"],
   ])("%s: no mail", async (_n, o: any, reason) => {
