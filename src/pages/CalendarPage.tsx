@@ -23,6 +23,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { AppointmentCheckoutPanel } from "@/components/AppointmentCheckoutPanel";
 import { readCheckoutVisible } from "@/lib/appointmentCheckoutClient";
+import { DemoCheckoutPanel } from "@/components/DemoCheckoutPanel";
+import { readDemoCheckoutVisible } from "@/lib/demoCheckout";
 import { useDemoMode } from "@/hooks/useDemoMode";
 import { GuidanceHint } from "@/components/demo/GuidanceHint";
 
@@ -135,6 +137,12 @@ export default function CalendarPage() {
     readCheckoutVisible(role).then((v) => { if (alive) setCheckoutVisible(v); });
     return () => { alive = false; };
   }, [myRoles]);
+  const [demoCheckoutOn, setDemoCheckoutOn] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    readDemoCheckoutVisible(myRoles || [], checkoutVisible).then((v) => { if (alive) setDemoCheckoutOn(v); });
+    return () => { alive = false; };
+  }, [myRoles, checkoutVisible]);
   const [moveTargetAppt, setMoveTargetAppt] = useState<any | null>(null);
   const [dragPrefill, setDragPrefill] = useState<MoveTarget | null>(null);
   const [reflowOpen, setReflowOpen] = useState(false);
@@ -1942,6 +1950,11 @@ export default function CalendarPage() {
           {dossierAppt && checkoutVisible && (
             <div className="mt-4">
               <AppointmentCheckoutPanel appointmentId={dossierAppt.id} />
+            </div>
+          )}
+          {dossierAppt && !checkoutVisible && demoCheckoutOn && (
+            <div className="mt-4">
+              <DemoCheckoutPanel appointmentId={dossierAppt.id} price={dossierAppt.price} />
             </div>
           )}
           {dossierAppt && (
