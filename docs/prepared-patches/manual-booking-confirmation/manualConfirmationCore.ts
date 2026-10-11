@@ -1,0 +1,120 @@
+// INACTIVE prepared core: confirmation email after a manual agenda appointment.
+// Not imported by src/ or any Edge Function entrypoint. Pure: all reads, the claim and the
+// send are injected, so this module cannot send or write anything by itself.
+//
+// Runs SERVER-SIDE only (future Edge Function `manual-booking-confirmation`), called by the
+// agenda AFTER create_appointment_atomic answered ok. The browser sends ONLY the appointment id
+// and the "send" choice. Salon, recipient, service, employee and time are read on the server.
+
+import { buildCustomerEmailLinks } from "../../../supabase/functions/_shared/inactive/emailLinks";
+
+export const CONFIRM_ROLES = new Set(["eigenaar", "admin", "manager", "receptie"]);
+
+export type SkipReason =
+  | "not_requested" | "not_authenticated" | "forbidden" | "not_found" | "incomplete" | "cancelled"
+  | "no_email" | "demo" | "opted_out" | "paused" | "unknown_time" | "already_sent" | "send_failed";
+
+export interface StoredAppointment {
+  id: string; user_id: string; is_demo: boolean; status: string; source: string | null;
+  customer_id: string | null; service_id: string | null; appointment_date: string;
+  start_time: string | null; end_time: string | null; booking_token: string | null;
+  booking_reference: string | null;
+}
+
+export interface Deps {
+  verifyUser: (jwt: string) => Promise<string | null>;
+  tenantForUser: (userId: string) => Promise<{ tenantId: string; isDemo: boolean } | null>;
+  rolesForUser: (userId: string) => Promise<string[] | null>;
+  /** Reads with service role, filtered on id AND tenant; returns null when not that salon's. */
+  loadAppointment: (tenantId: string, appointmentId: string) => Promise<StoredAppointment | null>;
+  loadEmployeeLinks: (appointmentId: string) => Promise<{ employee_id: string; is_primary: boolean; name: string | null }[]>;
+  loadCustomer: (tenantId: string, customerId: string) => Promise<{ name: string | null; email: string | null; language: string | null } | null>;
+  loadService: (tenantId: string, serviceId: string) => Promise<{ name: string } | null>;
+  loadSalon: (tenantId: string) => Promise<{ salon_name: string | null; public_slug: string | null; demo_mode: boolean | null; is_demo: boolean | null } | null>;
+  /** Existing customer_message_preferences: false = customer opted out of email. Missing = allowed (transactional). */
+  emailAllowed: (tenantId: string, customerId: string) => Promise<boolean>;
+  /** Existing customer_email_controls stop switch, fail closed. */
+  sendingAllowed: () => Promise<boolean>;
+  /** Atomic claim on the idempotency key (unique insert). false = already claimed. */
+  claim: (key: string) => Promise<boolean>;
+  /** Existing send-white-label-email path (service caller, template booking_confirmation). */
+  send: (payload: Record<string, unknown>) => Promise<{ ok: boolean }>;
+  release: (key: string) => Promise<void>;
+}
+
+export type Result = { sent: true; key: string } | { sent: false; reason: SkipReason };
+
+const skip = (reason: SkipReason): Result => ({ sent: false, reason });
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Real UTC -> Amsterdam date/time, only when it matches the stored start_time (never guessed). */
+export function amsterdamSlot(appointmentDate: string, startTime: string | null): { date: string; time: string } | null {
+  const d = new Date(appointmentDate);
+  const st = (startTime || "").slice(0, 5);
+  if (Number.isNaN(d.getTime()) || !st) return null;
+  const p = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Amsterdam", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+    .formatToParts(d).reduce<Record<string, string>>((a, x) => { a[x.type] = x.value; return a; }, {});
+  return `${p.hour}:${p.minute}` === st ? { date: `${p.year}-${p.month}-${p.day}`, time: st } : null;
+}
+
+export async function dispatchManualConfirmation(
+  req: { jwt: string | null; appointmentId: string; sendToCustomer: boolean },
+  deps: Deps,
+): Promise<Result> {
+  if (req.sendToCustomer !== true) return skip("not_requested");
+  if (!req.jwt) return skip("not_authenticated");
+  const userId = await deps.verifyUser(req.jwt);
+  if (!userId) return skip("not_authenticated");
+  const tenant = await deps.tenantForUser(userId);
+  const roles = await deps.rolesForUser(userId);
+  if (!tenant || !roles || !roles.some((r) => CONFIRM_ROLES.has(r))) return skip("forbidden");
+
+  const apt = await deps.loadAppointment(tenant.tenantId, req.appointmentId);
+  if (!apt || apt.user_id !== tenant.tenantId || apt.is_demo !== tenant.isDemo) return skip("not_found");
+  if (apt.status === "geannuleerd") return skip("cancelled");
+  if (!apt.customer_id || !apt.service_id || !apt.start_time || !apt.end_time) return skip("incomplete");
+
+  const salon = await deps.loadSalon(tenant.tenantId);
+  if (!salon) return skip("not_found");
+  if (apt.is_demo || salon.is_demo || salon.demo_mode) return skip("demo");
+
+  const [customer, service, links] = await Promise.all([
+    deps.loadCustomer(tenant.tenantId, apt.customer_id),
+    deps.loadService(tenant.tenantId, apt.service_id),
+    deps.loadEmployeeLinks(apt.id),
+  ]);
+  if (!customer || !service) return skip("incomplete");
+  const email = (customer.email || "").trim().toLowerCase();
+  if (!EMAIL.test(email)) return skip("no_email");
+  if (!(await deps.emailAllowed(tenant.tenantId, apt.customer_id))) return skip("opted_out");
+  if (!(await deps.sendingAllowed().catch(() => false))) return skip("paused");
+
+  const slot = amsterdamSlot(apt.appointment_date, apt.start_time);
+  if (!slot) return skip("unknown_time");
+
+  const key = `manual-booking-confirmation-${apt.id}`;
+  if (!(await deps.claim(key))) return skip("already_sent");
+
+  const primary = links.find((l) => l.is_primary) ?? links[0];
+  const { manageUrl } = buildCustomerEmailLinks({ publicSlug: salon.public_slug, bookingToken: apt.booking_token });
+  const res = await deps.send({
+    template_key: "booking_confirmation",
+    user_id: tenant.tenantId,
+    recipient_email: email,
+    recipient_name: customer.name ?? "",
+    idempotency_key: key,
+    sender_legacy_name_id: true,
+    language: customer.language ?? undefined,
+    template_data: {
+      customer_name: customer.name ?? "",
+      date: slot.date,
+      time: slot.time,
+      service_name: service.name,
+      employee: primary?.name ?? undefined,
+      reference: apt.booking_reference ?? undefined,
+      ...(manageUrl ? { manage_url: manageUrl } : {}), // only with a valid token, never invented
+    },
+  }).catch(() => ({ ok: false }));
+  if (!res.ok) { await deps.release(key).catch(() => {}); return skip("send_failed"); }
+  return { sent: true, key };
+}
