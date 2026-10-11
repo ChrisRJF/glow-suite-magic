@@ -704,6 +704,7 @@ Deno.serve(async (req) => {
                 user_id: row.user_id,
                 salon_name: prof?.salon_name || "ons salon",
                 salon_slug: cfg?.public_slug || undefined,
+                sender_legacy_name_id: true,
                 recipient_email: cust.email,
                 recipient_name: cust.name || "",
                 template_key: "auto_rebook",

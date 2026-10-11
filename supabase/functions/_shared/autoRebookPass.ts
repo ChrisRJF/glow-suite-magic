@@ -333,6 +333,7 @@ export async function sendRebookEmail(
         user_id: args.userId,
         salon_name: args.salonName,
         salon_slug: args.slug || undefined,
+        sender_legacy_name_id: true,
         recipient_email: args.customer.email,
         recipient_name: args.customer.name || "",
         template_key: "auto_rebook",
