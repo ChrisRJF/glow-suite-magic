@@ -16,6 +16,11 @@ interface PaymentDecision {
   reason: string;
 }
 
+type ServerPaymentType = "deposit" | "full" | "remainder";
+
+// Server-accepted values the mapping must preserve verbatim
+const preserved = (d: PaymentDecision, t: ServerPaymentType) => paymentRequestType(d.type) && t;
+
 const decision = (partial: Partial<PaymentDecision>): PaymentDecision => ({
   required: false,
   type: "none",
