@@ -1065,6 +1065,30 @@ export type Database = {
           },
         ]
       }
+      customer_email_controls: {
+        Row: {
+          id: boolean
+          reason: string | null
+          sending_enabled: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: boolean
+          reason?: string | null
+          sending_enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: boolean
+          reason?: string | null
+          sending_enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       customer_memberships: {
         Row: {
           cancel_at_period_end: boolean
