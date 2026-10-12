@@ -156,20 +156,26 @@ export default function KassaPage() {
                 <span className="text-sm font-semibold">Totaal</span>
                 <span className="text-lg font-bold">{formatEuro(total)}</span>
               </div>
-              <Button className="w-full" size="lg" onClick={handlePay} disabled={paid}>
-                {paid ? <><Check className="w-4 h-4 mr-2" /> Betaald!</> : <><CreditCard className="w-4 h-4 mr-2" /> Afrekenen via GlowPay</>}
-              </Button>
-              <Button type="button" variant="outline" className="w-full mt-2" size="lg" onClick={() => setTerminalOpen(true)} disabled={paid || total <= 0}>
-                <Smartphone className="w-4 h-4 mr-2" /> Betaal op terminal
+              {/* Safety: a payment is only shown as paid after the payment provider confirms it.
+                  The old direct "paid" registration (handlePay) is disabled until a safe server-side route exists. */}
+              <div className="mb-3 rounded-xl bg-secondary/40 p-3 text-xs text-muted-foreground">
+                {paid
+                  ? <span className="font-medium text-primary">Betaald. Bevestigd door het pinapparaat.</span>
+                  : selectedMethod === "pin"
+                    ? <>Nog niet betaald. Kies "Betaal op terminal"; de betaling telt pas als het pinapparaat hem bevestigt.</>
+                    : <>Deze betaalmethode is in de Kassa tijdelijk niet beschikbaar, zodat er nooit een betaling wordt vastgelegd die niet echt binnen is. Gebruik "Betaal op terminal".</>}
+              </div>
+              <Button type="button" className="w-full" size="lg" onClick={() => setTerminalOpen(true)} disabled={paid || total <= 0 || terminalOpen}>
+                {paid ? <><Check className="w-4 h-4 mr-2" /> Betaald</> : <><Smartphone className="w-4 h-4 mr-2" /> Betaal op terminal</>}
               </Button>
               <TerminalPaymentDialog
                 open={terminalOpen}
                 onOpenChange={setTerminalOpen}
                 amountCents={Math.round(total * 100)}
-                description={`Kassa — ${Object.values(cart).map(i => i.name).join(", ").slice(0, 80)}`}
+                description={`Kassa ${Object.values(cart).map(i => i.name).join(", ").slice(0, 80)}`}
                 customerId={selectedCustomer || null}
                 source="checkout"
-                onPaid={() => { setPaid(true); toast.success(`Terminal betaling van ${formatEuro(total)} voltooid!`); setTimeout(() => { setCart({}); setPaid(false); setSelectedCustomer(""); }, 2000); }}
+                onPaid={() => { setPaid(true); toast.success(`Betaling van ${formatEuro(total)} bevestigd door het pinapparaat.`); setTimeout(() => { setCart({}); setPaid(false); setSelectedCustomer(""); }, 2000); }}
               />
             </div>
           )}

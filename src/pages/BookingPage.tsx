@@ -354,35 +354,11 @@ export default function BookingPage() {
     }
     setEmailLookupLoading(true);
     try {
-      if (isPublicBooking && salonSlug) {
-        const result = await callPublicBooking<{ customer: { name?: string; phone?: string; preferred_language?: string | null } | null; recentAppointments: Array<{ id: string; service_id: string | null; appointment_date: string }> }>({
-          action: "lookup_customer",
-          slug: salonSlug,
-          email: value,
-        });
-        const customer = result.customer;
-        if (!customer) {
-          setRecognizedCustomer(null);
-          setRecentAppointments([]);
-          return;
-        }
-        setRecognizedCustomer({ name: customer.name, phone: customer.phone || "" });
-        setName((current) => current || customer.name || "");
-        setPhone((current) => current || customer.phone || "");
-        // If the user hasn't explicitly chosen a language via ?lang= in this session,
-        // honour the customer's stored preferred_language.
-        try {
-          const explicitLang = new URL(window.location.href).searchParams.get("lang");
-          const supported = ["nl","en","de","fr","es"];
-          if (!explicitLang && customer.preferred_language && supported.includes(customer.preferred_language) && i18n.language !== customer.preferred_language) {
-            void i18n.changeLanguage(customer.preferred_language);
-          }
-        } catch { /* noop */ }
-        setRecentAppointments((result.recentAppointments || []).map((appt) => ({
-          ...appt,
-          service_name: bookingServices.find((s) => s.id === appt.service_id)?.name,
-        })));
-        trackEvent("email_recognized", { public: true, hasRecent: (result.recentAppointments || []).length > 0 });
+      if (isPublicBooking) {
+        // Privacy: public visitors are never recognised by email. They fill in their own details;
+        // the server links the booking to an existing customer without revealing anything.
+        setRecognizedCustomer(null);
+        setRecentAppointments([]);
         return;
       }
       const { data: customers } = await supabase
