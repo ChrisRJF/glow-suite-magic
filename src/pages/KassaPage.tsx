@@ -39,11 +39,16 @@ export default function KassaPage() {
 
   // Server Kassa only when the platform switched it on for this salon (kassa_orders_enabled). Otherwise unchanged.
   const [serverKassa, setServerKassa] = useState(false);
+  // Oefenmodus (platform-schakelaar per salon): gaat voor op pinapparaat, geen echte betaling.
+  const [practice, setPractice] = useState(false);
   const [serverLocked, setServerLocked] = useState(false);
   const [saleNo, setSaleNo] = useState(0);
   useEffect(() => {
     if (!userId) return;
-    (supabase.rpc as any)("kassa_payment_status").then(({ data }: any) => setServerKassa(data?.ok === true && data?.enabled === true));
+    (supabase.rpc as any)("kassa_payment_status").then(({ data }: any) => {
+      const ok = data?.ok === true; const pr = ok && data?.practice === true;
+      setPractice(pr); setServerKassa(pr || (ok && data?.enabled === true));
+    });
   }, [userId]);
   const onServerLock = useCallback((l: boolean) => setServerLocked(l), []);
   const serverLines = Object.values(cart).map((i) => ({ type: (i.type === "product" ? "product" : "service") as "service" | "product", item_id: i.itemId, qty: i.qty }));
@@ -159,9 +164,9 @@ export default function KassaPage() {
               <div className="mb-4">
                 <p className="text-xs text-muted-foreground mb-2">Betaalmethode</p>
                 <div className="p-2.5 rounded-xl text-sm flex items-center gap-2 bg-primary/15 border border-primary/30 text-primary font-medium">
-                  <Smartphone className="w-4 h-4" /> Pinapparaat
+                  <Smartphone className="w-4 h-4" /> {practice ? "Oefenbetaling" : "Pinapparaat"}
                 </div>
-                <p className="mt-2 text-xs text-muted-foreground">Contant, online en andere betaalmethoden zijn in de Kassa tijdelijk niet beschikbaar. Een betaling telt pas als het pinapparaat hem bevestigt.</p>
+                <p className="mt-2 text-xs text-muted-foreground">{practice ? "Je oefent met je eigen producten, behandelingen en klanten. Er wordt niets betaald of geboekt." : "Contant, online en andere betaalmethoden zijn in de Kassa tijdelijk niet beschikbaar. Een betaling telt pas als het pinapparaat hem bevestigt."}</p>
               </div>
               <div className="flex justify-between mb-4">
                 <span className="text-sm font-semibold">Totaal</span>
@@ -175,7 +180,7 @@ export default function KassaPage() {
                 </div>
               )}
               {serverKassa ? (
-                <KassaServerPay key={saleNo} userId={userId} demo={demoMode} customerId={selectedCustomer || null} lines={serverLines}
+                <KassaServerPay key={saleNo} userId={userId} demo={demoMode} practice={practice} customerId={selectedCustomer || null} lines={serverLines}
                   onLockChange={onServerLock} onPaid={() => {}}
                   onNewSale={() => { setCart({}); setSelectedCustomer(""); setServerLocked(false); setSaleNo((n) => n + 1); }} />
               ) : (<>
