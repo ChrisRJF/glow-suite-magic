@@ -1486,17 +1486,17 @@ export default function CalendarPage() {
                       {services.filter(s => s.is_active).map(s => <option key={s.id} value={s.id}>{s.name} · {formatEuro(s.price)}</option>)}
                     </select>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="flex flex-col">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-0">
+                    <div className="flex flex-col min-w-0">
                       <label className="text-xs text-muted-foreground mb-1">Datum *</label>
                       <input
                         type="date"
                         value={form.date}
                         onChange={e => setForm({ ...form, date: e.target.value })}
-                        className="w-full h-14 px-4 rounded-2xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        className="block w-full min-w-0 max-w-full box-border appearance-none h-14 px-4 rounded-2xl bg-secondary/50 border border-border text-sm text-left focus:outline-none focus:ring-2 focus:ring-primary/30 [&::-webkit-date-and-time-value]:text-left"
                       />
                     </div>
-                    <div className="flex flex-col">
+                    <div className="flex flex-col min-w-0">
                       <label className="text-xs text-muted-foreground mb-1">Tijd *</label>
                       <select
                         value={form.time}
@@ -1958,6 +1958,35 @@ export default function CalendarPage() {
               </p>
             )}
           </SheetHeader>
+          {dossierAppt?.customer_id && (() => {
+            const now = new Date();
+            const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Amsterdam' }).format(now);
+            const nowTime = new Intl.DateTimeFormat('nl-NL', { timeZone: 'Europe/Amsterdam', hour: '2-digit', minute: '2-digit', hour12: false }).format(now);
+            const dayOf = (a: any) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Amsterdam' }).format(new Date(a.appointment_date.length === 10 ? `${a.appointment_date}T12:00:00Z` : a.appointment_date));
+            const others = appointments
+              .filter((a: any) => a.customer_id === dossierAppt.customer_id && a.id !== dossierAppt.id && a.status !== 'geannuleerd' && a.status !== 'no-show')
+              .map((a: any) => ({ a, day: dayOf(a), time: getAppointmentTime(a) }))
+              .filter((x) => x.day > today || (x.day === today && x.time >= nowTime))
+              .sort((x, y) => (x.day + x.time).localeCompare(y.day + y.time));
+            if (others.length === 0) return null;
+            return (
+              <div className="mt-4 rounded-2xl border border-border bg-card p-3">
+                <p className="text-xs font-semibold text-muted-foreground mb-2">Andere afspraken ({others.length})</p>
+                <ul className="space-y-2">
+                  {others.slice(0, 3).map(({ a, day, time }) => {
+                    const emp = (apptEmployees || []).filter((l: any) => l.appointment_id === a.id).map((l: any) => displayEmployees.find((e: any) => e.id === l.employee_id)?.name).filter(Boolean).join(', ');
+                    return (
+                      <li key={a.id} className="text-sm leading-tight">
+                        <p className="font-medium">{new Date(`${day}T12:00:00Z`).toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', timeZone: 'UTC' })} · {time}</p>
+                        <p className="text-xs text-muted-foreground truncate">{services.find(s => s.id === a.service_id)?.name || 'Behandeling'}{emp ? ` · ${emp}` : ''}</p>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <button type="button" className="mt-2 text-xs text-primary hover:underline" onClick={() => routerNavigate(`/klanten?customer=${dossierAppt.customer_id}`)}>Bekijk alle afspraken</button>
+              </div>
+            );
+          })()}
           {dossierAppt && checkoutVisible && (
             <div className="mt-4">
               <AppointmentCheckoutPanel appointmentId={dossierAppt.id} />
