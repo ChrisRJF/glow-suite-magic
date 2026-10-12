@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { startKassaPayment, afterProviderEvent, type KassaDeps } from "../../supabase/functions/_shared/inactive/kassaRoute";
+import { startKassaPayment, afterProviderEvent, type KassaDeps } from "../../supabase/functions/_shared/kassaRoute";
 
 const O = "11111111-0000-0000-0000-000000000001", T = "22222222-0000-0000-0000-000000000002";
 const begin = { ok: true as const, resumed: false, idempotency_key: "kassa:o:live:1", payment_id: null, total_cents: 6500, is_demo: false, tenant_id: "tenant-a", customer_id: null };

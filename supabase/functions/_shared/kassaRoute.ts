@@ -1,4 +1,4 @@
-// INACTIVE (not imported by any entrypoint). Kassa betaalroute + verwerking na providerbewijs.
+// Kassa betaalroute + verwerking na providerbewijs. Inert unless tenant_feature_flags.kassa_orders_enabled = true.
 // Hergebruikt: create-viva-terminal-payment (betaling bij Viva), record_provider_payment (grootboek),
 // kassa_* RPC's uit docs/proposed-migrations/2026-10-12_kassa_orders.sql.
 
