@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { vivaPosEnv, getVivaPosAccessToken, isVivaPosConfigured } from "../_shared/viva.ts";
 import { isCheckoutPayment, resolveCheckoutTenant, makeLedgerDeps } from "../_shared/checkoutGuard.ts";
 import { applyEvidence, syncAppointment } from "../_shared/providerLedger.ts";
+import { isKassaPayment, processKassaEvent } from "../_shared/kassaGuard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -88,7 +89,7 @@ Deno.serve(async (req) => {
       const t = await resolveCheckoutTenant(admin, userId);
       if (t) {
         const { data: tp } = await admin.from("payments").select("*").eq("id", payment_id).eq("user_id", t.tenantId).maybeSingle();
-        if (tp && isCheckoutPayment(tp.metadata)) payment = tp;
+        if (tp && (isCheckoutPayment(tp.metadata) || (isKassaPayment(tp.metadata) && t.role !== "financieel"))) payment = tp;
       }
     }
     if (!payment) return json({ error: "not_found" }, 404);
@@ -97,6 +98,10 @@ Deno.serve(async (req) => {
     }
 
     // If already terminal, return as-is (idempotent)
+    // Kassa: an interrupted earlier settlement is retried here (settlement is exactly-once in the database).
+    if (isKassaPayment(payment.metadata) && (payment.status === "paid" || TERMINAL_STATES.has(payment.status))) {
+      await processKassaEvent(admin, payment, payment.status === "paid" ? "paid" : (["failed", "cancelled", "expired"].includes(payment.status) ? payment.status : null), null);
+    }
     if (payment.status === "paid") return json({ payment_id, status: "paid", terminal_status: "paid", paid_at: payment.paid_at });
     if (TERMINAL_STATES.has(payment.status)) return json({ payment_id, status: payment.status, terminal_status: payment.status });
 
@@ -232,6 +237,12 @@ Deno.serve(async (req) => {
         } else {
           await syncAppointment(payment.user_id, payment.appointment_id, ld).catch(() => {});
         }
+      } else if (!updErr && updatedPayment && isKassaPayment(meta)) {
+        const reported = Number(findStringValue(providerData, ["amount", "Amount"]));
+        const final = newStatus === "paid" || newStatus === "failed" || newStatus === "cancelled" || newStatus === "expired" ? newStatus : null;
+        const res = await processKassaEvent(admin, payment, final as any,
+          { transactionId: txStr, amountCents: Number.isInteger(reported) ? reported : null, source: "poll" });
+        console.log("[viva-terminal-payment-status] kassa", JSON.stringify({ payment_id: payment.id, result: res }));
       } else if (!updErr && updatedPayment && payment.appointment_id) {
         const apptUpd: Record<string, any> = {};
         if (newStatus === "paid") apptUpd.payment_status = "paid";

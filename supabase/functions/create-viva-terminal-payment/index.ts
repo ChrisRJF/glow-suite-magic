@@ -41,13 +41,12 @@ Deno.serve(async (req) => {
     const {
       terminal_id,
       appointment_id = null,
-      customer_id = null,
       amount_cents,
       description = "Terminal payment",
       source = "manual",
       idempotency_key = null,
     } = body || {};
-    let { is_demo = false, tip_cents = 0 } = body || {};
+    let { is_demo = false, tip_cents = 0, customer_id = null } = body || {};
 
     let amt = Number(amount_cents);
     if (!isKassa && (!Number.isFinite(amt) || amt < 30)) return json({ error: "amount_too_small", message: "amount_cents must be >= 30" }, 400);

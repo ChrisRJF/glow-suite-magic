@@ -5,6 +5,7 @@
 
 import { isCheckoutPayment, makeLedgerDeps } from "../_shared/checkoutGuard.ts";
 import { applyEvidence, syncAppointment } from "../_shared/providerLedger.ts";
+import { isKassaPayment, processKassaEvent } from "../_shared/kassaGuard.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getVivaTransaction } from "../_shared/viva.ts";
 import { getIsvTransactionById, hasResellerBasicCredentials } from "../_shared/vivaIsv.ts";
@@ -711,6 +712,13 @@ Deno.serve(async (req) => {
     const isAutoRevenue = arSources.includes(existingMeta?.source);
     const appointmentId = payment.appointment_id || existingMeta?.appointment_id || null;
 
+    if (isKassaPayment(existingMeta)) {
+      // Kassa: ledger only with Viva-verified amount; settlement exactly once; failure never after evidence.
+      const res = txVerified && isPaid
+        ? await processKassaEvent(supabase, payment, "paid", { transactionId, amountCents: txAmountCents, source: "webhook" })
+        : isFailed ? await processKassaEvent(supabase, payment, targetStatus as any, null) : "skipped";
+      console.log("[viva-webhook] kassa", JSON.stringify({ payment_id: payment.id, result: res }));
+    }
     if (appointmentId && isCheckoutPayment(existingMeta)) {
       // Appointment checkout: totals only from provider-verified ledger rows; never a direct amount write.
       const ld = makeLedgerDeps(supabase);
