@@ -71,9 +71,9 @@ export function RecurringAppointmentsPanel({ appointment, links, userId, tenantI
           <ul className="max-h-72 overflow-y-auto divide-y divide-border text-sm rounded-xl border border-border">{dates.map((d, i) => (
             <li key={d} className="flex items-center justify-between gap-2 px-2 py-1.5">
               <span className="min-w-0 truncate">{fmt(d)}</span>
-              <input type="time" step={300} aria-label={`Tijd voor ${fmt(d)}`} value={times[i] ?? tpl.time}
+              <input type="time" aria-label={`Tijd voor ${fmt(d)}`} value={times[i] ?? tpl.time}
                 onChange={(e) => { const v = e.target.value; setTimes((p) => { const n = [...p]; n[i] = v; return n; }); }}
-                className="h-9 w-[92px] shrink-0 appearance-none rounded-lg border border-border bg-secondary/50 px-2 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                className="h-9 w-28 shrink-0 appearance-none text-center rounded-lg border border-border bg-secondary/50 px-2 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/30" />
             </li>
           ))}</ul>
           <Button className="w-full" disabled={busy} onClick={confirm}>{count} afspraken inplannen</Button>

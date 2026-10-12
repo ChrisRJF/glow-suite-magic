@@ -1493,7 +1493,7 @@ export default function CalendarPage() {
                         type="date"
                         value={form.date}
                         onChange={e => setForm({ ...form, date: e.target.value })}
-                        className="block w-full min-w-0 max-w-full box-border appearance-none h-14 px-4 rounded-2xl bg-secondary/50 border border-border text-sm text-left focus:outline-none focus:ring-2 focus:ring-primary/30 [&::-webkit-date-and-time-value]:text-left"
+                        className="block w-full min-w-0 max-w-full box-border appearance-none h-14 px-4 rounded-2xl bg-secondary/50 border border-border text-sm text-left leading-[3.5rem] focus:outline-none focus:ring-2 focus:ring-primary/30 [&::-webkit-date-and-time-value]:text-left [&::-webkit-date-and-time-value]:leading-[3.4rem]"
                       />
                     </div>
                     <div className="flex flex-col min-w-0">
