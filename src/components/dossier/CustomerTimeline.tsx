@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, Calendar, Camera, FileText, History, Stethoscope } from "lucide-react";
+import { Link } from "react-router-dom";
+import { AlertTriangle, Calendar, Camera, ChevronRight, FileText, History, Stethoscope } from "lucide-react";
 import { useDossierAccess } from "@/hooks/useDossierAccess";
 
 interface TimelineRow {
@@ -108,15 +109,32 @@ export function CustomerTimeline({ customerId }: { customerId: string }) {
               <ol className="space-y-2">
                 {group.rows.map((r, i) => {
                   const Icon = ICON[r.category] ?? Calendar;
-                  return (
-                    <li key={`${r.kind}-${r.detail_id}-${i}`} className="flex items-start gap-2 rounded-xl border border-border p-3">
+                  const isAppt = r.kind === "appointment" && !!r.detail_id;
+                  const content = (
+                    <>
                       <Icon className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <p className="text-sm text-foreground">{r.label}</p>
                         <p className="text-xs text-muted-foreground">
                           {new Date(r.occurred_at).toLocaleString("nl-NL", { dateStyle: "medium", timeStyle: "short" })}
                         </p>
                       </div>
+                      {isAppt && <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />}
+                    </>
+                  );
+                  return (
+                    <li key={`${r.kind}-${r.detail_id}-${i}`}>
+                      {isAppt ? (
+                        <Link
+                          to={`/agenda?afspraak=${encodeURIComponent(r.detail_id as string)}`}
+                          aria-label={`Afspraak openen: ${r.label}`}
+                          className="flex min-h-11 items-start gap-2 rounded-xl border border-border p-3 transition-colors hover:bg-muted/50 active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          {content}
+                        </Link>
+                      ) : (
+                        <div className="flex items-start gap-2 rounded-xl border border-border p-3">{content}</div>
+                      )}
                     </li>
                   );
                 })}
