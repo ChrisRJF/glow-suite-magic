@@ -17,6 +17,7 @@ export function RecurringAppointmentsPanel({ appointment, links, userId, tenantI
   const [open, setOpen] = useState(false);
   const [count, setCount] = useState(4);
   const [batch, setBatch] = useState<Batch | null>(null);
+  const [times, setTimes] = useState<(string | undefined)[]>([]);
   const [result, setResult] = useState<RunResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -41,7 +42,8 @@ export function RecurringAppointmentsPanel({ appointment, links, userId, tenantI
     if (!tpl.ok || inFlight.current) return;
     const existing = loadBatch(store, key);
     if (existing) { setBatch(existing); return; }
-    const b = buildBatch(appointment.id, tpl, dates, () => crypto.randomUUID());
+    if (dates.some((_, i) => times[i] !== undefined && !/^([01]\d|2[0-3]):[0-5]\d$/.test(times[i]!))) { setError("Vul bij elke afspraak een geldige tijd in. Er is niets opgeslagen."); return; }
+    const b = buildBatch(appointment.id, tpl, dates, () => crypto.randomUUID(), dates.map((_, i) => times[i]));
     if (b.ok === false) { setError(b.message); return; }
     setBatch(b.batch); run(b.batch);
   };
@@ -62,11 +64,18 @@ export function RecurringAppointmentsPanel({ appointment, links, userId, tenantI
       {tpl.ok && !batch && (
         <>
           <div className="flex flex-wrap gap-2" role="group" aria-label="Aantal extra afspraken">
-            {RECURRING_COUNTS.map((n) => <Button key={n} size="sm" variant={n === count ? "default" : "outline"} onClick={() => setCount(n)}>{recurringCountLabel(n)}</Button>)}
+            {RECURRING_COUNTS.map((n) => <Button key={n} size="sm" variant={n === count ? "default" : "outline"} onClick={() => { setCount(n); setTimes([]); }}>{recurringCountLabel(n)}</Button>)}
           </div>
-          <p className="text-xs text-muted-foreground">Zelfde klant, behandeling en medewerker, om {tpl.time}. De huidige afspraak blijft zoals hij is. Er wordt geen bevestiging verstuurd.</p>
+          <p className="text-xs text-muted-foreground">Zelfde klant, behandeling en medewerker. Standaard om {tpl.time}; pas per afspraak de tijd aan indien nodig. De huidige afspraak blijft zoals hij is. Er wordt geen bevestiging verstuurd.</p>
           <p className="text-sm font-medium">{count} extra afspraken · iedere 2 weken</p>
-          <ul className="max-h-60 overflow-y-auto space-y-1 text-sm rounded-xl border border-border p-2">{dates.map((d) => <li key={d}>{fmt(d)} · {tpl.time}</li>)}</ul>
+          <ul className="max-h-72 overflow-y-auto divide-y divide-border text-sm rounded-xl border border-border">{dates.map((d, i) => (
+            <li key={d} className="flex items-center justify-between gap-2 px-2 py-1.5">
+              <span className="min-w-0 truncate">{fmt(d)}</span>
+              <input type="time" step={300} aria-label={`Tijd voor ${fmt(d)}`} value={times[i] ?? tpl.time}
+                onChange={(e) => { const v = e.target.value; setTimes((p) => { const n = [...p]; n[i] = v; return n; }); }}
+                className="h-9 w-[92px] shrink-0 appearance-none rounded-lg border border-border bg-secondary/50 px-2 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/30" />
+            </li>
+          ))}</ul>
           <Button className="w-full" disabled={busy} onClick={confirm}>{count} afspraken inplannen</Button>
         </>
       )}
