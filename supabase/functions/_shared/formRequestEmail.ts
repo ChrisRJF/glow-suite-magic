@@ -28,8 +28,8 @@ export async function sendingAllowed(read: () => Promise<{ sending_enabled: unkn
   try { const row = await read(); return row?.sending_enabled === true; } catch { return false; }
 }
 
-/** Initial scope: only the Studio Nova Amsterdam DEMO tenant. Changing this needs approval. */
-export const FORM_EMAIL_TENANTS = new Set(["cbd7d158-0133-4f2f-a504-4b82f73f2e20"]);
+/** Initial scope: only the fictitious Studio Nova DEMO tenant. Changing this needs approval. */
+export const FORM_EMAIL_TENANTS = new Set(["5dbfcbd4-48ff-4010-a1cc-07ed737880ce"]);
 
 export function parseList(raw: string | undefined | null): Set<string> {
   return new Set(String(raw ?? "").split(/[\s,;]+/).map((s) => s.trim().toLowerCase()).filter(Boolean));
