@@ -448,6 +448,7 @@ function CustomerTimeline({
   appointments: Tables<"appointments">[];
   notes: string;
 }) {
+  const navigate = useNavigate();
   const { data: payments } = usePayments();
   const { data: rebookActions } = useRebookActions();
 
@@ -533,10 +534,20 @@ function CustomerTimeline({
           const meta = KIND_META[it.kind];
           const Icon = meta.icon;
           const d = new Date(it.date);
+          const apptId = it.id.startsWith("appt-") ? it.id.slice(5) : null;
+          const open = apptId ? () => navigate(`/agenda?afspraak=${encodeURIComponent(apptId)}`) : undefined;
           return (
             <div
               key={it.id}
-              className="flex items-start gap-2.5 p-2 rounded-lg bg-secondary/40 border border-border/60"
+              role={open ? "link" : undefined}
+              tabIndex={open ? 0 : undefined}
+              aria-label={open ? `Afspraak openen op ${d.toLocaleDateString("nl-NL")}` : undefined}
+              onClick={open}
+              onKeyDown={open ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } } : undefined}
+              className={cn(
+                "flex items-start gap-2.5 p-2 rounded-lg bg-secondary/40 border border-border/60",
+                open && "cursor-pointer transition-colors hover:bg-secondary active:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              )}
             >
               <div className={cn("h-6 w-6 rounded-md flex items-center justify-center shrink-0", meta.bg, meta.fg)}>
                 <Icon className="w-3 h-3" />
