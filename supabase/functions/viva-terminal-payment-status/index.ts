@@ -92,6 +92,15 @@ Deno.serve(async (req) => {
         if (tp && (isCheckoutPayment(tp.metadata) || (isKassaPayment(tp.metadata) && t.role !== "financieel"))) payment = tp;
       }
     }
+    // Kassa: every kassa role of this salon (incl. medewerker) may follow its own salon's Kassa payments, read-only.
+    if (!payment) {
+      const kt = await admin.rpc("kassa_actor_tenant", { _actor: userId });
+      const ktRow = Array.isArray(kt.data) ? kt.data[0] : kt.data;
+      if (!kt.error && ktRow?.tenant_id) {
+        const { data: kp } = await admin.from("payments").select("*").eq("id", payment_id).eq("user_id", ktRow.tenant_id).maybeSingle();
+        if (kp && isKassaPayment(kp.metadata)) payment = kp;
+      }
+    }
     if (!payment) return json({ error: "not_found" }, 404);
     if (payment.method !== "terminal" || payment.provider !== "viva") {
       return json({ error: "not_a_terminal_payment" }, 400);
