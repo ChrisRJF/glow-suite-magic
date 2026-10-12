@@ -61,11 +61,13 @@ export interface Batch { v: 1; sourceId: string; items: BatchItem[] }
 
 export function batchKey(userId: string, tenantId: string, sourceId: string) { return `glowsuite.recurring.v1:${userId}:${tenantId}:${sourceId}`; }
 
-export function buildBatch(sourceId: string, t: { customer_id: string; service_id: string; time: string; employee_ids: string[] }, dates: string[], newId: () => string):
+/** `times[i]` optionally overrides the start time for `dates[i]`; default is the source time. */
+export function buildBatch(sourceId: string, t: { customer_id: string; service_id: string; time: string; employee_ids: string[] }, dates: string[], newId: () => string, times?: readonly (string | undefined)[]):
   { ok: true; batch: Batch } | { ok: false; message: string } {
   const items: BatchItem[] = [];
-  for (const date of dates) {
-    const b = buildCreateBody(newId(), { customer_id: t.customer_id, service_id: t.service_id, date, time: t.time, employee_ids: t.employee_ids, notes: RECURRING_NOTE, group: [], send_confirmation: false }, { uiEnabled: false });
+  for (const [i, date] of dates.entries()) {
+    const time = times?.[i] || t.time;
+    const b = buildCreateBody(newId(), { customer_id: t.customer_id, service_id: t.service_id, date, time, employee_ids: t.employee_ids, notes: RECURRING_NOTE, group: [], send_confirmation: false }, { uiEnabled: false });
     if (b.ok === false) return { ok: false, message: b.message };
     items.push({ date, body: { ...b.body, send_confirmation: false }, status: "pending" });
   }
