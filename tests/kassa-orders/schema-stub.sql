@@ -1,5 +1,5 @@
 -- Minimal copies of existing tables (fictional). Mirrors production default grants incl. sandbox_exec.
-CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role; CREATE ROLE sandbox_exec;
+CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role BYPASSRLS; CREATE ROLE sandbox_exec;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT ON TABLES TO sandbox_exec;
 GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role, sandbox_exec;

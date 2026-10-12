@@ -48,8 +48,8 @@ SELECT set_config('test.uid', :A, false);
 SELECT ok((kassa_payment_status()->>'terminal') = 'live', 'volledig + geactiveerd: live');
 
 -- 4. Vervalsen KYC / betaalstatus / schakelaars als saloneigenaar.
-SELECT err($$UPDATE glowpay_connected_merchants SET kyc_status='verified' WHERE user_id='cccccccc-0000-0000-0000-000000000001'$$, 'eigenaar wijzigt KYC');
-SELECT err($$UPDATE glowpay_connected_merchants SET terminals_enabled=true$$, 'eigenaar zet pinbevoegdheid aan');
+SELECT err($$UPDATE glowpay_connected_merchants SET kyc_status='pending' WHERE user_id='cccccccc-0000-0000-0000-000000000001'$$, 'eigenaar wijzigt KYC');
+SELECT err($$UPDATE glowpay_connected_merchants SET terminals_enabled=false WHERE user_id='cccccccc-0000-0000-0000-000000000001'$$, 'eigenaar zet pinbevoegdheid aan');
 INSERT INTO glowpay_connected_merchants (user_id,is_demo,viva_merchant_id,kyc_status,setup_complete,terminals_enabled)
   VALUES ('eeeeeeee-0000-0000-0000-000000000001',false,'fake','verified',true,true);
 SELECT ok((SELECT kyc_status='pending' AND NOT setup_complete AND NOT terminals_enabled AND viva_merchant_id IS NULL FROM glowpay_connected_merchants WHERE user_id='eeeeeeee-0000-0000-0000-000000000001'), 'eigen merchant-rij: bevoegdheden geforceerd uit');
