@@ -38,6 +38,7 @@ export function KassaServerPay({ userId, demo, customerId, lines, onPaid, onNewS
   const [terminalId, setTerminalId] = useState("");
   const [state, setState] = useState<KassaState>({ phase: "idle" });
   const busy = useRef(false);
+  const resetTimer = useRef<number | undefined>(undefined);
   const [hasOpen, setHasOpen] = useState(() => !!loadSaved(safeStorage(), userId)?.paymentId);
 
   useEffect(() => {
@@ -56,7 +57,11 @@ export function KassaServerPay({ userId, demo, customerId, lines, onPaid, onNewS
     try {
       const r = await payWithKassa({ storage: safeStorage(), userId, customerId, lines, demo, terminalId }, deps, setState);
       setHasOpen(!!loadSaved(safeStorage(), userId)?.paymentId);
-      if (r.phase === "paid") onPaid();
+      if (r.phase === "paid") {
+        onPaid();
+        // Only a server/provider-confirmed payment resets; pending/failed/uncertain never do.
+        resetTimer.current = window.setTimeout(() => onNewSale?.(), SUCCESS_RESET_MS);
+      }
     } finally { busy.current = false; }
   };
 
