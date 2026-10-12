@@ -12,6 +12,7 @@ import { getIsvTransactionById, hasResellerBasicCredentials } from "../_shared/v
 
 import { diagnosticCorsHeaders, okText, parseVivaPayload, writeWebhookDebugLog } from "../_shared/vivaDiagnostics.ts";
 import { GLOWPAY_MARGIN_CENTS } from "../_shared/glowpayMargin.ts";
+import { evaluateDemoConfirmation } from "../_shared/demoAppointmentConfirm.ts";
 import { appendConfirmationBlock, buildConfirmationLink, claimReminderDispatch } from "../_shared/reminderEngine.ts";
 
 const corsHeaders = diagnosticCorsHeaders;
@@ -523,7 +524,39 @@ Deno.serve(async (req) => {
 
 
     if (payment.is_demo) {
-      if (ledgerId) await supabase.from("viva_webhook_events").update({ processed: true, processed_at: new Date().toISOString() }).eq("id", ledgerId);
+      // Demo appointment checkout only: record a Viva-API-verified demo approval in metadata.
+      // Status, ledger, appointment, stock and customer spend stay untouched.
+      let demoNote: string | null = null;
+      const pm = (payment.metadata as any) || {};
+      if (status === "paid" && pm.checkout === "appointment_checkout" && pm.environment === "demo") {
+        try {
+          const { data: st } = await supabase.from("settings").select("is_demo, demo_mode").eq("user_id", payment.user_id).order("created_at", { ascending: false }).limit(1);
+          const tenantIsDemo = !!(st && st[0] && (st[0].is_demo === true || st[0].demo_mode === true));
+          let verified: { statusId: string | null; amountCents: number | null } | null = null;
+          if (transactionId) {
+            try { const tx = await getVivaTransaction(transactionId); verified = { statusId: tx.statusId || null, amountCents: tx.amount }; }
+            catch (e) { console.warn("[viva-webhook] demo tx lookup failed", { message: String((e as Error)?.message || "error") }); }
+          }
+          const res = evaluateDemoConfirmation({
+            payment: payment as any, tenantIsDemo, transactionId,
+            eventMerchantTrns: String(eventData?.MerchantTrns ?? eventData?.merchantTrns ?? "") || null,
+            eventTerminalId: eventData?.TerminalId != null ? String(eventData.TerminalId) : null,
+            verified,
+          }, new Date().toISOString());
+          if (res.ok) {
+            const { data: upd, error: updErr } = await supabase.from("payments")
+              .update({ metadata: { ...pm, demo_provider_confirmation: res.record } })
+              .eq("id", payment.id).eq("is_demo", true).eq("status", payment.status)
+              .is("metadata->demo_provider_confirmation", null)
+              .select("id");
+            demoNote = updErr ? "demo_confirm_update_failed" : (upd && upd.length ? "demo_confirmed" : "demo_already_confirmed");
+          } else demoNote = `demo_${res.reason}`;
+        } catch (e) {
+          demoNote = "demo_confirm_error";
+          console.warn("[viva-webhook] demo confirm error", { message: String((e as Error)?.message || "error") });
+        }
+      }
+      if (ledgerId) await supabase.from("viva_webhook_events").update({ processed: true, processed_at: new Date().toISOString(), ...(demoNote ? { error: demoNote } : {}) }).eq("id", ledgerId);
       return okText();
     }
 
