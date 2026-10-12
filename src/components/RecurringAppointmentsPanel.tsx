@@ -23,7 +23,7 @@ export function RecurringAppointmentsPanel({ appointment, links, userId, tenantI
   const [busy, setBusy] = useState(false);
   const inFlight = useRef(false);
 
-  useEffect(() => { setOpen(false); setResult(null); setError(null); setBatch(loadBatch(store, key)); }, [key]);
+  useEffect(() => { setOpen(false); setTimes([]); setResult(null); setError(null); setBatch(loadBatch(store, key)); }, [key]);
 
   const tpl = recurringTemplate(appointment, links);
   const today = amsterdamDate(new Date())!;
