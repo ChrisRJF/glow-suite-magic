@@ -29,10 +29,10 @@ function setup(over: Partial<FormMailDeps> = {}) {
 const run = (d: FormMailDeps, extra: Record<string, unknown> = {}) => deliverFormRequestEmail(d, { tenantId: NOVA, requestId: R, formTitle: "Intake", token: TOK, ...extra });
 
 describe("intake e-mail", () => {
-  it("scope: only Studio Nova DEMO, Beautycare and unknown recipients denied", () => {
+  it("scope: Studio Nova test-only, Beautycare own customers, unknown recipients denied", () => {
     const rec = new Set(["test@fictief.nl"]);
     expect(emailScopeAllowed(NOVA, "test@fictief.nl", FORM_EMAIL_TENANTS, rec)).toBe(true);
-    expect(emailScopeAllowed(BEAUTYCARE, "test@fictief.nl", FORM_EMAIL_TENANTS, rec)).toBe(false);
+    expect(emailScopeAllowed(BEAUTYCARE, "test@fictief.nl", FORM_EMAIL_TENANTS, rec)).toBe(true);
     expect(emailScopeAllowed(NOVA, "echt@klant.nl", FORM_EMAIL_TENANTS, rec)).toBe(false);
     expect(emailScopeAllowed(NOVA, "test@fictief.nl", FORM_EMAIL_TENANTS, new Set())).toBe(false);
   });
@@ -52,9 +52,9 @@ describe("intake e-mail", () => {
       expect(sent).toHaveLength(0);
     }
   });
-  it("refuses Beautycare even if its request would load", async () => {
+  it("Beautycare cannot mail a request belonging to another salon", async () => {
     const { deps, sent } = setup();
-    expect(await deliverFormRequestEmail(deps, { tenantId: BEAUTYCARE, requestId: R, formTitle: "I", token: TOK })).toEqual({ ok: false, reason: "tenant_not_allowed" });
+    expect(await deliverFormRequestEmail(deps, { tenantId: BEAUTYCARE, requestId: R, formTitle: "I", token: TOK })).toEqual({ ok: false, reason: "request_not_found" });
     expect(sent).toHaveLength(0);
   });
   it("refuses blocked customers and closed requests", async () => {
@@ -83,4 +83,17 @@ describe("intake e-mail", () => {
     expect(await run(deps)).toEqual({ ok: false, reason: "idempotency_unreadable" });
     expect(sent).toHaveLength(0);
   });
+});
+
+import { emailScopeAllowed as _scope, FORM_EMAIL_TENANTS as _T } from "../../supabase/functions/_shared/formRequestEmail";
+describe("Beautycare intake email scope", () => {
+  const BC = "1c6c885e-c944-4717-b2ef-9cfdb9fa15ae";
+  const test = new Set(["chrisrjfrancois@hotmail.com"]);
+  it("Beautycare may mail its own customer address", () => expect(_scope(BC, "klant@example.nl", _T, test)).toBe(true));
+  it("Studio Nova stays limited to the test address", () => {
+    expect(_scope("5dbfcbd4-48ff-4010-a1cc-07ed737880ce", "klant@example.nl", _T, test)).toBe(false);
+    expect(_scope("5dbfcbd4-48ff-4010-a1cc-07ed737880ce", "chrisrjfrancois@hotmail.com", _T, test)).toBe(true);
+  });
+  it("other salons stay denied", () => expect(_scope("cbd7d158-0133-4f2f-a504-4b82f73f2e20", "chrisrjfrancois@hotmail.com", _T, test)).toBe(false));
+  it("invalid address denied", () => expect(_scope(BC, "geen-adres", _T, test)).toBe(false));
 });
