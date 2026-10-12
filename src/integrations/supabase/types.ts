@@ -2611,6 +2611,7 @@ export type Database = {
           customer_id: string | null
           id: string
           is_demo: boolean
+          is_practice: boolean
           payment_id: string | null
           request_hash: string
           request_id: string
@@ -2627,6 +2628,7 @@ export type Database = {
           customer_id?: string | null
           id?: string
           is_demo: boolean
+          is_practice?: boolean
           payment_id?: string | null
           request_hash: string
           request_id: string
@@ -2643,6 +2645,7 @@ export type Database = {
           customer_id?: string | null
           id?: string
           is_demo?: boolean
+          is_practice?: boolean
           payment_id?: string | null
           request_hash?: string
           request_id?: string
@@ -4604,6 +4607,7 @@ export type Database = {
           history_csv_import_enabled: boolean
           history_csv_preview_enabled: boolean
           kassa_orders_enabled: boolean
+          kassa_practice_enabled: boolean
           live_payments_enabled: boolean
           tenant_id: string
           updated_at: string
@@ -4614,6 +4618,7 @@ export type Database = {
           history_csv_import_enabled?: boolean
           history_csv_preview_enabled?: boolean
           kassa_orders_enabled?: boolean
+          kassa_practice_enabled?: boolean
           live_payments_enabled?: boolean
           tenant_id: string
           updated_at?: string
@@ -4624,6 +4629,7 @@ export type Database = {
           history_csv_import_enabled?: boolean
           history_csv_preview_enabled?: boolean
           kassa_orders_enabled?: boolean
+          kassa_practice_enabled?: boolean
           live_payments_enabled?: boolean
           tenant_id?: string
           updated_at?: string
@@ -6062,6 +6068,10 @@ export type Database = {
         }[]
       }
       kassa_payment_status: { Args: never; Returns: Json }
+      kassa_practice_checkout: {
+        Args: { _customer_id: string; _lines: Json; _request_id: string }
+        Returns: Json
+      }
       kassa_settle_order: { Args: { _payment_id: string }; Returns: string }
       lookup_referral_owner: { Args: { _code: string }; Returns: string }
       minutes_to_wall_time: { Args: { _m: number }; Returns: string }
