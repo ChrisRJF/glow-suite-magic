@@ -6,6 +6,8 @@ import { formatEuro } from "@/lib/data";
 import { payWithKassa, loadSaved, type KassaLine, type KassaState, type KassaServerDeps } from "@/lib/kassaServer";
 
 const safeStorage = () => { try { return window.localStorage; } catch { return null; } };
+// How long a confirmed success stays visible before the screen resets to a clean sale.
+const SUCCESS_RESET_MS = 4000;
 
 export const kassaServerDeps: KassaServerDeps = {
   createOrder: async (requestId, customerId, lines, demo) => {
@@ -38,6 +40,7 @@ export function KassaServerPay({ userId, demo, customerId, lines, onPaid, onNewS
   const [terminalId, setTerminalId] = useState("");
   const [state, setState] = useState<KassaState>({ phase: "idle" });
   const busy = useRef(false);
+  const resetTimer = useRef<number | undefined>(undefined);
   const [hasOpen, setHasOpen] = useState(() => !!loadSaved(safeStorage(), userId)?.paymentId);
 
   useEffect(() => {
@@ -49,6 +52,7 @@ export function KassaServerPay({ userId, demo, customerId, lines, onPaid, onNewS
   }, [demo]);
 
   useEffect(() => { onLockChange(hasOpen || ["creating", "starting", "open", "paid"].includes(state.phase)); }, [hasOpen, state.phase, onLockChange]);
+  useEffect(() => () => { if (resetTimer.current) window.clearTimeout(resetTimer.current); }, []);
 
   const pay = async () => {
     if (busy.current || state.phase === "paid") return; // double click guard; a paid order is never paid again
@@ -56,7 +60,11 @@ export function KassaServerPay({ userId, demo, customerId, lines, onPaid, onNewS
     try {
       const r = await payWithKassa({ storage: safeStorage(), userId, customerId, lines, demo, terminalId }, deps, setState);
       setHasOpen(!!loadSaved(safeStorage(), userId)?.paymentId);
-      if (r.phase === "paid") onPaid();
+      if (r.phase === "paid") {
+        onPaid();
+        // Only a server/provider-confirmed payment resets; pending/failed/uncertain never do.
+        resetTimer.current = window.setTimeout(() => onNewSale?.(), SUCCESS_RESET_MS);
+      }
     } finally { busy.current = false; }
   };
 
@@ -72,12 +80,19 @@ export function KassaServerPay({ userId, demo, customerId, lines, onPaid, onNewS
           {terminals.map((t) => <option key={t.id} value={t.id}>{t.name || "Pinapparaat"}</option>)}
         </select>
       </div>
-      {state.phase !== "idle" && (
+      {state.phase === "paid" ? (
+        <div role="status" className="rounded-xl bg-secondary/40 p-3">
+          <div className="flex items-center gap-2">
+            <Check className="w-4 h-4 text-success" />
+            <span className="font-medium text-success">Betaling geslaagd</span>
+          </div>
+          {state.totalCents ? <p className="text-xs text-muted-foreground mt-1">{formatEuro(state.totalCents / 100)} ontvangen</p> : null}
+        </div>
+      ) : state.phase !== "idle" && (
         <div role="status" className="rounded-xl bg-secondary/40 p-3 text-xs text-muted-foreground">
           {state.phase === "creating" && "Bestelling wordt gecontroleerd..."}
           {state.phase === "starting" && "Betaling wordt gestart op het pinapparaat..."}
           {state.phase === "open" && <>Betaling staat open{state.totalCents ? ` (${formatEuro(state.totalCents / 100)})` : ""}. Wacht op het pinapparaat.</>}
-          {state.phase === "paid" && <span className="font-medium text-primary">Betaald. Bevestigd door het pinapparaat.</span>}
           {(state.phase === "failed" || state.phase === "error") && <span className="text-destructive">{state.message}</span>}
         </div>
       )}
@@ -85,9 +100,6 @@ export function KassaServerPay({ userId, demo, customerId, lines, onPaid, onNewS
         {working ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : state.phase === "paid" ? <Check className="w-4 h-4 mr-2" /> : <Smartphone className="w-4 h-4 mr-2" />}
         {state.phase === "paid" ? "Betaald" : hasOpen ? "Openstaande betaling bekijken" : state.phase === "failed" ? "Opnieuw proberen" : "Betaal op pinapparaat"}
       </Button>
-      {state.phase === "paid" && onNewSale && (
-        <Button type="button" variant="outline" className="w-full" onClick={onNewSale}>Nieuwe verkoop</Button>
-      )}
     </div>
   );
 }

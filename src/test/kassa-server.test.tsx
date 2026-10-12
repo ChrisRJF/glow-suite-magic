@@ -58,7 +58,7 @@ describe("Kassa server flow", () => {
     await waitFor(() => expect(btn).not.toBeDisabled());
     fireEvent.click(btn); fireEvent.click(btn); fireEvent.click(btn);
     release();
-    await screen.findByText(/Bevestigd door het pinapparaat/);
+    await screen.findByText("Betaling geslaagd");
     expect(d.createOrder).toHaveBeenCalledTimes(1);
   });
   it("shows the active demo pin device by its terminal name", async () => {
@@ -67,29 +67,42 @@ describe("Kassa server flow", () => {
     expect(terminalQuery.cols).toContain("terminal_name");
     expect(terminalQuery.filters).toEqual([["is_demo", true], ["status", "active"]]);
   });
-  it("success stays visible until Nieuwe verkoop; paid order cannot be paid again", async () => {
+  it("success shows 'Betaling geslaagd' with amount, resets automatically; paid order cannot be paid again", async () => {
     const d = deps(); const onNewSale = vi.fn(); const onLock = vi.fn();
     render(<KassaServerPay userId="u-ok" demo customerId={null} lines={lines} onPaid={() => {}} onNewSale={onNewSale} onLockChange={onLock} deps={d} />);
     const btn = await screen.findByRole("button", { name: /Betaal op pinapparaat/ });
     await waitFor(() => expect(btn).not.toBeDisabled());
     fireEvent.click(btn);
-    await screen.findByText(/Bevestigd door het pinapparaat/);
-    await new Promise((r) => setTimeout(r, 2200));
-    expect(screen.getByText(/Bevestigd door het pinapparaat/)).toBeTruthy();
+    await screen.findByText("Betaling geslaagd");
+    expect(screen.getByText(/65,00 ontvangen/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Nieuwe verkoop" })).toBeNull();
     const paidBtn = screen.getByRole("button", { name: /^Betaald$/ });
     expect(paidBtn).toBeDisabled(); fireEvent.click(paidBtn);
     expect(d.createOrder).toHaveBeenCalledTimes(1); expect(d.startPayment).toHaveBeenCalledTimes(1);
+    expect(onNewSale).not.toHaveBeenCalled();
     expect(onLock).toHaveBeenLastCalledWith(true);
-    fireEvent.click(screen.getByRole("button", { name: "Nieuwe verkoop" }));
+    await new Promise((r) => setTimeout(r, 4300));
     expect(onNewSale).toHaveBeenCalledTimes(1);
-  }, 8000);
+  }, 10000);
+  it("uncertain open payment stays visible and never auto-resets", async () => {
+    const d = deps({ pollStatus: vi.fn(async () => null) });
+    const onNewSale = vi.fn();
+    render(<KassaServerPay userId="u-open" demo customerId={null} lines={lines} onPaid={() => {}} onNewSale={onNewSale} onLockChange={() => {}} deps={d} />);
+    const btn = await screen.findByRole("button", { name: /Betaal op pinapparaat/ });
+    await waitFor(() => expect(btn).not.toBeDisabled());
+    fireEvent.click(btn);
+    await screen.findByText(/Betaling staat open/);
+    await new Promise((r) => setTimeout(r, 4200));
+    expect(onNewSale).not.toHaveBeenCalled();
+    expect(screen.queryByText("Betaling geslaagd")).toBeNull();
+  }, 10000);
   it("chosen customer id is sent to the server order", async () => {
     const d = deps(); const cust = "22222222-2222-4222-8222-222222222222";
     render(<KassaServerPay userId="u-cust" demo customerId={cust} lines={lines} onPaid={() => {}} onLockChange={() => {}} deps={d} />);
     const btn = await screen.findByRole("button", { name: /Betaal op pinapparaat/ });
     await waitFor(() => expect(btn).not.toBeDisabled());
     fireEvent.click(btn);
-    await screen.findByText(/Bevestigd door het pinapparaat/);
+    await screen.findByText("Betaling geslaagd");
     expect((d.createOrder as any).mock.calls[0][1]).toBe(cust);
   });
 });
