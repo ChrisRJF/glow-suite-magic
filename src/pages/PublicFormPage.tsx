@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { CheckCircle2, FileText } from "lucide-react";
+import { CalendarDays, CheckCircle2, FileText } from "lucide-react";
 import { toast } from "sonner";
 
 type FieldType = "text" | "textarea" | "number" | "date" | "select" | "checkbox" | "radio";
@@ -235,11 +235,31 @@ export default function PublicFormPage() {
                     {f.required && <span className="text-destructive"> *</span>}
                   </span>
                 </label>
+              ) : f.type === "date" ? (
+                <div className="relative h-11 min-h-0 w-full min-w-0 max-w-full overflow-hidden rounded-lg border border-input bg-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+                  <div aria-hidden="true" className="pointer-events-none flex h-full min-w-0 items-center justify-between gap-2 px-3 text-base">
+                    <span className={answers[f.key] ? "truncate text-foreground" : "truncate text-muted-foreground"}>
+                      {answers[f.key]
+                        ? String(answers[f.key]).split("-").reverse().join("-")
+                        : "dd-mm-jjjj"}
+                    </span>
+                    <CalendarDays className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  </div>
+                  <Input
+                    id={f.key}
+                    type="date"
+                    lang="nl-NL"
+                    aria-label={`${f.label} (dd-mm-jjjj)`}
+                    className="absolute inset-0 block h-11 min-h-0 max-h-11 w-full min-w-0 max-w-full appearance-none border-0 p-0 text-base opacity-0"
+                    value={String(answers[f.key] ?? "")}
+                    onChange={(e) => setAnswers((a) => ({ ...a, [f.key]: e.target.value }))}
+                  />
+                </div>
               ) : (
                 <Input
                   id={f.key}
-                  type={f.type === "number" ? "number" : f.type === "date" ? "date" : "text"}
-                  className="h-11 rounded-lg text-base sm:text-sm appearance-none [&::-webkit-date-and-time-value]:text-left [&::-webkit-date-and-time-value]:leading-none"
+                  type={f.type === "number" ? "number" : "text"}
+                  className="h-11 rounded-lg text-base sm:text-sm appearance-none"
                   value={String(answers[f.key] ?? "")}
                   onChange={(e) => setAnswers((a) => ({ ...a, [f.key]: e.target.value }))}
                 />
