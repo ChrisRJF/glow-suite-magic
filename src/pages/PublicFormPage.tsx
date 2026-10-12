@@ -179,15 +179,15 @@ export default function PublicFormPage() {
   const fields = form?.schema?.fields ?? [];
 
   return (
-    <main className="min-h-screen bg-background px-4 py-8">
-      <div className="mx-auto w-full max-w-md space-y-6">
+    <main className="min-h-screen bg-background px-4 py-6 sm:py-8">
+      <div className="mx-auto w-full max-w-md space-y-5">
         <header className="space-y-1 text-center">
           <FileText className="h-6 w-6 text-primary mx-auto" />
           <h1 className="text-xl font-semibold text-foreground">{form?.title}</h1>
           <p className="text-sm text-muted-foreground">{form?.salon_name}</p>
         </header>
 
-        <div className="space-y-4 rounded-2xl border border-border bg-card p-5">
+        <div className="space-y-4 rounded-2xl border border-border bg-card p-4 sm:p-5">
           {form?.schema?.intro && (
             <p className="text-sm text-muted-foreground border-b border-border pb-4">{form.schema.intro}</p>
           )}
@@ -200,11 +200,11 @@ export default function PublicFormPage() {
                 </Label>
               )}
               {f.type === "textarea" ? (
-                <Textarea id={f.key} value={String(answers[f.key] ?? "")} onChange={(e) => setAnswers((a) => ({ ...a, [f.key]: e.target.value }))} />
+                <Textarea id={f.key} className="min-h-[88px] rounded-lg text-base sm:text-sm" value={String(answers[f.key] ?? "")} onChange={(e) => setAnswers((a) => ({ ...a, [f.key]: e.target.value }))} />
               ) : f.type === "select" ? (
                 <select
                   id={f.key}
-                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  className="h-11 w-full rounded-lg border border-input bg-background px-3 text-base sm:text-sm"
                   value={String(answers[f.key] ?? "")}
                   onChange={(e) => setAnswers((a) => ({ ...a, [f.key]: e.target.value }))}
                 >
@@ -239,6 +239,7 @@ export default function PublicFormPage() {
                 <Input
                   id={f.key}
                   type={f.type === "number" ? "number" : f.type === "date" ? "date" : "text"}
+                  className="h-11 rounded-lg text-base sm:text-sm appearance-none [&::-webkit-date-and-time-value]:text-left [&::-webkit-date-and-time-value]:leading-none"
                   value={String(answers[f.key] ?? "")}
                   onChange={(e) => setAnswers((a) => ({ ...a, [f.key]: e.target.value }))}
                 />
