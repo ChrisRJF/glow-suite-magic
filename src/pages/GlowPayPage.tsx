@@ -68,6 +68,8 @@ export default function GlowPayPage() {
 
   const handleMarkPaid = async (id: string) => {
     if (!can("payments:update")) { toast.error("Alleen financiële rollen kunnen betalingen wijzigen."); return; }
+    const target = payments.find((x: any) => x.id === id);
+    if (!target || isProviderPayment(target)) { toast.info("Wacht op bevestiging van betaalprovider"); return; }
     await updatePayment(id, { status: "paid", paid_at: new Date().toISOString() });
     toast.success("Betaling gemarkeerd als betaald");
     refetchPayments();
@@ -279,7 +281,10 @@ export default function GlowPayPage() {
                   </p>
                   {selectedPayment === p.id && (
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {p.status === "pending" && can("payments:update") && (
+                      {p.status === "pending" && isProviderPayment(p) && (
+                        <span className="text-xs text-muted-foreground">Wacht op bevestiging van betaalprovider</span>
+                      )}
+                      {p.status === "pending" && !isProviderPayment(p) && can("payments:update") && (
                         <Button variant="gradient" size="sm" onClick={(e) => { e.stopPropagation(); handleMarkPaid(p.id); }}>
                           <CheckCircle2 className="w-3.5 h-3.5" /> Markeer betaald
                         </Button>
