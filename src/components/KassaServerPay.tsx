@@ -31,9 +31,9 @@ export const kassaServerDeps: KassaServerDeps = {
   },
 };
 
-type Props = { userId: string; demo: boolean; customerId: string | null; lines: KassaLine[]; onPaid: () => void; onLockChange: (locked: boolean) => void; deps?: KassaServerDeps };
+type Props = { userId: string; demo: boolean; customerId: string | null; lines: KassaLine[]; onPaid: () => void; onNewSale?: () => void; onLockChange: (locked: boolean) => void; deps?: KassaServerDeps };
 
-export function KassaServerPay({ userId, demo, customerId, lines, onPaid, onLockChange, deps = kassaServerDeps }: Props) {
+export function KassaServerPay({ userId, demo, customerId, lines, onPaid, onNewSale, onLockChange, deps = kassaServerDeps }: Props) {
   const [terminals, setTerminals] = useState<Array<{ id: string; name: string | null }>>([]);
   const [terminalId, setTerminalId] = useState("");
   const [state, setState] = useState<KassaState>({ phase: "idle" });
@@ -48,10 +48,10 @@ export function KassaServerPay({ userId, demo, customerId, lines, onPaid, onLock
     });
   }, [demo]);
 
-  useEffect(() => { onLockChange(hasOpen || ["creating", "starting", "open"].includes(state.phase)); }, [hasOpen, state.phase, onLockChange]);
+  useEffect(() => { onLockChange(hasOpen || ["creating", "starting", "open", "paid"].includes(state.phase)); }, [hasOpen, state.phase, onLockChange]);
 
   const pay = async () => {
-    if (busy.current) return; // double click guard
+    if (busy.current || state.phase === "paid") return; // double click guard; a paid order is never paid again
     busy.current = true;
     try {
       const r = await payWithKassa({ storage: safeStorage(), userId, customerId, lines, demo, terminalId }, deps, setState);
@@ -81,10 +81,13 @@ export function KassaServerPay({ userId, demo, customerId, lines, onPaid, onLock
           {(state.phase === "failed" || state.phase === "error") && <span className="text-destructive">{state.message}</span>}
         </div>
       )}
-      <Button type="button" className="w-full" size="lg" onClick={pay} disabled={working || !terminalId || lines.length === 0}>
+      <Button type="button" className="w-full" size="lg" onClick={pay} disabled={working || state.phase === "paid" || !terminalId || lines.length === 0}>
         {working ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : state.phase === "paid" ? <Check className="w-4 h-4 mr-2" /> : <Smartphone className="w-4 h-4 mr-2" />}
         {state.phase === "paid" ? "Betaald" : hasOpen ? "Openstaande betaling bekijken" : state.phase === "failed" ? "Opnieuw proberen" : "Betaal op pinapparaat"}
       </Button>
+      {state.phase === "paid" && onNewSale && (
+        <Button type="button" variant="outline" className="w-full" onClick={onNewSale}>Nieuwe verkoop</Button>
+      )}
     </div>
   );
 }
