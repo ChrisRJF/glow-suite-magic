@@ -1,36 +1,39 @@
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { useProducts, useServices, useCustomers } from "@/hooks/useSupabaseData";
-import { useCrud } from "@/hooks/useCrud";
 import { useDemoMode } from "@/hooks/useDemoMode";
+import { useAuth } from "@/contexts/AuthContext";
 import { formatEuro } from "@/lib/data";
-import { ShoppingBag, Plus, Minus, CreditCard, Check, Wallet, Smartphone } from "lucide-react";
-import { useState } from "react";
+import { ShoppingBag, Plus, Minus, Check, Wallet, Smartphone } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 import { TerminalPaymentDialog } from "@/components/TerminalPaymentDialog";
+import { beginOrResume, loadPending, settlePending, type KassaCart, type KassaPending } from "@/lib/kassaPending";
 
-const paymentMethods = [
-  { id: "pin", label: "GlowPay Pin", icon: "📱" },
-  { id: "contant", label: "Contant", icon: "💵" },
-  { id: "ideal", label: "GlowPay Online", icon: "🏦" },
-  { id: "anders", label: "Anders", icon: "💰" },
-];
+const safeStorage = () => { try { return window.localStorage; } catch { return null; } };
+const newKey = () => crypto.randomUUID();
 
 export default function KassaPage() {
   const { data: products } = useProducts();
   const { data: services } = useServices();
   const { data: customers } = useCustomers();
-  const { insert: insertCheckout } = useCrud("checkout_items");
-  const { insert: insertPayment } = useCrud("payments");
-  const { update: updateProduct } = useCrud("products");
-  const { update: updateCustomer } = useCrud("customers");
   const { demoMode } = useDemoMode();
-  const [cart, setCart] = useState<Record<string, { name: string; price: number; qty: number; type: string; itemId: string }>>({});
+  const { user } = useAuth();
+  const userId = user?.id ?? "";
+  const [cart, setCart] = useState<KassaCart>({});
   const [paid, setPaid] = useState(false);
-  const [selectedMethod, setSelectedMethod] = useState("pin");
   const [selectedCustomer, setSelectedCustomer] = useState<string>("");
   const [terminalOpen, setTerminalOpen] = useState(false);
+  const [pending, setPending] = useState<KassaPending | null>(null);
+
+  // After reload: restore the open terminal payment and its cart, locked.
+  useEffect(() => {
+    if (!userId) return;
+    const p = loadPending(safeStorage(), userId);
+    if (p) { setPending(p); setCart(p.cart); setSelectedCustomer(p.customerId); }
+  }, [userId]);
+
+  const locked = !!pending || paid;
 
   const allItems = [
     ...services.filter(s => s.is_active).map(s => ({ id: s.id, name: s.name, price: s.price, type: 'service' })),
@@ -54,35 +57,34 @@ export default function KassaPage() {
 
   const total = Object.values(cart).reduce((s, i) => s + i.price * i.qty, 0);
 
-  const handlePay = async () => {
-    setPaid(true);
-    for (const [key, item] of Object.entries(cart)) {
-      await insertCheckout({ item_type: item.type, item_id: item.itemId, title: item.name, price: item.price, quantity: item.qty, customer_id: selectedCustomer || null });
-      if (item.type === 'product') {
-        const prod = products.find(p => p.id === item.itemId);
-        if (prod) await updateProduct(prod.id, { stock: Math.max(0, (prod.stock || 0) - item.qty) });
-      }
+  const openTerminal = () => {
+    const r = beginOrResume(safeStorage(), userId, { cart, customerId: selectedCustomer, demo: demoMode }, newKey);
+    if (r.ok === false) {
+      toast.error(r.reason === "other_pending" ? "Er staat nog een andere pinbetaling open. Controleer eerst die status." : "Betaling kan niet veilig worden voorbereid. Probeer het opnieuw.");
+      return;
     }
-    // Create GlowPay payment record
-    await insertPayment({
-      amount: total,
-      currency: "EUR",
-      payment_type: "full",
-      status: "paid",
-      method: selectedMethod,
-      payment_method: selectedMethod,
-      provider: "glowpay",
-      is_demo: demoMode,
-      customer_id: selectedCustomer || null,
-      paid_at: new Date().toISOString(),
-    });
-    // Update customer total_spent
-    if (selectedCustomer) {
-      const cust = customers.find(c => c.id === selectedCustomer);
-      if (cust) await updateCustomer(cust.id, { total_spent: (Number(cust.total_spent) || 0) + total });
+    setPending(r.pending);
+    setTerminalOpen(true);
+  };
+
+  const onFinal = (status: string) => {
+    if (!pending) return;
+    settlePending(safeStorage(), userId, pending.key, status);
+    if (status === "paid") {
+      setPaid(true);
+      toast.success(`Betaling van ${formatEuro(pending.amountCents / 100)} bevestigd door het pinapparaat.`);
+      setPending(null);
+      setTimeout(() => { setCart({}); setPaid(false); setSelectedCustomer(""); }, 2000);
+    } else {
+      setPending(null);
     }
-    toast.success(`GlowPay betaling van ${formatEuro(total)} voltooid!`);
-    setTimeout(() => { setCart({}); setPaid(false); setSelectedCustomer(""); }, 2000);
+  };
+
+  const onRetryKey = () => {
+    const r = beginOrResume(safeStorage(), userId, { cart, customerId: selectedCustomer, demo: demoMode }, newKey);
+    if (r.ok === false) return null;
+    setPending(r.pending);
+    return r.pending.key;
   };
 
   return (
@@ -95,7 +97,7 @@ export default function KassaPage() {
           <div className="grid grid-cols-2 gap-3">
             {allItems.length === 0 ? <p className="col-span-2 text-sm text-muted-foreground text-center py-4">Voeg eerst producten of behandelingen toe</p> :
             allItems.map((p) => (
-              <button key={p.id} onClick={() => addItem(p)}
+              <button key={p.id} disabled={locked} onClick={() => addItem(p)}
                 className="p-4 rounded-xl bg-secondary/40 hover:bg-secondary/60 transition-colors text-left">
                 <p className="text-sm font-medium">{p.name}</p>
                 <p className="text-xs text-primary mt-1">{formatEuro(p.price)}</p>
@@ -113,7 +115,7 @@ export default function KassaPage() {
           {/* Customer selector */}
           <div className="mb-4">
             <label className="text-xs text-muted-foreground">Klant (optioneel)</label>
-            <select value={selectedCustomer} onChange={e => setSelectedCustomer(e.target.value)}
+            <select value={selectedCustomer} disabled={locked} onChange={e => setSelectedCustomer(e.target.value)}
               className="w-full mt-1 px-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
               <option value="">Geen klant geselecteerd</option>
               {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -130,52 +132,46 @@ export default function KassaPage() {
                   <p className="text-xs text-muted-foreground">{formatEuro(item.price)} × {item.qty}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => removeItem(key)} className="p-1 rounded-lg hover:bg-secondary"><Minus className="w-3 h-3" /></button>
+                  <button disabled={locked} onClick={() => removeItem(key)} className="p-1 rounded-lg hover:bg-secondary"><Minus className="w-3 h-3" /></button>
                   <span className="text-sm font-medium w-6 text-center">{item.qty}</span>
-                  <button onClick={() => addItem(allItems.find(i => i.id === key)!)} className="p-1 rounded-lg hover:bg-secondary"><Plus className="w-3 h-3" /></button>
+                  <button disabled={locked} onClick={() => addItem(allItems.find(i => i.id === key)!)} className="p-1 rounded-lg hover:bg-secondary"><Plus className="w-3 h-3" /></button>
                 </div>
               </div>
             ))}
           </div>
           {Object.keys(cart).length > 0 && (
             <div className="mt-4 pt-4 border-t border-border">
-              {/* Payment method */}
               <div className="mb-4">
                 <p className="text-xs text-muted-foreground mb-2">Betaalmethode</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {paymentMethods.map(m => (
-                    <button key={m.id} onClick={() => setSelectedMethod(m.id)}
-                      className={cn("p-2.5 rounded-xl text-left transition-all text-sm flex items-center gap-2",
-                        selectedMethod === m.id ? "bg-primary/15 border border-primary/30 text-primary font-medium" : "bg-secondary/40 border border-transparent hover:bg-secondary/60")}>
-                      <span>{m.icon}</span> {m.label}
-                    </button>
-                  ))}
+                <div className="p-2.5 rounded-xl text-sm flex items-center gap-2 bg-primary/15 border border-primary/30 text-primary font-medium">
+                  <Smartphone className="w-4 h-4" /> Pinapparaat
                 </div>
+                <p className="mt-2 text-xs text-muted-foreground">Contant, online en andere betaalmethoden zijn in de Kassa tijdelijk niet beschikbaar. Een betaling telt pas als het pinapparaat hem bevestigt.</p>
               </div>
               <div className="flex justify-between mb-4">
                 <span className="text-sm font-semibold">Totaal</span>
                 <span className="text-lg font-bold">{formatEuro(total)}</span>
               </div>
-              {/* Safety: a payment is only shown as paid after the payment provider confirms it.
-                  The old direct "paid" registration (handlePay) is disabled until a safe server-side route exists. */}
-              <div className="mb-3 rounded-xl bg-secondary/40 p-3 text-xs text-muted-foreground">
-                {paid
-                  ? <span className="font-medium text-primary">Betaald. Bevestigd door het pinapparaat.</span>
-                  : selectedMethod === "pin"
-                    ? <>Nog niet betaald. Kies "Betaal op terminal"; de betaling telt pas als het pinapparaat hem bevestigt.</>
-                    : <>Deze betaalmethode is in de Kassa tijdelijk niet beschikbaar, zodat er nooit een betaling wordt vastgelegd die niet echt binnen is. Gebruik "Betaal op terminal".</>}
-              </div>
-              <Button type="button" className="w-full" size="lg" onClick={() => setTerminalOpen(true)} disabled={paid || total <= 0 || terminalOpen}>
-                {paid ? <><Check className="w-4 h-4 mr-2" /> Betaald</> : <><Smartphone className="w-4 h-4 mr-2" /> Betaal op terminal</>}
+              {(paid || pending) && (
+                <div className="mb-3 rounded-xl bg-secondary/40 p-3 text-xs text-muted-foreground">
+                  {paid
+                    ? <span className="font-medium text-primary">Betaald. Bevestigd door het pinapparaat.</span>
+                    : <>Er staat een pinbetaling open voor deze bestelling. Open hem opnieuw om de status te zien; er wordt geen tweede betaling gestart.</>}
+                </div>
+              )}
+              <Button type="button" className="w-full" size="lg" onClick={openTerminal} disabled={paid || total <= 0 || terminalOpen || !userId}>
+                {paid ? <><Check className="w-4 h-4 mr-2" /> Betaald</> : <><Smartphone className="w-4 h-4 mr-2" /> {pending ? "Openstaande pinbetaling bekijken" : "Betaal op pinapparaat"}</>}
               </Button>
               <TerminalPaymentDialog
                 open={terminalOpen}
                 onOpenChange={setTerminalOpen}
-                amountCents={Math.round(total * 100)}
+                amountCents={pending?.amountCents ?? Math.round(total * 100)}
                 description={`Kassa ${Object.values(cart).map(i => i.name).join(", ").slice(0, 80)}`}
                 customerId={selectedCustomer || null}
                 source="checkout"
-                onPaid={() => { setPaid(true); toast.success(`Betaling van ${formatEuro(total)} bevestigd door het pinapparaat.`); setTimeout(() => { setCart({}); setPaid(false); setSelectedCustomer(""); }, 2000); }}
+                idempotencyKey={pending?.key}
+                onFinal={onFinal}
+                onRetryKey={onRetryKey}
               />
             </div>
           )}
