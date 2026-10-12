@@ -8,6 +8,9 @@ import { ShoppingBag, Plus, Minus, Check, Wallet, Smartphone } from "lucide-reac
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { TerminalPaymentDialog } from "@/components/TerminalPaymentDialog";
+import { KassaServerPay } from "@/components/KassaServerPay";
+import { supabase } from "@/integrations/supabase/client";
+import { useCallback } from "react";
 import { beginOrResume, loadPending, settlePending, type KassaCart, type KassaPending } from "@/lib/kassaPending";
 
 const safeStorage = () => { try { return window.localStorage; } catch { return null; } };
@@ -33,7 +36,17 @@ export default function KassaPage() {
     if (p) { setPending(p); setCart(p.cart); setSelectedCustomer(p.customerId); }
   }, [userId]);
 
-  const locked = !!pending || paid;
+  // Server Kassa only when the platform switched it on for this salon (kassa_orders_enabled). Otherwise unchanged.
+  const [serverKassa, setServerKassa] = useState(false);
+  const [serverLocked, setServerLocked] = useState(false);
+  useEffect(() => {
+    if (!userId) return;
+    (supabase.rpc as any)("kassa_payment_status").then(({ data }: any) => setServerKassa(data?.ok === true && data?.enabled === true));
+  }, [userId]);
+  const onServerLock = useCallback((l: boolean) => setServerLocked(l), []);
+  const serverLines = Object.values(cart).map((i) => ({ type: (i.type === "product" ? "product" : "service") as "service" | "product", item_id: i.itemId, qty: i.qty }));
+
+  const locked = !!pending || paid || serverLocked;
 
   const allItems = [
     ...services.filter(s => s.is_active).map(s => ({ id: s.id, name: s.name, price: s.price, type: 'service' })),
@@ -159,6 +172,10 @@ export default function KassaPage() {
                     : <>Er staat een pinbetaling open voor deze bestelling. Open hem opnieuw om de status te zien; er wordt geen tweede betaling gestart.</>}
                 </div>
               )}
+              {serverKassa ? (
+                <KassaServerPay userId={userId} demo={demoMode} customerId={selectedCustomer || null} lines={serverLines}
+                  onLockChange={onServerLock} onPaid={() => setTimeout(() => { setCart({}); setSelectedCustomer(""); }, 2000)} />
+              ) : (<>
               <Button type="button" className="w-full" size="lg" onClick={openTerminal} disabled={paid || total <= 0 || terminalOpen || !userId}>
                 {paid ? <><Check className="w-4 h-4 mr-2" /> Betaald</> : <><Smartphone className="w-4 h-4 mr-2" /> {pending ? "Openstaande pinbetaling bekijken" : "Betaal op pinapparaat"}</>}
               </Button>
@@ -173,6 +190,7 @@ export default function KassaPage() {
                 onFinal={onFinal}
                 onRetryKey={onRetryKey}
               />
+              </>)}
             </div>
           )}
         </div>

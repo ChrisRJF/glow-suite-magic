@@ -52,11 +52,8 @@ export async function payWithKassa(
 ): Promise<KassaState> {
   const fp = fingerprint(args.customerId, args.lines, args.demo);
   let saved = loadSaved(args.storage, args.userId);
-  if (saved && saved.fingerprint !== fp && saved.paymentId) {
-    const s = { phase: "error" as const, message: "Er staat nog een andere betaling open. Controleer eerst die status." };
-    onState(s); return s;
-  }
-  if (!saved || saved.fingerprint !== fp) {
+  // An open payment is always resumed first (also after reload), whatever is in the cart now.
+  if (!saved?.paymentId && (!saved || saved.fingerprint !== fp)) {
     saved = { requestId: newId(), fingerprint: fp };
     if (!save(args.storage, args.userId, saved)) { const s = { phase: "error" as const, message: "Betaling kan niet veilig worden voorbereid in deze browser." }; onState(s); return s; }
   }
