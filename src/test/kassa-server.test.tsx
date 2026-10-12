@@ -2,7 +2,8 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { payWithKassa, loadSaved, type KassaServerDeps } from "@/lib/kassaServer";
 
-vi.mock("@/integrations/supabase/client", () => ({ supabase: { from: () => ({ select: () => ({ eq: () => ({ eq: () => Promise.resolve({ data: [{ id: "t1", name: "Pin 1" }] }) }) }) }) } }));
+const terminalQuery = vi.hoisted(() => ({ cols: "", filters: [] as Array<[string, unknown]> }));
+vi.mock("@/integrations/supabase/client", () => ({ supabase: { from: () => ({ select: (cols: string) => { terminalQuery.cols = cols; terminalQuery.filters = []; const q: any = { eq: (k: string, v: unknown) => { terminalQuery.filters.push([k, v]); return terminalQuery.filters.length >= 2 ? Promise.resolve({ data: cols.includes("terminal_name") ? [{ id: "t1", terminal_name: "Sunmi P3 Demo", is_default: true }] : null, error: cols.includes("terminal_name") ? null : { message: "column does not exist" } }) : q; } }; return q; } }) } }));
 import { KassaServerPay } from "@/components/KassaServerPay";
 
 const mem = () => { const m = new Map<string, string>(); return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => { m.set(k, v); }, removeItem: (k: string) => { m.delete(k); } }; };
@@ -59,5 +60,11 @@ describe("Kassa server flow", () => {
     release();
     await screen.findByText(/Bevestigd door het pinapparaat/);
     expect(d.createOrder).toHaveBeenCalledTimes(1);
+  });
+  it("shows the active demo pin device by its terminal name", async () => {
+    render(<KassaServerPay userId="u-term" demo customerId={null} lines={lines} onPaid={() => {}} onLockChange={() => {}} deps={deps()} />);
+    expect(await screen.findByRole("option", { name: "Sunmi P3 Demo" })).toBeTruthy();
+    expect(terminalQuery.cols).toContain("terminal_name");
+    expect(terminalQuery.filters).toEqual([["is_demo", true], ["status", "active"]]);
   });
 });

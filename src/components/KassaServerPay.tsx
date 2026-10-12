@@ -41,8 +41,10 @@ export function KassaServerPay({ userId, demo, customerId, lines, onPaid, onLock
   const [hasOpen, setHasOpen] = useState(() => !!loadSaved(safeStorage(), userId)?.paymentId);
 
   useEffect(() => {
-    supabase.from("viva_terminals").select("id, name").eq("is_demo", demo).eq("status", "active").then(({ data }) => {
-      const t = (data ?? []) as any[]; setTerminals(t); if (t[0]) setTerminalId(t[0].id);
+    supabase.from("viva_terminals").select("id, terminal_name, is_default").eq("is_demo", demo).eq("status", "active").then(({ data }) => {
+      const rows = (data ?? []) as Array<{ id: string; terminal_name: string | null; is_default: boolean | null }>;
+      const t = rows.map((r) => ({ id: r.id, name: r.terminal_name, is_default: !!r.is_default }));
+      setTerminals(t); const pick = t.find((x) => x.is_default) ?? t[0]; if (pick) setTerminalId(pick.id);
     });
   }, [demo]);
 
