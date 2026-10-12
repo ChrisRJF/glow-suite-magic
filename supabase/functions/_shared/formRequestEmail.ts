@@ -3,7 +3,14 @@
 // page, the customer_email_controls stop switch and the Resend sender used by
 // send-white-label-email. The mail carries ONLY a link; answers and raw tokens are
 // never logged. Scope: server-side tenant + recipient allow-lists, default deny.
-import { escapeHtml, validEmail } from "./inactive/customerEmailTemplates.ts";
+export function escapeHtml(value: unknown) {
+  return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+const EMAIL = /^[^\s@<>"',;]+@[^\s@<>"',;]+\.[^\s@<>"',;]+$/;
+export function validEmail(value: unknown): string | undefined {
+  const email = String(value || "").trim().toLowerCase();
+  return email.length <= 255 && EMAIL.test(email) ? email : undefined;
+}
 
 export const SENDER_DOMAIN = "email.glowsuite.nl";
 const RESERVED = new Set(["admin", "administrator", "abuse", "billing", "bookings", "contact", "hello", "help", "info", "mail", "noreply", "postmaster", "security", "support"]);
