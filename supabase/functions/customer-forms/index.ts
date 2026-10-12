@@ -22,6 +22,7 @@ import {
   validateSignature,
   type FormSchema,
 } from "../_shared/formCanonical.ts";
+import { deliverFormRequestEmail, emailScopeAllowed, FORM_EMAIL_TENANTS, parseList, type FormMailDeps } from "../_shared/formRequestEmail.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -132,6 +133,11 @@ async function handleSend(req: Request, body: Record<string, unknown>) {
     return json({ ok: true, duplicate: true, request_id: openRequests[0].id, message: "Er staat al een openstaand formulier voor deze klant." });
   }
 
+  // E-mail scope is checked BEFORE a request is created: default deny.
+  if (channel === "email" && !emailScopeAllowed(tenantId, customer.email, FORM_EMAIL_TENANTS, parseList(Deno.env.get("FORM_EMAIL_RECIPIENTS")))) {
+    return json({ error: "email_not_enabled" }, 403);
+  }
+
   const token = generateFormToken();
   const token_hash = await hashToken(token);
 
@@ -160,7 +166,10 @@ async function handleSend(req: Request, body: Record<string, unknown>) {
 
   // Reuse the existing central WhatsApp sender. No new messaging pipeline.
   let delivery: Record<string, unknown> = { attempted: false };
-  if (channel === "whatsapp" && customer.phone) {
+  if (channel === "email") {
+    const r = await deliverFormRequestEmail(formMailDeps(), { tenantId, requestId: request.id, formTitle: version.title, token });
+    delivery = { attempted: true, channel: "email", ok: r.ok, error: r.ok ? null : r.reason };
+  } else if (channel === "whatsapp" && customer.phone) {
     const { data: settings } = await admin.from("settings").select("salon_name").eq("user_id", tenantId).order("created_at", { ascending: false }).limit(1).maybeSingle();
     const salonName = settings?.salon_name || "je salon";
     const first = String(customer.name || "").split(" ")[0] || "hallo";
