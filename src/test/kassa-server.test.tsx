@@ -58,7 +58,7 @@ describe("Kassa server flow", () => {
     await waitFor(() => expect(btn).not.toBeDisabled());
     fireEvent.click(btn); fireEvent.click(btn); fireEvent.click(btn);
     release();
-    await screen.findByText(/Bevestigd door het pinapparaat/);
+    await screen.findByText("Betaling geslaagd");
     expect(d.createOrder).toHaveBeenCalledTimes(1);
   });
   it("shows the active demo pin device by its terminal name", async () => {
@@ -102,7 +102,7 @@ describe("Kassa server flow", () => {
     const btn = await screen.findByRole("button", { name: /Betaal op pinapparaat/ });
     await waitFor(() => expect(btn).not.toBeDisabled());
     fireEvent.click(btn);
-    await screen.findByText(/Bevestigd door het pinapparaat/);
+    await screen.findByText("Betaling geslaagd");
     expect((d.createOrder as any).mock.calls[0][1]).toBe(cust);
   });
 });
