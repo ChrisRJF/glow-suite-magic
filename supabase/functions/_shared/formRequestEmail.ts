@@ -29,7 +29,12 @@ export async function sendingAllowed(read: () => Promise<{ sending_enabled: unkn
 }
 
 /** Initial scope: only the fictitious Studio Nova DEMO tenant. Changing this needs approval. */
-export const FORM_EMAIL_TENANTS = new Set(["5dbfcbd4-48ff-4010-a1cc-07ed737880ce"]);
+export const FORM_EMAIL_TENANTS = new Set(["5dbfcbd4-48ff-4010-a1cc-07ed737880ce", "1c6c885e-c944-4717-b2ef-9cfdb9fa15ae"]);
+/** Tenants that may mail their OWN customers' dossier address (no recipient test list). Approved: Beautycare. */
+export const FORM_EMAIL_OPEN_TENANTS = new Set(["1c6c885e-c944-4717-b2ef-9cfdb9fa15ae"]);
+function recipientAllowed(tenantId: string, to: string, recipients: Set<string>) {
+  return FORM_EMAIL_OPEN_TENANTS.has(tenantId) || recipients.has(to);
+}
 
 export function parseList(raw: string | undefined | null): Set<string> {
   return new Set(String(raw ?? "").split(/[\s,;]+/).map((s) => s.trim().toLowerCase()).filter(Boolean));
@@ -37,7 +42,7 @@ export function parseList(raw: string | undefined | null): Set<string> {
 
 export function emailScopeAllowed(tenantId: string, email: unknown, tenants: Set<string>, recipients: Set<string>): boolean {
   const to = validEmail(email);
-  return tenants.has(tenantId) && !!to && recipients.has(to.toLowerCase());
+  return tenants.has(tenantId) && !!to && recipientAllowed(tenantId, to.toLowerCase(), recipients);
 }
 
 export type FormMailRequest = { id: string; user_id: string; customer_id: string; status: string; expires_at: string };
@@ -99,7 +104,7 @@ export async function deliverFormRequestEmail(deps: FormMailDeps, input: FormMai
   if (c.archived_at || c.pseudonymized_at || c.communication_blocked_at) return fail("customer_communication_blocked");
   const to = validEmail(c.email)?.toLowerCase();
   if (!to) return fail("customer_email_missing");
-  if (!deps.allowedRecipients.has(to)) return fail("recipient_not_allowed");
+  if (!recipientAllowed(tenantId, to, deps.allowedRecipients)) return fail("recipient_not_allowed");
 
   const idempotencyKey = `form_request:${requestId}:${resend ? `resend:${input.resendKey}` : "initial"}`;
   let seen: boolean;

@@ -84,3 +84,16 @@ describe("intake e-mail", () => {
     expect(sent).toHaveLength(0);
   });
 });
+
+import { emailScopeAllowed as _scope, FORM_EMAIL_TENANTS as _T } from "../../supabase/functions/_shared/formRequestEmail";
+describe("Beautycare intake email scope", () => {
+  const BC = "1c6c885e-c944-4717-b2ef-9cfdb9fa15ae";
+  const test = new Set(["chrisrjfrancois@hotmail.com"]);
+  it("Beautycare may mail its own customer address", () => expect(_scope(BC, "klant@example.nl", _T, test)).toBe(true));
+  it("Studio Nova stays limited to the test address", () => {
+    expect(_scope("5dbfcbd4-48ff-4010-a1cc-07ed737880ce", "klant@example.nl", _T, test)).toBe(false);
+    expect(_scope("5dbfcbd4-48ff-4010-a1cc-07ed737880ce", "chrisrjfrancois@hotmail.com", _T, test)).toBe(true);
+  });
+  it("other salons stay denied", () => expect(_scope("cbd7d158-0133-4f2f-a504-4b82f73f2e20", "chrisrjfrancois@hotmail.com", _T, test)).toBe(false));
+  it("invalid address denied", () => expect(_scope(BC, "geen-adres", _T, test)).toBe(false));
+});
