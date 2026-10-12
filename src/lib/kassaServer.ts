@@ -82,3 +82,23 @@ export async function payWithKassa(
   }
   return st;
 }
+
+/** Oefenmodus: server maakt en bevestigt de oefenbestelling. Geen pinapparaat, geen provider, geen echte boeking. */
+export type PracticeResult = { ok: true; order_id: string; total_cents: number; status: string } | { ok: false; reason: string };
+export const PRACTICE_REASONS: Record<string, string> = {
+  ...ORDER_REASONS,
+  practice_disabled: "De oefenmodus is voor deze salon niet actief.",
+};
+export async function practiceWithKassa(
+  args: { requestId: string; customerId: string | null; lines: KassaLine[] },
+  practiceCheckout: (requestId: string, customerId: string | null, lines: KassaLine[]) => Promise<PracticeResult>,
+  onState: (s: KassaState) => void,
+): Promise<KassaState> {
+  onState({ phase: "creating" });
+  const r = await practiceCheckout(args.requestId, args.customerId, args.lines).catch(() => null);
+  let st: KassaState;
+  if (r && r.ok === true && r.status === "practice_paid") st = { phase: "paid", orderId: r.order_id, totalCents: r.total_cents };
+  else st = { phase: "error", message: r && r.ok === false ? (PRACTICE_REASONS[r.reason] ?? "Oefenbestelling kon niet worden afgerond.") : "Geen verbinding. Probeer opnieuw; er wordt geen tweede oefenbestelling gemaakt." };
+  onState(st);
+  return st;
+}
