@@ -35,6 +35,8 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const isCheckout = body?.checkout === CHECKOUT_MARKER;
+    // Kassa orders: only via the kassa-checkout function; everything is taken from kassa_begin_attempt.
+    const isKassa = typeof body?.kassa_order_id === "string";
     let userId = actorId; // salon owner id used for all salon-scoped lookups
     const {
       terminal_id,
@@ -48,7 +50,7 @@ Deno.serve(async (req) => {
     let { is_demo = false, tip_cents = 0 } = body || {};
 
     let amt = Number(amount_cents);
-    if (!Number.isFinite(amt) || amt < 30) return json({ error: "amount_too_small", message: "amount_cents must be >= 30" }, 400);
+    if (!isKassa && (!Number.isFinite(amt) || amt < 30)) return json({ error: "amount_too_small", message: "amount_cents must be >= 30" }, 400);
     if (!terminal_id || typeof terminal_id !== "string") return json({ error: "terminal_id_required" }, 400);
     const allowedSources = ["appointment", "checkout", "manual", "auto_revenue", "membership"];
     if (!allowedSources.includes(source)) return json({ error: "invalid_source" }, 400);
@@ -72,6 +74,27 @@ Deno.serve(async (req) => {
       if (!demo && !liveKycReady(await loadLiveKyc(admin, userId), "terminal")) {
         return json({ error: "kyc_not_ready", message: "Verificatie (KYC) of pinbevoegdheid is nog niet actief voor deze salon." }, 409);
       }
+    }
+
+    let kassaOrderId: string | null = null;
+    if (isKassa) {
+      if (isCheckout || !isInternalCheckoutCall(req) || appointment_id) return json({ error: "forbidden" }, 403);
+      const b = await admin.rpc("kassa_begin_attempt", { _actor: actorId, _order_id: body.kassa_order_id });
+      const r = b.data as any;
+      // The calling route already opened this attempt; anything else (new attempt, other key) is refused.
+      if (b.error || !r?.ok || r.resumed !== true || r.idempotency_key !== idempotency_key || r.payment_id) return json({ error: "forbidden" }, 403);
+      const f = await admin.from("tenant_feature_flags").select("kassa_orders_enabled").eq("tenant_id", r.tenant_id).maybeSingle();
+      if (f.error || (f.data as any)?.kassa_orders_enabled !== true) return json({ error: "disabled" }, 403);
+      if (!environmentMatches(r.is_demo === true, Deno.env.get("VIVA_POS_ENVIRONMENT") || Deno.env.get("VIVA_ENVIRONMENT"))) {
+        return json({ error: "environment_mismatch", message: "Betaalomgeving past niet bij de salonmodus." }, 409);
+      }
+      if (r.is_demo !== true) {
+        const live = await admin.rpc("kassa_live_allowed", { _tenant: r.tenant_id, _method: "terminal" });
+        if (live.error || live.data !== true) return json({ error: "live_not_allowed" }, 409);
+      }
+      userId = r.tenant_id; amt = Number(r.total_cents); is_demo = r.is_demo === true; tip_cents = 0;
+      customer_id = r.customer_id ?? null; kassaOrderId = String(body.kassa_order_id);
+      if (!Number.isInteger(amt) || amt < 30) return json({ error: "invalid_total" }, 409);
     }
 
     // Verify terminal ownership and active status
@@ -212,6 +235,7 @@ Deno.serve(async (req) => {
           tip_cents: Math.max(0, Number(tip_cents) || 0),
           appointment_total: appointmentRef?.price ?? null,
           ...(isCheckout ? { checkout: CHECKOUT_MARKER, created_by_user_id: actorId } : {}),
+          ...(kassaOrderId ? { kassa_order_id: kassaOrderId, source: "kassa", created_by_user_id: actorId } : {}),
           environment: is_demo ? "demo" : (Deno.env.get("VIVA_ENVIRONMENT") || "demo"),
         },
       })
