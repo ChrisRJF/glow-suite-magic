@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { deliverFormRequestEmail, emailScopeAllowed, FORM_EMAIL_TENANTS, type FormMailDeps } from "../../supabase/functions/_shared/formRequestEmail";
 
 // Fictitious tenants and customers only.
-const NOVA = "cbd7d158-0133-4f2f-a504-4b82f73f2e20";
+const NOVA = "5dbfcbd4-48ff-4010-a1cc-07ed737880ce";
 const BEAUTYCARE = "1c6c885e-c944-4717-b2ef-9cfdb9fa15ae";
 const R = "33333333-3333-4333-8333-333333333333";
 const TOK = "a".repeat(64);
