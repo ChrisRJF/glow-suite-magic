@@ -29,10 +29,10 @@ function setup(over: Partial<FormMailDeps> = {}) {
 const run = (d: FormMailDeps, extra: Record<string, unknown> = {}) => deliverFormRequestEmail(d, { tenantId: NOVA, requestId: R, formTitle: "Intake", token: TOK, ...extra });
 
 describe("intake e-mail", () => {
-  it("scope: only Studio Nova DEMO, Beautycare and unknown recipients denied", () => {
+  it("scope: Studio Nova test-only, Beautycare own customers, unknown recipients denied", () => {
     const rec = new Set(["test@fictief.nl"]);
     expect(emailScopeAllowed(NOVA, "test@fictief.nl", FORM_EMAIL_TENANTS, rec)).toBe(true);
-    expect(emailScopeAllowed(BEAUTYCARE, "test@fictief.nl", FORM_EMAIL_TENANTS, rec)).toBe(false);
+    expect(emailScopeAllowed(BEAUTYCARE, "test@fictief.nl", FORM_EMAIL_TENANTS, rec)).toBe(true);
     expect(emailScopeAllowed(NOVA, "echt@klant.nl", FORM_EMAIL_TENANTS, rec)).toBe(false);
     expect(emailScopeAllowed(NOVA, "test@fictief.nl", FORM_EMAIL_TENANTS, new Set())).toBe(false);
   });
@@ -52,9 +52,9 @@ describe("intake e-mail", () => {
       expect(sent).toHaveLength(0);
     }
   });
-  it("refuses Beautycare even if its request would load", async () => {
+  it("Beautycare cannot mail a request belonging to another salon", async () => {
     const { deps, sent } = setup();
-    expect(await deliverFormRequestEmail(deps, { tenantId: BEAUTYCARE, requestId: R, formTitle: "I", token: TOK })).toEqual({ ok: false, reason: "tenant_not_allowed" });
+    expect(await deliverFormRequestEmail(deps, { tenantId: BEAUTYCARE, requestId: R, formTitle: "I", token: TOK })).toEqual({ ok: false, reason: "request_not_found" });
     expect(sent).toHaveLength(0);
   });
   it("refuses blocked customers and closed requests", async () => {
