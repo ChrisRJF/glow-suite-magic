@@ -114,6 +114,9 @@ export function FormTemplatesManager() {
   if (accessLoading) return null;
   if (!canManageTemplates) return null;
 
+  /** RLS requires is_demo to match the tenant; the column default (false) fails for demo salons. */
+  const tenantIsDemo = async () => (await supabase.rpc("current_tenant_is_demo")).data === true;
+
   const createTemplate = async () => {
     const title = newTitle.trim();
     if (!title) return toast.error("Geef het formulier een naam");
@@ -122,6 +125,7 @@ export function FormTemplatesManager() {
     if (!tenant || !userData?.user) return toast.error("Geen toegang");
     const { error } = await supabase.from("form_templates").insert({
       user_id: tenant as string,
+      is_demo: await tenantIsDemo(),
       title,
       kind: "intake",
       draft_schema: { fields: [] },
@@ -161,7 +165,9 @@ export function FormTemplatesManager() {
       .limit(1)
       .maybeSingle();
     const nextVersion = Math.max(latest?.version ?? 0, t.current_version || 0) + 1;
+    const isDemo = await tenantIsDemo();
     const { error } = await supabase.from("form_template_versions").insert({
+      is_demo: isDemo,
       user_id: tenant as string,
       template_id: t.id,
       version: nextVersion,
@@ -192,7 +198,7 @@ export function FormTemplatesManager() {
     } else {
       const { data: tenant } = await supabase.rpc("current_tenant_id");
       if (!tenant) return;
-      await supabase.from("service_form_requirements").insert({ user_id: tenant as string, template_id: templateId, service_id: serviceId });
+      await supabase.from("service_form_requirements").insert({ user_id: tenant as string, is_demo: await tenantIsDemo(), template_id: templateId, service_id: serviceId });
     }
     load();
   };
