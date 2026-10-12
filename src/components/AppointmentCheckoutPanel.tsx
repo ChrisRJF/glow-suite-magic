@@ -4,6 +4,7 @@ import { CreditCard, Link2, Loader2, AlertTriangle, ExternalLink } from "lucide-
 import { formatEuro } from "@/lib/data";
 import { callCheckout, type CheckoutQuote } from "@/lib/appointmentCheckoutClient";
 import { supabase } from "@/integrations/supabase/client";
+import { demoConfirmedCents } from "@/lib/demoAppointmentPaid";
 
 type Terminal = { id: string; terminal_name: string; is_default?: boolean };
 
@@ -18,7 +19,22 @@ export function AppointmentCheckoutPanel({ appointmentId }: { appointmentId: str
   const [started, setStarted] = useState<{ method: "terminal" | "link"; amountCents: number; checkoutUrl: string | null } | null>(null);
   const inFlight = useRef(false);
 
-  useEffect(() => { setOpen(false); setQuote(null); setError(null); setStarted(null); }, [appointmentId]);
+  const [demoPaidCents, setDemoPaidCents] = useState<number | null>(null);
+
+  useEffect(() => { setOpen(false); setQuote(null); setError(null); setStarted(null); setDemoPaidCents(null); }, [appointmentId]);
+
+  // Demo only: show a Viva-verified demo approval. Does not count as revenue or paid status.
+  useEffect(() => {
+    let cancelled = false;
+    supabase.from("payments").select("metadata")
+      .eq("is_demo", true).eq("provider", "viva")
+      .contains("metadata", { appointment_id: appointmentId, checkout: "appointment_checkout" })
+      .then(({ data }) => {
+        if (cancelled) return;
+        setDemoPaidCents(demoConfirmedCents((data as { metadata: unknown }[] | null) ?? []));
+      });
+    return () => { cancelled = true; };
+  }, [appointmentId]);
 
   const load = async () => {
     setOpen(true); setBusy(true); setError(null);
@@ -42,13 +58,19 @@ export function AppointmentCheckoutPanel({ appointmentId }: { appointmentId: str
     setBusy(false); inFlight.current = false;
   };
 
+  const demoBadge = demoPaidCents != null && (
+    <p className="rounded-xl bg-secondary/60 p-3 text-sm">Demo betaald: {formatEuro(demoPaidCents / 100)} bevestigd door het Viva-testpinapparaat. Dit is een demobetaling en telt niet als omzet.</p>
+  );
+
   if (!open) {
+    if (demoBadge) return demoBadge;
     return <Button className="w-full" onClick={load}><CreditCard className="w-4 h-4" /> Afrekenen</Button>;
   }
 
   return (
     <div className="rounded-2xl border border-border bg-card p-4 space-y-4">
       <h3 className="text-sm font-semibold">Afrekenen</h3>
+      {demoBadge}
       {busy && !quote && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" /> Bedragen ophalen…</div>}
       {quote && (
         <dl className="space-y-1.5 text-sm">
