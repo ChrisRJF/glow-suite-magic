@@ -20,6 +20,7 @@ import { useCustomerIntelligence } from "@/hooks/useCustomerIntelligence";
 import { calculateNoShowRisk } from "@/lib/noShowRisk";
 import { searchAfterUpdate } from "@/lib/customerDuplicates";
 import { filterCustomerList } from "@/lib/customerSearch";
+import { clampPage, pageCount, pageRange, pageSlice, visiblePages, pageOfId } from "@/lib/customerPagination";
 import { DuplicateCustomersReview } from "@/components/customers/DuplicateCustomersReview";
 
 export default function CustomersPage() {
@@ -30,7 +31,7 @@ export default function CustomersPage() {
   const { can } = useUserRole();
   const [searchParams] = useSearchParams();
   const [search, setSearch] = useState('');
-  const [visibleCount, setVisibleCount] = useState(100);
+  const [page, setPage] = useState(1);
   const [selectedCustomer, setSelectedCustomer] = useState<Tables<"customers"> | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [showDup, setShowDup] = useState(false);
@@ -40,7 +41,7 @@ export default function CustomersPage() {
     const f = searchParams.get("filter");
     return f || "alle";
   });
-  useEffect(() => { setVisibleCount(100); }, [search, filterLabel]);
+  useEffect(() => { setPage(1); }, [search, filterLabel]);
 
   // Open a specific dossier straight away when the route names a customer.
   useEffect(() => {
@@ -70,6 +71,29 @@ export default function CustomersPage() {
     () => filterCustomerList(customerIntel, search).filter(c => filterLabel === "alle" || c.label.toLowerCase() === filterLabel),
     [customerIntel, search, filterLabel],
   );
+
+  // Clamp when the list shrinks (refresh, delete, filter).
+  const currentPage = clampPage(page, filtered.length);
+  const pages = pageCount(filtered.length);
+  const range = pageRange(currentPage, filtered.length);
+  const pageItems = useMemo(() => pageSlice(filtered, currentPage), [filtered, currentPage]);
+  useEffect(() => { if (page !== currentPage) setPage(currentPage); }, [page, currentPage]);
+
+  // Deep link: jump to the page that holds the requested customer.
+  useEffect(() => {
+    const id = searchParams.get("customer");
+    if (!id) return;
+    const p = pageOfId(filtered, id);
+    if (p) setPage(p);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, customers.length]);
+
+  const goToPage = (p: number) => {
+    const next = clampPage(p, filtered.length);
+    setPage(next);
+    // Close the dossier only when its customer is not on the new page.
+    if (selectedCustomer && !pageSlice(filtered, next).some(c => c.id === selectedCustomer.id)) setSelectedCustomer(null);
+  };
 
   const handleAdd = async () => {
     if (!can("customers:create")) { toast.error("Je hebt geen rechten om klanten toe te voegen."); return; }
@@ -166,7 +190,6 @@ export default function CustomersPage() {
           {search.trim() || filterLabel !== "alle"
             ? `${filtered.length} van ${customers.length} klanten gevonden`
             : `${customers.length} klanten`}
-          {filtered.length > visibleCount && ` · eerste ${visibleCount} getoond`}
         </p>
       )}
 
@@ -174,7 +197,7 @@ export default function CustomersPage() {
         <div className={cn("flex-1 space-y-2 opacity-0 animate-fade-in-up", selectedCustomer && "hidden lg:block")} style={{ animationDelay: '200ms' }}>
           {loading ? <p className="text-sm text-muted-foreground text-center py-8">Laden...</p> :
            filtered.length === 0 ? <p className="text-sm text-muted-foreground text-center py-8">Geen klanten gevonden</p> :
-            filtered.slice(0, visibleCount).map((customer) => {
+            pageItems.map((customer) => {
              const signal = getShowcaseSignal(customer.name);
              const SignalIcon = signal?.icon;
              return (
@@ -203,11 +226,26 @@ export default function CustomersPage() {
               <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
              </button>
            );})}
-          {!loading && filtered.length > visibleCount && (
-            <button onClick={() => setVisibleCount(v => v + 100)}
-              className="w-full py-3 text-sm text-muted-foreground hover:text-foreground rounded-xl border border-border">
-              Meer tonen ({filtered.length - visibleCount} van {filtered.length} resterend)
-            </button>
+          {!loading && filtered.length > 0 && (
+            <nav aria-label="Paginering klanten" className="pt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <p className="text-xs text-muted-foreground tabular-nums" aria-live="polite">
+                {range.from}–{range.to} van {filtered.length} klanten
+                {pages > 1 && ` · Pagina ${currentPage} van ${pages}`}
+              </p>
+              {pages > 1 && (
+                <div className="flex items-center gap-1 flex-wrap">
+                  <Button variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => goToPage(currentPage - 1)}>Vorige</Button>
+                  {visiblePages(currentPage, filtered.length).map(p => (
+                    <button key={p} onClick={() => goToPage(p)} aria-label={`Pagina ${p}`} aria-current={p === currentPage ? "page" : undefined}
+                      className={cn("min-w-9 h-9 px-2 rounded-lg text-sm tabular-nums transition-colors",
+                        p === currentPage ? "bg-primary/15 text-primary font-semibold" : "text-muted-foreground hover:bg-secondary hover:text-foreground")}>
+                      {p}
+                    </button>
+                  ))}
+                  <Button variant="outline" size="sm" disabled={currentPage >= pages} onClick={() => goToPage(currentPage + 1)}>Volgende</Button>
+                </div>
+              )}
+            </nav>
           )}
         </div>
 
