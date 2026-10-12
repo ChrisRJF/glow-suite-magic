@@ -2,7 +2,7 @@
 // TEMPORARY allowlist for rollout (The Beautycare Clinic). Server re-checks login, salon, role, flag and conflicts.
 import { buildCreateBody, createViaRoute, NON_DEFINITIVE_REFUSALS, type AgendaMode, type CreateBody, type CreateOutcome } from "@/lib/agendaCreateClient";
 
-export const RECURRING_TENANTS: ReadonlySet<string> = new Set(["1c6c885e-c944-4717-b2ef-9cfdb9fa15ae", "cbd7d158-0133-4f2f-a504-4b82f73f2e20"]);
+export const RECURRING_TENANTS: ReadonlySet<string> = new Set(["1c6c885e-c944-4717-b2ef-9cfdb9fa15ae", "cbd7d158-0133-4f2f-a504-4b82f73f2e20", "5dbfcbd4-48ff-4010-a1cc-07ed737880ce"]);
 const ROLES = new Set(["eigenaar", "admin", "manager", "receptie"]);
 export const RECURRING_COUNTS = [2, 4, 6, 8, 26] as const;
 export const recurringCountLabel = (n: number) => (n === 26 ? "Heel jaar (26 afspraken)" : String(n));
