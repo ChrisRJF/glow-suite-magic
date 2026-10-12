@@ -49,11 +49,17 @@ interface Props {
   source?: "appointment" | "checkout" | "manual" | "auto_revenue" | "membership";
   allowTip?: boolean;
   onPaid?: (paymentId: string) => void;
+  /** Optional caller-owned idempotency key (Kassa): reopening/reload reuses the same server payment. */
+  idempotencyKey?: string;
+  /** Called once with a provider-final status (paid/failed/cancelled/expired). */
+  onFinal?: (status: string) => void;
+  /** Kassa: returns a fresh saved key for a new attempt after a final failure, or null to block. */
+  onRetryKey?: () => string | null;
 }
 
 export function TerminalPaymentDialog({
   open, onOpenChange, amountCents, description = "Terminal betaling",
-  appointmentId = null, customerId = null, source = "manual", allowTip = false, onPaid,
+  appointmentId = null, customerId = null, source = "manual", allowTip = false, onPaid, idempotencyKey, onFinal, onRetryKey,
 }: Props) {
   const { demoMode } = useDemoMode();
   const posReady = useVivaPosReady();
@@ -69,6 +75,7 @@ export function TerminalPaymentDialog({
   const tickRef = useRef<number | null>(null);
   const idemKeyRef = useRef<string>("");
   const startedAtRef = useRef<number>(0);
+  const startingRef = useRef(false);
 
   const tipCents = Math.round((amountCents * tipPct) / 100);
   const totalCents = amountCents + tipCents;
@@ -98,7 +105,7 @@ export function TerminalPaymentDialog({
   useEffect(() => {
     if (!open) return;
     setState("idle"); setPaymentId(null); setVivaTxId(null); setError(null); setTipPct(0);
-    idemKeyRef.current = (crypto as any).randomUUID?.() || `idem-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    idemKeyRef.current = idempotencyKey || (crypto as any).randomUUID?.() || `idem-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     loadTerminals();
     return () => clearTimers();
   }, [open]);
@@ -116,6 +123,7 @@ export function TerminalPaymentDialog({
     if (status === "paid") {
       clearTimers();
       setState("paid");
+      onFinal?.("paid");
       if (paidPaymentId) onPaid?.(paidPaymentId);
       toast.success("Betaling ontvangen");
       return true;
@@ -123,6 +131,7 @@ export function TerminalPaymentDialog({
     if (status === "failed" || status === "cancelled" || status === "expired") {
       clearTimers();
       setState(status as TerminalState);
+      onFinal?.(status);
       return true;
     }
     return false;
@@ -144,8 +153,9 @@ export function TerminalPaymentDialog({
   };
 
   const startPayment = async () => {
-    if (state !== "idle") return; // anti-double-click
+    if (state !== "idle" || startingRef.current) return; // anti-double-click
     if (!selectedTerminal) { toast.error("Selecteer een pinapparaat"); return; }
+    startingRef.current = true;
     setState("initiating"); setError(null); setVivaTxId(null);
     const { data, error: err } = await supabase.functions.invoke("create-viva-terminal-payment", {
       body: {
@@ -160,6 +170,7 @@ export function TerminalPaymentDialog({
         idempotency_key: idemKeyRef.current,
       },
     });
+    startingRef.current = false;
     if (err || (data as any)?.error || (data as any)?.success === false) {
       const d: any = data || {};
       const vivaMsg = d.message || d.detail || d.error || err?.message || "Onbekende fout";
@@ -208,6 +219,11 @@ export function TerminalPaymentDialog({
   };
 
   const retry = async () => {
+    if (onRetryKey) {
+      const k = onRetryKey();
+      if (!k) { toast.error("Nieuwe poging kan niet veilig worden voorbereid."); return; }
+      idemKeyRef.current = k;
+    }
     clearTimers();
     setState("idle"); setError(null); setPaymentId(null); setVivaTxId(null);
     await loadTerminals();
