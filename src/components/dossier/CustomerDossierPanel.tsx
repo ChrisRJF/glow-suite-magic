@@ -61,6 +61,7 @@ export function CustomerDossierPanel({ customerId, appointmentId = null, compact
   const [submissions, setSubmissions] = useState<SubmissionRow[]>([]);
   const [sending, setSending] = useState<string | null>(null);
   const [openSubmission, setOpenSubmission] = useState<string | null>(null);
+  const [channel, setChannel] = useState<"whatsapp" | "email">("whatsapp");
 
   const scrollToJourney = () => {
     setTimeout(() => {
@@ -95,7 +96,7 @@ export function CustomerDossierPanel({ customerId, appointmentId = null, compact
   const load = async () => {
     const [t, r] = await Promise.all([
       supabase.from("form_templates").select("id, title, current_version").eq("is_active", true).gt("current_version", 0),
-      supabase.from("form_requests").select("id, status, sent_at, completed_at, template_id, appointment_id").eq("customer_id", customerId).order("created_at", { ascending: false }),
+      supabase.from("form_requests").select("id, status, sent_at, completed_at, template_id, appointment_id, channel").eq("customer_id", customerId).order("created_at", { ascending: false }),
     ]);
     setTemplates((t.data as { id: string; title: string; current_version: number }[]) || []);
     setRequests((r.data as RequestRow[]) || []);
@@ -139,14 +140,28 @@ export function CustomerDossierPanel({ customerId, appointmentId = null, compact
   const send = async (templateId: string) => {
     setSending(templateId);
     const { data, error } = await supabase.functions.invoke("customer-forms", {
-      body: { action: "send", customer_id: customerId, template_id: templateId, appointment_id: appointmentId },
+      body: { action: "send", customer_id: customerId, template_id: templateId, appointment_id: appointmentId, channel },
     });
     setSending(null);
-    if (error) return toast.error("Versturen mislukt");
+    if (error) {
+      const status = (error as { context?: { status?: number } }).context?.status;
+      return toast.error(status === 403 && channel === "email" ? "E-mail is voor deze salon of klant nog niet beschikbaar." : "Versturen mislukt");
+    }
     const res = data as { duplicate?: boolean; delivery?: { ok?: boolean } };
     if (res?.duplicate) toast.info("Er staat al een openstaand formulier voor deze klant.");
     else if (res?.delivery?.ok === false) toast.warning("Formulier klaargezet, maar het bericht kon niet worden bezorgd.");
     else toast.success("Formulier verstuurd");
+    load();
+  };
+
+  const resendEmail = async (requestId: string) => {
+    setSending(requestId);
+    const { data, error } = await supabase.functions.invoke("customer-forms", {
+      body: { action: "resend_email", request_id: requestId, resend_key: crypto.randomUUID() },
+    });
+    setSending(null);
+    if (error || !(data as { ok?: boolean })?.ok) return toast.error("Opnieuw mailen niet gelukt. De bestaande link blijft geldig.");
+    toast.success("Nieuwe link gemaild");
     load();
   };
 
@@ -200,7 +215,15 @@ export function CustomerDossierPanel({ customerId, appointmentId = null, compact
       </div>
 
       {canSend && templates.length > 0 && (
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+          <div className="inline-flex rounded-lg border border-border p-0.5 text-xs" role="group" aria-label="Kanaal">
+            {(["whatsapp", "email"] as const).map((c) => (
+              <button key={c} type="button" aria-pressed={channel === c} onClick={() => setChannel(c)}
+                className={`rounded-md px-2.5 py-1 ${channel === c ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
+                {c === "whatsapp" ? "WhatsApp" : "E-mail"}
+              </button>
+            ))}
+          </div>
           {templates.map((t) => (
             <Button className="w-full whitespace-normal sm:w-auto" key={t.id} variant="outline" size="sm" disabled={sending === t.id} onClick={() => send(t.id)}>
               <Send className="h-3.5 w-3.5 mr-1" />
@@ -235,6 +258,11 @@ export function CustomerDossierPanel({ customerId, appointmentId = null, compact
                     )}
                   </div>
                    <div className="flex flex-col items-stretch gap-1 sm:flex-row sm:flex-wrap sm:items-center">
+                    {canSend && (r as { channel?: string }).channel === "email" && (r.status === "sent" || r.status === "opened") && (
+                      <Button variant="ghost" size="sm" disabled={sending === r.id} onClick={() => resendEmail(r.id)}>
+                        {sending === r.id ? "Mailen..." : "Opnieuw mailen"}
+                      </Button>
+                    )}
                     {canSend && r.status === "completed" && !compact && (
                       <Button variant="ghost" size="sm" onClick={() => markReissue(r.template_id)}>
                         Opnieuw laten invullen

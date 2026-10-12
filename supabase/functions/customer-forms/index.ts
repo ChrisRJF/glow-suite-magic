@@ -22,6 +22,7 @@ import {
   validateSignature,
   type FormSchema,
 } from "../_shared/formCanonical.ts";
+import { deliverFormRequestEmail, emailScopeAllowed, FORM_EMAIL_TENANTS, parseList, type FormMailDeps } from "../_shared/formRequestEmail.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -59,6 +60,84 @@ async function rateLimit(bucket: string, max: number, windowSeconds: number): Pr
   });
   if (error) return true; // fail open on limiter outage, never block the customer
   return data !== false;
+}
+
+// ------------------------------------------------- e-mail (existing Resend sender)
+const RESEND_GATEWAY = "https://connector-gateway.lovable.dev/resend";
+function formMailDeps(): FormMailDeps {
+  return {
+    readStopSwitch: async () => {
+      const { data, error } = await admin.from("customer_email_controls").select("sending_enabled").eq("id", true).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    allowedTenants: FORM_EMAIL_TENANTS,
+    allowedRecipients: parseList(Deno.env.get("FORM_EMAIL_RECIPIENTS")),
+    loadRequest: async (t, id) => (await admin.from("form_requests").select("id, user_id, customer_id, status, expires_at").eq("id", id).eq("user_id", t).maybeSingle()).data,
+    loadCustomer: async (t, id) => (await admin.from("customers").select("id, name, email, archived_at, pseudonymized_at, communication_blocked_at").eq("id", id).eq("user_id", t).maybeSingle()).data,
+    loadSalon: async (t) => (await admin.from("settings").select("salon_name, public_slug").eq("user_id", t).order("created_at", { ascending: false }).limit(1).maybeSingle()).data,
+    newToken: async () => { const token = generateFormToken(); return { token, hash: await hashToken(token) }; },
+    commitToken: async (t, id, hash) => {
+      const { data, error } = await admin.from("form_requests").update({ token_hash: hash, sent_at: new Date().toISOString() })
+        .eq("id", id).eq("user_id", t).in("status", ["sent", "opened"]).select("id");
+      return !error && Array.isArray(data) && data.length === 1;
+    },
+    alreadySent: async (t, key) => {
+      const { data, error } = await admin.from("white_label_email_logs").select("id").eq("user_id", t).eq("template_key", "form_request")
+        .eq("status", "sent").eq("metadata->>idempotency_key", key).limit(1);
+      if (error) throw error;
+      return (data ?? []).length > 0;
+    },
+    sendEmail: async (m) => {
+      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+      const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+      if (!LOVABLE_API_KEY || !RESEND_API_KEY) return { ok: false };
+      const res = await fetch(`${RESEND_GATEWAY}/emails`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "X-Connection-Api-Key": RESEND_API_KEY, "Content-Type": "application/json", "Idempotency-Key": m.idempotencyKey },
+        body: JSON.stringify({ from: m.from, to: [m.to], subject: m.subject, html: m.html, text: m.text }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) console.error("form_email_provider_failed", res.status);
+      return { ok: res.ok, id: body?.id ?? body?.data?.id ?? null };
+    },
+    log: async (r) => {
+      if (!r.to || !r.from) return; // blocked before a recipient was resolved: audit only via return value
+      await admin.from("white_label_email_logs").insert({
+        user_id: r.tenant_id, salon_slug: r.from.split("<")[1]?.split("@")[0] ?? "salon", from_email: r.from.split("<")[1]?.replace(">", "") ?? r.from,
+        from_name: r.from.split(" <")[0], recipient_email: r.to, template_key: "form_request", subject: r.subject ?? "", provider: "resend",
+        provider_message_id: r.provider_id ?? null, status: r.status, error_message: r.reason ?? null, is_demo: true,
+        metadata: { idempotency_key: r.idempotency_key, form_request_id: r.form_request_id },
+      });
+    },
+    origin: publicAppOrigin(),
+  };
+}
+
+async function staffContext(req: Request) {
+  const authHeader = req.headers.get("Authorization") || "";
+  if (!authHeader.startsWith("Bearer ")) return null;
+  const userClient = createClient(SUPABASE_URL, ANON_KEY, { global: { headers: { Authorization: authHeader } }, auth: { persistSession: false } });
+  const { data: userData } = await userClient.auth.getUser();
+  if (!userData?.user) return null;
+  const { data: tenantId } = await userClient.rpc("current_tenant_id");
+  const { data: maySend } = await userClient.rpc("can_send_customer_form");
+  return { user: userData.user, tenantId: tenantId as string | null, maySend: maySend === true };
+}
+
+async function handleResendEmail(req: Request, body: Record<string, unknown>) {
+  const ctx = await staffContext(req);
+  if (!ctx) return json({ error: "unauthorized" }, 401);
+  if (!ctx.tenantId) return json({ error: "tenant_unresolved" }, 403);
+  if (!ctx.maySend) return json({ error: "forbidden" }, 403);
+  const requestId = String(body.request_id ?? "");
+  if (!/^[0-9a-f-]{36}$/i.test(requestId)) return json({ error: "request_id_required" }, 400);
+  const { data: fr } = await admin.from("form_requests").select("id, template_version_id").eq("id", requestId).eq("user_id", ctx.tenantId).maybeSingle();
+  if (!fr) return json({ error: "request_not_found" }, 404);
+  const { data: v } = await admin.from("form_template_versions").select("title").eq("id", fr.template_version_id).eq("user_id", ctx.tenantId).maybeSingle();
+  const r = await deliverFormRequestEmail(formMailDeps(), { tenantId: ctx.tenantId, requestId, formTitle: v?.title || "Intake", resendKey: String(body.resend_key ?? "") });
+  await admin.from("audit_logs").insert({ user_id: ctx.tenantId, actor_user_id: ctx.user.id, action: "form_request_email_resend", target_type: "form_request", target_id: requestId, details: { ok: r.ok, reason: r.ok ? null : r.reason } }).then(() => {}, () => {});
+  return json(r.ok ? { ok: true, duplicate: !!r.duplicate } : { ok: false, error: r.reason }, r.ok ? 200 : 409);
 }
 
 // ---------------------------------------------------------------- staff: send
@@ -132,6 +211,11 @@ async function handleSend(req: Request, body: Record<string, unknown>) {
     return json({ ok: true, duplicate: true, request_id: openRequests[0].id, message: "Er staat al een openstaand formulier voor deze klant." });
   }
 
+  // E-mail scope is checked BEFORE a request is created: default deny.
+  if (channel === "email" && !emailScopeAllowed(tenantId, customer.email, FORM_EMAIL_TENANTS, parseList(Deno.env.get("FORM_EMAIL_RECIPIENTS")))) {
+    return json({ error: "email_not_enabled" }, 403);
+  }
+
   const token = generateFormToken();
   const token_hash = await hashToken(token);
 
@@ -160,7 +244,10 @@ async function handleSend(req: Request, body: Record<string, unknown>) {
 
   // Reuse the existing central WhatsApp sender. No new messaging pipeline.
   let delivery: Record<string, unknown> = { attempted: false };
-  if (channel === "whatsapp" && customer.phone) {
+  if (channel === "email") {
+    const r = await deliverFormRequestEmail(formMailDeps(), { tenantId, requestId: request.id, formTitle: version.title, token });
+    delivery = { attempted: true, channel: "email", ok: r.ok, error: r.ok ? null : r.reason };
+  } else if (channel === "whatsapp" && customer.phone) {
     const { data: settings } = await admin.from("settings").select("salon_name").eq("user_id", tenantId).order("created_at", { ascending: false }).limit(1).maybeSingle();
     const salonName = settings?.salon_name || "je salon";
     const first = String(customer.name || "").split(" ")[0] || "hallo";
@@ -383,6 +470,7 @@ Deno.serve(async (req) => {
     const token = String(body.token ?? url.searchParams.get("token") ?? "");
 
     if (action === "send") return await handleSend(req, body);
+    if (action === "resend_email") return await handleResendEmail(req, body);
     if (action === "get") return await handleGet(req, token);
     if (action === "submit") return await handleSubmit(req, token, body);
     return json({ error: "unknown_action" }, 400);
