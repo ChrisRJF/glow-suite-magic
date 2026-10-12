@@ -61,4 +61,10 @@ describe("Kassa server flow", () => {
     await screen.findByText(/Bevestigd door het pinapparaat/);
     expect(d.createOrder).toHaveBeenCalledTimes(1);
   });
+  it("shows the active demo pin device by its terminal name", async () => {
+    render(<KassaServerPay userId="u-term" demo customerId={null} lines={lines} onPaid={() => {}} onLockChange={() => {}} deps={deps()} />);
+    expect(await screen.findByRole("option", { name: "Sunmi P3 Demo" })).toBeTruthy();
+    expect(terminalQuery.cols).toContain("terminal_name");
+    expect(terminalQuery.filters).toEqual([["is_demo", true], ["status", "active"]]);
+  });
 });
