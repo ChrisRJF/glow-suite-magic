@@ -6,6 +6,8 @@ import { formatEuro } from "@/lib/data";
 import { payWithKassa, loadSaved, type KassaLine, type KassaState, type KassaServerDeps } from "@/lib/kassaServer";
 
 const safeStorage = () => { try { return window.localStorage; } catch { return null; } };
+// How long a confirmed success stays visible before the screen resets to a clean sale.
+const SUCCESS_RESET_MS = 4000;
 
 export const kassaServerDeps: KassaServerDeps = {
   createOrder: async (requestId, customerId, lines, demo) => {
@@ -50,6 +52,7 @@ export function KassaServerPay({ userId, demo, customerId, lines, onPaid, onNewS
   }, [demo]);
 
   useEffect(() => { onLockChange(hasOpen || ["creating", "starting", "open", "paid"].includes(state.phase)); }, [hasOpen, state.phase, onLockChange]);
+  useEffect(() => () => { if (resetTimer.current) window.clearTimeout(resetTimer.current); }, []);
 
   const pay = async () => {
     if (busy.current || state.phase === "paid") return; // double click guard; a paid order is never paid again
