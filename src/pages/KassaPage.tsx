@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { TerminalPaymentDialog } from "@/components/TerminalPaymentDialog";
 import { KassaServerPay } from "@/components/KassaServerPay";
+import { loadSaved as loadServerSaved } from "@/lib/kassaServer";
 import { supabase } from "@/integrations/supabase/client";
 import { useCallback } from "react";
 import { beginOrResume, loadPending, settlePending, type KassaCart, type KassaPending } from "@/lib/kassaPending";
@@ -152,7 +153,7 @@ export default function KassaPage() {
               </div>
             ))}
           </div>
-          {Object.keys(cart).length > 0 && (
+          {(Object.keys(cart).length > 0 || (serverKassa && !!loadServerSaved(safeStorage(), userId)?.paymentId)) && (
             <div className="mt-4 pt-4 border-t border-border">
               <div className="mb-4">
                 <p className="text-xs text-muted-foreground mb-2">Betaalmethode</p>
