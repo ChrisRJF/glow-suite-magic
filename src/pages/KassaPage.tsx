@@ -40,6 +40,7 @@ export default function KassaPage() {
   // Server Kassa only when the platform switched it on for this salon (kassa_orders_enabled). Otherwise unchanged.
   const [serverKassa, setServerKassa] = useState(false);
   const [serverLocked, setServerLocked] = useState(false);
+  const [saleNo, setSaleNo] = useState(0);
   useEffect(() => {
     if (!userId) return;
     (supabase.rpc as any)("kassa_payment_status").then(({ data }: any) => setServerKassa(data?.ok === true && data?.enabled === true));
@@ -174,8 +175,9 @@ export default function KassaPage() {
                 </div>
               )}
               {serverKassa ? (
-                <KassaServerPay userId={userId} demo={demoMode} customerId={selectedCustomer || null} lines={serverLines}
-                  onLockChange={onServerLock} onPaid={() => setTimeout(() => { setCart({}); setSelectedCustomer(""); }, 2000)} />
+                <KassaServerPay key={saleNo} userId={userId} demo={demoMode} customerId={selectedCustomer || null} lines={serverLines}
+                  onLockChange={onServerLock} onPaid={() => {}}
+                  onNewSale={() => { setCart({}); setSelectedCustomer(""); setServerLocked(false); setSaleNo((n) => n + 1); }} />
               ) : (<>
               <Button type="button" className="w-full" size="lg" onClick={openTerminal} disabled={paid || total <= 0 || terminalOpen || !userId}>
                 {paid ? <><Check className="w-4 h-4 mr-2" /> Betaald</> : <><Smartphone className="w-4 h-4 mr-2" /> {pending ? "Openstaande pinbetaling bekijken" : "Betaal op pinapparaat"}</>}
