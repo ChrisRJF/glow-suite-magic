@@ -38,7 +38,6 @@ export function loadPending(storage: StorageLike | null, userId: string, now = D
     if (!raw) return null;
     const p = JSON.parse(raw) as KassaPending;
     if (!p?.key || typeof p.amountCents !== "number") return null;
-    if (now - p.createdAt > KASSA_PENDING_TTL_MS) return p; // kept: outcome still unknown, staff must check status
     return p;
   } catch {
     return null;
