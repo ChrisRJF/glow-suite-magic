@@ -80,12 +80,19 @@ export function KassaServerPay({ userId, demo, customerId, lines, onPaid, onNewS
           {terminals.map((t) => <option key={t.id} value={t.id}>{t.name || "Pinapparaat"}</option>)}
         </select>
       </div>
-      {state.phase !== "idle" && (
+      {state.phase === "paid" ? (
+        <div role="status" className="rounded-xl bg-secondary/40 p-3">
+          <div className="flex items-center gap-2">
+            <Check className="w-4 h-4 text-success" />
+            <span className="font-medium text-success">Betaling geslaagd</span>
+          </div>
+          {state.totalCents ? <p className="text-xs text-muted-foreground mt-1">{formatEuro(state.totalCents / 100)} ontvangen</p> : null}
+        </div>
+      ) : state.phase !== "idle" && (
         <div role="status" className="rounded-xl bg-secondary/40 p-3 text-xs text-muted-foreground">
           {state.phase === "creating" && "Bestelling wordt gecontroleerd..."}
           {state.phase === "starting" && "Betaling wordt gestart op het pinapparaat..."}
           {state.phase === "open" && <>Betaling staat open{state.totalCents ? ` (${formatEuro(state.totalCents / 100)})` : ""}. Wacht op het pinapparaat.</>}
-          {state.phase === "paid" && <span className="font-medium text-primary">Betaald. Bevestigd door het pinapparaat.</span>}
           {(state.phase === "failed" || state.phase === "error") && <span className="text-destructive">{state.message}</span>}
         </div>
       )}
@@ -93,9 +100,6 @@ export function KassaServerPay({ userId, demo, customerId, lines, onPaid, onNewS
         {working ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : state.phase === "paid" ? <Check className="w-4 h-4 mr-2" /> : <Smartphone className="w-4 h-4 mr-2" />}
         {state.phase === "paid" ? "Betaald" : hasOpen ? "Openstaande betaling bekijken" : state.phase === "failed" ? "Opnieuw proberen" : "Betaal op pinapparaat"}
       </Button>
-      {state.phase === "paid" && onNewSale && (
-        <Button type="button" variant="outline" className="w-full" onClick={onNewSale}>Nieuwe verkoop</Button>
-      )}
     </div>
   );
 }
