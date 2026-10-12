@@ -57,7 +57,7 @@ describe("Kassa server flow", () => {
     await waitFor(() => expect(btn).not.toBeDisabled());
     fireEvent.click(btn); fireEvent.click(btn); fireEvent.click(btn);
     release();
-    await screen.findByText(/Betaald/);
+    await screen.findByText(/Bevestigd door het pinapparaat/);
     expect(d.createOrder).toHaveBeenCalledTimes(1);
   });
 });
