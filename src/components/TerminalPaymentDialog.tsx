@@ -75,6 +75,7 @@ export function TerminalPaymentDialog({
   const tickRef = useRef<number | null>(null);
   const idemKeyRef = useRef<string>("");
   const startedAtRef = useRef<number>(0);
+  const startingRef = useRef(false);
 
   const tipCents = Math.round((amountCents * tipPct) / 100);
   const totalCents = amountCents + tipCents;
@@ -152,8 +153,9 @@ export function TerminalPaymentDialog({
   };
 
   const startPayment = async () => {
-    if (state !== "idle") return; // anti-double-click
+    if (state !== "idle" || startingRef.current) return; // anti-double-click
     if (!selectedTerminal) { toast.error("Selecteer een pinapparaat"); return; }
+    startingRef.current = true;
     setState("initiating"); setError(null); setVivaTxId(null);
     const { data, error: err } = await supabase.functions.invoke("create-viva-terminal-payment", {
       body: {
@@ -168,6 +170,7 @@ export function TerminalPaymentDialog({
         idempotency_key: idemKeyRef.current,
       },
     });
+    startingRef.current = false;
     if (err || (data as any)?.error || (data as any)?.success === false) {
       const d: any = data || {};
       const vivaMsg = d.message || d.detail || d.error || err?.message || "Onbekende fout";
