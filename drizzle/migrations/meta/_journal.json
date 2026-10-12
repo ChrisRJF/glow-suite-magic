@@ -120,6 +120,13 @@
       "when": 1791737948380,
       "tag": "0016_bootstrap_skip_invited_members",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1791808203283,
+      "tag": "0017_kassa_orders",
+      "breakpoints": true
     }
   ]
 }

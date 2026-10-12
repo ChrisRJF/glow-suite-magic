@@ -2562,6 +2562,133 @@ export type Database = {
         }
         Relationships: []
       }
+      kassa_order_lines: {
+        Row: {
+          id: string
+          item_id: string
+          item_type: string
+          name: string
+          order_id: string
+          qty: number
+          stock_shortfall: number
+          unit_cents: number
+        }
+        Insert: {
+          id?: string
+          item_id: string
+          item_type: string
+          name: string
+          order_id: string
+          qty: number
+          stock_shortfall?: number
+          unit_cents: number
+        }
+        Update: {
+          id?: string
+          item_id?: string
+          item_type?: string
+          name?: string
+          order_id?: string
+          qty?: number
+          stock_shortfall?: number
+          unit_cents?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kassa_order_lines_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "kassa_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kassa_orders: {
+        Row: {
+          attempt: number
+          created_at: string
+          created_by: string
+          customer_id: string | null
+          id: string
+          is_demo: boolean
+          payment_id: string | null
+          request_hash: string
+          request_id: string
+          settled_at: string | null
+          status: string
+          tenant_id: string
+          total_cents: number
+          updated_at: string
+        }
+        Insert: {
+          attempt?: number
+          created_at?: string
+          created_by: string
+          customer_id?: string | null
+          id?: string
+          is_demo: boolean
+          payment_id?: string | null
+          request_hash: string
+          request_id: string
+          settled_at?: string | null
+          status?: string
+          tenant_id: string
+          total_cents: number
+          updated_at?: string
+        }
+        Update: {
+          attempt?: number
+          created_at?: string
+          created_by?: string
+          customer_id?: string | null
+          id?: string
+          is_demo?: boolean
+          payment_id?: string | null
+          request_hash?: string
+          request_id?: string
+          settled_at?: string | null
+          status?: string
+          tenant_id?: string
+          total_cents?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      kassa_payment_attempts: {
+        Row: {
+          attempt: number
+          created_at: string
+          idempotency_key: string
+          order_id: string
+          payment_id: string | null
+          state: string
+        }
+        Insert: {
+          attempt: number
+          created_at?: string
+          idempotency_key: string
+          order_id: string
+          payment_id?: string | null
+          state?: string
+        }
+        Update: {
+          attempt?: number
+          created_at?: string
+          idempotency_key?: string
+          order_id?: string
+          payment_id?: string | null
+          state?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kassa_payment_attempts_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "kassa_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           created_at: string
@@ -4476,6 +4603,8 @@ export type Database = {
           atomic_agenda_enabled: boolean
           history_csv_import_enabled: boolean
           history_csv_preview_enabled: boolean
+          kassa_orders_enabled: boolean
+          live_payments_enabled: boolean
           tenant_id: string
           updated_at: string
         }
@@ -4484,6 +4613,8 @@ export type Database = {
           atomic_agenda_enabled?: boolean
           history_csv_import_enabled?: boolean
           history_csv_preview_enabled?: boolean
+          kassa_orders_enabled?: boolean
+          live_payments_enabled?: boolean
           tenant_id: string
           updated_at?: string
         }
@@ -4492,6 +4623,8 @@ export type Database = {
           atomic_agenda_enabled?: boolean
           history_csv_import_enabled?: boolean
           history_csv_preview_enabled?: boolean
+          kassa_orders_enabled?: boolean
+          live_payments_enabled?: boolean
           tenant_id?: string
           updated_at?: string
         }
@@ -5887,6 +6020,49 @@ export type Database = {
         Returns: undefined
       }
       is_valid_weekly_schedule: { Args: { _s: Json }; Returns: boolean }
+      kassa_actor_tenant: {
+        Args: { _actor: string }
+        Returns: {
+          role: string
+          tenant_id: string
+        }[]
+      }
+      kassa_attach_payment: {
+        Args: { _key: string; _order_id: string; _payment_id: string }
+        Returns: boolean
+      }
+      kassa_attempt_failed: { Args: { _payment_id: string }; Returns: string }
+      kassa_begin_attempt: {
+        Args: { _actor: string; _order_id: string }
+        Returns: Json
+      }
+      kassa_create_order: {
+        Args: {
+          _customer_id: string
+          _demo: boolean
+          _lines: Json
+          _request_id: string
+        }
+        Returns: Json
+      }
+      kassa_live_allowed: {
+        Args: { _method: string; _tenant: string }
+        Returns: boolean
+      }
+      kassa_open_orders: {
+        Args: { _demo: boolean }
+        Returns: {
+          attempt: number
+          created_at: string
+          customer_id: string
+          order_id: string
+          payment_id: string
+          status: string
+          total_cents: number
+        }[]
+      }
+      kassa_payment_status: { Args: never; Returns: Json }
+      kassa_settle_order: { Args: { _payment_id: string }; Returns: string }
       lookup_referral_owner: { Args: { _code: string }; Returns: string }
       minutes_to_wall_time: { Args: { _m: number }; Returns: string }
       move_appointment_atomic: {
