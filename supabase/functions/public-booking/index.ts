@@ -352,22 +352,9 @@ Deno.serve(async (req) => {
     }
 
     if (parsed.data.action === "lookup_customer") {
-      const email = parsed.data.email.toLowerCase();
-      const { data: customer } = await supabase
-        .from("customers")
-        .select("id, name, phone, preferred_language")
-        .eq("user_id", ctx.settings.user_id)
-        .ilike("email", email)
-        .maybeSingle();
-      if (!customer) return json({ customer: null, recentAppointments: [] });
-      const { data: appts } = await supabase
-        .from("appointments")
-        .select("id, service_id, appointment_date")
-        .eq("user_id", ctx.settings.user_id)
-        .eq("customer_id", customer.id)
-        .order("appointment_date", { ascending: false })
-        .limit(3);
-      return json({ customer: { name: customer.name, phone: customer.phone || "", preferred_language: (customer as any).preferred_language || null }, recentAppointments: appts || [] });
+      // Privacy: an unverified email must never reveal whether a customer exists or any of their data.
+      // Always the same empty answer; customer matching happens server-side during create.
+      return json({ customer: null, recentAppointments: [] });
     }
 
     const data = parsed.data;
