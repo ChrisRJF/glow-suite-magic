@@ -67,4 +67,29 @@ describe("Kassa server flow", () => {
     expect(terminalQuery.cols).toContain("terminal_name");
     expect(terminalQuery.filters).toEqual([["is_demo", true], ["status", "active"]]);
   });
+  it("success stays visible until Nieuwe verkoop; paid order cannot be paid again", async () => {
+    const d = deps(); const onNewSale = vi.fn(); const onLock = vi.fn();
+    render(<KassaServerPay userId="u-ok" demo customerId={null} lines={lines} onPaid={() => {}} onNewSale={onNewSale} onLockChange={onLock} deps={d} />);
+    const btn = await screen.findByRole("button", { name: /Betaal op pinapparaat/ });
+    await waitFor(() => expect(btn).not.toBeDisabled());
+    fireEvent.click(btn);
+    await screen.findByText(/Bevestigd door het pinapparaat/);
+    await new Promise((r) => setTimeout(r, 2200));
+    expect(screen.getByText(/Bevestigd door het pinapparaat/)).toBeTruthy();
+    const paidBtn = screen.getByRole("button", { name: /^Betaald$/ });
+    expect(paidBtn).toBeDisabled(); fireEvent.click(paidBtn);
+    expect(d.createOrder).toHaveBeenCalledTimes(1); expect(d.startPayment).toHaveBeenCalledTimes(1);
+    expect(onLock).toHaveBeenLastCalledWith(true);
+    fireEvent.click(screen.getByRole("button", { name: "Nieuwe verkoop" }));
+    expect(onNewSale).toHaveBeenCalledTimes(1);
+  }, 8000);
+  it("chosen customer id is sent to the server order", async () => {
+    const d = deps(); const cust = "22222222-2222-4222-8222-222222222222";
+    render(<KassaServerPay userId="u-cust" demo customerId={cust} lines={lines} onPaid={() => {}} onLockChange={() => {}} deps={d} />);
+    const btn = await screen.findByRole("button", { name: /Betaal op pinapparaat/ });
+    await waitFor(() => expect(btn).not.toBeDisabled());
+    fireEvent.click(btn);
+    await screen.findByText(/Bevestigd door het pinapparaat/);
+    expect((d.createOrder as any).mock.calls[0][1]).toBe(cust);
+  });
 });
