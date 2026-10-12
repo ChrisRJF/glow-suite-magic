@@ -173,8 +173,8 @@ BEGIN
   INSERT INTO public.kassa_orders (tenant_id, is_demo, request_id, request_hash, customer_id, total_cents, created_by)
     VALUES (t, _demo, _request_id, h, _customer_id, 1, auth.uid()) RETURNING id INTO oid;
   FOR l IN SELECT * FROM jsonb_array_elements(_lines) LOOP
-    IF (l->>'type') NOT IN ('service','product') OR (l->>'qty') !~ '^[0-9]{1,2}$' OR (l->>'qty')::int < 1
-       OR (l->>'item_id') !~* '^[0-9a-f-]{36}$' THEN RAISE EXCEPTION 'kassa_invalid_line'; END IF;
+    IF NOT coalesce((l->>'type') IN ('service','product') AND (l->>'qty') ~ '^[1-9][0-9]?$'
+       AND (l->>'item_id') ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', false) THEN RAISE EXCEPTION 'kassa_invalid_line'; END IF;
     IF l->>'type' = 'product' THEN
       SELECT p.name, round(p.price*100)::int AS c INTO it FROM public.products p
         WHERE p.id = (l->>'item_id')::uuid AND p.user_id = t AND p.is_demo = _demo AND p.is_active;
