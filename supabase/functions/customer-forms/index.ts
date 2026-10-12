@@ -470,6 +470,7 @@ Deno.serve(async (req) => {
     const token = String(body.token ?? url.searchParams.get("token") ?? "");
 
     if (action === "send") return await handleSend(req, body);
+    if (action === "resend_email") return await handleResendEmail(req, body);
     if (action === "get") return await handleGet(req, token);
     if (action === "submit") return await handleSubmit(req, token, body);
     return json({ error: "unknown_action" }, 400);
