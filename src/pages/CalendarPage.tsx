@@ -2066,6 +2066,11 @@ export default function CalendarPage() {
               <StatusPill apt={dossierAppt} />
             </div>
           )}
+          {dossierAppt && isMobile && (
+            <Button variant="ghost" className="mt-3 h-11 text-destructive hover:text-destructive" onClick={() => handleDelete(dossierAppt.id)}>
+              <Trash2 className="mr-2 w-4 h-4" />Verwijder afspraak
+            </Button>
+          )}
           {dossierAppt && canEditAppointment && !['geannuleerd', 'no-show', 'voltooid'].includes(dossierAppt.status) && (
             <Button
               variant="outline"
