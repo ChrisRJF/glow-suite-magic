@@ -1233,14 +1233,14 @@ export default function CalendarPage() {
               aria-current={isToday ? "date" : undefined}
               className="shrink-0"
             >
-              <CalendarDays className="w-4 h-4 mr-1" /> Vandaag
+              <CalendarDays className="w-4 h-4 sm:mr-1" /> <span className="sr-only sm:not-sr-only">Vandaag</span>
             </Button>
             <div className="flex flex-1 lg:flex-none rounded-xl border border-border overflow-hidden min-w-0">
-              <button onClick={() => setView('day')} className={cn("flex-1 lg:flex-none px-3 py-2 text-sm font-medium transition-colors", view === 'day' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')}>Dag</button>
-              <button onClick={() => setView('columns')} className={cn("flex-1 lg:flex-none px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-1", view === 'columns' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')} title="Eén dag, alle medewerkers die werken naast elkaar">
-                <Columns3 className="w-3.5 h-3.5" />Per medewerker
+              <button onClick={() => setView('day')} className={cn("flex-1 lg:flex-none px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium transition-colors", view === 'day' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')}>Dag</button>
+              <button onClick={() => setView('columns')} className={cn("flex-1 lg:flex-none px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium transition-colors flex items-center justify-center gap-1", view === 'columns' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')} title="Eén dag, alle medewerkers die werken naast elkaar">
+                <Columns3 className="w-3.5 h-3.5 hidden sm:block" /><span className="whitespace-nowrap">Per medewerker</span>
               </button>
-              <button onClick={() => setView('week')} className={cn("flex-1 lg:flex-none px-3 py-2 text-sm font-medium transition-colors", view === 'week' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')}>Week</button>
+              <button onClick={() => setView('week')} className={cn("flex-1 lg:flex-none px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium transition-colors", view === 'week' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')}>Week</button>
             </div>
           </div>
           {/* Eén primaire actie; slim plannen blijft secundair */}
@@ -1759,13 +1759,16 @@ export default function CalendarPage() {
                         {({ attributes, listeners }) => {
                           const durationMin = svc?.duration_minutes || 30;
                           const computedHeight = (durationMin / 30) * 48 - 8;
-                          const minH = isMobile ? Math.max(computedHeight, 104) : computedHeight;
+                          // Mobile: short appointments stay within their own time span (no overlap);
+                          // secondary controls move to the appointment window, grip stays on the card.
+                          const compact = isMobile && computedHeight < 104;
+                          const minH = isMobile && !compact ? Math.max(computedHeight, 104) : computedHeight;
                           const paymentStatus = (apt as any).payment_status;
                           const showPayment = paymentStatus && paymentStatus !== 'none';
                           return (
                           <div
                             onClick={() => setDossierAppt(apt)}
-                            className="absolute left-0 right-0 top-1 z-10 rounded-xl p-3 transition-all duration-200 bg-card/95 shadow-[var(--shadow-sm)] flex flex-col gap-2 cursor-pointer hover:ring-1 hover:ring-primary/20"
+                            className={cn("absolute left-0 right-0 top-1 z-10 rounded-xl transition-all duration-200 bg-card/95 shadow-[var(--shadow-sm)] flex flex-col cursor-pointer overflow-hidden hover:ring-1 hover:ring-primary/20", compact ? "p-2 gap-1" : "p-3 gap-2")}
                             style={{
                               backgroundImage: `linear-gradient(135deg, ${svc?.color || '#7B61FF'}10, ${svc?.color || '#7B61FF'}06)`,
                               borderLeft: `3px solid ${svc?.color || '#7B61FF'}`,
@@ -1782,6 +1785,19 @@ export default function CalendarPage() {
                                 </div>
                               )}
                               <p className="text-sm font-semibold line-clamp-1 min-w-0 flex-1">{cust?.name || 'Klant'}</p>
+                              {compact && (
+                                <button
+                                  {...listeners}
+                                  {...attributes}
+                                  className="flex h-9 w-9 shrink-0 cursor-grab items-center justify-center rounded-lg bg-secondary/40 active:cursor-grabbing active:bg-secondary"
+                                  aria-label="Sleep om te verplaatsen"
+                                  title="Houd vast en sleep om te verplaatsen"
+                                  onClick={(e) => e.stopPropagation()}
+                                  style={{ touchAction: 'none', WebkitTouchCallout: 'none', userSelect: 'none' }}
+                                >
+                                  <GripVertical className="w-4 h-4 text-muted-foreground" />
+                                </button>
+                              )}
                               {showPayment && (
                                 <span className={cn(
                                   "text-[10px] px-1.5 py-0.5 rounded-full font-medium shrink-0",
@@ -1795,11 +1811,11 @@ export default function CalendarPage() {
                             </div>
 
                             {/* Second row: service • duration • employee */}
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground min-w-0 flex-wrap">
-                              <span className="line-clamp-1 min-w-0">{svc?.name || 'Behandeling'}</span>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground min-w-0 flex-nowrap overflow-hidden sm:flex-wrap">
+                              <span className="truncate min-w-0">{getAppointmentTime(apt)} · {svc?.name || 'Behandeling'}</span>
                               <span className="flex items-center gap-0.5 shrink-0"><Clock className="w-3 h-3" />{durationMin} min</span>
                               {displayEmps.length > 0 && (
-                                <span className="line-clamp-1 min-w-0 text-foreground/70">
+                                <span className="truncate min-w-0 text-foreground/70">
                                   · {displayEmps.map((e: any) => e.name).join(', ')}
                                 </span>
                               )}
@@ -1809,7 +1825,7 @@ export default function CalendarPage() {
                             </div>
 
                             {/* Bottom row: compact, wrapping controls stay inside narrow mobile cards. */}
-                            <div className="mt-auto flex min-w-0 flex-col gap-1 pt-1 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
+                            <div className={cn("mt-auto min-w-0 flex-col gap-1 pt-1 sm:flex-row sm:items-center sm:justify-between sm:gap-2", compact ? "hidden" : "flex")}>
                               <div className="flex min-w-0 items-center justify-between gap-1 sm:contents">
                               <button
                                 {...listeners}
