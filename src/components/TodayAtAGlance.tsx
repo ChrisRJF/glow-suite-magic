@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
  * slots and projected extra revenue, and pulls open pending_payment offers
  * from auto_revenue_offers. No new business logic, no side effects.
  */
-export function TodayAtAGlance({ mobileNoShowRiskTomorrow }: { mobileNoShowRiskTomorrow?: number }) {
+export function TodayAtAGlance({ mobileNoShowRiskTomorrow, mobileNoShowRiskTomorrowId }: { mobileNoShowRiskTomorrow?: number; mobileNoShowRiskTomorrowId?: string }) {
   const { user } = useAuth();
   const { demoMode } = useDemoMode();
   const { data: customers } = useCustomers();
@@ -106,8 +106,8 @@ export function TodayAtAGlance({ mobileNoShowRiskTomorrow }: { mobileNoShowRiskT
       value: emptySlots,
       icon: CalendarX,
       tone: emptySlots > 0 ? "muted" : "success",
-      cta: emptySlots > 0 ? "Bekijk klanten" : "Bekijk agenda",
-      to: emptySlots > 0 ? "/wachtlijst" : "/agenda",
+      cta: emptySlots > 0 ? "Bekijk lege plekken" : "Bekijk agenda",
+      to: "/agenda",
       active: emptySlots > 0,
     },
     {
@@ -199,30 +199,44 @@ export function TodayAtAGlance({ mobileNoShowRiskTomorrow }: { mobileNoShowRiskT
         {cards.map((c, i) => (
           c.icon === ShieldAlert && mobileNoShowRiskTomorrow !== undefined ? (
             <div key={c.label} className="contents">
-              <div className="sm:hidden col-span-2 rounded-xl border border-border/60 bg-card p-3">
-                <div className="flex items-center gap-2 text-sm font-semibold">
-                  <ShieldAlert className="h-4 w-4 shrink-0 text-warning" />
-                  No-showrisico
-                </div>
-                <p className="mt-1.5 text-sm">
-                  <span className="text-lg font-semibold tabular-nums">{mobileNoShowRiskTomorrow}</span>{" "}
-                  {mobileNoShowRiskTomorrow === 1 ? "afspraak morgen" : "afspraken morgen"} met verhoogd risico
-                </p>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  Op basis van eerdere no-shows of annuleringen.
-                </p>
-                <Button variant="outline" size="sm" className="mt-2" onClick={() => navigate("/whatsapp")}>
-                  Bekijk herinneringen <ArrowRight className="h-3.5 w-3.5" />
-                </Button>
-                <div className="mt-2 border-t border-border/60 pt-2">
-                  <p className="text-xs leading-relaxed text-muted-foreground">
-                    {intelligence.noShowRisk} {intelligence.noShowRisk === 1 ? "klant heeft" : "klanten hebben"} verhoogd risico in het hele klantenbestand, ongeacht de afspraakdatum.
+              {(mobileNoShowRiskTomorrow > 0 || intelligence.noShowRisk > 0) && (
+                <div className="sm:hidden col-span-2 rounded-xl border border-border/60 bg-card p-3">
+                  <div className="flex items-center gap-2 text-sm font-semibold">
+                    <ShieldAlert className={`h-4 w-4 shrink-0 ${mobileNoShowRiskTomorrow > 0 ? "text-warning" : "text-muted-foreground"}`} />
+                    No-showrisico
+                  </div>
+                  <p className="mt-1 text-sm">
+                    {mobileNoShowRiskTomorrow > 0 ? (
+                      <><span className="font-semibold tabular-nums">{mobileNoShowRiskTomorrow}</span> {mobileNoShowRiskTomorrow === 1 ? "afspraak" : "afspraken"} morgen met verhoogd risico</>
+                    ) : (
+                      <span className="text-muted-foreground">Geen afspraken morgen met verhoogd risico</span>
+                    )}
                   </p>
-                  <Button variant="ghost" size="sm" className="mt-1 h-8 px-0 text-xs" onClick={() => navigate(c.to)}>
-                    {c.cta} <ArrowRight className="h-3.5 w-3.5" />
-                  </Button>
+                  {mobileNoShowRiskTomorrow > 0 && (
+                    <Button
+                      size="sm"
+                      className="mt-2 h-8"
+                      onClick={() => navigate(mobileNoShowRiskTomorrowId ? `/agenda?afspraak=${encodeURIComponent(mobileNoShowRiskTomorrowId)}` : "/agenda")}
+                    >
+                      Bekijk afspraak <ArrowRight className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                  <details className="mt-2 group">
+                    <summary className="cursor-pointer list-none text-xs text-muted-foreground [&::-webkit-details-marker]:hidden">Meer details</summary>
+                    <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+                      {intelligence.noShowRisk} {intelligence.noShowRisk === 1 ? "klant heeft" : "klanten hebben"} verhoogd risico in het hele klantenbestand, ongeacht de afspraakdatum.
+                    </p>
+                    <div className="mt-1 flex flex-wrap gap-x-4">
+                      <Button variant="ghost" size="sm" className="h-8 px-0 text-xs" onClick={() => navigate("/whatsapp")}>
+                        Bekijk herinneringen <ArrowRight className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-8 px-0 text-xs" onClick={() => navigate(c.to)}>
+                        {c.cta} <ArrowRight className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </details>
                 </div>
-              </div>
+              )}
               {renderCard(c, i, true)}
             </div>
           ) : renderCard(c, i)
