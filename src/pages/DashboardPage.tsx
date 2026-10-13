@@ -121,6 +121,7 @@ export default function DashboardPage() {
   const leadsRevenue = leadsConverted * 65;
 
   return (
+    <div data-mobile-dashboard className="contents">
     <AppLayout
       title="Overzicht"
       subtitle={new Date().toLocaleDateString("nl-NL", { weekday: "long", day: "numeric", month: "long" })}
@@ -231,17 +232,17 @@ export default function DashboardPage() {
           <DashboardKpi icon={UserPlus} label="Nieuwe klanten deze week" value={String(newCustomersThisWeek)} trend="ma t/m zo" onClick={() => navigate("/klanten")} />
           <DashboardKpi icon={RefreshCw} label="Herhaalboekingen" value={`${rebookPct}%`} trend="retentie" onClick={() => navigate("/herboekingen")} />
           <DashboardKpi icon={Crown} label="Abonnement omzet" value={formatEuro(membershipRevenue)} trend="recurring" onClick={() => navigate("/abonnementen")} />
-          <DashboardKpi icon={AlertTriangle} label="Open acties" value={String(openActions)} trend="vandaag" onClick={() => navigate("/acties")} />
+          <DashboardKpi icon={AlertTriangle} label="Open acties" value={String(openActions)} trend="vandaag" compactMobile onClick={() => navigate("/acties")} />
 
           {/* No-show risico */}
           <button
             onClick={() => navigate("/whatsapp")}
-            className="text-left p-4 sm:p-5 rounded-2xl border border-border/70 bg-card hover:border-destructive/30 hover:-translate-y-0.5 transition-all"
+            className="self-start sm:self-auto text-left p-3 sm:p-5 rounded-2xl border border-border/70 bg-card hover:border-destructive/30 hover:-translate-y-0.5 transition-all"
             style={{ boxShadow: "var(--shadow-sm)" }}
           >
-            <div className="flex items-center gap-2 mb-2.5">
+            <div className="flex items-start sm:items-center gap-2 mb-1.5 sm:mb-2.5">
               <AlertTriangle className={`w-4 h-4 ${noShowRiskTomorrow > 0 ? "text-destructive" : "text-success"}`} />
-              <span className="text-eyebrow">No-show risico morgen</span>
+              <span className="text-eyebrow leading-snug">No-show risico morgen</span>
             </div>
             <p className="text-metric-sm">
               {noShowRiskTomorrow > 0 ? (
@@ -250,7 +251,7 @@ export default function DashboardPage() {
                 <span className="text-success">0</span>
               )}
             </p>
-            <div className="mt-2 space-y-1.5">
+            <div className="mt-1.5 sm:mt-2 space-y-1 sm:space-y-1.5">
               {noShowRiskTomorrow > 0 ? (
                 <>
                   <span className="inline-block text-[11px] font-bold text-destructive bg-destructive/10 px-2 py-0.5 rounded-md">
@@ -291,6 +292,9 @@ export default function DashboardPage() {
 
       <section data-tour="auto-revenue" id="auto-revenue-engine">
         <AutoRevenueEngine />
+        <p className="sm:hidden mt-2 text-xs leading-relaxed text-muted-foreground">
+          Verwachte omzet is de raming voor voorgestelde acties. Extra omzet is het resultaat uit het actielog{demoMode ? " en de demosimulatie, geen betaalde omzet" : ", niet hetzelfde als betaalde omzet"}.
+        </p>
       </section>
 
       {/* Meer inzichten — secundaire overzichten, standaard ingeklapt */}
@@ -435,13 +439,14 @@ export default function DashboardPage() {
         )}
       </section>
     </AppLayout>
+    </div>
   );
 }
 
-function DashboardKpi({ icon: Icon, label, value, trend, trendValue, onClick }: { icon: React.ElementType; label: string; value: string; trend: string; trendValue?: number; onClick: () => void }) {
+function DashboardKpi({ icon: Icon, label, value, trend, trendValue, onClick, compactMobile = false }: { icon: React.ElementType; label: string; value: string; trend: string; trendValue?: number; onClick: () => void; compactMobile?: boolean }) {
   return (
-    <button onClick={onClick} className="min-w-0 text-left p-3.5 sm:p-5 rounded-2xl border border-border/70 bg-card hover:border-primary/30 hover:-translate-y-0.5 transition-all" style={{ boxShadow: "var(--shadow-sm)" }}>
-      <div className="flex items-start gap-2 mb-2.5">
+    <button onClick={onClick} className={cn("min-w-0 text-left sm:p-5 rounded-2xl border border-border/70 bg-card hover:border-primary/30 hover:-translate-y-0.5 transition-all", compactMobile ? "self-start sm:self-auto p-3" : "p-3.5")} style={{ boxShadow: "var(--shadow-sm)" }}>
+      <div className={cn("flex items-start gap-2 sm:mb-2.5", compactMobile ? "mb-1.5" : "mb-2.5")}>
         <Icon className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
         <span className="text-eyebrow leading-snug">{label}</span>
       </div>
