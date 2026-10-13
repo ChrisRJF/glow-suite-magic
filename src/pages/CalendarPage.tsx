@@ -371,12 +371,14 @@ export default function CalendarPage() {
   const absentWithAppts = displayEmployees.filter((m: any) =>
     getEmployeeStatus(m, currentDate) !== 'beschikbaar' && getEmployeeApptCount(m, dateStr) > 0);
   const filteredMedewerkers = filterAvailability === 'beschikbaar'
-    ? displayEmployees.filter((m: any) => getEmployeeStatus(m, currentDate) === 'beschikbaar' || absentWithAppts.includes(m))
+    ? displayEmployees.filter((m: any) => getEmployeeStatus(m, currentDate) === 'beschikbaar' || absentWithAppts.includes(m)
+        // A chosen employee never vanishes silently (e.g. after switching dates).
+        || m.id === selectedEmployee || m.name === selectedEmployee)
     : displayEmployees;
   const hiddenEmployeeCount = displayEmployees.length - filteredMedewerkers.length;
   const workingEmployeeCount = displayEmployees.filter((m: any) => getEmployeeStatus(m, currentDate) === 'beschikbaar').length;
   const employeeFilterSummary = workingEmployeeCount === displayEmployees.length
-    ? `Alle ${workingEmployeeCount} medewerkers werken vandaag`
+    ? `Alle ${workingEmployeeCount} medewerkers werken op deze dag, dus beide keuzes tonen hetzelfde`
     : `${workingEmployeeCount} werken · ${hiddenEmployeeCount} verborgen${filterAvailability === 'beschikbaar' && absentWithAppts.length > 0 ? ` · ${absentWithAppts.length} met afspraken blijven zichtbaar` : ''}`;
 
   const dayAppts = useMemo(() =>
@@ -1965,7 +1967,7 @@ export default function CalendarPage() {
           </div>
         ) : view === 'columns' ? (
           <EmployeeColumnDayView
-            employees={filteredMedewerkers as any}
+            employees={(selectedEmployee === 'alle' ? filteredMedewerkers : filteredMedewerkers.filter((m: any) => m.id === selectedEmployee || m.name === selectedEmployee)) as any}
             appointments={filterByEmployee(appointments)}
             services={services}
             customers={customers}
