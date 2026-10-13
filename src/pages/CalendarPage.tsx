@@ -126,6 +126,7 @@ export default function CalendarPage() {
   const [selectedEmployee, setSelectedEmployee] = useState<string>('alle');
   const [showFilters, setShowFilters] = useState(false);
   const [filterAvailability, setFilterAvailability] = useState<string>('beschikbaar'); // alle, beschikbaar (werkend + afwezig met afspraken)
+  const [teamOpen, setTeamOpen] = useState(false); // mobile only: employee cards collapsed by default
 
   // Phase 3: drag/drop + move sheet state
   const isMobile = useIsMobile();
@@ -1391,11 +1392,12 @@ export default function CalendarPage() {
             })}
           </div>
         )}
+        </div>
       </div>
 
       {/* Vrije ruimte */}
       {view === 'day' && emptySlotCount > 0 && (
-        <div className="mb-4 p-3 rounded-xl bg-primary/5 border border-primary/10 flex items-center gap-2 opacity-0 animate-fade-in-up" style={{ animationDelay: '50ms' }}>
+        <div className="mb-4 p-3 rounded-xl bg-primary/5 border border-primary/10 hidden sm:flex items-center gap-2 opacity-0 animate-fade-in-up" style={{ animationDelay: '50ms' }}>
           <Sparkles className="w-4 h-4 text-primary" />
           <span className="text-xs text-muted-foreground">
             <strong className="text-foreground">{emptySlotCount} vrije plekken</strong> vandaag
