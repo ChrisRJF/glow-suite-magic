@@ -2,6 +2,7 @@
 
 - AppLayout compactMobile is opt-in presentation spacing only; why: the mobile agenda can start higher without changing other pages or desktop layout.
 - Dashboard mobile finishing is scoped by data-mobile-dashboard and a mobile-only stylesheet block; why: shared layout and Autopilot components keep their desktop and other-page presentation unchanged.
+- DashboardPage passes its existing tomorrow-risk count to TodayAtAGlance for mobile consolidation only; why: the customer-wide selector and both existing action destinations remain intact without changing desktop metrics.
 
 - Per-tenant feature gates live in public.tenant_feature_flags (read-only for app users, set only by platform admins) and are enforced inside the SECURITY DEFINER RPCs; why: client flags or emails can be spoofed.
 - Not-yet-approved edge code lives in supabase/functions/_shared/inactive/ and proposed SQL in docs/proposed-migrations/, never imported by an entrypoint; why: edge function edits deploy automatically.
