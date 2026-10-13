@@ -77,11 +77,14 @@ export default function DashboardPage() {
 
   // No-show risico morgen
   const tomorrowStr = nextDateKey(todayStr);
-  const noShowRiskTomorrow = report.rows.appointments.filter((a) => {
+  const noShowRiskTomorrowAppts = report.rows.appointments.filter((a) => {
     if (safeAmsterdamDateKey(a.appointment_date) !== tomorrowStr || a.status === "geannuleerd") return false;
     const c = customers.find((x) => x.id === a.customer_id);
     return c ? calculateNoShowRisk(c).isElevated : false;
-  }).length;
+  });
+  const noShowRiskTomorrow = noShowRiskTomorrowAppts.length;
+  const firstNoShowRiskTomorrowId = [...noShowRiskTomorrowAppts]
+    .sort((a, b) => String(a.appointment_date).localeCompare(String(b.appointment_date)))[0]?.id as string | undefined;
 
   const aiRevenue = useMemo(() => {
     try {
@@ -286,7 +289,7 @@ export default function DashboardPage() {
 
       <TodayBriefing title="Vandaag aandacht nodig" showEmptyState />
 
-      <TodayAtAGlance mobileNoShowRiskTomorrow={noShowRiskTomorrow} />
+      <TodayAtAGlance mobileNoShowRiskTomorrow={noShowRiskTomorrow} mobileNoShowRiskTomorrowId={firstNoShowRiskTomorrowId} />
 
       <RevenueOpportunities />
 
