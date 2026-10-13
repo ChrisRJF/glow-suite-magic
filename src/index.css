@@ -435,3 +435,44 @@
 .saas-readonly main {
   filter: saturate(0.85);
 }
+
+/* Overview-only mobile finishing. Desktop and other pages retain their spacing. */
+@media (max-width: 639px) {
+  [data-mobile-dashboard] main > .safe-bottom {
+    padding-top: 0.5rem;
+  }
+
+  [data-mobile-dashboard] main > .safe-bottom > .space-y-7,
+  [data-mobile-dashboard] main > .safe-bottom > .space-y-7 > * + * {
+    margin-top: 1rem;
+  }
+
+  [data-mobile-dashboard] [data-tour="auto-revenue"] > .glass-card {
+    margin-bottom: 0;
+    border-color: hsl(var(--border));
+    background: hsl(var(--card));
+  }
+
+  [data-mobile-dashboard] [data-tour="auto-revenue"] > .glass-card > .absolute {
+    display: none;
+  }
+
+  [data-mobile-dashboard] [data-tour="auto-revenue"] .gradient-bg {
+    background: hsl(var(--primary) / 0.08);
+  }
+
+  [data-mobile-dashboard] [data-tour="auto-revenue"] .gradient-bg > svg {
+    color: hsl(var(--primary));
+  }
+
+  [data-mobile-dashboard] [data-tour="auto-revenue"] [class~="bg-success/10"],
+  [data-mobile-dashboard] [data-tour="auto-revenue"] [class~="bg-primary/10"] {
+    background: hsl(var(--card));
+    border-color: hsl(var(--border));
+  }
+
+  /* The gap count stays in both summaries; its repeated explanatory hint is desktop-only. */
+  [data-mobile-dashboard] [data-tour="auto-revenue"] .grid + .mb-3.-mt-1 {
+    display: none;
+  }
+}

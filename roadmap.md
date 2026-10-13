@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Ronde 3 mobiele afwerking: compacte actiekaarten, rustiger Autopilot en omzetcontext; uitsluitend geïsoleerde controle op 390 px, niets publiceren
+
 - [x] Corrigeer mobiele datumselectie, verduidelijk medewerkerfilter en verminder bovenruimte; controleer uitsluitend synthetisch op 375/390 px
 
 - [x] Gerichte mobiele agenda: datumkiezer, één medewerkerbediening en compactere kaarten
