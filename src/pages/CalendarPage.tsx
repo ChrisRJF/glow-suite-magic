@@ -1,5 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
-import { appointmentDisplayDate, isSingleDayView, navStepDays } from "@/lib/calendarView";
+import { appointmentDisplayDate, isSingleDayView, navStepDays, weekDaysFor } from "@/lib/calendarView";
 import { CustomerPicker } from "@/components/CustomerPicker";
 import { workingWindow } from "@/lib/employeeSchedule";
 import { Button } from "@/components/ui/button";
@@ -392,21 +392,9 @@ export default function CalendarPage() {
   const { statuses: dossierStatuses, refresh: refreshDossierStatuses } = useDossierStatus(dayApptIds);
 
 
-  const weekStart = useMemo(() => {
-    const d = new Date(currentDate);
-    d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-    return d;
-  }, [currentDate]);
+  const weekDays = useMemo(() => weekDaysFor(currentDate), [currentDate]);
 
-  const weekDays = useMemo(() =>
-    Array.from({ length: 6 }, (_, i) => {
-      const d = new Date(weekStart);
-      d.setDate(d.getDate() + i);
-      return d;
-    }), [weekStart]
-  );
-
-  const dayNames = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za'];
+  const dayNames = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'];
 
   const navigate = (dir: number) => {
     const d = new Date(currentDate);
@@ -1776,7 +1764,7 @@ export default function CalendarPage() {
             <h3 className="text-sm sm:text-base font-semibold truncate">
               {isSingleDayView(view)
                 ? currentDate.toLocaleDateString('nl-NL', { weekday: isMobile ? 'short' : 'long', day: 'numeric', month: 'long', year: 'numeric' })
-                : `${weekDays[0].toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })} – ${weekDays[5].toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                : `${weekDays[0].toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })} – ${weekDays[6].toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })}`
               }
             </h3>
             <button className="p-2 rounded-lg hover:bg-secondary transition-colors" onClick={() => navigate(1)}><ChevronRight className="w-4 h-4" /></button>
@@ -1982,7 +1970,7 @@ export default function CalendarPage() {
           />
         ) : (
           <div className="overflow-x-auto">
-            <div className="grid grid-cols-6 gap-3 min-w-[700px]">
+            <div className="grid grid-cols-7 gap-3 min-w-[800px]">
               {weekDays.map((day, i) => {
                 const ds = formatLocalDate(day);
                 const apts = filterByEmployee(appointments.filter(a => getAppointmentDate(a) === ds));

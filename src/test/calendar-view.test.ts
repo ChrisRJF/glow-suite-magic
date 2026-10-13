@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { appointmentDisplayDate, navStepDays, isSingleDayView } from "@/lib/calendarView";
+import { appointmentDisplayDate, navStepDays, isSingleDayView, weekDaysFor } from "@/lib/calendarView";
 
 describe("agenda navigation", () => {
   it("Dag and Per medewerker move 1 day, Week moves 7", () => {
@@ -23,5 +23,21 @@ describe("calendar day of an appointment (fictional rows)", () => {
   it("unclear or missing time is not guessed", () => {
     expect(appointmentDisplayDate({ appointment_date: "2026-10-13T09:00:00+00:00", start_time: "15:00" })).toBe("2026-10-13");
     expect(appointmentDisplayDate({ appointment_date: "2026-10-13T22:30:00+00:00" })).toBe("2026-10-13");
+  });
+});
+
+describe("week of a picked date", () => {
+  const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  it("13, 19 and 28 Oct 2026 land in their Mon-Sun week", () => {
+    expect(weekDaysFor(new Date(2026, 9, 13)).map(ymd)).toEqual(["2026-10-12","2026-10-13","2026-10-14","2026-10-15","2026-10-16","2026-10-17","2026-10-18"]);
+    expect(ymd(weekDaysFor(new Date(2026, 9, 19))[0])).toBe("2026-10-19");
+    expect(ymd(weekDaysFor(new Date(2026, 9, 28))[0])).toBe("2026-10-26");
+  });
+  it("a Sunday is part of its own week", () => {
+    expect(weekDaysFor(new Date(2026, 9, 18)).map(ymd)).toContain("2026-10-18");
+  });
+  it("week across the month border (1 Nov 2026)", () => {
+    const w = weekDaysFor(new Date(2026, 10, 1)).map(ymd);
+    expect(w[0]).toBe("2026-10-26"); expect(w[6]).toBe("2026-11-01");
   });
 });
