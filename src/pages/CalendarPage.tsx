@@ -359,15 +359,14 @@ export default function CalendarPage() {
   };
 
   // Filter employees by availability
-  const filteredMedewerkers = useMemo(() => {
-    if (filterAvailability === 'beschikbaar') {
-      return displayEmployees.filter((m: any) => getEmployeeStatus(m, currentDate) === 'beschikbaar');
-    }
-    if (filterAvailability === 'afwezig') {
-      return displayEmployees.filter((m: any) => getEmployeeStatus(m, currentDate) !== 'beschikbaar');
-    }
-    return displayEmployees;
-  }, [filterAvailability, currentDate, displayEmployees]);
+  // "Alleen wie werkt": absent employees stay visible when they have appointments
+  // on this date, so those appointments are never hidden silently.
+  const absentWithAppts = displayEmployees.filter((m: any) =>
+    getEmployeeStatus(m, currentDate) !== 'beschikbaar' && getEmployeeApptCount(m, dateStr) > 0);
+  const filteredMedewerkers = filterAvailability === 'beschikbaar'
+    ? displayEmployees.filter((m: any) => getEmployeeStatus(m, currentDate) === 'beschikbaar' || absentWithAppts.includes(m))
+    : displayEmployees;
+  const hiddenEmployeeCount = displayEmployees.length - filteredMedewerkers.length;
 
   const dayAppts = useMemo(() =>
     filterByEmployee(appointments.filter(a => getAppointmentDate(a) === dateStr)),
@@ -1288,6 +1287,28 @@ export default function CalendarPage() {
       {/* Employee selector & workload overview */}
       <div className="mb-4 opacity-0 animate-fade-in-up" style={{ animationDelay: '30ms' }}>
 
+        {/* Werkend-filter: geldt voor de gekozen datum */}
+        <div className="mb-2 flex items-center gap-2">
+          <div role="group" aria-label="Medewerkers tonen" className="inline-flex rounded-xl border border-border p-0.5 bg-secondary/30">
+            {(['alle', 'beschikbaar'] as const).map(f => (
+              <button key={f} type="button" onClick={() => setFilterAvailability(f)}
+                aria-pressed={filterAvailability === f}
+                className={cn("h-9 px-3 rounded-lg text-xs font-medium transition-colors",
+                  filterAvailability === f ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+                {f === 'alle' ? 'Alle medewerkers' : 'Alleen wie werkt'}
+              </button>
+            ))}
+          </div>
+          {filterAvailability === 'beschikbaar' && hiddenEmployeeCount > 0 && (
+            <span className="text-[11px] text-muted-foreground">{hiddenEmployeeCount} verborgen</span>
+          )}
+        </div>
+        {filterAvailability === 'beschikbaar' && absentWithAppts.length > 0 && (
+          <p className="mb-2 text-[11px] text-muted-foreground">
+            {absentWithAppts.map((e: any) => e.name).join(', ')} {absentWithAppts.length === 1 ? 'werkt' : 'werken'} niet, maar {absentWithAppts.length === 1 ? 'heeft' : 'hebben'} afspraken op deze dag. Daarom blijven ze zichtbaar.
+          </p>
+        )}
+
         {/* Employee quick-switch bar */}
         <div className="flex items-center gap-2 flex-wrap">
           <button
@@ -1295,9 +1316,9 @@ export default function CalendarPage() {
             className={cn("px-3 py-1.5 rounded-xl text-xs font-medium border transition-all",
               selectedEmployee === 'alle' ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground hover:bg-secondary")}
           >
-            Alle medewerkers
+            Iedereen
           </button>
-          {displayEmployees.map((emp: any) => {
+          {filteredMedewerkers.map((emp: any) => {
             const status = getEmployeeStatus(emp, currentDate);
             const wl = getWorkloadLabel(emp, dateStr);
             const apptCount = getEmployeeApptCount(emp, dateStr);
@@ -1313,36 +1334,14 @@ export default function CalendarPage() {
                 {emp.name}
                 {status !== 'beschikbaar' ? (() => {
                   const badge = getEmployeeAbsenceBadge(emp, currentDate);
-                  return <span className={cn("text-[10px] px-1.5 py-0.5 rounded", badge?.tone || "text-destructive")}>{badge?.label || 'Afwezig'}</span>;
+                  return <span className={cn("text-[10px] px-1.5 py-0.5 rounded", badge?.tone || "text-destructive")}>{badge?.label || 'Afwezig'}{apptCount > 0 ? ` · ${apptCount}` : ''}</span>;
                 })() : (
                   <span className={cn("text-[10px] px-1 py-0.5 rounded", workloadColors[wl.variant])}>{apptCount}</span>
                 )}
               </button>
             );
           })}
-          <button onClick={() => setShowFilters(!showFilters)}
-            className={cn("px-2 py-1.5 rounded-xl border transition-all",
-              showFilters ? "border-primary text-primary bg-primary/5" : "border-border text-muted-foreground hover:text-foreground")}>
-            <Filter className="w-3.5 h-3.5" />
-          </button>
         </div>
-
-        {/* Expanded filters */}
-        {showFilters && (
-          <div className="mt-2 p-3 rounded-xl bg-secondary/30 border border-border flex items-center gap-3 flex-wrap">
-            <span className="text-xs text-muted-foreground">Filter:</span>
-            {['alle', 'beschikbaar', 'afwezig'].map(f => (
-              <button key={f} onClick={() => setFilterAvailability(f)}
-                className={cn("px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors",
-                  filterAvailability === f ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground")}>
-                {f === 'alle' ? 'Alle' : f === 'beschikbaar' ? 'Beschikbaar' : 'Afwezig'}
-              </button>
-            ))}
-            <span className="text-[10px] text-muted-foreground ml-auto">
-              {filteredMedewerkers.length} medewerker{filteredMedewerkers.length !== 1 ? 's' : ''}
-            </span>
-          </div>
-        )}
 
         {/* Compact teamoverzicht */}
         {selectedEmployee === 'alle' && (
