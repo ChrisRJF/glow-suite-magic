@@ -470,7 +470,7 @@
     box-shadow: var(--shadow-xs);
   }
 
-  [data-mobile-dashboard] [data-tour="auto-revenue"] .gradient-bg > svg {
+  [data-mobile-dashboard] [data-tour="auto-revenue"] div.gradient-bg > svg {
     color: hsl(var(--primary));
   }
 
