@@ -1957,6 +1957,15 @@ export default function CalendarPage() {
               </p>
             )}
           </SheetHeader>
+          {dossierAppt && !['geannuleerd', 'no-show', 'voltooid'].includes(dossierAppt.status) && (
+            <Button
+              variant="outline"
+              className="mt-3 h-11 w-full rounded-xl"
+              onClick={() => { const apt = dossierAppt; setDossierAppt(null); openMoveSheet(apt); }}
+            >
+              Wijzigen
+            </Button>
+          )}
           {dossierAppt?.customer_id && (() => {
             const now = new Date();
             const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Amsterdam' }).format(now);
