@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Corrigeer mobiele datumselectie, verduidelijk medewerkerfilter en verminder bovenruimte; controleer uitsluitend synthetisch op 375/390 px
+
 - [x] Gerichte mobiele agenda: datumkiezer, één medewerkerbediening en compactere kaarten
 - [x] Controleer datum, medewerkerkeuze, afspraakvenster en sleepgreep op 375/390 px met synthetische gegevens, zonder opslaan of publiceren
 
