@@ -1694,19 +1694,19 @@ export default function CalendarPage() {
         </div>
       )}
 
-      <div className="glass-card p-5 opacity-0 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
-        <div className="flex items-center justify-between mb-5">
-          <div className="flex items-center gap-3">
+      <div className="glass-card p-3 sm:p-5 opacity-0 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
+        <div className="flex items-center justify-between gap-2 mb-3 sm:mb-5 min-w-0">
+          <div className="flex items-center gap-1 sm:gap-3 min-w-0">
             <button className="p-2 rounded-lg hover:bg-secondary transition-colors" onClick={() => navigate(-1)}><ChevronLeft className="w-4 h-4" /></button>
-            <h3 className="text-base font-semibold">
+            <h3 className="text-sm sm:text-base font-semibold truncate">
               {isSingleDayView(view)
-                ? currentDate.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+                ? currentDate.toLocaleDateString('nl-NL', { weekday: isMobile ? 'short' : 'long', day: 'numeric', month: 'long', year: 'numeric' })
                 : `${weekDays[0].toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })} – ${weekDays[5].toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })}`
               }
             </h3>
             <button className="p-2 rounded-lg hover:bg-secondary transition-colors" onClick={() => navigate(1)}><ChevronRight className="w-4 h-4" /></button>
           </div>
-          <span className="text-sm text-muted-foreground">
+          <span className="text-xs sm:text-sm text-muted-foreground shrink-0">
             {isSingleDayView(view) ? `${dayAppts.length} afspraken` : `${filterByEmployee(appointments.filter(a => weekDays.some(d => getAppointmentDate(a) === formatLocalDate(d)))).length} afspraken`}
             {selectedEmployee !== 'alle' && ` · ${displayEmployees.find((e: any) => e.id === selectedEmployee || e.name === selectedEmployee)?.name || selectedEmployee}`}
           </span>
