@@ -1768,7 +1768,7 @@ export default function CalendarPage() {
                           return (
                           <div
                             onClick={() => setDossierAppt(apt)}
-                            className={cn("absolute left-0 right-0 top-1 z-10 rounded-xl transition-all duration-200 bg-card/95 shadow-[var(--shadow-sm)] flex flex-col cursor-pointer overflow-hidden", compact ? "p-2 gap-1" : "p-3 gap-2")} data-compact={compact ? "true" : undefined} data-x=" hover:ring-1 hover:ring-primary/20"
+                            className={cn("absolute left-0 right-0 top-1 z-10 rounded-xl transition-all duration-200 bg-card/95 shadow-[var(--shadow-sm)] flex flex-col cursor-pointer overflow-hidden hover:ring-1 hover:ring-primary/20", compact ? "p-2 gap-1" : "p-3 gap-2")}
                             style={{
                               backgroundImage: `linear-gradient(135deg, ${svc?.color || '#7B61FF'}10, ${svc?.color || '#7B61FF'}06)`,
                               borderLeft: `3px solid ${svc?.color || '#7B61FF'}`,
@@ -1825,7 +1825,7 @@ export default function CalendarPage() {
                             </div>
 
                             {/* Bottom row: compact, wrapping controls stay inside narrow mobile cards. */}
-                            <div className={cn("mt-auto min-w-0 flex-col gap-1 pt-1 sm:flex-row", compact ? "hidden" : "flex")} data-y=" sm:items-center sm:justify-between sm:gap-2">
+                            <div className={cn("mt-auto min-w-0 flex-col gap-1 pt-1 sm:flex-row sm:items-center sm:justify-between sm:gap-2", compact ? "hidden" : "flex")}>
                               <div className="flex min-w-0 items-center justify-between gap-1 sm:contents">
                               <button
                                 {...listeners}
