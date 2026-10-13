@@ -127,7 +127,7 @@ export default function DashboardPage() {
     >
       <div className="space-y-5">
         <BeautycareWelcomeCard />
-        <TodayBriefing title="Vandaag aandacht nodig" showEmptyState />
+
 
 
         <section aria-labelledby="planning-vandaag">
@@ -182,30 +182,12 @@ export default function DashboardPage() {
             )}
           </div>
         </section>
-
-        <TodayAtAGlance />
-
-        <RevenueOpportunities />
-
-        <section className="rounded-2xl border border-border/50 bg-card/60 px-4 py-3 sm:px-5 sm:py-3.5" style={{ boxShadow: "var(--shadow-sm)" }}>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="space-y-1 min-w-0">
-              <h2 className="text-[15px] sm:text-base font-medium tracking-tight text-foreground/90">
-                {formatEuro(report.revenue.week)} omzet in de laatste 7 dagen
-              </h2>
-              <p className="text-[12px] text-muted-foreground/80">Op basis van betaalde betalingen.</p>
-            </div>
-            <Button variant="ghost" size="sm" onClick={() => navigate("/rapporten?type=omzet")} className="self-start sm:self-auto">
-              Bekijk groei <ArrowRight className="w-3.5 h-3.5 ml-1" />
-            </Button>
-          </div>
-        </section>
       </div>
 
       <section>
-        <div className="flex items-end justify-between mb-4">
+        <div className="flex items-end justify-between mb-3 sm:mb-4">
           <div>
-            <h2 className="text-section-title">Vandaag in cijfers</h2>
+            <h2 className="text-section-title">Omzet en cijfers</h2>
             <p className="text-meta mt-1">Uit je agenda, klanten en betalingen</p>
           </div>
           <Button variant="ghost" size="sm" onClick={() => navigate("/rapporten?type=omzet")} className="hidden sm:inline-flex">
@@ -214,15 +196,15 @@ export default function DashboardPage() {
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-36 rounded-2xl" />)}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28 sm:h-36 rounded-2xl" />)}
           </div>
         ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-2.5 sm:gap-4">
           {/* Omzet vandaag — hero KPI */}
           <button
             onClick={() => navigate("/rapporten?type=omzet")}
-            className="text-left p-4 sm:p-5 rounded-2xl border border-border/70 bg-card hover:border-primary/30 hover:-translate-y-0.5 transition-all sm:col-span-2 lg:col-span-2 group"
+            className="text-left p-4 sm:p-5 rounded-2xl border border-border/70 bg-card hover:border-primary/30 hover:-translate-y-0.5 transition-all col-span-2 lg:col-span-2 group"
             style={{ boxShadow: "var(--shadow-sm)" }}
           >
             <div className="flex items-center gap-2 mb-2.5">
@@ -281,65 +263,89 @@ export default function DashboardPage() {
         )}
       </section>
 
-      <PremiumOwnerMetrics />
+      <section className="rounded-2xl border border-border/50 bg-card/60 px-4 py-3 sm:px-5 sm:py-3.5" style={{ boxShadow: "var(--shadow-sm)" }}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3">
+          <div className="space-y-1 min-w-0">
+            <h2 className="text-[15px] sm:text-base font-medium tracking-tight text-foreground/90">
+              {formatEuro(report.revenue.week)} omzet in de laatste 7 dagen
+            </h2>
+            <p className="text-[12px] text-muted-foreground/80">Op basis van betaalde betalingen.</p>
+          </div>
+          <Button variant="ghost" size="sm" onClick={() => navigate("/rapporten?type=omzet")} className="self-start sm:self-auto -ml-2 sm:ml-0">
+            Bekijk groei <ArrowRight className="w-3.5 h-3.5 ml-1" />
+          </Button>
+        </div>
+      </section>
 
-      <DailyCoach />
+      <TodayBriefing title="Vandaag aandacht nodig" showEmptyState />
+
+      <TodayAtAGlance />
+
+      <RevenueOpportunities />
 
       <section data-tour="auto-revenue" id="auto-revenue-engine">
         <AutoRevenueEngine />
       </section>
 
-      {/* GlowSuite ROI — secondary */}
-      <section>
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Award className="w-5 h-5 text-success" />
-            <h2 className="text-card-title">GlowSuite ROI</h2>
-          </div>
-          {monthlyGrowthRevenue > 0 && (
-            <span className="text-xs bg-success/15 text-success px-2.5 py-1 rounded-lg font-semibold">
-              +{formatEuro(monthlyGrowthRevenue)} deze maand
-            </span>
-          )}
-        </div>
-        <div
-          className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 p-3 rounded-2xl border border-border/70 bg-card"
-          style={{ boxShadow: "var(--shadow-sm)" }}
-        >
-          <button
-            onClick={() => document.getElementById("auto-revenue-engine")?.scrollIntoView({ behavior: "smooth" })}
-            className="text-left p-3 rounded-xl hover:bg-success/5 transition-colors"
-          >
-            <p className="text-lg font-bold text-success tabular-nums">{formatEuro(aiRevenue)}</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">AI omzet</p>
-          </button>
-          <button onClick={() => navigate("/rapporten?type=omzet")} className="text-left p-3 rounded-xl hover:bg-primary/5 transition-colors">
-            <p className="text-lg font-bold text-primary tabular-nums">{formatEuro(paidRevenueThisMonth)}</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Betaald deze maand · {messagesSent}</p>
-          </button>
-          <button onClick={() => navigate("/klanten?filter=risico")} className="text-left p-3 rounded-xl hover:bg-warning/5 transition-colors">
-            <p className="text-lg font-bold text-warning tabular-nums">{recoveredCustomers}</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Teruggewonnen</p>
-          </button>
-          <button onClick={() => navigate("/agenda")} className="text-left p-3 rounded-xl hover:bg-accent/5 transition-colors">
-            <p className="text-lg font-bold text-accent tabular-nums">{autoFilledAppts}</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Auto-gevuld</p>
-          </button>
-        </div>
-      </section>
-
-      {/* Meer inzichten — collapsed by default */}
+      {/* Meer inzichten — secundaire overzichten, standaard ingeklapt */}
       <section>
         <button
           onClick={() => setShowDetails(!showDetails)}
-          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
+          aria-expanded={showDetails}
+          className="flex w-full items-center justify-between gap-2 rounded-xl border border-border/70 bg-card px-4 py-3 text-sm font-medium text-foreground/80 hover:text-foreground hover:border-primary/30 transition-colors"
         >
-          <ChevronDown className={`w-4 h-4 transition-transform ${showDetails ? "rotate-180" : ""}`} />
-          Meer inzichten
+          <span className="text-left">
+            Meer inzichten
+            <span className="block text-[12px] font-normal text-muted-foreground">Premium overzicht, dagcoach, ROI, klantwaarde en leads</span>
+          </span>
+          <ChevronDown className={`w-4 h-4 shrink-0 transition-transform ${showDetails ? "rotate-180" : ""}`} />
         </button>
 
         {showDetails && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in-up">
+          <div className="mt-5 space-y-7 animate-fade-in-up">
+          <PremiumOwnerMetrics />
+
+          <DailyCoach />
+
+          <section>
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <div className="flex items-center gap-2">
+                <Award className="w-5 h-5 text-success" />
+                <h2 className="text-card-title">GlowSuite ROI</h2>
+              </div>
+              {monthlyGrowthRevenue > 0 && (
+                <span className="text-xs bg-success/15 text-success px-2.5 py-1 rounded-lg font-semibold">
+                  +{formatEuro(monthlyGrowthRevenue)} deze maand
+                </span>
+              )}
+            </div>
+            <div
+              className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 p-3 rounded-2xl border border-border/70 bg-card"
+              style={{ boxShadow: "var(--shadow-sm)" }}
+            >
+              <button
+                onClick={() => document.getElementById("auto-revenue-engine")?.scrollIntoView({ behavior: "smooth" })}
+                className="text-left p-3 rounded-xl hover:bg-success/5 transition-colors"
+              >
+                <p className="text-lg font-bold text-success tabular-nums">{formatEuro(aiRevenue)}</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">AI omzet</p>
+              </button>
+              <button onClick={() => navigate("/rapporten?type=omzet")} className="text-left p-3 rounded-xl hover:bg-primary/5 transition-colors">
+                <p className="text-lg font-bold text-primary tabular-nums">{formatEuro(paidRevenueThisMonth)}</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Betaald deze maand · {messagesSent}</p>
+              </button>
+              <button onClick={() => navigate("/klanten?filter=risico")} className="text-left p-3 rounded-xl hover:bg-warning/5 transition-colors">
+                <p className="text-lg font-bold text-warning tabular-nums">{recoveredCustomers}</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Teruggewonnen</p>
+              </button>
+              <button onClick={() => navigate("/agenda")} className="text-left p-3 rounded-xl hover:bg-accent/5 transition-colors">
+                <p className="text-lg font-bold text-accent tabular-nums">{autoFilledAppts}</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Auto-gevuld</p>
+              </button>
+            </div>
+          </section>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="glass-card p-5">
               <div className="flex items-center gap-2 mb-3">
                 <Users className="w-4 h-4 text-primary" />
@@ -419,6 +425,7 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
+          </div>
         )}
       </section>
     </AppLayout>
@@ -427,7 +434,7 @@ export default function DashboardPage() {
 
 function DashboardKpi({ icon: Icon, label, value, trend, trendValue, onClick }: { icon: React.ElementType; label: string; value: string; trend: string; trendValue?: number; onClick: () => void }) {
   return (
-    <button onClick={onClick} className="text-left p-4 sm:p-5 rounded-2xl border border-border/70 bg-card hover:border-primary/30 hover:-translate-y-0.5 transition-all" style={{ boxShadow: "var(--shadow-sm)" }}>
+    <button onClick={onClick} className="min-w-0 text-left p-3.5 sm:p-5 rounded-2xl border border-border/70 bg-card hover:border-primary/30 hover:-translate-y-0.5 transition-all" style={{ boxShadow: "var(--shadow-sm)" }}>
       <div className="flex items-start gap-2 mb-2.5">
         <Icon className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
         <span className="text-eyebrow leading-snug">{label}</span>
