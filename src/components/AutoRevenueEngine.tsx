@@ -301,18 +301,18 @@ export function AutoRevenueEngine({ source = "overview" }: AutoRevenueEngineProp
   }, [autopilot.enabled, user, todayStr, demoMode, runAutopilot, running, ready]);
 
   return (
-    <div id="auto-revenue-engine" className="glass-card p-6 mb-6 opacity-0 animate-fade-in-up border border-primary/20 relative overflow-hidden" style={{ animationDelay: '50ms' }}>
+    <div id="auto-revenue-engine" className="glass-card p-4 sm:p-6 mb-6 opacity-0 animate-fade-in-up border border-primary/20 relative overflow-hidden" style={{ animationDelay: '50ms' }}>
       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 pointer-events-none" />
       <div className="relative">
         {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3 sm:mb-4">
           <div className="flex min-w-0 items-center gap-2">
             <div className="w-8 h-8 rounded-lg gradient-bg flex items-center justify-center">
               <Zap className="w-4 h-4 text-primary-foreground" />
             </div>
             <div>
               <h2 className="text-lg font-semibold">Omzet Autopilot</h2>
-              <p className="text-[11px] text-muted-foreground">GlowSuite verdient actief geld voor je</p>
+              <p className="hidden sm:block text-[11px] text-muted-foreground">GlowSuite verdient actief geld voor je</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -326,8 +326,8 @@ export function AutoRevenueEngine({ source = "overview" }: AutoRevenueEngineProp
           </div>
         </div>
 
-        {/* Live Insights */}
-        <div className="space-y-2.5 mb-4">
+        {/* Live Insights (mobile: summary cards below carry the same numbers) */}
+        <div className="hidden sm:block space-y-2.5 mb-4">
           {demoComplete ? (
             <>
               <p className="text-sm flex items-start gap-2">
@@ -361,8 +361,8 @@ export function AutoRevenueEngine({ source = "overview" }: AutoRevenueEngineProp
         <AutoRevenueMetrics />
 
         {/* Summary cards: gevonden / acties / verwacht / uplift */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
-          <div className="p-3 rounded-xl bg-secondary/50 border border-border">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3 sm:mb-4">
+          <div className="p-2.5 sm:p-3 rounded-xl bg-secondary/50 border border-border">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Vandaag gevonden</p>
             <p className="text-base font-semibold">{emptySlots} <span className="text-xs font-normal text-muted-foreground">lege plekken</span></p>
           </div>

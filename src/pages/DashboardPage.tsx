@@ -137,7 +137,7 @@ export default function DashboardPage() {
               <p className="text-meta mt-0.5">
                 {todaysAppts.length === 0
                   ? "Nog geen afspraken"
-                  : `${todaysAppts.length} ${todaysAppts.length === 1 ? "afspraak" : "afspraken"} · ${formatEuro(omzetVandaag)} verwacht`}
+                  : `${todaysAppts.length} ${todaysAppts.length === 1 ? "afspraak" : "afspraken"} · ${formatEuro(omzetVandaag)} betaald`}
               </p>
             </div>
             <Button variant="outline" size="sm" onClick={() => navigate("/agenda")}>
@@ -156,7 +156,7 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="divide-y divide-border/50">
-                {todaysAppts.slice(0, 6).map((apt) => {
+                {todaysAppts.slice(0, 6).map((apt, idx) => {
                   const svc = services.find((s) => s.id === apt.service_id);
                   const cust = customers.find((c) => c.id === apt.customer_id);
                   const time = new Date(apt.appointment_date).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
@@ -164,7 +164,7 @@ export default function DashboardPage() {
                     <button
                       key={apt.id}
                       onClick={() => navigate(`/agenda?afspraak=${apt.id}`)}
-                      className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left hover:bg-secondary/50 transition-colors group"
+                      className={cn("w-full items-center gap-3 rounded-lg px-3 py-2.5 sm:py-3 text-left",  idx >= 3 ? "hidden sm:flex" : "flex", " hover:bg-secondary/50 transition-colors group")}
                       aria-label={`Open afspraak van ${cust?.name || "klant"} om ${time}`}
                     >
                       <span className="w-12 text-[13px] font-semibold tabular-nums">{time}</span>
@@ -178,6 +178,12 @@ export default function DashboardPage() {
                     </button>
                   );
                 })}
+                <button
+                  onClick={() => navigate("/agenda")}
+                  className="flex sm:hidden w-full items-center justify-center gap-1 px-3 py-2.5 text-sm font-medium text-primary"
+                >
+                  Bekijk alle afspraken <ArrowRight className="h-3.5 w-3.5" />
+                </button>
               </div>
             )}
           </div>
@@ -209,7 +215,7 @@ export default function DashboardPage() {
           >
             <div className="flex items-center gap-2 mb-2.5">
               <Euro className="w-4 h-4 text-success" />
-              <span className="text-eyebrow">Omzet vandaag</span>
+              <span className="text-eyebrow">Omzet vandaag (betaald)</span>
             </div>
             <p className="text-metric text-foreground">
               <AnimatedCounter value={omzetVandaag} format={(n) => formatEuro(n)} />
@@ -235,7 +241,7 @@ export default function DashboardPage() {
           >
             <div className="flex items-center gap-2 mb-2.5">
               <AlertTriangle className={`w-4 h-4 ${noShowRiskTomorrow > 0 ? "text-destructive" : "text-success"}`} />
-              <span className="text-eyebrow">No-show risico</span>
+              <span className="text-eyebrow">No-show risico morgen</span>
             </div>
             <p className="text-metric-sm">
               {noShowRiskTomorrow > 0 ? (

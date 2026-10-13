@@ -310,9 +310,10 @@ export function AppSidebar() {
               <div
                 key={group.title}
                 className={cn(
-                  "mb-1.5",
-                  idx > 0 && "mt-1",
-                  group.ai && "rounded-2xl border border-primary/15 p-1.5"
+                  "mb-0.5 lg:mb-1.5",
+                  idx > 0 && "lg:mt-1",
+                  // Accent border only on desktop or when the group holds the active page.
+                  group.ai && (activeGroupTitle === group.title ? "rounded-2xl border border-primary/15 p-1.5" : "lg:rounded-2xl lg:border lg:border-primary/15 lg:p-1.5")
                 )}
               >
                 <Button
@@ -321,7 +322,7 @@ export function AppSidebar() {
                   aria-expanded={isOpen}
                   aria-controls={`sidebar-group-${idx}`}
                   onClick={() => toggleGroup(group.title)}
-                  className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-secondary/40 transition"
+                  className="w-full flex items-center justify-between px-3 py-1.5 h-9 lg:h-10 lg:py-2 rounded-lg hover:bg-secondary/40 transition"
                 >
                   <span
                     className={cn(
