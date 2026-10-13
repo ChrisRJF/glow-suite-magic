@@ -126,6 +126,7 @@ export default function CalendarPage() {
   const [selectedEmployee, setSelectedEmployee] = useState<string>('alle');
   const [showFilters, setShowFilters] = useState(false);
   const [filterAvailability, setFilterAvailability] = useState<string>('beschikbaar'); // alle, beschikbaar (werkend + afwezig met afspraken)
+  const [teamOpen, setTeamOpen] = useState(false); // mobile only: employee cards collapsed by default
 
   // Phase 3: drag/drop + move sheet state
   const isMobile = useIsMobile();
@@ -1243,7 +1244,7 @@ export default function CalendarPage() {
             </div>
           </div>
           {/* Eén primaire actie; slim plannen blijft secundair */}
-          <div className="grid grid-cols-[auto_1fr] gap-2 w-full lg:flex lg:w-auto">
+          <div className="hidden sm:grid grid-cols-[auto_1fr] gap-2 w-full lg:flex lg:w-auto">
             <Button
               variant="ghost"
               onClick={() => setReflowOpen(true)}
@@ -1290,20 +1291,38 @@ export default function CalendarPage() {
       <div className="mb-4 opacity-0 animate-fade-in-up" style={{ animationDelay: '30ms' }}>
 
         {/* Werkend-filter: geldt voor de gekozen datum */}
-        <div className="mb-2 flex items-center gap-2">
-          <div role="group" aria-label="Medewerkers tonen" className="inline-flex rounded-xl border border-border p-0.5 bg-secondary/30">
+        <div className="mb-2 flex items-center gap-2 min-w-0">
+          <div role="group" aria-label="Medewerkers tonen" className="inline-flex shrink-0 rounded-xl border border-border p-0.5 bg-secondary/30">
             {(['alle', 'beschikbaar'] as const).map(f => (
               <button key={f} type="button" onClick={() => setFilterAvailability(f)}
                 aria-pressed={filterAvailability === f}
-                className={cn("h-9 px-3 rounded-lg text-xs font-medium transition-colors",
+                className={cn("h-9 px-2.5 sm:px-3 rounded-lg text-xs font-medium transition-colors",
                   filterAvailability === f ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
-                {f === 'alle' ? 'Alle medewerkers' : 'Alleen wie werkt'}
+                <span className="sm:hidden">{f === 'alle' ? 'Iedereen' : 'Wie werkt'}</span>
+                <span className="hidden sm:inline">{f === 'alle' ? 'Alle medewerkers' : 'Alleen wie werkt'}</span>
               </button>
             ))}
           </div>
           {filterAvailability === 'beschikbaar' && hiddenEmployeeCount > 0 && (
-            <span className="text-[11px] text-muted-foreground">{hiddenEmployeeCount} verborgen</span>
+            <span className="text-[11px] text-muted-foreground truncate">{hiddenEmployeeCount} verborgen</span>
           )}
+          <button
+            type="button"
+            onClick={() => setTeamOpen(o => !o)}
+            aria-expanded={teamOpen}
+            className="sm:hidden h-9 w-9 shrink-0 inline-flex items-center justify-center rounded-xl border border-border text-muted-foreground"
+            aria-label={teamOpen ? "Medewerkers verbergen" : "Medewerkers tonen"}
+            title="Medewerkers"
+          >
+            <Users className="w-4 h-4" />
+          </button>
+          <Button
+            variant="gradient"
+            onClick={() => openAddModal(dateStr, '09:00')}
+            className="sm:hidden ml-auto h-9 rounded-xl text-xs px-3 gap-1 shrink-0"
+          >
+            <Plus className="w-4 h-4" /> Afspraak
+          </Button>
         </div>
         {filterAvailability === 'beschikbaar' && absentWithAppts.length > 0 && (
           <p className="mb-2 text-[11px] text-muted-foreground">
@@ -1311,6 +1330,7 @@ export default function CalendarPage() {
           </p>
         )}
 
+        <div className={cn(teamOpen ? "block" : "hidden", "sm:block")}>
         {/* Employee quick-switch bar */}
         <div className="flex items-center gap-2 flex-wrap">
           <button
@@ -1372,11 +1392,12 @@ export default function CalendarPage() {
             })}
           </div>
         )}
+        </div>
       </div>
 
       {/* Vrije ruimte */}
       {view === 'day' && emptySlotCount > 0 && (
-        <div className="mb-4 p-3 rounded-xl bg-primary/5 border border-primary/10 flex items-center gap-2 opacity-0 animate-fade-in-up" style={{ animationDelay: '50ms' }}>
+        <div className="mb-4 p-3 rounded-xl bg-primary/5 border border-primary/10 hidden sm:flex items-center gap-2 opacity-0 animate-fade-in-up" style={{ animationDelay: '50ms' }}>
           <Sparkles className="w-4 h-4 text-primary" />
           <span className="text-xs text-muted-foreground">
             <strong className="text-foreground">{emptySlotCount} vrije plekken</strong> vandaag
@@ -1673,19 +1694,19 @@ export default function CalendarPage() {
         </div>
       )}
 
-      <div className="glass-card p-5 opacity-0 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
-        <div className="flex items-center justify-between mb-5">
-          <div className="flex items-center gap-3">
+      <div className="glass-card p-3 sm:p-5 opacity-0 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
+        <div className="flex items-center justify-between gap-2 mb-3 sm:mb-5 min-w-0">
+          <div className="flex items-center gap-1 sm:gap-3 min-w-0">
             <button className="p-2 rounded-lg hover:bg-secondary transition-colors" onClick={() => navigate(-1)}><ChevronLeft className="w-4 h-4" /></button>
-            <h3 className="text-base font-semibold">
+            <h3 className="text-sm sm:text-base font-semibold truncate">
               {isSingleDayView(view)
-                ? currentDate.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+                ? currentDate.toLocaleDateString('nl-NL', { weekday: isMobile ? 'short' : 'long', day: 'numeric', month: 'long', year: 'numeric' })
                 : `${weekDays[0].toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })} – ${weekDays[5].toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })}`
               }
             </h3>
             <button className="p-2 rounded-lg hover:bg-secondary transition-colors" onClick={() => navigate(1)}><ChevronRight className="w-4 h-4" /></button>
           </div>
-          <span className="text-sm text-muted-foreground">
+          <span className="text-xs sm:text-sm text-muted-foreground shrink-0">
             {isSingleDayView(view) ? `${dayAppts.length} afspraken` : `${filterByEmployee(appointments.filter(a => weekDays.some(d => getAppointmentDate(a) === formatLocalDate(d)))).length} afspraken`}
             {selectedEmployee !== 'alle' && ` · ${displayEmployees.find((e: any) => e.id === selectedEmployee || e.name === selectedEmployee)?.name || selectedEmployee}`}
           </span>
