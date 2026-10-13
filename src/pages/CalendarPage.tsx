@@ -125,7 +125,7 @@ export default function CalendarPage() {
   const [selectedOption, setSelectedOption] = useState(0);
   const [selectedEmployee, setSelectedEmployee] = useState<string>('alle');
   const [showFilters, setShowFilters] = useState(false);
-  const [filterAvailability, setFilterAvailability] = useState<string>('alle'); // alle, beschikbaar, afwezig
+  const [filterAvailability, setFilterAvailability] = useState<string>('beschikbaar'); // alle, beschikbaar (werkend + afwezig met afspraken)
 
   // Phase 3: drag/drop + move sheet state
   const isMobile = useIsMobile();
@@ -1852,7 +1852,7 @@ export default function CalendarPage() {
           </div>
         ) : view === 'columns' ? (
           <EmployeeColumnDayView
-            employees={displayEmployees.filter((e: any) => getEmployeeStatus(e, currentDate) === 'beschikbaar')}
+            employees={filteredMedewerkers as any}
             appointments={filterByEmployee(appointments)}
             services={services}
             customers={customers}
