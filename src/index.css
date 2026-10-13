@@ -442,6 +442,10 @@
     padding-top: 0.5rem;
   }
 
+  [data-mobile-dashboard] main > .safe-bottom > .page-enter {
+    margin-top: 0;
+  }
+
   [data-mobile-dashboard] main > .safe-bottom > .space-y-7,
   [data-mobile-dashboard] main > .safe-bottom > .space-y-7 > * + * {
     margin-top: 1rem;
@@ -457,8 +461,13 @@
     display: none;
   }
 
-  [data-mobile-dashboard] [data-tour="auto-revenue"] .gradient-bg {
+  [data-mobile-dashboard] [data-tour="auto-revenue"] div.gradient-bg {
     background: hsl(var(--primary) / 0.08);
+  }
+
+  [data-mobile-dashboard] [data-tour="auto-revenue"] button.gradient-bg {
+    background: hsl(var(--primary));
+    box-shadow: var(--shadow-xs);
   }
 
   [data-mobile-dashboard] [data-tour="auto-revenue"] .gradient-bg > svg {
