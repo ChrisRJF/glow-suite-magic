@@ -195,7 +195,11 @@ export function AppSidebar() {
   }, [openGroups]);
 
   useEffect(() => {
-    const open = () => setMobileOpen(true);
+    const open = () => {
+      // Daily items are always visible when the user opens the mobile menu.
+      setOpenGroups((p) => (p.Dagelijks ? p : { ...p, Dagelijks: true }));
+      setMobileOpen(true);
+    };
     window.addEventListener("glowsuite:open-sidebar", open);
     return () => window.removeEventListener("glowsuite:open-sidebar", open);
   }, []);
