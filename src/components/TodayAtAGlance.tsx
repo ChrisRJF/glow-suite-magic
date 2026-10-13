@@ -199,20 +199,20 @@ export function TodayAtAGlance({ mobileNoShowRiskTomorrow, mobileNoShowRiskTomor
         {cards.map((c, i) => (
           c.icon === ShieldAlert && mobileNoShowRiskTomorrow !== undefined ? (
             <div key={c.label} className="contents">
-              {(mobileNoShowRiskTomorrow > 0 || intelligence.noShowRisk > 0) && (
+              {((mobileNoShowRiskTomorrow ?? 0) > 0 || intelligence.noShowRisk > 0) && (
                 <div className="sm:hidden col-span-2 rounded-xl border border-border/60 bg-card p-3">
                   <div className="flex items-center gap-2 text-sm font-semibold">
-                    <ShieldAlert className={`h-4 w-4 shrink-0 ${mobileNoShowRiskTomorrow > 0 ? "text-warning" : "text-muted-foreground"}`} />
+                    <ShieldAlert className={`h-4 w-4 shrink-0 ${(mobileNoShowRiskTomorrow ?? 0) > 0 ? "text-warning" : "text-muted-foreground"}`} />
                     No-showrisico
                   </div>
                   <p className="mt-1 text-sm">
-                    {mobileNoShowRiskTomorrow > 0 ? (
-                      <><span className="font-semibold tabular-nums">{mobileNoShowRiskTomorrow}</span> {mobileNoShowRiskTomorrow === 1 ? "afspraak" : "afspraken"} morgen met verhoogd risico</>
+                    {(mobileNoShowRiskTomorrow ?? 0) > 0 ? (
+                      <><span className="font-semibold tabular-nums">{mobileNoShowRiskTomorrow}</span> {(mobileNoShowRiskTomorrow ?? 0) === 1 ? "afspraak" : "afspraken"} morgen met verhoogd risico</>
                     ) : (
                       <span className="text-muted-foreground">Geen afspraken morgen met verhoogd risico</span>
                     )}
                   </p>
-                  {mobileNoShowRiskTomorrow > 0 && (
+                  {(mobileNoShowRiskTomorrow ?? 0) > 0 && (
                     <Button
                       size="sm"
                       className="mt-2 h-8"
