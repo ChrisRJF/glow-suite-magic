@@ -131,7 +131,9 @@ export default function CalendarPage() {
   const isMobile = useIsMobile();
   const [moveSheetOpen, setMoveSheetOpen] = useState(false);
   const [dossierAppt, setDossierAppt] = useState<any | null>(null);
-  const { roles: myRoles } = useUserRole();
+  const { roles: myRoles, hasAny: hasAnyRole } = useUserRole();
+  // Same roles the server move RPC accepts (eigenaar/admin/manager/receptie).
+  const canEditAppointment = hasAnyRole('eigenaar', 'admin', 'manager', 'receptie');
   const [checkoutVisible, setCheckoutVisible] = useState(false);
   useEffect(() => {
     const role = (myRoles || []).find((r: string) => ['eigenaar', 'admin', 'manager', 'receptie'].includes(r));
@@ -1957,7 +1959,7 @@ export default function CalendarPage() {
               </p>
             )}
           </SheetHeader>
-          {dossierAppt && !['geannuleerd', 'no-show', 'voltooid'].includes(dossierAppt.status) && (
+          {dossierAppt && canEditAppointment && !['geannuleerd', 'no-show', 'voltooid'].includes(dossierAppt.status) && (
             <Button
               variant="outline"
               className="mt-3 h-11 w-full rounded-xl"
