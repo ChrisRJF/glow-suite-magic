@@ -63,18 +63,18 @@ export default function WebshopPage() {
 
   return (
     <AppLayout title="Webshop" subtitle="Eenvoudige online productverkoop">
-      <div className="grid gap-6">
-        <div className="glass-card p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center", webshopEnabled ? "bg-success/15" : "bg-primary/15")}>
+      <div className="grid min-w-0 gap-6">
+        <div className="glass-card min-w-0 p-4 sm:p-6 flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className={cn("w-10 h-10 shrink-0 rounded-xl flex items-center justify-center", webshopEnabled ? "bg-success/15" : "bg-primary/15")}>
               <Globe className={cn("w-5 h-5", webshopEnabled ? "text-success" : "text-primary")} />
             </div>
-            <div>
+            <div className="min-w-0 break-words">
               <p className="text-sm font-semibold">Shopwidget {webshopEnabled ? "actief" : "nog niet live"}</p>
               <p className="text-xs text-muted-foreground">Alleen online zichtbare producten verschijnen in de widget</p>
             </div>
           </div>
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex min-w-0 gap-2 flex-wrap">
             <Button variant="outline" size="sm" onClick={() => window.open(shopUrl, "_blank")}><ExternalLink className="w-4 h-4" /> Preview</Button>
             <Button variant={webshopEnabled ? "outline" : "gradient"} size="sm" onClick={toggleShopActive} disabled={shopLoading}>
               {shopLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}{webshopEnabled ? "Shop uitzetten" : "Shop activeren"}
@@ -82,49 +82,49 @@ export default function WebshopPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="glass-card p-4">
-            <p className="text-2xl font-bold">{onlineProducts.length}</p>
+        <div className="grid min-w-0 grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+          <div className="glass-card min-w-0 p-3 sm:p-4">
+            <p className="break-words text-xl sm:text-2xl font-bold">{onlineProducts.length}</p>
             <p className="text-xs text-muted-foreground">Producten online</p>
           </div>
-          <div className="glass-card p-4">
-            <p className="text-2xl font-bold text-primary">{formatEuro(totalValue)}</p>
+          <div className="glass-card min-w-0 p-3 sm:p-4">
+            <p className="break-words text-xl sm:text-2xl font-bold text-primary">{formatEuro(totalValue)}</p>
             <p className="text-xs text-muted-foreground">Online voorraadwaarde</p>
           </div>
-          <div className="glass-card p-4">
-            <p className="text-2xl font-bold text-success">{paidOrders.length}</p>
+          <div className="glass-card min-w-0 p-3 sm:p-4">
+            <p className="break-words text-xl sm:text-2xl font-bold text-success">{paidOrders.length}</p>
             <p className="text-xs text-muted-foreground">Betaalde orders</p>
           </div>
-          <div className="glass-card p-4">
-            <p className="text-2xl font-bold">{products.reduce((s, p) => s + (p.stock || 0), 0)}</p>
+          <div className="glass-card min-w-0 p-3 sm:p-4">
+            <p className="break-words text-xl sm:text-2xl font-bold">{products.reduce((s, p) => s + (p.stock || 0), 0)}</p>
             <p className="text-xs text-muted-foreground">Totale voorraad</p>
           </div>
         </div>
 
-        <div className="glass-card p-6">
+        <div className="glass-card min-w-0 p-4 sm:p-6">
           <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><Copy className="w-4 h-4 text-primary" /> Embedcode</h3>
-          <div className="rounded-xl bg-secondary/40 border border-border p-3 text-xs text-muted-foreground overflow-x-auto whitespace-pre-wrap">{embedCode}</div>
+          <div className="min-w-0 max-w-full rounded-xl bg-secondary/40 border border-border p-3 text-xs text-muted-foreground whitespace-pre-wrap [overflow-wrap:anywhere]">{embedCode}</div>
           <Button variant="outline" size="sm" className="mt-3" onClick={copyEmbed}><Copy className="w-4 h-4" /> Kopieer code</Button>
         </div>
 
-        <div className="glass-card p-6">
+        <div className="glass-card min-w-0 p-4 sm:p-6">
           <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><Package className="w-4 h-4 text-primary" /> Online producten beheren</h3>
           <div className="space-y-2">
             {products.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-6">Voeg eerst producten toe via Producten</p>
             ) : products.map((p) => (
-              <div key={p.id} className="flex items-center gap-3 p-4 rounded-xl bg-secondary/30 hover:bg-secondary/50 transition-colors">
+              <div key={p.id} className="grid min-w-0 grid-cols-[2.5rem_minmax(0,1fr)] items-center gap-3 p-3 sm:p-4 sm:flex rounded-xl bg-secondary/30 hover:bg-secondary/50 transition-colors">
                 <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0", p.online_visible ? "bg-success/15" : "bg-muted")}>
                   {p.online_visible ? <Eye className="w-4 h-4 text-success" /> : <EyeOff className="w-4 h-4 text-muted-foreground" />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{p.name}</p>
-                  <p className="text-xs text-muted-foreground">{p.category || "Geen categorie"} · Voorraad: {p.stock || 0}</p>
+                  <p className="text-sm font-medium break-words sm:truncate">{p.name}</p>
+                  <p className="text-xs text-muted-foreground break-words">{p.category || "Geen categorie"} · Voorraad: {p.stock || 0}</p>
                 </div>
-                <div className="text-right flex-shrink-0 mr-3">
-                  <p className="text-sm font-semibold">{formatEuro(p.price)}</p>
+                <div className="col-start-2 min-w-0 sm:text-right sm:flex-shrink-0 sm:mr-3">
+                  <p className="break-words text-sm font-semibold">{formatEuro(p.price)}</p>
                 </div>
-                <Button variant={p.online_visible ? "outline" : "gradient"} size="sm" onClick={() => toggleWebshop(p.id, Boolean(p.online_visible))} disabled={productLoadingId === p.id}>
+                <Button className="col-start-2 w-full sm:w-auto sm:shrink-0" variant={p.online_visible ? "outline" : "gradient"} size="sm" onClick={() => toggleWebshop(p.id, Boolean(p.online_visible))} disabled={productLoadingId === p.id}>
                   {productLoadingId === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : p.online_visible ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                   {p.online_visible ? "Verbergen" : "Tonen"}
                 </Button>
@@ -133,7 +133,7 @@ export default function WebshopPage() {
           </div>
         </div>
 
-        <div className="glass-card p-6">
+        <div className="glass-card min-w-0 p-4 sm:p-6">
           <div className="flex items-center justify-between gap-3 mb-4">
             <h3 className="text-sm font-semibold flex items-center gap-2"><ShoppingCart className="w-4 h-4 text-primary" /> Orders</h3>
             <Button variant="outline" size="sm" onClick={refetchOrders}>Vernieuwen</Button>
@@ -145,7 +145,7 @@ export default function WebshopPage() {
               <p className="text-sm text-muted-foreground text-center py-6">Nog geen webshoporders</p>
             ) : orders.slice(0, 20).map((order: any) => (
               <div key={order.id} className="p-4 rounded-xl bg-secondary/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div>
+                <div className="min-w-0 break-words">
                   <p className="text-sm font-medium">{order.order_number}</p>
                   <p className="text-xs text-muted-foreground">{order.customer_name || order.customer_email || "Onbekende klant"} · {new Date(order.created_at).toLocaleDateString("nl-NL")}</p>
                 </div>
