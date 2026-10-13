@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Calendar, Users, Scissors, X, Globe,
   MessageCircle, CreditCard, TrendingUp, RefreshCw, Megaphone,
   Zap, ShoppingBag, Package, BarChart3, Settings, HelpCircle, LogOut,
-  Sun, Moon, Bot, Clock, Gift, ShoppingCart, Share2, UserPlus, UserCog, RotateCcw, Mail, Wallet, Sparkles, ChevronDown, ShieldCheck, Rocket, Flame, Crown,
+  Sun, Moon, Bot, Clock, Gift, ShoppingCart, Share2, UserPlus, UserCog, RotateCcw, Mail, Wallet, Sparkles, ChevronDown, ShieldCheck, Rocket, Brain, Activity, Flame, Crown,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -87,10 +87,11 @@ const navGroups: NavGroup[] = [
     title: "Slimme functies",
     ai: true,
     items: [
-      // AI Insights en AI Activiteit zijn secties op dezelfde GlowSuite AI-pagina (/ai#insights, /ai#activity).
       { label: "GlowSuite AI", icon: Sparkles, path: "/ai" },
       { label: "Auto Revenue", icon: Flame, path: "/auto-revenue", accent: true, live: true },
       { label: "Omzet Autopilot", icon: Zap, path: "/acties" },
+      { label: "AI Insights", icon: Brain, path: "/ai#insights", routePath: "/ai" },
+      { label: "AI Activiteit", icon: Activity, path: "/ai#activity", routePath: "/ai" },
       { label: "AI Segmenten", icon: Users, path: "/segmenten" },
     ],
   },
