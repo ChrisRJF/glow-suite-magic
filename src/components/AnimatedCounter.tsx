@@ -38,5 +38,6 @@ export function AnimatedCounter({ value, duration = 900, format, className }: An
   }, [value, duration]);
 
   const rounded = Math.round(display);
-  return <span className={className}>{format ? format(rounded) : rounded.toLocaleString("nl-NL")}</span>;
+  // Custom formatters (e.g. euros) get the exact value so cents are never rounded away.
+  return <span className={className}>{format ? format(display) : rounded.toLocaleString("nl-NL")}</span>;
 }
