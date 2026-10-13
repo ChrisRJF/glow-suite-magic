@@ -237,7 +237,7 @@ export default function DashboardPage() {
           {/* No-show risico */}
           <button
             onClick={() => navigate("/whatsapp")}
-            className="self-start sm:self-auto text-left p-3 sm:p-5 rounded-2xl border border-border/70 bg-card hover:border-destructive/30 hover:-translate-y-0.5 transition-all"
+            className="hidden sm:block self-start sm:self-auto text-left p-3 sm:p-5 rounded-2xl border border-border/70 bg-card hover:border-destructive/30 hover:-translate-y-0.5 transition-all"
             style={{ boxShadow: "var(--shadow-sm)" }}
           >
             <div className="flex items-start sm:items-center gap-2 mb-1.5 sm:mb-2.5">
@@ -286,7 +286,7 @@ export default function DashboardPage() {
 
       <TodayBriefing title="Vandaag aandacht nodig" showEmptyState />
 
-      <TodayAtAGlance />
+      <TodayAtAGlance mobileNoShowRiskTomorrow={noShowRiskTomorrow} />
 
       <RevenueOpportunities />
 

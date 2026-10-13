@@ -1,5 +1,7 @@
 # Roadmap
 
+- [x] Bundel mobiele no-showrisico's met ongewijzigde berekeningen en acties; beperkte previewcontrole op 390 px, niets publiceren
+
 - [x] Ronde 3 mobiele afwerking: compacte actiekaarten, rustiger Autopilot en omzetcontext; uitsluitend geïsoleerde controle op 390 px, niets publiceren
 
 - [x] Corrigeer mobiele datumselectie, verduidelijk medewerkerfilter en verminder bovenruimte; controleer uitsluitend synthetisch op 375/390 px
