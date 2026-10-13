@@ -1243,7 +1243,7 @@ export default function CalendarPage() {
             </div>
           </div>
           {/* Eén primaire actie; slim plannen blijft secundair */}
-          <div className="grid grid-cols-[auto_1fr] gap-2 w-full lg:flex lg:w-auto">
+          <div className="hidden sm:grid grid-cols-[auto_1fr] gap-2 w-full lg:flex lg:w-auto">
             <Button
               variant="ghost"
               onClick={() => setReflowOpen(true)}
@@ -1290,20 +1290,38 @@ export default function CalendarPage() {
       <div className="mb-4 opacity-0 animate-fade-in-up" style={{ animationDelay: '30ms' }}>
 
         {/* Werkend-filter: geldt voor de gekozen datum */}
-        <div className="mb-2 flex items-center gap-2">
-          <div role="group" aria-label="Medewerkers tonen" className="inline-flex rounded-xl border border-border p-0.5 bg-secondary/30">
+        <div className="mb-2 flex items-center gap-2 min-w-0">
+          <div role="group" aria-label="Medewerkers tonen" className="inline-flex shrink-0 rounded-xl border border-border p-0.5 bg-secondary/30">
             {(['alle', 'beschikbaar'] as const).map(f => (
               <button key={f} type="button" onClick={() => setFilterAvailability(f)}
                 aria-pressed={filterAvailability === f}
-                className={cn("h-9 px-3 rounded-lg text-xs font-medium transition-colors",
+                className={cn("h-9 px-2.5 sm:px-3 rounded-lg text-xs font-medium transition-colors",
                   filterAvailability === f ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
-                {f === 'alle' ? 'Alle medewerkers' : 'Alleen wie werkt'}
+                <span className="sm:hidden">{f === 'alle' ? 'Iedereen' : 'Wie werkt'}</span>
+                <span className="hidden sm:inline">{f === 'alle' ? 'Alle medewerkers' : 'Alleen wie werkt'}</span>
               </button>
             ))}
           </div>
           {filterAvailability === 'beschikbaar' && hiddenEmployeeCount > 0 && (
-            <span className="text-[11px] text-muted-foreground">{hiddenEmployeeCount} verborgen</span>
+            <span className="text-[11px] text-muted-foreground truncate">{hiddenEmployeeCount} verborgen</span>
           )}
+          <button
+            type="button"
+            onClick={() => setTeamOpen(o => !o)}
+            aria-expanded={teamOpen}
+            className="sm:hidden h-9 w-9 shrink-0 inline-flex items-center justify-center rounded-xl border border-border text-muted-foreground"
+            aria-label={teamOpen ? "Medewerkers verbergen" : "Medewerkers tonen"}
+            title="Medewerkers"
+          >
+            <Users className="w-4 h-4" />
+          </button>
+          <Button
+            variant="gradient"
+            onClick={() => openAddModal(dateStr, '09:00')}
+            className="sm:hidden ml-auto h-9 rounded-xl text-xs px-3 gap-1 shrink-0"
+          >
+            <Plus className="w-4 h-4" /> Afspraak
+          </Button>
         </div>
         {filterAvailability === 'beschikbaar' && absentWithAppts.length > 0 && (
           <p className="mb-2 text-[11px] text-muted-foreground">
@@ -1311,6 +1329,7 @@ export default function CalendarPage() {
           </p>
         )}
 
+        <div className={cn(teamOpen ? "block" : "hidden", "sm:block")}>
         {/* Employee quick-switch bar */}
         <div className="flex items-center gap-2 flex-wrap">
           <button
