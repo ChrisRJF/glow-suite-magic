@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Calendar, Users, Scissors, X, Globe,
   MessageCircle, CreditCard, TrendingUp, RefreshCw, Megaphone,
   Zap, ShoppingBag, Package, BarChart3, Settings, HelpCircle, LogOut,
-  Sun, Moon, Bot, Clock, Gift, ShoppingCart, Share2, UserPlus, RotateCcw, Mail, Wallet, Sparkles, ChevronDown, ShieldCheck, Rocket, Brain, Activity, Flame, Crown,
+  Sun, Moon, Bot, Clock, Gift, ShoppingCart, Share2, UserPlus, UserCog, RotateCcw, Mail, Wallet, Sparkles, ChevronDown, ShieldCheck, Rocket, Flame, Crown,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -45,7 +45,7 @@ const navGroups: NavGroup[] = [
       { label: "Overzicht", icon: LayoutDashboard, path: "/" },
       { label: "Agenda", icon: Calendar, path: "/agenda" },
       { label: "Klanten", icon: Users, path: "/klanten" },
-      { label: "Medewerkers", icon: UserPlus, path: "/medewerkers" },
+      { label: "Medewerkers", icon: UserCog, path: "/medewerkers" },
       { label: "Behandelingen", icon: Scissors, path: "/behandelingen" },
       { label: "Online Boeken", icon: Globe, path: "/boeken" },
     ],
@@ -87,11 +87,10 @@ const navGroups: NavGroup[] = [
     title: "Slimme functies",
     ai: true,
     items: [
+      // AI Insights en AI Activiteit zijn secties op dezelfde GlowSuite AI-pagina (/ai#insights, /ai#activity).
       { label: "GlowSuite AI", icon: Sparkles, path: "/ai" },
       { label: "Auto Revenue", icon: Flame, path: "/auto-revenue", accent: true, live: true },
       { label: "Omzet Autopilot", icon: Zap, path: "/acties" },
-      { label: "AI Insights", icon: Brain, path: "/ai#insights", routePath: "/ai" },
-      { label: "AI Activiteit", icon: Activity, path: "/ai#activity", routePath: "/ai" },
       { label: "AI Segmenten", icon: Users, path: "/segmenten" },
     ],
   },
@@ -244,10 +243,7 @@ export function AppSidebar() {
         <span className="flex-1 truncate">{item.label}</span>
         {item.live && (
           <span className="inline-flex items-center gap-1 text-[9.5px] font-semibold px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500/70 opacity-75 animate-ping" />
-              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            </span>
+            <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
             LIVE
           </span>
         )}
@@ -315,7 +311,7 @@ export function AppSidebar() {
                 className={cn(
                   "mb-1.5",
                   idx > 0 && "mt-1",
-                  group.ai && "rounded-2xl bg-gradient-to-b from-primary/[0.06] to-transparent border border-primary/15 p-1.5"
+                  group.ai && "rounded-2xl border border-primary/15 p-1.5"
                 )}
               >
                 <Button
