@@ -30,7 +30,7 @@ export function AppLayout({ children, title, subtitle, actions, compactMobile = 
           title={title}
           onMenuOpen={() => window.dispatchEvent(new Event("glowsuite:open-sidebar"))}
         />
-        <div className={`px-4 sm:px-6 lg:px-10 pb-6 lg:pt-10 lg:pb-10 max-w-[1400px] mx-auto safe-bottom ${compactMobile ? 'pt-2 space-y-0 sm:pt-4 sm:space-y-7' : 'pt-4 space-y-7'}`}>
+        <div className={`px-4 sm:px-6 lg:px-10 pb-6 lg:pt-10 lg:pb-10 max-w-[1400px] mx-auto safe-bottom ${compactMobile ? 'pt-1 flex flex-col gap-0 sm:block sm:pt-4 sm:space-y-7' : 'pt-4 space-y-7'}`}>
           {/* Page header — desktop shows full title; mobile relies on sticky topbar */}
           <header className="hidden lg:flex flex-col sm:flex-row sm:items-end justify-between gap-4">
             <div className="page-enter space-y-1.5 min-w-0">

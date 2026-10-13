@@ -374,6 +374,10 @@ export default function CalendarPage() {
     ? displayEmployees.filter((m: any) => getEmployeeStatus(m, currentDate) === 'beschikbaar' || absentWithAppts.includes(m))
     : displayEmployees;
   const hiddenEmployeeCount = displayEmployees.length - filteredMedewerkers.length;
+  const workingEmployeeCount = displayEmployees.filter((m: any) => getEmployeeStatus(m, currentDate) === 'beschikbaar').length;
+  const employeeFilterSummary = workingEmployeeCount === displayEmployees.length
+    ? `Alle ${workingEmployeeCount} medewerkers werken vandaag`
+    : `${workingEmployeeCount} werken · ${hiddenEmployeeCount} verborgen${filterAvailability === 'beschikbaar' && absentWithAppts.length > 0 ? ` · ${absentWithAppts.length} met afspraken blijven zichtbaar` : ''}`;
 
   const dayAppts = useMemo(() =>
     filterByEmployee(appointments.filter(a => getAppointmentDate(a) === dateStr)),
@@ -1284,6 +1288,9 @@ export default function CalendarPage() {
               <Calendar mode="single" selected={currentDate} defaultMonth={currentDate} locale={nl} weekStartsOn={1}
                 captionLayout="dropdown-buttons" fromYear={1900} toYear={2100} initialFocus className="p-3 pointer-events-auto"
                 classNames={{
+                  cell: 'h-9 w-9 text-center text-sm p-0 relative focus-within:z-20',
+                  day_selected: 'rounded-md bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground',
+                  day_outside: 'day-outside text-muted-foreground opacity-50 aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:opacity-100',
                   caption: 'relative flex justify-center pt-1',
                   caption_label: 'hidden',
                   caption_dropdowns: 'flex items-center justify-center gap-2 px-8',
@@ -1351,6 +1358,7 @@ export default function CalendarPage() {
                   </Button>
                 ))}
               </div>
+              <p className="px-2 pt-2 text-[11px] leading-snug text-muted-foreground" aria-live="polite">{employeeFilterSummary}</p>
               <div className="mt-2 pt-2 border-t border-border space-y-1">
                 {filteredMedewerkers.map((emp: any) => {
                   const absent = getEmployeeStatus(emp, currentDate) !== 'beschikbaar';
@@ -1359,11 +1367,11 @@ export default function CalendarPage() {
                     className={cn('w-full h-auto min-h-10 justify-start gap-2 px-2 text-xs', selectedEmployee === emp.id && 'bg-primary/10 text-primary')}
                     onClick={() => { setSelectedEmployee(emp.id); setEmployeePickerOpen(false); }}>
                     <EmployeeAvatar employee={emp} size="xs" ring={false} />
-                    <span className="min-w-0 text-left whitespace-normal break-words">{emp.name}{absent && <span className="block text-[10px] text-muted-foreground">{getEmployeeAbsenceBadge(emp, currentDate)?.label || 'Afwezig'} · {count} afspraken</span>}</span>
+                    <span className="min-w-0 text-left whitespace-normal break-words">{emp.name}{displayEmployees.filter((other: any) => other.name.trim().toLowerCase() === emp.name.trim().toLowerCase()).length > 1 && <span className="block text-[10px] text-muted-foreground">{emp.role || `Medewerker ${displayEmployees.indexOf(emp) + 1}`}</span>}{absent && <span className="block text-[10px] text-muted-foreground">{getEmployeeAbsenceBadge(emp, currentDate)?.label || 'Afwezig'} · {count} afspraken</span>}</span>
                   </Button>;
                 })}
               </div>
-              {filterAvailability === 'beschikbaar' && hiddenEmployeeCount > 0 && <p className="px-2 pt-2 text-[11px] text-muted-foreground">{hiddenEmployeeCount} zonder afspraken verborgen</p>}
+              {filterAvailability === 'beschikbaar' && absentWithAppts.length > 0 && <p className="px-2 pt-2 text-[11px] text-muted-foreground">Afwezige medewerkers met afspraken blijven zichtbaar.</p>}
             </PopoverContent>
           </Popover>
           <div role="group" aria-label="Medewerkers tonen" className="hidden sm:inline-flex shrink-0 rounded-xl border border-border p-0.5 bg-secondary/30">
@@ -1388,8 +1396,9 @@ export default function CalendarPage() {
             <Plus className="w-4 h-4" /> Afspraak
           </Button>
         </div>
+        <p className="sm:hidden mt-1 text-[10px] leading-snug text-muted-foreground" aria-live="polite">{employeeFilterSummary}</p>
         {filterAvailability === 'beschikbaar' && absentWithAppts.length > 0 && (
-          <p className="mb-2 text-[11px] text-muted-foreground">
+          <p className="hidden sm:block mb-2 text-[11px] text-muted-foreground">
             {absentWithAppts.map((e: any) => e.name).join(', ')} {absentWithAppts.length === 1 ? 'werkt' : 'werken'} niet, maar {absentWithAppts.length === 1 ? 'heeft' : 'hebben'} afspraken op deze dag. Daarom blijven ze zichtbaar.
           </p>
         )}
