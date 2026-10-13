@@ -1996,6 +1996,11 @@ export default function CalendarPage() {
               </p>
             )}
           </SheetHeader>
+          {dossierAppt && (
+            <div className="mt-3">
+              <StatusPill apt={dossierAppt} />
+            </div>
+          )}
           {dossierAppt && canEditAppointment && !['geannuleerd', 'no-show', 'voltooid'].includes(dossierAppt.status) && (
             <Button
               variant="outline"
