@@ -300,6 +300,7 @@ export function AutoRevenueEngine({ source = "overview" }: AutoRevenueEngineProp
     }
   }, [autopilot.enabled, user, todayStr, demoMode, runAutopilot, running, ready]);
 
+  const [showMetricsMobile, setShowMetricsMobile] = useState(false);
   return (
     <div id="auto-revenue-engine" className="glass-card p-4 sm:p-6 mb-6 opacity-0 animate-fade-in-up border border-primary/20 relative overflow-hidden" style={{ animationDelay: '50ms' }}>
       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 pointer-events-none" />
@@ -358,7 +359,19 @@ export function AutoRevenueEngine({ source = "overview" }: AutoRevenueEngineProp
         </div>
 
         {/* Auto Revenue conversion metrics */}
-        <AutoRevenueMetrics />
+        {/* Mobile: conversion metrics behind a toggle to keep the card compact. */}
+        <button
+          type="button"
+          onClick={() => setShowMetricsMobile((v) => !v)}
+          aria-expanded={showMetricsMobile}
+          className="sm:hidden mb-3 flex w-full items-center justify-between rounded-xl border border-border bg-secondary/40 px-3 py-2 text-xs font-medium text-foreground/80"
+        >
+          Auto Revenue conversie
+          {showMetricsMobile ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+        </button>
+        <div className={showMetricsMobile ? "block" : "hidden sm:block"}>
+          <AutoRevenueMetrics />
+        </div>
 
         {/* Summary cards: gevonden / acties / verwacht / uplift */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3 sm:mb-4">
