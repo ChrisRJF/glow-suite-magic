@@ -1,5 +1,8 @@
 # Roadmap
 
+- [ ] Gerichte mobiele agenda: datumkiezer, één medewerkerbediening en compactere kaarten
+- [ ] Controleer datum, medewerkerkeuze, afspraakvenster en sleepgreep op 375/390 px met synthetische gegevens, zonder opslaan of publiceren
+
 - [x] Sprint 3: dagelijks menu eerst met behoud van rollen, routes en uitklapstaat
 - [x] Sprint 3: snelle start via bestaande salonopslag en afronding, neutrale statusinformatie
 - [x] Sprint 3: synthetische regressietests en lokale layoutcontrole, niets publiceren

@@ -3,6 +3,9 @@ import { appointmentDisplayDate, isSingleDayView, navStepDays } from "@/lib/cale
 import { CustomerPicker } from "@/components/CustomerPicker";
 import { workingWindow } from "@/lib/employeeSchedule";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { nl } from "date-fns/locale";
 import { useAppointments, useCustomers, useServices, useEmployees, useAppointmentEmployees, useEmployeeAvailabilityExceptions } from "@/hooks/useSupabaseData";
 import { parseBreaks, getAbsenceForDate, isSlotInBreaks, isSlotBlockedByException, dayOfWeekIso, statusMeta, type EmployeeBreak, type ExceptionRow } from "@/lib/employeeAvailability";
 import { useCrud } from "@/hooks/useCrud";
@@ -126,7 +129,8 @@ export default function CalendarPage() {
   const [selectedEmployee, setSelectedEmployee] = useState<string>('alle');
   const [showFilters, setShowFilters] = useState(false);
   const [filterAvailability, setFilterAvailability] = useState<string>('beschikbaar'); // alle, beschikbaar (werkend + afwezig met afspraken)
-  const [teamOpen, setTeamOpen] = useState(false); // mobile only: employee cards collapsed by default
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [employeePickerOpen, setEmployeePickerOpen] = useState(false);
 
   // Phase 3: drag/drop + move sheet state
   const isMobile = useIsMobile();
@@ -1221,8 +1225,8 @@ export default function CalendarPage() {
   // -----------------------------------------------------------------------
 
   return (
-    <AppLayout title="Agenda" subtitle="Je afspraken per dag"
-      actions={
+    <AppLayout title="Agenda" compactMobile
+      actions={isMobile ? undefined :
         <div className="w-full max-w-full overflow-hidden flex flex-col lg:flex-row lg:items-center gap-2">
           {/* Dag en weergave */}
           <div className="flex items-center gap-2 w-full lg:w-auto min-w-0">
@@ -1264,6 +1268,45 @@ export default function CalendarPage() {
         </div>
       }>
 
+      <div className="space-y-2 sm:space-y-7">
+      <div className="sm:hidden space-y-2">
+        <div className="flex items-center gap-1 min-w-0">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold">{currentDate.toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}</p>
+            <p className="text-[11px] text-muted-foreground">{dayAppts.length} afspraken</p>
+          </div>
+          <Button variant="ghost" size="icon" className="h-9 w-8 shrink-0" aria-label="Vorige dag" onClick={() => navigate(-1)}><ChevronLeft className="w-4 h-4" /></Button>
+          <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" aria-label="Datum kiezen"><CalendarDays className="w-4 h-4" /></Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-auto p-0 max-w-[calc(100vw-2rem)]">
+              <Calendar mode="single" selected={currentDate} defaultMonth={currentDate} locale={nl} weekStartsOn={1}
+                captionLayout="dropdown-buttons" fromYear={1900} toYear={2100} initialFocus className="p-3 pointer-events-auto"
+                classNames={{
+                  caption: 'relative flex justify-center pt-1',
+                  caption_label: 'hidden',
+                  caption_dropdowns: 'flex items-center justify-center gap-2 px-8',
+                  dropdown_month: 'relative',
+                  dropdown_year: 'relative',
+                  dropdown: 'h-9 rounded-md border border-input bg-background px-2 text-xs text-foreground',
+                  dropdown_icon: 'hidden',
+                  vhidden: 'sr-only',
+                }}
+                labels={{ labelMonthDropdown: () => 'Maand', labelYearDropdown: () => 'Jaar' }}
+                onSelect={date => { if (date) { setCurrentDate(date); setDatePickerOpen(false); } }} />
+              <div className="px-3 pb-3"><Button variant="ghost" size="sm" className="w-full" onClick={() => { goToToday(); setDatePickerOpen(false); }}>Vandaag</Button></div>
+            </PopoverContent>
+          </Popover>
+          <Button variant="ghost" size="icon" className="h-9 w-8 shrink-0" aria-label="Volgende dag" onClick={() => navigate(1)}><ChevronRight className="w-4 h-4" /></Button>
+        </div>
+        <div role="group" aria-label="Agendaweergave" className="flex rounded-lg border border-border overflow-hidden">
+          {([{ value: 'day', label: 'Dag' }, { value: 'columns', label: 'Per medewerker' }, { value: 'week', label: 'Week' }] as const).map(option => (
+            <Button key={option.value} variant="ghost" aria-pressed={view === option.value} onClick={() => setView(option.value)}
+              className={cn('flex-1 h-9 rounded-none px-2 text-xs', view === option.value && 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground')}>{option.label}</Button>
+          ))}
+        </div>
+      </div>
       <GuidanceHint
         step={1}
         text="Bekijk een afspraak en zie meteen wat nog nodig is."
@@ -1288,11 +1331,42 @@ export default function CalendarPage() {
       />
 
       {/* Employee selector & workload overview */}
-      <div className="mb-4 opacity-0 animate-fade-in-up" style={{ animationDelay: '30ms' }}>
+      <div className="sm:mb-4 opacity-0 animate-fade-in-up" style={{ animationDelay: '30ms' }}>
 
         {/* Werkend-filter: geldt voor de gekozen datum */}
-        <div className="mb-2 flex items-center gap-2 min-w-0">
-          <div role="group" aria-label="Medewerkers tonen" className="inline-flex shrink-0 rounded-xl border border-border p-0.5 bg-secondary/30">
+        <div className="sm:mb-2 flex items-center gap-2 min-w-0">
+          <Popover open={employeePickerOpen} onOpenChange={setEmployeePickerOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="sm:hidden h-9 text-xs gap-2 max-w-full" aria-label="Medewerkers">
+                <Users className="w-4 h-4 shrink-0" />Medewerkers<ChevronDown className="w-3.5 h-3.5 shrink-0" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-72 max-w-[calc(100vw-2rem)] p-2 max-h-[60vh] overflow-y-auto">
+              <div role="group" aria-label="Medewerkers tonen" className="space-y-1">
+                {(['alle', 'beschikbaar'] as const).map(f => (
+                  <Button key={f} variant="ghost" aria-pressed={selectedEmployee === 'alle' && filterAvailability === f}
+                    className={cn('w-full justify-start h-10 text-xs', selectedEmployee === 'alle' && filterAvailability === f && 'bg-primary/10 text-primary')}
+                    onClick={() => { setFilterAvailability(f); setSelectedEmployee('alle'); setEmployeePickerOpen(false); }}>
+                    {f === 'alle' ? 'Alle medewerkers' : 'Alleen medewerkers die werken'}
+                  </Button>
+                ))}
+              </div>
+              <div className="mt-2 pt-2 border-t border-border space-y-1">
+                {filteredMedewerkers.map((emp: any) => {
+                  const absent = getEmployeeStatus(emp, currentDate) !== 'beschikbaar';
+                  const count = getEmployeeApptCount(emp, dateStr);
+                  return <Button key={emp.id} variant="ghost" aria-pressed={selectedEmployee === emp.id}
+                    className={cn('w-full h-auto min-h-10 justify-start gap-2 px-2 text-xs', selectedEmployee === emp.id && 'bg-primary/10 text-primary')}
+                    onClick={() => { setSelectedEmployee(emp.id); setEmployeePickerOpen(false); }}>
+                    <EmployeeAvatar employee={emp} size="xs" ring={false} />
+                    <span className="min-w-0 text-left whitespace-normal break-words">{emp.name}{absent && <span className="block text-[10px] text-muted-foreground">{getEmployeeAbsenceBadge(emp, currentDate)?.label || 'Afwezig'} · {count} afspraken</span>}</span>
+                  </Button>;
+                })}
+              </div>
+              {filterAvailability === 'beschikbaar' && hiddenEmployeeCount > 0 && <p className="px-2 pt-2 text-[11px] text-muted-foreground">{hiddenEmployeeCount} zonder afspraken verborgen</p>}
+            </PopoverContent>
+          </Popover>
+          <div role="group" aria-label="Medewerkers tonen" className="hidden sm:inline-flex shrink-0 rounded-xl border border-border p-0.5 bg-secondary/30">
             {(['alle', 'beschikbaar'] as const).map(f => (
               <button key={f} type="button" onClick={() => setFilterAvailability(f)}
                 aria-pressed={filterAvailability === f}
@@ -1304,18 +1378,8 @@ export default function CalendarPage() {
             ))}
           </div>
           {filterAvailability === 'beschikbaar' && hiddenEmployeeCount > 0 && (
-            <span className="text-[11px] text-muted-foreground truncate">{hiddenEmployeeCount} verborgen</span>
+            <span className="hidden sm:inline text-[11px] text-muted-foreground truncate">{hiddenEmployeeCount} verborgen</span>
           )}
-          <button
-            type="button"
-            onClick={() => setTeamOpen(o => !o)}
-            aria-expanded={teamOpen}
-            className="sm:hidden h-9 w-9 shrink-0 inline-flex items-center justify-center rounded-xl border border-border text-muted-foreground"
-            aria-label={teamOpen ? "Medewerkers verbergen" : "Medewerkers tonen"}
-            title="Medewerkers"
-          >
-            <Users className="w-4 h-4" />
-          </button>
           <Button
             variant="gradient"
             onClick={() => openAddModal(dateStr, '09:00')}
@@ -1330,7 +1394,7 @@ export default function CalendarPage() {
           </p>
         )}
 
-        <div className={cn(teamOpen ? "block" : "hidden", "sm:block")}>
+        <div className="hidden sm:block">
         {/* Employee quick-switch bar */}
         <div className="flex items-center gap-2 flex-wrap">
           <button
@@ -1694,8 +1758,8 @@ export default function CalendarPage() {
         </div>
       )}
 
-      <div className="glass-card p-3 sm:p-5 opacity-0 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
-        <div className="flex items-center justify-between gap-2 mb-3 sm:mb-5 min-w-0">
+      <div className="glass-card p-2 sm:p-5 opacity-0 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
+        <div className="hidden sm:flex items-center justify-between gap-2 mb-3 sm:mb-5 min-w-0">
           <div className="flex items-center gap-1 sm:gap-3 min-w-0">
             <button className="p-2 rounded-lg hover:bg-secondary transition-colors" onClick={() => navigate(-1)}><ChevronLeft className="w-4 h-4" /></button>
             <h3 className="text-sm sm:text-base font-semibold truncate">
@@ -1741,8 +1805,8 @@ export default function CalendarPage() {
               const isPauzeSlot = selectedEmp && isSlotPauze(selectedEmp, slot);
 
               return (
-                <div key={slot} className="flex gap-4 group min-h-[48px] relative">
-                  <span className="w-14 text-xs text-muted-foreground py-3 tabular-nums flex-shrink-0 z-0">{slot}</span>
+                <div key={slot} className="flex gap-2 sm:gap-4 group min-h-[48px] relative">
+                  <span className="w-10 sm:w-14 text-xs text-muted-foreground py-3 tabular-nums flex-shrink-0 z-0">{slot}</span>
                   <div className="flex-1 border-t border-border/50 relative">
                     <DaySlotDroppable slot={slot} />
                     {coveredByEarlier ? (
@@ -1768,7 +1832,7 @@ export default function CalendarPage() {
                           return (
                           <div
                             onClick={() => setDossierAppt(apt)}
-                            className={cn("absolute left-0 right-0 top-1 z-10 rounded-xl transition-all duration-200 bg-card/95 shadow-[var(--shadow-sm)] flex flex-col cursor-pointer overflow-hidden hover:ring-1 hover:ring-primary/20", compact ? "p-2 gap-1" : "p-3 gap-2")}
+                            className={cn("absolute left-0 right-0 top-1 z-10 rounded-xl transition-all duration-200 bg-card/95 shadow-[var(--shadow-sm)] flex flex-col cursor-pointer overflow-hidden hover:ring-1 hover:ring-primary/20", isMobile ? "py-1 pl-2 pr-9 gap-0.5" : "p-3 gap-2")}
                             style={{
                               backgroundImage: `linear-gradient(135deg, ${svc?.color || '#7B61FF'}10, ${svc?.color || '#7B61FF'}06)`,
                               borderLeft: `3px solid ${svc?.color || '#7B61FF'}`,
@@ -1779,26 +1843,27 @@ export default function CalendarPage() {
                           >
                             {/* Top row: avatar + name + payment */}
                             <div className="flex items-center gap-2 min-w-0">
-                              {displayEmps.length > 0 && (
+                              {!isMobile && displayEmps.length > 0 && (
                                 <div className="shrink-0">
                                   <EmployeeAvatarStack employees={displayEmps} size="md" max={3} />
                                 </div>
                               )}
-                              <p className="text-sm font-semibold line-clamp-1 min-w-0 flex-1">{cust?.name || 'Klant'}</p>
-                              {compact && (
-                                <button
+                              <p title={cust?.name || 'Klant'} className="text-xs sm:text-sm font-semibold line-clamp-1 min-w-0 flex-1">{cust?.name || 'Klant'}</p>
+                              {isMobile && <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums">{getAppointmentTime(apt)}</span>}
+                              {isMobile && (
+                                <Button variant="ghost" size="icon"
                                   {...listeners}
                                   {...attributes}
-                                  className="flex h-9 w-9 shrink-0 cursor-grab items-center justify-center rounded-lg bg-secondary/40 active:cursor-grabbing active:bg-secondary"
+                                  className="absolute right-0 top-0 flex h-8 w-8 shrink-0 cursor-grab items-center justify-center rounded-lg active:cursor-grabbing active:bg-secondary"
                                   aria-label="Sleep om te verplaatsen"
                                   title="Houd vast en sleep om te verplaatsen"
                                   onClick={(e) => e.stopPropagation()}
                                   style={{ touchAction: 'none', WebkitTouchCallout: 'none', userSelect: 'none' }}
                                 >
                                   <GripVertical className="w-4 h-4 text-muted-foreground" />
-                                </button>
+                                </Button>
                               )}
-                              {showPayment && (
+                              {!isMobile && showPayment && (
                                 <span className={cn(
                                   "text-[10px] px-1.5 py-0.5 rounded-full font-medium shrink-0",
                                   paymentStatus === 'betaald' ? 'bg-primary/15 text-primary' :
@@ -1811,21 +1876,21 @@ export default function CalendarPage() {
                             </div>
 
                             {/* Second row: service • duration • employee */}
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground min-w-0 flex-nowrap overflow-hidden sm:flex-wrap">
-                              <span className="truncate min-w-0">{getAppointmentTime(apt)} · {svc?.name || 'Behandeling'}</span>
-                              <span className="flex items-center gap-0.5 shrink-0"><Clock className="w-3 h-3" />{durationMin} min</span>
+                            <div className="flex items-start gap-1 sm:gap-2 text-[10px] sm:text-xs text-muted-foreground min-w-0 sm:flex-wrap">
+                              <span title={svc?.name || 'Behandeling'} className={cn('min-w-0 flex-1 sm:flex-none', compact ? 'line-clamp-1' : 'break-words')} >{!isMobile && `${getAppointmentTime(apt)} · `}{svc?.name || 'Behandeling'}</span>
+                              {!isMobile && <span className="flex items-center gap-0.5 shrink-0"><Clock className="w-3 h-3" />{durationMin} min</span>}
                               {displayEmps.length > 0 && (
-                                <span className="truncate min-w-0 text-foreground/70">
+                                <span title={displayEmps.map((e: any) => e.name).join(', ')} className={cn('min-w-0 text-foreground/70', compact ? 'line-clamp-1 max-w-[40%]' : 'break-words max-w-[40%] sm:max-w-none')}>
                                   · {displayEmps.map((e: any) => e.name).join(', ')}
                                 </span>
                               )}
-                              {isGroupBooking && (
+                              {!isMobile && isGroupBooking && (
                                 <span className="text-[10px] text-primary flex items-center gap-0.5 shrink-0"><Users className="w-3 h-3" />Groep</span>
                               )}
                             </div>
 
                             {/* Bottom row: compact, wrapping controls stay inside narrow mobile cards. */}
-                            <div className={cn("mt-auto min-w-0 flex-col gap-1 pt-1 sm:flex-row sm:items-center sm:justify-between sm:gap-2", compact ? "hidden" : "flex")}>
+                            <div className="hidden sm:flex mt-auto min-w-0 flex-col gap-1 pt-1 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
                               <div className="flex min-w-0 items-center justify-between gap-1 sm:contents">
                               <button
                                 {...listeners}
@@ -2102,6 +2167,7 @@ export default function CalendarPage() {
         services={services}
         applyMove={applyMove}
       />
+      </div>
     </AppLayout>
   );
 }
