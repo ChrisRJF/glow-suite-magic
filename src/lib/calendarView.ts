@@ -29,3 +29,9 @@ export function appointmentDisplayDate(a: { appointment_date: string; start_time
   if (`${p.hour}:${p.minute}` === st) return `${p.year}-${p.month}-${p.day}`;
   return legacy;
 }
+
+/** Mon..Sun (local calendar) of the week containing `date`; always includes `date` itself. */
+export function weekDaysFor(date: Date): Date[] {
+  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate() - ((date.getDay() + 6) % 7), 12);
+  return Array.from({ length: 7 }, (_, i) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + i, 12));
+}
