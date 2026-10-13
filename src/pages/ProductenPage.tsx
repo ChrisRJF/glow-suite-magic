@@ -92,11 +92,11 @@ export default function ProductenPage() {
         </div>
       )}
 
-      <div className="grid gap-6">
+      <div className="grid min-w-0 gap-6">
         {products.filter(p => (p.stock || 0) > 0 && (p.stock || 0) < 5).length > 0 && (
           <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
-            <div>
+            <div className="min-w-0 break-words">
               <p className="text-sm font-medium text-destructive">Lage voorraad waarschuwing</p>
               <p className="text-xs text-muted-foreground mt-1">
                 {products.filter(p => (p.stock || 0) > 0 && (p.stock || 0) < 5).map(p => `${p.name} (${p.stock})`).join(", ")}
@@ -111,7 +111,37 @@ export default function ProductenPage() {
             className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
         </div>
 
-        <div className="glass-card overflow-hidden">
+        <div className="grid min-w-0 gap-3 sm:hidden">
+          {loading ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">Laden...</p>
+          ) : filtered.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">Geen producten gevonden</p>
+          ) : filtered.map((p) => (
+            <article key={p.id} className="min-w-0 rounded-lg border border-border bg-card p-4 shadow-sm">
+              <div className="flex items-start gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-secondary"><Package className="h-4 w-4 text-primary" /></div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="break-words text-sm font-semibold">{p.name}</h3>
+                  <p className="mt-0.5 break-words text-xs text-muted-foreground">{p.category || "Geen categorie"}</p>
+                </div>
+              </div>
+              <dl className="mt-4 grid min-w-0 grid-cols-2 gap-3">
+                <div className="min-w-0"><dt className="text-xs text-muted-foreground">Prijs</dt><dd className="mt-1 break-words text-sm font-semibold">{formatEuro(p.price)}</dd></div>
+                <div className="min-w-0"><dt className="text-xs text-muted-foreground">Voorraad</dt><dd className={`mt-1 break-words text-sm font-medium ${(p.stock || 0) < 10 ? "text-destructive" : "text-success"}`}>{p.stock || 0}</dd></div>
+              </dl>
+              <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                <span className={p.is_active ? "text-muted-foreground" : "text-warning"}>{p.is_active ? "Actief" : "Inactief"}</span>
+                <span className={p.online_visible ? "inline-flex items-center gap-1 text-success" : "text-muted-foreground"}>{p.online_visible && <Globe className="h-3 w-3" />}{p.online_visible ? "Online" : "Niet online"}</span>
+              </div>
+              <div className="mt-3 flex justify-end gap-2 border-t border-border/60 pt-2">
+                <Button variant="ghost" size="icon" className="h-11 w-11 rounded-lg" aria-label={`Bewerk ${p.name}`} title="Bewerken" onClick={() => openEdit(p)}><Pencil className="h-4 w-4" /></Button>
+                <Button variant="ghost" size="icon" className="h-11 w-11 rounded-lg text-destructive hover:bg-destructive/10 hover:text-destructive" aria-label={`Verwijder ${p.name}`} title="Verwijderen" onClick={() => setConfirmDeleteId(p.id)}><Trash2 className="h-4 w-4" /></Button>
+              </div>
+            </article>
+          ))}
+        </div>
+
+        <div className="glass-card hidden overflow-hidden sm:block">
           <table className="w-full">
             <thead>
               <tr className="border-b border-border">

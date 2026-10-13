@@ -97,23 +97,23 @@ export default function HerboekingenPage() {
 
   return (
     <AppLayout title="Herboekingen" subtitle="Maximaliseer terugkerende afspraken">
-      <div className="grid gap-6">
+      <div className="grid min-w-0 gap-6">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="stat-card"><p className="text-xs text-muted-foreground">Herboekingspercentage</p><p className="text-2xl font-bold mt-1">{rebookPct}%</p><p className="text-xs text-muted-foreground mt-1">Doel: 80%</p></div>
-          <div className="stat-card"><p className="text-xs text-muted-foreground">Klanten nu toe</p><p className="text-2xl font-bold mt-1">{dueList.length}</p><p className="text-xs text-destructive mt-1">Actie vereist</p></div>
+          <div className="stat-card"><p className="text-xs text-muted-foreground">Klanten nu toe</p><p className="text-2xl font-bold mt-1">{dueList.length}</p><p className={`text-xs mt-1 ${dueList.length > 0 ? "text-destructive" : "text-muted-foreground"}`}>{dueList.length > 0 ? "Actie vereist" : "Geen actie nodig"}</p></div>
           <div className="stat-card"><p className="text-xs text-muted-foreground">Verwachte omzet</p><p className="text-2xl font-bold mt-1">{expectedRevenue.toLocaleString("nl-NL", { style: "currency", currency: "EUR", maximumFractionDigits: 0 })}</p><p className="text-xs text-success mt-1">Bij herboeking</p></div>
         </div>
 
-        <div className="glass-card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold flex items-center gap-2"><Clock className="w-4 h-4 text-warning" /> Klanten die toe zijn aan een afspraak</h3>
-            <Button size="sm" onClick={handleSendAll} disabled={busyId !== null} className="text-xs"><Send className="w-3 h-3 mr-1" /> Stuur naar allemaal</Button>
+        <div className="glass-card min-w-0 p-4 sm:p-6">
+          <div className="flex min-w-0 flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+            <h3 className="min-w-0 text-sm font-semibold flex items-center gap-2"><Clock className="w-4 h-4 shrink-0 text-warning" /> Klanten die toe zijn aan een afspraak</h3>
+            {dueList.length > 0 && <Button size="sm" onClick={handleSendAll} disabled={busyId !== null} className="w-full sm:w-auto sm:shrink-0 text-xs"><Send className="w-3 h-3 mr-1" /> Stuur naar allemaal</Button>}
           </div>
           <div className="space-y-2">
-            {dueList.length === 0 ? <p className="text-sm text-muted-foreground text-center py-4">Iedereen zit op schema 🎉</p> :
+            {dueList.length === 0 ? <p className="text-sm text-muted-foreground py-2">Geen klanten toe aan een nieuwe afspraak.</p> :
             dueList.map((c) => (
-              <div key={c.id} className="flex items-center justify-between p-3 rounded-xl bg-secondary/30 hover:bg-secondary/50 transition-colors">
-                <div>
+              <div key={c.id} className="flex min-w-0 flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-secondary/30 hover:bg-secondary/50 transition-colors">
+                <div className="min-w-0 flex-1 basis-36 break-words">
                   <p className="text-sm font-medium">{c.name}</p>
                   <p className="text-xs text-muted-foreground">
                     {REASON_LABELS[c.decision.reason] || "Toe aan een nieuwe afspraak"}
@@ -121,9 +121,9 @@ export default function HerboekingenPage() {
                   </p>
                 </div>
                 {isSent(c.id) ? (
-                  <span className="text-xs text-success flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Verstuurd</span>
+                  <span className="shrink-0 text-xs text-success flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Verstuurd</span>
                 ) : (
-                  <Button size="sm" variant="outline" disabled={busyId !== null} onClick={() => handleSend(c.id, c.name)} className="text-xs"><Send className="w-3 h-3 mr-1" /> Verstuur</Button>
+                  <Button size="sm" variant="outline" disabled={busyId !== null} onClick={() => handleSend(c.id, c.name)} className="shrink-0 text-xs"><Send className="w-3 h-3 mr-1" /> Verstuur</Button>
                 )}
               </div>
             ))}
