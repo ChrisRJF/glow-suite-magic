@@ -63,7 +63,7 @@ export function MoveAppointmentSheet({
         <DrawerHeader className="pb-2">
           <DrawerTitle>Verplaats afspraak</DrawerTitle>
           <DrawerDescription className="text-xs">
-            Kies een nieuwe datum, tijd{allowEmployeeChange ? ' of medewerker' : ''}.
+            Kies een nieuwe datum, begintijd{allowEmployeeChange ? " of medewerker" : ""}. Er wordt pas iets opgeslagen als je op Verplaatsen tikt.
           </DrawerDescription>
         </DrawerHeader>
 
