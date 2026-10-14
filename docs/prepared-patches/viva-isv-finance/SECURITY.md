@@ -24,3 +24,16 @@ A filtered view alone is false security: the base table stays readable (proven b
 3. Data step: backfill legacy keys, then strip them from `payments.metadata`.
 4. Add owner `user_id` to `platform_owners` (with MFA enrolled).
 5. ISV route (see README.md).
+
+## Review 2026-10-14 (rev 2 of the migration)
+Fixed in the proposal (not applied): `search_path = public, pg_temp` on both SECURITY DEFINER functions; new service-role-only `record_platform_commission` (tenant/demo taken from the payment row, amount <= payment, idempotent, conflicting amount raises); `legacy_margin_cents` in the report so old €0,30 margins are visible but never added to ISV earnings; EXECUTE on the trigger function revoked from PUBLIC.
+Checked, no change needed: no dynamic SQL (period regex, no injection); no frontend or salon RPC writes platform keys (all writes are service role); report returns aggregates per salon only, owner + aal2, audited.
+Known limit: the metadata guard trusts `current_user`; SECURITY DEFINER functions owned by postgres bypass it. None of the current ones copy caller jsonb into payments.metadata; any new one must not.
+
+## Route transition (one deploy per step, each needs GO)
+- viva-webhook: on paid, for ISV payments call `record_platform_commission(expected/confirmed)`; for legacy payments call it with `legacy_margin` instead of writing metadata keys. `feeAlreadyStored` = an entry exists (RPC returns 'duplicate'). If the RPC errors: do NOT ack 200; mark the event `processed=false, error=commission_failed`, return 500 so Viva retries.
+- Required with that: the duplicate-event shortcut (unique violation -> 200) must only skip events with `processed=true`; today it skips any repeat, so a failed commission would never be retried.
+- create-auto-revenue-payment: stop writing `platform_fee_cents` to metadata and stop returning it to the browser; record `expected` via the RPC after the payment row exists.
+- No mixed period: deploy the webhook and route change together after the migration; the webhook reads both the entry and the old key during the switch, so a payment created before the switch and paid after still gets exactly one margin.
+- Reconciliation query (aggregate): paid payments since the switch without a commission entry must be 0.
+- Data: backfill.sql + verify.sql in one transaction, then strip.sql only after verify passes. Recovery: delete source='legacy_backfill' and re-run; metadata stays until strip.
