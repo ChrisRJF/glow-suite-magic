@@ -1,5 +1,5 @@
 // INACTIVE: checks needed before one controlled ISV demo payment. Not imported by any entrypoint.
-import { marginDecision, type MarginDecision } from "../platformMargin.ts";
+import { marginDecision, type MarginDecision } from "./platformMargin.ts";
 
 export const ISV_ONLINE_ORDER_PATH = "/checkout/v2/isv/orders";
 

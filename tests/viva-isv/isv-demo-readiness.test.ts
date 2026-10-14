@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { assertIsvOrderTarget, auditOrderBody, isvAwareMarginDecision, confirmedIsvCommission } from "../../supabase/functions/_shared/inactive/isvDemoReadiness";
-import { prepareOnlineIsvOrder } from "../../supabase/functions/_shared/inactive/vivaIsvPrepared";
+import { assertIsvOrderTarget, auditOrderBody, isvAwareMarginDecision, confirmedIsvCommission } from "../../supabase/functions/_shared/isvDemoReadiness";
+import { prepareOnlineIsvOrder } from "../../supabase/functions/_shared/vivaIsvPrepared";
 
 const env = { VIVA_ISV_DEMO_ENABLED: "true", VIVA_ISV_CLIENT_ID: "x", VIVA_ISV_CLIENT_SECRET: "y" };
 const merchant = { user_id: "t1", viva_merchant_id: "m-1", viva_source_code: "1234", onboarding_status: "active", is_demo: true } as any;
