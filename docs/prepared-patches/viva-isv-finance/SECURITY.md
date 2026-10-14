@@ -40,3 +40,5 @@ Known limit: the metadata guard trusts `current_user`; SECURITY DEFINER function
 
 ## Status
 Step 1 applied 2026-10-14 (drizzle migration 0019, identical to the tested rev 2). Steps 2+ still need GO.
+
+Step 2 deployed 2026-10-14: viva-webhook + create-auto-revenue-payment switched (see _shared/platformMargin.ts).

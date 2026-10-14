@@ -152,7 +152,6 @@ Deno.serve(async (req) => {
         appointment_id,
         customer_id,
         deposit_cents: depositCents,
-        platform_fee_cents: PLATFORM_FEE_CENTS,
         total_amount_cents: totalCents,
         payment_type: paymentType,
       };
@@ -172,7 +171,7 @@ Deno.serve(async (req) => {
             metadata: { ...baseMeta, viva_order_code: fakeOrderCode, checkout_url: checkoutUrl, simulated: true },
           })
           .select().single();
-        return json({ success: true, demo: true, provider: "viva", checkout_url: checkoutUrl, payment, deposit_cents: depositCents, platform_fee_cents: PLATFORM_FEE_CENTS, total_amount_cents: totalCents });
+        return json({ success: true, demo: true, provider: "viva", checkout_url: checkoutUrl, payment, deposit_cents: depositCents, total_amount_cents: totalCents });
       }
 
       if (!isVivaConfigured()) {
@@ -204,7 +203,7 @@ Deno.serve(async (req) => {
             metadata: { ...baseMeta, viva_order_code: order.orderCode, checkout_url: checkoutUrl },
           })
           .select().single();
-        return json({ success: true, demo: false, provider: "viva", checkout_url: checkoutUrl, payment, deposit_cents: depositCents, platform_fee_cents: PLATFORM_FEE_CENTS, total_amount_cents: totalCents });
+        return json({ success: true, demo: false, provider: "viva", checkout_url: checkoutUrl, payment, deposit_cents: depositCents, total_amount_cents: totalCents });
       } catch (e) {
         console.error("Viva order creation failed (auto-revenue)", e);
         return json({ error: "Viva-betaling kon niet worden gestart." }, 502);
@@ -235,7 +234,6 @@ Deno.serve(async (req) => {
             appointment_id,
             customer_id,
             deposit_cents: depositCents,
-            platform_fee_cents: PLATFORM_FEE_CENTS,
             total_amount_cents: totalCents,
             checkout_url: checkoutUrl,
             simulated: true,
@@ -243,7 +241,7 @@ Deno.serve(async (req) => {
         })
         .select()
         .single();
-      return json({ success: true, demo: true, checkout_url: checkoutUrl, payment, deposit_cents: depositCents, platform_fee_cents: PLATFORM_FEE_CENTS, total_amount_cents: totalCents });
+      return json({ success: true, demo: true, checkout_url: checkoutUrl, payment, deposit_cents: depositCents, total_amount_cents: totalCents });
     }
 
     // LIVE: load Mollie connection
@@ -273,7 +271,6 @@ Deno.serve(async (req) => {
         salon_id: user_id,
         payment_type: paymentType,
         deposit_cents: depositCents,
-        platform_fee_cents: PLATFORM_FEE_CENTS,
         total_amount_cents: totalCents,
       },
     };
@@ -316,7 +313,6 @@ Deno.serve(async (req) => {
           appointment_id,
           customer_id,
           deposit_cents: depositCents,
-          platform_fee_cents: PLATFORM_FEE_CENTS,
           total_amount_cents: totalCents,
           checkout_url: checkoutUrl,
         },
@@ -330,7 +326,6 @@ Deno.serve(async (req) => {
       checkout_url: checkoutUrl,
       payment,
       deposit_cents: depositCents,
-      platform_fee_cents: PLATFORM_FEE_CENTS,
       total_amount_cents: totalCents,
     });
   } catch (error) {

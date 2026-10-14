@@ -11,7 +11,10 @@ import { getVivaTransaction } from "../_shared/viva.ts";
 import { getIsvTransactionById, hasResellerBasicCredentials } from "../_shared/vivaIsv.ts";
 
 import { diagnosticCorsHeaders, okText, parseVivaPayload, writeWebhookDebugLog } from "../_shared/vivaDiagnostics.ts";
-import { GLOWPAY_MARGIN_CENTS } from "../_shared/glowpayMargin.ts";
+import { dedupeDecision, marginDecision, recordMargin, type RpcFn } from "../_shared/platformMargin.ts";
+
+const rpcOf = (c: any): RpcFn => (fn, args) => c.rpc(fn, args);
+const retryResponse = () => new Response("retry", { status: 500, headers: { "Content-Type": "text/plain" } });
 import { evaluateDemoConfirmation } from "../_shared/demoAppointmentConfirm.ts";
 import { appendConfirmationBlock, buildConfirmationLink, claimReminderDispatch } from "../_shared/reminderEngine.ts";
 
@@ -316,17 +319,26 @@ Deno.serve(async (req) => {
       .select("id")
       .maybeSingle();
     if (insErr) {
-      // Duplicate (unique violation) -> still ack 200 so Viva stops retrying.
+      // Duplicate: skip only when the stored event was fully processed; otherwise reprocess it
+      // (all later steps are idempotent: state machine, ledger uniques, margin RPC, mail keys, claims).
       const msg = String(insErr.message || "");
       if (msg.includes("duplicate") || (insErr as any).code === "23505") {
-        console.log("[viva-webhook] duplicate event ignored");
-        return okText();
+        let q = supabase.from("viva_webhook_events").select("id, processed");
+        q = eventId ? q.eq("event_id", eventId)
+          : q.is("event_id", null).eq("order_code", orderCode).eq("transaction_id", transactionId).eq("status", status).eq("event_type", eventTypeName);
+        const { data: prev } = await q.limit(1).maybeSingle();
+        if (dedupeDecision(prev as any) === "skip") {
+          console.log("[viva-webhook] duplicate event ignored");
+          return okText();
+        }
+        console.log("[viva-webhook] reprocessing unfinished event");
+        ledgerId = (prev as any).id;
+      } else {
+        console.error("[viva-webhook] ledger insert failed", insErr);
       }
-      console.error("[viva-webhook] ledger insert failed", insErr);
-      // Still try to process — but ack regardless to avoid Viva retry storms.
     } else {
       ledgerId = inserted?.id ?? null;
-  }
+    }
   }
 
   if (eventTypeId === 1799) {
@@ -628,6 +640,22 @@ Deno.serve(async (req) => {
         from: currentStatus,
         to: targetStatus,
       }));
+      // Redelivery of a paid payment: only catch up a missing margin. No status, ledger or appointment change.
+      if (currentStatus === "paid" && targetStatus === "paid") {
+        const d = marginDecision({ isDemo: !!payment.is_demo, isPaid: true, txVerified, meta: existingMetaPre });
+        if (d === "skip_unverified") {
+          if (ledgerId) await supabase.from("viva_webhook_events").update({ processed: false, error: "commission_pending_verification" }).eq("id", ledgerId);
+          return retryResponse();
+        }
+        if (d === "record") {
+          const mr = await recordMargin(rpcOf(supabase), payment.id);
+          console.log("[viva-webhook] platform_margin", JSON.stringify({ payment_id: payment.id, result: mr.result }));
+          if (!mr.ok) {
+            if (ledgerId) await supabase.from("viva_webhook_events").update({ processed: false, error: "commission_failed" }).eq("id", ledgerId);
+            return retryResponse();
+          }
+        }
+      }
       if (ledgerId) await supabase.from("viva_webhook_events").update({ processed: true, processed_at: new Date().toISOString(), error: `noop_${currentStatus}_${targetStatus}` }).eq("id", ledgerId);
       return okText();
     }
@@ -637,9 +665,8 @@ Deno.serve(async (req) => {
     const isRefund = targetStatus === "refunded";
     const isReversedTarget = targetStatus === "reversed";
 
-    // Build merged metadata. Fees stored once (only when first paid).
+    // Build merged metadata. Platform margin is NOT stored here any more (see record_platform_commission).
     const existingMeta = existingMetaPre;
-    const feeAlreadyStored = existingMeta.platform_fee_cents != null || existingMeta.glowpay_margin_cents != null;
     const metaUpdates: Record<string, unknown> = {
       ...existingMeta,
       viva_order_code: resolvedOrderCode,
@@ -659,14 +686,20 @@ Deno.serve(async (req) => {
       metaUpdates.reversal_received_at = new Date().toISOString();
       metaUpdates.reversal_reason = systemic ? "systemic_reversal" : "manual_reversal";
     }
-    if (isPaid && !feeAlreadyStored) {
-      // Persist the GlowPay platform margin once per paid payment.
-      // Source of truth: supabase/functions/_shared/glowpayMargin.ts
-      const existingPlatformFee = existingMeta.platform_fee_cents;
-      const marginCents = typeof existingPlatformFee === "number" ? existingPlatformFee : GLOWPAY_MARGIN_CENTS;
-      metaUpdates.platform_fee_cents = marginCents;
-      metaUpdates.glowpay_margin_cents = marginCents;
-      if (providerFeeCents != null) metaUpdates.provider_fee_cents = providerFeeCents;
+    if (isPaid && providerFeeCents != null && existingMeta.provider_fee_cents == null) {
+      metaUpdates.provider_fee_cents = providerFeeCents; // Viva's own cost, unchanged behaviour
+    }
+
+    // GlowSuite margin: recorded once, only after provider verification, BEFORE any payment change.
+    const marginD = marginDecision({ isDemo: !!payment.is_demo, isPaid, txVerified, meta: existingMeta });
+    const marginPending = marginD === "skip_unverified";
+    if (marginD === "record") {
+      const mr = await recordMargin(rpcOf(supabase), payment.id);
+      console.log("[viva-webhook] platform_margin", JSON.stringify({ payment_id: payment.id, result: mr.result }));
+      if (!mr.ok) {
+        if (ledgerId) await supabase.from("viva_webhook_events").update({ processed: false, error: "commission_failed" }).eq("id", ledgerId);
+        return retryResponse();
+      }
     }
 
     const nowIso = new Date().toISOString();
@@ -910,6 +943,13 @@ Deno.serve(async (req) => {
           console.error("WhatsApp dispatch (viva webhook) error", waErr);
         }
       }
+    }
+
+    if (marginPending) {
+      // Paid but not provider-verified: keep the event open so Viva redelivers; the redelivery
+      // takes the paid->paid path, which records the margin once verified. No other effect repeats.
+      if (ledgerId) await supabase.from("viva_webhook_events").update({ processed: false, error: "commission_pending_verification" }).eq("id", ledgerId);
+      return retryResponse();
     }
 
     if (ledgerId) {
