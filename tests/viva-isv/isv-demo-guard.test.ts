@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
-import { authorizeDemoActor, orderSwitchOn, idempotencyDecision, aalFromJwt } from "../../supabase/functions/_shared/isvDemoGuard";
+import { authorizeDemoActor, orderSwitchOn, idempotencyDecision, aalFromJwt, activeAttempt, ISV_DEMO_COMMISSION_SOURCE } from "../../supabase/functions/_shared/isvDemoGuard";
 import { marginDecisionWithIsv } from "../../supabase/functions/_shared/platformMargin";
 
 const jwt = (p: object) => `x.${btoa(JSON.stringify(p)).replace(/=+$/, "")}.y`;
@@ -24,6 +24,20 @@ describe("ISV demo route guard", () => {
     expect(idempotencyDecision({ id: "p", status: "pending", orderCode: "123" })).toBe("return_existing");
     expect(idempotencyDecision({ id: "p", status: "pending", orderCode: null })).toBe("stuck_needs_review");
     expect(idempotencyDecision({ id: "p", status: "failed", orderCode: null })).toBe("stuck_needs_review");
+  });
+  it("commission source is allowed by the database check and used by the route", () => {
+    expect(["route", "viva_webhook", "viva_report", "legacy_backfill"]).toContain(ISV_DEMO_COMMISSION_SOURCE);
+    const src = readFileSync("supabase/functions/viva-isv-demo-order/index.ts", "utf8");
+    expect(src).not.toContain("isv_demo_route");
+    expect(src).toContain("_source: ISV_DEMO_COMMISSION_SOURCE");
+    expect(src.indexOf("record_platform_commission")).toBeLessThan(src.indexOf("demo-accounts.vivapayments.com"));
+  });
+  it("failed-before-Viva record is history only; other failures still block", () => {
+    const pre = { id: "old", status: "failed", orderCode: null, failureReason: "expected_fee_not_recorded" };
+    expect(idempotencyDecision(activeAttempt([pre]))).toBe("create");
+    const net = { id: "n", status: "failed", orderCode: null, failureReason: "isv_order_failed_network" };
+    expect(idempotencyDecision(activeAttempt([pre, net]))).toBe("stuck_needs_review");
+    expect(idempotencyDecision(activeAttempt([{ id: "x", status: "pending", orderCode: null, failureReason: null }]))).toBe("stuck_needs_review");
   });
   it("reads aal claim", () => {
     expect(aalFromJwt(jwt({ aal: "aal2" }))).toBe("aal2");

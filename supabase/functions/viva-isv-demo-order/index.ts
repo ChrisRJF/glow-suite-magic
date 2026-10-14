@@ -3,7 +3,7 @@
 // Merchant, amount and fee are server-side; browser input is ignored.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
-import { aalFromJwt, authorizeDemoActor, idempotencyDecision, ISV_DEMO_AMOUNT_CENTS, ISV_DEMO_KEY, orderSwitchOn } from "../_shared/isvDemoGuard.ts";
+import { aalFromJwt, authorizeDemoActor, idempotencyDecision, ISV_DEMO_AMOUNT_CENTS, ISV_DEMO_KEY, orderSwitchOn, activeAttempt, ISV_DEMO_COMMISSION_SOURCE } from "../_shared/isvDemoGuard.ts";
 import { isvCredentials, prepareOnlineIsvOrder } from "../_shared/vivaIsvPrepared.ts";
 import { assertIsvOrderTarget, auditOrderBody } from "../_shared/isvDemoReadiness.ts";
 
@@ -40,12 +40,13 @@ Deno.serve(async (req) => {
 
   // Idempotency: one demo payment per owner.
   const { data: prevRows, error: prevErr } = await service.from("payments")
-    .select("id,status,metadata").eq("user_id", userId).eq("is_demo", true)
-    .eq("metadata->>isv_demo_key", ISV_DEMO_KEY).limit(1);
+    .select("id,status,metadata,failure_reason").eq("user_id", userId).eq("is_demo", true)
+    .eq("metadata->>isv_demo_key", ISV_DEMO_KEY).order("created_at", { ascending: false }).limit(50);
   if (prevErr) return json(500, { error: "lookup_failed" });
-  const prev = prevRows?.[0] ?? null;
-  const dec = idempotencyDecision(prev ? { id: prev.id, status: prev.status, orderCode: (prev.metadata as any)?.viva_order_code ?? null } : null);
-  if (dec === "return_existing") return json(200, { reused: true, payment_id: prev!.id, order_code: (prev!.metadata as any).viva_order_code });
+  const rows = (prevRows ?? []).map((r: any) => ({ id: r.id, status: r.status, orderCode: r.metadata?.viva_order_code ?? null, failureReason: r.failure_reason ?? null }));
+  const prev = activeAttempt(rows);
+  const dec = idempotencyDecision(prev);
+  if (dec === "return_existing") return json(200, { reused: true, payment_id: prev!.id, order_code: prev!.orderCode });
   if (dec === "stuck_needs_review") return json(409, { error: "previous_attempt_needs_review", payment_id: prev!.id });
 
   // Existing demo merchant from server secrets only.
@@ -70,7 +71,7 @@ Deno.serve(async (req) => {
 
   // 2. Expected fee only in service-role storage (also the trusted ISV marker for the webhook).
   const { data: rec, error: recErr } = await service.rpc("record_platform_commission", {
-    _payment_id: pay.id, _kind: "expected", _amount_cents: prep.feeCents, _source: "isv_demo_route", _provider_reference: "",
+    _payment_id: pay.id, _kind: "expected", _amount_cents: prep.feeCents, _source: ISV_DEMO_COMMISSION_SOURCE, _provider_reference: "",
   });
   if (recErr || !["inserted", "duplicate"].includes(String(rec))) {
     await service.from("payments").update({ status: "failed", failure_reason: "expected_fee_not_recorded" }).eq("id", pay.id);
