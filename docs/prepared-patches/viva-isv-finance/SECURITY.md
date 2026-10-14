@@ -37,3 +37,6 @@ Known limit: the metadata guard trusts `current_user`; SECURITY DEFINER function
 - No mixed period: deploy the webhook and route change together after the migration; the webhook reads both the entry and the old key during the switch, so a payment created before the switch and paid after still gets exactly one margin.
 - Reconciliation query (aggregate): paid payments since the switch without a commission entry must be 0.
 - Data: backfill.sql + verify.sql in one transaction, then strip.sql only after verify passes. Recovery: delete source='legacy_backfill' and re-run; metadata stays until strip.
+
+## Status
+Step 1 applied 2026-10-14 (drizzle migration 0019, identical to the tested rev 2). Steps 2+ still need GO.
