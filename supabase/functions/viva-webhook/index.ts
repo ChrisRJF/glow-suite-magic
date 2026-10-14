@@ -339,12 +339,6 @@ Deno.serve(async (req) => {
     } else {
       ledgerId = inserted?.id ?? null;
     }
-    if (false) {
-      console.error("[viva-webhook] ledger insert failed", insErr);
-      // Still try to process — but ack regardless to avoid Viva retry storms.
-    } else {
-      ledgerId = inserted?.id ?? null;
-  }
   }
 
   if (eventTypeId === 1799) {
