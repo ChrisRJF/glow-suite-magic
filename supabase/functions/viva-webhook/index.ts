@@ -11,7 +11,7 @@ import { getVivaTransaction } from "../_shared/viva.ts";
 import { getIsvTransactionById, hasResellerBasicCredentials } from "../_shared/vivaIsv.ts";
 
 import { diagnosticCorsHeaders, okText, parseVivaPayload, writeWebhookDebugLog } from "../_shared/vivaDiagnostics.ts";
-import { dedupeDecision, marginDecision, recordMargin, type RpcFn } from "../_shared/platformMargin.ts";
+import { dedupeDecision, marginDecisionWithIsv, recordMargin, trustedIsvLookup, type RpcFn } from "../_shared/platformMargin.ts";
 
 const rpcOf = (c: any): RpcFn => (fn, args) => c.rpc(fn, args);
 const retryResponse = () => new Response("retry", { status: 500, headers: { "Content-Type": "text/plain" } });
@@ -642,7 +642,12 @@ Deno.serve(async (req) => {
       }));
       // Redelivery of a paid payment: only catch up a missing margin. No status, ledger or appointment change.
       if (currentStatus === "paid" && targetStatus === "paid") {
-        const d = marginDecision({ isDemo: !!payment.is_demo, isPaid: true, txVerified, meta: existingMetaPre });
+        const isvT = await trustedIsvLookup(supabase, payment.id);
+        if (isvT === "unknown") {
+          if (ledgerId) await supabase.from("viva_webhook_events").update({ processed: false, error: "isv_lookup_failed" }).eq("id", ledgerId);
+          return retryResponse();
+        }
+        const d = marginDecisionWithIsv({ isDemo: !!payment.is_demo, isPaid: true, txVerified, meta: existingMetaPre }, isvT);
         if (d === "skip_unverified") {
           if (ledgerId) await supabase.from("viva_webhook_events").update({ processed: false, error: "commission_pending_verification" }).eq("id", ledgerId);
           return retryResponse();
@@ -691,7 +696,12 @@ Deno.serve(async (req) => {
     }
 
     // GlowSuite margin: recorded once, only after provider verification, BEFORE any payment change.
-    const marginD = marginDecision({ isDemo: !!payment.is_demo, isPaid, txVerified, meta: existingMeta });
+    const isvTrusted = isPaid ? await trustedIsvLookup(supabase, payment.id) : false;
+    if (isvTrusted === "unknown") {
+      if (ledgerId) await supabase.from("viva_webhook_events").update({ processed: false, error: "isv_lookup_failed" }).eq("id", ledgerId);
+      return retryResponse();
+    }
+    const marginD = marginDecisionWithIsv({ isDemo: !!payment.is_demo, isPaid, txVerified, meta: existingMeta }, isvTrusted);
     const marginPending = marginD === "skip_unverified";
     if (marginD === "record") {
       const mr = await recordMargin(rpcOf(supabase), payment.id);
