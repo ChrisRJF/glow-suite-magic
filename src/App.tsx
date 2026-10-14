@@ -58,6 +58,7 @@ import LandingPage from "./pages/LandingPage";
 import PricingPage from "./pages/PricingPage";
 import MijnAbonnementPage from "./pages/MijnAbonnementPage";
 import OAuthConsentPage from "./pages/OAuthConsentPage";
+import PlatformPage from "./pages/PlatformPage";
 import { useLeadAutomation } from "@/hooks/useLeadAutomation";
 import { OnboardingGate } from "@/components/OnboardingGate";
 
@@ -171,6 +172,7 @@ const App = () => (
               <Route path="/qa-status" element={<RoleProtectedRoute allow={["eigenaar","manager","admin"]}><QAStatusPage /></RoleProtectedRoute>} />
               <Route path="/admin/email-templates" element={<RoleProtectedRoute allow={["eigenaar","manager","admin"]}><AdminEmailTemplatesPage /></RoleProtectedRoute>} />
               <Route path="/admin/demo-requests" element={<RoleProtectedRoute allow={["eigenaar","manager","admin"]}><AdminDemoRequestsPage /></RoleProtectedRoute>} />
+              <Route path="/platform" element={<PlatformPage />} />
               <Route path="*" element={<RoleProtectedRoute><NotFound /></RoleProtectedRoute>} />
             </Routes>
           </BrowserRouter>
