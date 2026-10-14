@@ -16,6 +16,7 @@ import { dedupeDecision, marginDecisionWithIsv, recordMargin, trustedIsvLookup, 
 const rpcOf = (c: any): RpcFn => (fn, args) => c.rpc(fn, args);
 const retryResponse = () => new Response("retry", { status: 500, headers: { "Content-Type": "text/plain" } });
 import { evaluateDemoConfirmation } from "../_shared/demoAppointmentConfirm.ts";
+import { confirmIsvDemoPayment, isIsvDemoPayment } from "../_shared/isvDemoConfirm.ts";
 import { appendConfirmationBlock, buildConfirmationLink, claimReminderDispatch } from "../_shared/reminderEngine.ts";
 
 const corsHeaders = diagnosticCorsHeaders;
@@ -546,10 +547,25 @@ Deno.serve(async (req) => {
     }
 
 
+    if (payment.is_demo && isIsvDemoPayment(payment as any)) {
+      // Secured ISV demo route only: Viva ISV API verification, then pending -> paid once.
+      // No ledger, revenue, margin or confirmed commission.
+      if (status !== "paid" || !transactionId) {
+        if (ledgerId) await supabase.from("viva_webhook_events").update({ processed: true, processed_at: new Date().toISOString(), error: `isv_demo_ignored_${status}` }).eq("id", ledgerId);
+        return okText();
+      }
+      const r = await confirmIsvDemoPayment(supabase, Deno.env.toObject(), payment as any, transactionId, eventMerchantId || null);
+      if (ledgerId) await supabase.from("viva_webhook_events").update(
+        r.result === "unavailable" ? { processed: false, error: `isv_demo_${r.reason}` }
+          : { processed: true, processed_at: new Date().toISOString(), error: `isv_demo_${r.reason}` },
+      ).eq("id", ledgerId);
+      return r.result === "unavailable" ? retryResponse() : okText();
+    }
+
     if (payment.is_demo) {
       // Demo appointment checkout only: record a Viva-API-verified demo approval in metadata.
       // Status, ledger, appointment, stock and customer spend stay untouched.
-      let demoNote: string | null = null;
+      let demoNote: string | null = "demo_not_applicable";
       const pm = (payment.metadata as any) || {};
       if (status === "paid" && pm.checkout === "appointment_checkout" && pm.environment === "demo") {
         try {
