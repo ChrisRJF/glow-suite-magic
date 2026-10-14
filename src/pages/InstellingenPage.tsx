@@ -33,6 +33,7 @@ import { GlowPaySetupCard } from "@/components/GlowPaySetupCard";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
 import { MfaSettingsCard } from "@/components/MfaSettingsCard";
+import { IsvDemoOrderButton } from "@/components/IsvDemoOrderButton";
 
 type OpeningHours = Record<string, { open: string; close: string; enabled: boolean }>;
 
@@ -1509,7 +1510,7 @@ export default function InstellingenPage() {
           </div>
         )}
 
-        {activeTab === "beveiliging" && <MfaSettingsCard />}
+        {activeTab === "beveiliging" && <div className="space-y-4"><MfaSettingsCard /><IsvDemoOrderButton /></div>}
 
         {activeTab !== "import" && activeTab !== "beveiliging" && <div className="pt-2">
           <Button onClick={handleSave} className="w-full" size="lg" disabled={saveLoading}>
