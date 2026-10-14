@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { assertIsvOrderTarget, auditOrderBody, isvAwareMarginDecision, confirmedIsvCommission } from "../../supabase/functions/_shared/inactive/isvDemoReadiness";
-import { prepareOnlineIsvOrder } from "../../supabase/functions/_shared/inactive/vivaIsvPrepared";
+import { assertIsvOrderTarget, auditOrderBody, isvAwareMarginDecision, confirmedIsvCommission } from "../../supabase/functions/_shared/isvDemoReadiness";
+import { prepareOnlineIsvOrder } from "../../supabase/functions/_shared/vivaIsvPrepared";
 
 const env = { VIVA_ISV_DEMO_ENABLED: "true", VIVA_ISV_CLIENT_ID: "x", VIVA_ISV_CLIENT_SECRET: "y" };
 const merchant = { user_id: "t1", viva_merchant_id: "m-1", viva_source_code: "1234", onboarding_status: "active", is_demo: true } as any;
@@ -24,8 +24,10 @@ describe("ISV demo readiness", () => {
     expect(a).toEqual({ amount: 100, isvAmount: 35, sourceCode: "1234", has_isvAmount: true, isvAmount_is_integer_cents: true });
   });
   it("ISV payment never gets the legacy €0,30 margin", () => {
-    expect(isvAwareMarginDecision({ isDemo: false, isPaid: true, txVerified: true, meta: { isv: true } })).toBe("not_applicable");
-    expect(isvAwareMarginDecision({ isDemo: false, isPaid: true, txVerified: true, meta: {} })).toBe("record");
+    expect(isvAwareMarginDecision({ isDemo: false, isPaid: true, txVerified: true, meta: {} }, true)).toBe("not_applicable");
+    expect(isvAwareMarginDecision({ isDemo: false, isPaid: true, txVerified: true, meta: {} }, false)).toBe("record");
+    // salon-written metadata marker is ignored
+    expect(isvAwareMarginDecision({ isDemo: false, isPaid: true, txVerified: true, meta: { isv: true } }, false)).toBe("record");
   });
   it("confirmed commission only with verified, paid, matching tx and valid cents", () => {
     const base = { txVerified: true, paymentStatus: "paid", paymentTxId: "t", eventTxId: "t", feeCents: 35, paymentAmountCents: 100 };

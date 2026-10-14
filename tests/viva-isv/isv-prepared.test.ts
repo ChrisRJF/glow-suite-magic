@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import {
   onlineIsvFeeCents, terminalIsvFeeCents, isvFeeOwedCents, resolvePlatformFeeCents,
   prepareTerminalIsvSale, prepareOnlineIsvOrder, isvCredentials,
-} from "../../supabase/functions/_shared/inactive/vivaIsvPrepared";
+} from "../../supabase/functions/_shared/vivaIsvPrepared";
 
 const env = { VIVA_ISV_DEMO_ENABLED: "true", VIVA_ENVIRONMENT: "demo", VIVA_ISV_CLIENT_ID: "synthetic-id", VIVA_ISV_CLIENT_SECRET: "synthetic-secret" };
 const merchant = { is_demo: true, onboarding_status: "connected", viva_merchant_id: "synthetic-merchant", viva_source_code: "synthetic-src", terminals_enabled: true };

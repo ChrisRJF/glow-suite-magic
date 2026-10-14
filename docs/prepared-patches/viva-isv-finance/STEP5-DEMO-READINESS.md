@@ -27,3 +27,8 @@ Module: `supabase/functions/_shared/inactive/isvDemoReadiness.ts`. Test: `tests/
 4. Check reseller view "Bedrag ISV" and whether 1799 arrives with a fee field.
 5. Only if Viva confirms: `confirmed` entry of 35 via `confirmedIsvCommission` rules.
 6. Salon session cannot read platform_commission_entries (existing tests).
+
+## Step 6 status (2026-10-14)
+- viva-webhook: legacy margin skipped when a service-role 'expected' commission entry exists (trusted ISV marker); lookup error = retry. Deployed.
+- viva-isv-demo-order deployed: platform owner + aal2, switch VIVA_ISV_DEMO_ENABLED unset (off) checked before any write or Viva call. Merchant from VIVA_MERCHANT_ID/VIVA_SOURCE_CODE.
+- 1799 subscription NOT changed: viva-register-webhook-events registers per Viva account via merchant/POS credentials; per-merchant scope not provable.

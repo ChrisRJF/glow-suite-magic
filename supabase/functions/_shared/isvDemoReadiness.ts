@@ -1,5 +1,5 @@
 // INACTIVE: checks needed before one controlled ISV demo payment. Not imported by any entrypoint.
-import { marginDecision, type MarginDecision } from "../platformMargin.ts";
+import { marginDecisionWithIsv, type MarginDecision } from "./platformMargin.ts";
 
 export const ISV_ONLINE_ORDER_PATH = "/checkout/v2/isv/orders";
 
@@ -24,10 +24,9 @@ export function auditOrderBody(body: Record<string, unknown>): Record<string, un
   return out;
 }
 
-/** ISV payments earn the ISV fee only; the legacy €0,30 margin must never be added. */
-export function isvAwareMarginDecision(i: Parameters<typeof marginDecision>[0]): MarginDecision {
-  if (i.meta && (i.meta.isv === true || i.meta.channel_mode === "isv")) return "not_applicable";
-  return marginDecision(i);
+/** ISV payments earn the ISV fee only; trustedIsv must come from server-side storage, never metadata. */
+export function isvAwareMarginDecision(i: Parameters<typeof marginDecisionWithIsv>[0], trustedIsv: boolean): MarginDecision {
+  return marginDecisionWithIsv(i, trustedIsv);
 }
 
 /** Confirmed ISV commission needs: verified tx, paid, matching tx id, integer cents within 0..amount. */

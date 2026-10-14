@@ -38,3 +38,21 @@ export function dedupeDecision(existing: { processed?: boolean | null } | null):
 
 // Keys the webhook must never (re)write into payments.metadata for new commissions.
 export const PLATFORM_MARGIN_META_KEYS = ["platform_fee_cents", "glowpay_margin_cents"] as const;
+
+// ISV payments earn the ISV fee only, never the legacy margin. The ISV marker is TRUSTED only when it
+// comes from the service-role-only platform_commission_entries ('expected' row written by the server
+// demo route). payments.metadata is salon-writable and is never used for this decision.
+export function marginDecisionWithIsv(i: Parameters<typeof marginDecision>[0], trustedIsv: boolean): MarginDecision {
+  if (trustedIsv) return "not_applicable";
+  return marginDecision(i);
+}
+
+type Db = { from: (t: string) => any };
+// Fail-safe: on lookup error return "unknown" so the caller retries instead of booking a margin.
+export async function trustedIsvLookup(db: Db, paymentId: string): Promise<boolean | "unknown"> {
+  try {
+    const { data, error } = await db.from("platform_commission_entries").select("id").eq("payment_id", paymentId).eq("kind", "expected").limit(1);
+    if (error) return "unknown";
+    return Array.isArray(data) && data.length > 0;
+  } catch { return "unknown"; }
+}
