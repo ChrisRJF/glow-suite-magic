@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.dossier-ai]
 verify_jwt = true
+
+[functions.viva-isv-webhook]
+verify_jwt = false
