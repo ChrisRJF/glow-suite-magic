@@ -34,7 +34,8 @@ SELECT t('salon payments.metadata carries no commission', NOT EXISTS (SELECT 1 F
 SELECT t('salon cannot forge platform key on update', raises($q$UPDATE payments SET metadata = metadata || '{"isv_fee_confirmed_cents":0}' $q$, 'platform_field_forbidden'));
 SELECT t('salon cannot forge platform key on insert', raises($q$INSERT INTO payments (id,user_id,amount,is_demo,provider,status,metadata) VALUES (gen_random_uuid(),'aaaaaaaa-0000-0000-0000-000000000000',1,false,'viva','pending','{"payment_kind":"isv"}')$q$, 'platform_field_forbidden'));
 SELECT t('salon normal payment insert still works', NOT raises($q$INSERT INTO payments (id,user_id,amount,is_demo,provider,status,metadata) VALUES ('00000000-0000-0000-0000-0000000000a2','aaaaaaaa-0000-0000-0000-000000000000',5,false,'viva','pending','{"note":"x"}')$q$, 'x'));
-SELECT t('salon refund status update still works', NOT raises($q$UPDATE payments SET status='partially_refunded', metadata = metadata || '{"note":"r"}' WHERE id='00000000-0000-0000-0000-0000000000a1'$q$, 'x') AND (SELECT status FROM payments WHERE id='00000000-0000-0000-0000-0000000000a1')='partially_refunded');
+UPDATE payments SET status='partially_refunded', metadata = metadata || '{"note":"r"}' WHERE id='00000000-0000-0000-0000-0000000000a1';
+SELECT t('salon refund status update still works', (SELECT status FROM payments WHERE id='00000000-0000-0000-0000-0000000000a1')='partially_refunded');
 SELECT t('salon owner: platform report refused', raises($q$SELECT * FROM platform_finance_report('2026-10')$q$, 'not_platform_owner'));
 SELECT t('salon owner: tenant id manipulation refused', raises($q$SELECT * FROM platform_finance_report('2026-10','bbbbbbbb-0000-0000-0000-000000000000')$q$, 'not_platform_owner'));
 SELECT set_config('test.uid','',false);
