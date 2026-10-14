@@ -18,3 +18,4 @@
 - Intake form e-mails go only through customer-forms + _shared/formRequestEmail.ts: hardcoded tenant allow-list FORM_EMAIL_TENANTS plus secret FORM_EMAIL_RECIPIENTS (unset = deny), the customer_email_controls stop switch, and resend token rotation committed only after provider acceptance; why: tests must never reach real customers and a failed send must not invalidate a working link.
 
 - Viva ISV payment requests are prepared only in supabase/functions/_shared/inactive/vivaIsvPrepared.ts (ISV credentials only, demo flag VIVA_ISV_DEMO_ENABLED, no merchant-credential fallback); why: live Viva routes must stay unchanged until a separate GO.
+- ISV finance rules (payment row before order, webhook decisions, salon view without platform fields, MFA platform-owner check, ledger-based reports) are prepared in _shared/inactive/isvFinance.ts; why: commission is platform data and must never reach salons or be counted before Viva confirms it.
