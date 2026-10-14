@@ -172,8 +172,9 @@ async function handleSaasSubscriptionEvent(
 
 
 function mapVivaStatus(statusId: string, eventTypeId?: number): "paid" | "failed" | "expired" | "cancelled" | "pending" | "refunded" | "reversed" {
+  if (eventTypeId === 1799) return "pending"; // Transaction Price Calculated: fee info only
   if (eventTypeId === 1797) return "reversed";
-  if (eventTypeId === 1798 || eventTypeId === 1799) return "refunded";
+  if (eventTypeId === 1798) return "refunded";
   if (statusId === "F" || eventTypeId === 1796) return "paid";
   if (statusId === "E") return "failed";
   if (statusId === "X") return "cancelled";
@@ -326,6 +327,16 @@ Deno.serve(async (req) => {
     } else {
       ledgerId = inserted?.id ?? null;
   }
+  }
+
+  if (eventTypeId === 1799) {
+    // Transaction Price Calculated: fee info only. No payment, refund, ledger or appointment change.
+    if (ledgerId) {
+      await supabase.from("viva_webhook_events")
+        .update({ processed: true, processed_at: new Date().toISOString(), error: "log_only_price_calculated" })
+        .eq("id", ledgerId);
+    }
+    return okText();
   }
 
   // ---- Onboarding / connected account events (additive, never blocks payment flow) ----
