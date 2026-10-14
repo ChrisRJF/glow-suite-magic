@@ -26,7 +26,20 @@ export function aalFromJwt(jwt: string): string | null {
   } catch { return null; }
 }
 
-export type Existing = { id: string; status: string; orderCode: string | null } | null;
+export type Existing = { id: string; status: string; orderCode: string | null; failureReason?: string | null } | null;
+
+/** Allowed by platform_commission_entries_source_check: a server route writes the expected fee. */
+export const ISV_DEMO_COMMISSION_SOURCE = "route";
+
+/** Failed before any Viva call: no order can exist, so it never blocks a new, separate attempt. */
+export function stoppedBeforeViva(e: NonNullable<Existing>): boolean {
+  return e.status === "failed" && !e.orderCode && e.failureReason === "expected_fee_not_recorded";
+}
+
+/** Pick the attempt that matters; attempts that provably stopped before Viva are history only. */
+export function activeAttempt(rows: NonNullable<Existing>[]): Existing {
+  return rows.find((r) => !stoppedBeforeViva(r)) ?? null;
+}
 
 /** A repeat request never creates a second order. */
 export function idempotencyDecision(existing: Existing): "create" | "return_existing" | "stuck_needs_review" {
