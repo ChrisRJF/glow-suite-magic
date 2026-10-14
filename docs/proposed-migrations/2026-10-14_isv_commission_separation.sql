@@ -56,7 +56,7 @@ CREATE OR REPLACE FUNCTION public.platform_finance_report(_period text, _tenant_
 RETURNS TABLE(tenant_id uuid, gross_cents bigint, refund_cents bigint, net_cents bigint,
   expected_cents bigint, confirmed_cents bigint, reversed_cents bigint, unconfirmed_count bigint,
   earned_cents bigint, earned_status text)
-LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public AS $$
 DECLARE uid uuid := auth.uid();
 BEGIN
   IF uid IS NULL OR NOT EXISTS (SELECT 1 FROM public.platform_owners o WHERE o.user_id = uid) THEN

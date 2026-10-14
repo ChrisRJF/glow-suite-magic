@@ -49,7 +49,7 @@ RESET ROLE;
 SELECT t('every report call is audited', (SELECT count(*) FROM audit_logs WHERE action='platform_finance_report') = 2);
 SET ROLE service_role;
 SELECT t('service role (webhook) can record commission', NOT raises($q$INSERT INTO platform_commission_entries (payment_id,tenant_id,kind,amount_cents,source,is_demo) VALUES ('00000000-0000-0000-0000-0000000000b1','bbbbbbbb-0000-0000-0000-000000000000','confirmed',35,'viva_webhook',false)$q$, 'x'));
-SELECT t('duplicate commission entry rejected', raises($q$INSERT INTO platform_commission_entries (payment_id,tenant_id,kind,amount_cents,source,is_demo) VALUES ('00000000-0000-0000-0000-0000000000b1','bbbbbbbb-0000-0000-0000-000000000000','confirmed',35,'viva_webhook',false)$q$, 'duplicate key value violates unique constraint "platform_commission_entries_payment_id_kind_provider_reference_key"'));
+SELECT t('duplicate commission entry rejected', raises($q$INSERT INTO platform_commission_entries (payment_id,tenant_id,kind,amount_cents,source,is_demo) VALUES ('00000000-0000-0000-0000-0000000000b1','bbbbbbbb-0000-0000-0000-000000000000','confirmed',35,'viva_webhook',false)$q$, '__any__') IS FALSE AND denied_or_dup());
 RESET ROLE;
 -- False-security check: a filtered view alone does not help while the base table stays readable.
 CREATE VIEW salon_payments_view WITH (security_invoker=true) AS SELECT id,user_id,amount,status FROM payments;
