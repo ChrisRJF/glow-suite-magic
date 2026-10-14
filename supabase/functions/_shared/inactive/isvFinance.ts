@@ -4,7 +4,7 @@
 // Pure functions only: no env, no network, no database. Amounts in cents.
 // Design: docs/prepared-patches/viva-isv-finance/README.md
 // ============================================================================
-import { onlineIsvFeeCents, terminalIsvFeeCents } from "./vivaIsvPrepared.ts";
+import { onlineIsvFeeCents, terminalIsvFeeCents } from "../vivaIsvPrepared.ts";
 
 export type Channel = "online" | "terminal";
 export type CommissionStatus = "expected" | "confirmed" | "reversed" | "unconfirmed" | "not_owed";
