@@ -1,6 +1,6 @@
 // Guard rules for the temporary ISV demo order route. Pure and testable.
 
-export const ISV_DEMO_KEY = "isv-demo-step6";
+export const ISV_DEMO_KEY = "isv-demo-e2e-1799";
 export const ISV_DEMO_AMOUNT_CENTS = 100;
 
 export type Actor = { userId: string | null; isPlatformOwner: boolean; aal: string | null };
