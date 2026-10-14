@@ -3,7 +3,7 @@
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"; ROOT="$(cd "$HERE/../.." && pwd)"
 BASE=/tmp/gs-pg-commission; U=$(id -u lovable 2>/dev/null || echo 4711)
-rm -rf "$BASE"; mkdir -p "$BASE/data" "$BASE/sock"; cp "$ROOT/docs/proposed-migrations/2026-10-14_isv_commission_separation.sql" "$ROOT/docs/proposed-migrations/2026-10-14_isv_commission_backfill.sql" "$ROOT/docs/proposed-migrations/2026-10-14_isv_commission_strip.sql" "$HERE/commission-separation-tests.sql" "$BASE/"; chown -R $U:$U "$BASE"
+rm -rf "$BASE"; mkdir -p "$BASE/data" "$BASE/sock"; cp "$ROOT/docs/proposed-migrations/2026-10-14_isv_commission_separation.sql" "$ROOT/docs/proposed-migrations/2026-10-14_isv_commission_backfill.sql" "$ROOT/docs/proposed-migrations/2026-10-14_isv_commission_strip.sql" "$ROOT/docs/proposed-migrations/2026-10-14_isv_commission_verify.sql" "$HERE/commission-separation-tests.sql" "$BASE/"; chown -R $U:$U "$BASE"
 AS() { env -i PATH="$PATH" HOME=/tmp setpriv --reuid=$U --regid=$U --clear-groups "$@"; }
 AS initdb -D "$BASE/data" -U postgres -A trust >/dev/null
 AS pg_ctl -D "$BASE/data" -l "$BASE/log" -o "-c listen_addresses='' -k $BASE/sock" -w start >/dev/null

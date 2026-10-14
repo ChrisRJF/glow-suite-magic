@@ -112,24 +112,27 @@ INSERT INTO payments (id,user_id,amount,is_demo,provider,status,paid_at,metadata
 UPDATE payments SET paid_at='2026-10-14' WHERE id='00000000-0000-0000-0000-0000000000b1';
 \o /dev/null
 \i 2026-10-14_isv_commission_backfill.sql
+\i 2026-10-14_isv_commission_verify.sql
 \o
 SELECT t('backfill: only paid valid rows copied (b1,c1,c2)', (SELECT count(*) FROM platform_commission_entries WHERE kind='legacy_margin') = 3
   AND (SELECT sum(amount_cents) FROM platform_commission_entries WHERE kind='legacy_margin') = 90);
 SELECT t('backfill: metadata not removed', (SELECT count(*) FROM payments WHERE metadata ? 'platform_fee_cents') = 5);
 \o /dev/null
 \i 2026-10-14_isv_commission_backfill.sql
+\i 2026-10-14_isv_commission_verify.sql
 \o
 SELECT t('backfill re-run: no duplicates', (SELECT count(*) FROM platform_commission_entries WHERE kind='legacy_margin') = 3);
 DELETE FROM platform_commission_entries WHERE payment_id='00000000-0000-0000-0000-0000000000c2' AND kind='legacy_margin';
 \o /dev/null
 \i 2026-10-14_isv_commission_backfill.sql
+\i 2026-10-14_isv_commission_verify.sql
 \o
 SELECT t('partial backfill: re-run restores missing entry', (SELECT count(*) FROM platform_commission_entries WHERE kind='legacy_margin') = 3);
 INSERT INTO platform_commission_entries (payment_id,tenant_id,kind,amount_cents,source,provider_reference,is_demo)
  VALUES ('00000000-0000-0000-0000-0000000000c1','aaaaaaaa-0000-0000-0000-000000000000','legacy_margin',99,'legacy_backfill','x',false);
 DO $$ BEGIN
   BEGIN
-    EXECUTE pg_read_file('2026-10-14_isv_commission_backfill.sql');
+    EXECUTE pg_read_file('/tmp/gs-pg-commission/2026-10-14_isv_commission_verify.sql');
     PERFORM t('verify detects mismatch', false);
   EXCEPTION WHEN OTHERS THEN PERFORM t('verify detects mismatch', SQLERRM LIKE 'backfill_mismatch%'); END;
 END $$;

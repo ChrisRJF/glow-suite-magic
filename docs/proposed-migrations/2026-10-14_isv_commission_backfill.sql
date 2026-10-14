@@ -21,19 +21,7 @@ WHERE p.paid_at IS NOT NULL
   AND coalesce(p.metadata->>'glowpay_margin_cents', p.metadata->>'platform_fee_cents') ~ '^\d{1,6}$'
 ON CONFLICT (payment_id, kind, provider_reference) DO NOTHING;
 
--- C. Verify: totals before == after; raises (and the caller's transaction rolls back) on mismatch.
-DO $$
-DECLARE src bigint; dst bigint; src_n bigint; dst_n bigint;
-BEGIN
-  SELECT coalesce(sum(coalesce(metadata->>'glowpay_margin_cents', metadata->>'platform_fee_cents')::int),0), count(*)
-    INTO src, src_n FROM public.payments
-   WHERE paid_at IS NOT NULL AND coalesce(metadata->>'glowpay_margin_cents', metadata->>'platform_fee_cents') ~ '^\d{1,6}$';
-  SELECT coalesce(sum(e.amount_cents),0), count(*) INTO dst, dst_n
-    FROM public.platform_commission_entries e WHERE e.kind = 'legacy_margin';
-  IF src <> dst OR src_n <> dst_n THEN
-    RAISE EXCEPTION 'backfill_mismatch source=% / % entries=% / %', src, src_n, dst, dst_n;
-  END IF;
-END $$;
+-- C. Verify: run 2026-10-14_isv_commission_verify.sql in the same transaction.
 
 -- Recovery after a partial or wrong run (keeps all metadata, so nothing is lost):
 --   DELETE FROM public.platform_commission_entries WHERE source = 'legacy_backfill';  then re-run B + C.
