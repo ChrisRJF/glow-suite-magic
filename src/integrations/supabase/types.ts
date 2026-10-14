@@ -3378,6 +3378,60 @@ export type Database = {
         }
         Relationships: []
       }
+      platform_commission_entries: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          id: string
+          is_demo: boolean
+          kind: string
+          payment_id: string
+          provider_reference: string
+          source: string
+          tenant_id: string
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          id?: string
+          is_demo: boolean
+          kind: string
+          payment_id: string
+          provider_reference?: string
+          source: string
+          tenant_id: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          id?: string
+          is_demo?: boolean
+          kind?: string
+          payment_id?: string
+          provider_reference?: string
+          source?: string
+          tenant_id?: string
+        }
+        Relationships: []
+      }
+      platform_owners: {
+        Row: {
+          granted_at: string
+          note: string | null
+          user_id: string
+        }
+        Insert: {
+          granted_at?: string
+          note?: string | null
+          user_id: string
+        }
+        Update: {
+          granted_at?: string
+          note?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       privacy_requests: {
         Row: {
           completed_at: string | null
@@ -6085,10 +6139,36 @@ export type Database = {
         }
         Returns: Json
       }
+      platform_finance_report: {
+        Args: { _period: string; _tenant_id?: string }
+        Returns: {
+          confirmed_cents: number
+          earned_cents: number
+          earned_status: string
+          expected_cents: number
+          gross_cents: number
+          legacy_margin_cents: number
+          net_cents: number
+          refund_cents: number
+          reversed_cents: number
+          tenant_id: string
+          unconfirmed_count: number
+        }[]
+      }
       prevent_live_demo_reset: { Args: { _user_id: string }; Returns: boolean }
       process_paid_webshop_order_stock: {
         Args: { _order_id: string }
         Returns: boolean
+      }
+      record_platform_commission: {
+        Args: {
+          _amount_cents: number
+          _kind: string
+          _payment_id: string
+          _provider_reference?: string
+          _source: string
+        }
+        Returns: string
       }
       record_provider_payment: {
         Args: {
