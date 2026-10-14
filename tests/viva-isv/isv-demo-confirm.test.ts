@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { evaluateIsvDemoConfirmation, confirmIsvDemoPayment, isIsvDemoPayment } from "../../supabase/functions/_shared/isvDemoConfirm";
 
 const pay = (o: any = {}) => ({ id: "p1", status: "pending", is_demo: true, payment_type: "isv_demo", viva_merchant_id: "m1",
-  metadata: { isv_demo_key: "isv-demo-step6", channel: "online", viva_order_code: "42" }, ...o });
+  metadata: { isv_demo_key: "isv-demo-e2e-1799", channel: "online", viva_order_code: "42" }, ...o });
 const tx = (o: any = {}) => ({ statusId: "F", amountCents: 100, currencyCode: "978", orderCode: "42", merchantId: "m1", ...o });
 const ev = (o: any = {}) => evaluateIsvDemoConfirmation({ payment: pay(), hasExpectedCommission: true, eventMerchantId: "m1", transactionId: "t", tx: tx(), ...o }, "now");
 
