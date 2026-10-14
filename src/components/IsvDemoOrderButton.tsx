@@ -5,9 +5,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 
-const isPreviewHost = () => {
-  const h = window.location.hostname;
-  return h === "localhost" || h.startsWith("id-preview--") || h.endsWith(".lovableproject.com");
+export const isPreviewHost = (hostname = window.location.hostname) => {
+  const h = hostname.toLowerCase();
+  const projectId = "2c24cef4-6f68-433a-8f47-8a26e80779d7";
+  const previewSurface = new RegExp(`^(?:id-preview(?:-[a-z0-9]+)?--|project--)?${projectId}(?:-dev)?\\.(?:lovable\\.app|lovableproject\\.com|lovableproject-dev\\.com|gpt-eng\\.com|gptengineer\\.run)$`);
+  return h === "localhost" || previewSurface.test(h);
 };
 
 const MESSAGES: Record<string, string> = {
