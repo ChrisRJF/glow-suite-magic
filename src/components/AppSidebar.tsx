@@ -12,6 +12,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { useUserRole, canAccessRoute } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
 import { GlowSuiteLogo } from "@/components/GlowSuiteLogo";
+import { usePlatformAccess } from "@/hooks/usePlatformAccess";
 
 interface NavItem {
   label: string;
@@ -25,6 +26,8 @@ interface NavItem {
   live?: boolean;
   ownerOnly?: boolean;
   staffOnly?: boolean;
+  /** Visible only to the platform owner; server functions enforce access. */
+  platformOnly?: boolean;
 }
 
 interface NavGroup {
@@ -98,6 +101,7 @@ const navGroups: NavGroup[] = [
   {
     title: "Beheer",
     items: [
+      { label: "Platform", icon: Crown, path: "/platform", platformOnly: true },
       { label: "Instellingen", icon: Settings, path: "/instellingen" },
       { label: "Support", icon: HelpCircle, path: "/support" },
       { label: "Launch Status", icon: Rocket, path: "/launch-status", staffOnly: true },
@@ -117,6 +121,7 @@ export function AppSidebar() {
   const { user, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { roles, isOwner } = useUserRole();
+  const { owner: isPlatformOwner } = usePlatformAccess();
 
   const isStaffAdmin = roles.some((r) => ["eigenaar", "manager", "admin"].includes(r));
 
@@ -126,13 +131,14 @@ export function AppSidebar() {
         .map((group) => ({
           ...group,
           items: group.items.filter((item) => {
+            if (item.platformOnly) return isPlatformOwner;
             if (item.ownerOnly && !isOwner) return false;
             if (item.staffOnly && !isStaffAdmin) return false;
             return canAccessRoute(item.routePath ?? item.path, roles);
           }),
         }))
         .filter((group) => group.items.length > 0),
-    [roles, isOwner, isStaffAdmin]
+    [roles, isOwner, isStaffAdmin, isPlatformOwner]
   );
 
   const isItemActive = (item: NavItem) => {

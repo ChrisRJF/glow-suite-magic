@@ -6139,6 +6139,7 @@ export type Database = {
         }
         Returns: Json
       }
+      platform_access_status: { Args: never; Returns: Json }
       platform_finance_report: {
         Args: { _period: string; _tenant_id?: string }
         Returns: {
@@ -6155,6 +6156,9 @@ export type Database = {
           unconfirmed_count: number
         }[]
       }
+      platform_overview: { Args: never; Returns: Json }
+      platform_require_owner_aal2: { Args: never; Returns: string }
+      platform_usage: { Args: { _period: string }; Returns: Json }
       prevent_live_demo_reset: { Args: { _user_id: string }; Returns: boolean }
       process_paid_webshop_order_stock: {
         Args: { _order_id: string }
