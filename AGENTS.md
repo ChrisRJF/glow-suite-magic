@@ -19,3 +19,4 @@
 
 - Viva ISV payment requests are prepared only in supabase/functions/_shared/inactive/vivaIsvPrepared.ts (ISV credentials only, demo flag VIVA_ISV_DEMO_ENABLED, no merchant-credential fallback); why: live Viva routes must stay unchanged until a separate GO.
 - ISV finance rules (payment row before order, webhook decisions, salon view without platform fields, MFA platform-owner check, ledger-based reports) are prepared in _shared/inactive/isvFinance.ts; why: commission is platform data and must never reach salons or be counted before Viva confirms it.
+- Platform commission is designed to live only in service-role tables (platform_commission_entries, platform_owners) read via an MFA-gated audited RPC, never in salon-readable payments.metadata; proposal in docs/proposed-migrations/2026-10-14_isv_commission_separation.sql; why: RLS cannot hide jsonb keys and a view over a readable base table is false security.
