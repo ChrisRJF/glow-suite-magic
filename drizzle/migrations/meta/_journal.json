@@ -134,6 +134,13 @@
       "when": 1791823249018,
       "tag": "0018_kassa_practice",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1791997074509,
+      "tag": "0019_isv_commission_separation",
+      "breakpoints": true
     }
   ]
 }
