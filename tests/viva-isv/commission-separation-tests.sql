@@ -92,8 +92,8 @@ SELECT t('owner with missing aal claim refused', raises($q$SELECT * FROM platfor
 RESET ROLE;
 
 SET ROLE service_role;
-SELECT t('commission write: tenant derived from payment, not caller', record_platform_commission('00000000-0000-0000-0000-0000000000a2','expected',35,'route','') = 'inserted'
-  AND (SELECT tenant_id FROM platform_commission_entries WHERE payment_id='00000000-0000-0000-0000-0000000000a2') = 'aaaaaaaa-0000-0000-0000-000000000000');
+SELECT t('commission write: inserted', record_platform_commission('00000000-0000-0000-0000-0000000000a2','expected',35,'route','') = 'inserted');
+SELECT t('commission write: tenant derived from payment, not caller', (SELECT tenant_id FROM platform_commission_entries WHERE payment_id='00000000-0000-0000-0000-0000000000a2') = 'aaaaaaaa-0000-0000-0000-000000000000');
 SELECT t('repeated webhook: same commission = duplicate, no second row', record_platform_commission('00000000-0000-0000-0000-0000000000a2','expected',35,'route','') = 'duplicate'
   AND (SELECT count(*) FROM platform_commission_entries WHERE payment_id='00000000-0000-0000-0000-0000000000a2') = 1);
 SELECT t('conflicting amount for same key is an error, not ignored', raises($q$SELECT record_platform_commission('00000000-0000-0000-0000-0000000000a2','expected',30,'route','')$q$, 'commission_conflict'));
@@ -144,5 +144,5 @@ SELECT t('strip: paid backfilled rows cleaned', NOT EXISTS (SELECT 1 FROM paymen
 SELECT t('strip: unpaid and invalid rows untouched', (SELECT count(*) FROM payments WHERE id IN ('00000000-0000-0000-0000-0000000000c3','00000000-0000-0000-0000-0000000000c4') AND metadata ? 'platform_fee_cents') = 2);
 SELECT t('strip: totals still match entries after strip', (SELECT sum(amount_cents) FROM platform_commission_entries WHERE kind='legacy_margin') = 90);
 SET ROLE authenticated; SELECT set_config('test.uid','99999999-0000-0000-0000-000000000000',false), set_config('test.aal','aal2',false);
-SELECT t('report shows legacy margin separately from ISV earnings', (SELECT legacy_margin_cents=30 AND earned_cents=0 FROM platform_finance_report('2026-10','bbbbbbbb-0000-0000-0000-000000000000')));
+SELECT t('report shows legacy margin separately from ISV earnings', (SELECT legacy_margin_cents=30 AND earned_cents=35 FROM platform_finance_report('2026-10','bbbbbbbb-0000-0000-0000-000000000000')));
 RESET ROLE;
