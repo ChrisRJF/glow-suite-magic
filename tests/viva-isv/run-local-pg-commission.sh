@@ -25,7 +25,7 @@ CREATE TABLE payment_ledger (tenant_id uuid, payment_id uuid, kind text, amount_
 CREATE TABLE audit_logs (id uuid DEFAULT gen_random_uuid(), user_id uuid NOT NULL, actor_user_id uuid, action text NOT NULL, target_type text NOT NULL, target_id text, details jsonb NOT NULL, is_demo boolean NOT NULL, created_at timestamptz DEFAULT now());
 SQL
 AS $P -1 -v ON_ERROR_STOP=1 -f "$BASE/2026-10-14_isv_commission_separation.sql" >/dev/null || echo "FAIL: migration"
-OUT=$(AS $P -f "$BASE/commission-separation-tests.sql" 2>&1)
+OUT=$(AS psql -X -At -h $BASE/sock -U postgres -d postgres -f "$BASE/commission-separation-tests.sql" 2>&1)
 AS pg_ctl -D "$BASE/data" -m immediate stop >/dev/null; rm -rf "$BASE"
 echo "$OUT" | sed 's/^.*NOTICE:  //'
 echo "SUMMARY pass=$(echo "$OUT" | grep -c 'PASS:') fail=$(echo "$OUT" | grep -cE 'FAIL|ERROR')"
