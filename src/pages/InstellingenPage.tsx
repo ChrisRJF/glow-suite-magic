@@ -34,6 +34,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ChevronDown } from "lucide-react";
 import { MfaSettingsCard } from "@/components/MfaSettingsCard";
 import { IsvDemoOrderButton } from "@/components/IsvDemoOrderButton";
+import { IsvCommissionCheckButton } from "@/components/IsvCommissionCheckButton";
 
 type OpeningHours = Record<string, { open: string; close: string; enabled: boolean }>;
 
@@ -1510,7 +1511,7 @@ export default function InstellingenPage() {
           </div>
         )}
 
-        {activeTab === "beveiliging" && <div className="space-y-4"><MfaSettingsCard /><IsvDemoOrderButton /></div>}
+        {activeTab === "beveiliging" && <div className="space-y-4"><MfaSettingsCard /><IsvDemoOrderButton /><IsvCommissionCheckButton /></div>}
 
         {activeTab !== "import" && activeTab !== "beveiliging" && <div className="pt-2">
           <Button onClick={handleSave} className="w-full" size="lg" disabled={saveLoading}>
