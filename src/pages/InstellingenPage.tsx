@@ -32,6 +32,7 @@ import { MerchantOnboardingCard } from "@/components/MerchantOnboardingCard";
 import { GlowPaySetupCard } from "@/components/GlowPaySetupCard";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
+import { MfaSettingsCard } from "@/components/MfaSettingsCard";
 
 type OpeningHours = Record<string, { open: string; close: string; enabled: boolean }>;
 
@@ -622,7 +623,9 @@ export default function InstellingenPage() {
     { id: "import", label: "Gegevens importeren", icon: FileUp },
     { id: "rollen", label: "Team", icon: UserCog },
     { id: "demo", label: "Demo", icon: Shield },
+    { id: "beveiliging", label: "Beveiliging", icon: Shield },
   ].filter((tab) => {
+    if (tab.id === "beveiliging") return true;
     if (tab.id === "betaling") return canManageFinance;
     if (tab.id === "export") return canExport;
     if (tab.id === "rollen") return canManageTeam;
@@ -1506,7 +1509,9 @@ export default function InstellingenPage() {
           </div>
         )}
 
-        {activeTab !== "import" && <div className="pt-2">
+        {activeTab === "beveiliging" && <MfaSettingsCard />}
+
+        {activeTab !== "import" && activeTab !== "beveiliging" && <div className="pt-2">
           <Button onClick={handleSave} className="w-full" size="lg" disabled={saveLoading}>
             {saveLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
             {saveLoading ? "Opslaan..." : "Opslaan"}
