@@ -104,6 +104,14 @@ describe("Sprint 3 snelle start", () => {
     expect(localStorage.getItem(draftKey)).toBeNull();
     expect(localStorage.getItem("glowsuite_automations_synthetic")).toBeNull();
   });
+  it("stuurt alleen de bestaande kolom salon_name naar settings (geen salon_logo_url/salon_type, PGRST204)", async () => {
+    salonDraft(false, { logoUrl: "https://example.invalid/logo.png" }); wizard();
+    fireEvent.click(screen.getByRole("button", { name: "Start met GlowSuite" }));
+    await screen.findByRole("button", { name: /Eerste afspraak maken/ });
+    expect(mock.updatePayloads.settings).toEqual({ salon_name: "Fictieve salon" });
+    expect(mock.updatePayloads.settings).not.toHaveProperty("salon_logo_url");
+    expect(mock.updatePayloads.settings).not.toHaveProperty("salon_type");
+  });
   it("seedt geen behandelingen als er al behandelingen zijn", async () => {
     mock.count = 3; salonDraft(); wizard(); fireEvent.click(screen.getByRole("button", { name: "Start met GlowSuite" }));
     await screen.findByRole("button", { name: /Eerste afspraak maken/ }); expect(mock.insert).not.toHaveBeenCalled();
