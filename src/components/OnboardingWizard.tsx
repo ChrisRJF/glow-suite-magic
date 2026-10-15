@@ -329,7 +329,7 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
                 )}
               </div>
               {step > 0 && step < TOTAL - 1 && (
-                <div className="flex flex-col items-end self-end shrink-0">
+                <div className={cn("flex flex-col items-end self-end shrink-0", previewMode && "hidden sm:flex")}>
                   <Button variant="ghost" size="sm" onClick={skipAll} disabled={saving} className="text-xs text-muted-foreground">
                     Nu sluiten
                   </Button>
