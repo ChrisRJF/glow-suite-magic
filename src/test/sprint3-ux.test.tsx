@@ -8,6 +8,7 @@ import { canAccessRoute, ROUTE_PERMISSIONS } from "@/hooks/useUserRole";
 const mock = vi.hoisted(() => ({
   roles: ["eigenaar"], count: 0 as number | null, fail: false,
   writes: [] as string[], reads: [] as string[], insert: vi.fn(async () => ({ id: "synthetic-service" })),
+  updatePayloads: {} as Record<string, any>,
   invoke: vi.fn(async () => ({ data: null, error: null })),
 }));
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "synthetic", email: "test@example.invalid" }, signOut: vi.fn() }) }));
@@ -18,13 +19,13 @@ vi.mock("@/hooks/useUserRole", async importOriginal => ({
   ...await importOriginal<typeof import("@/hooks/useUserRole")>(),
   useUserRole: () => ({ roles: mock.roles, isOwner: mock.roles.includes("eigenaar") }),
 }));
-vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
+vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn(), info: vi.fn() } }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: {
   rpc: vi.fn(async () => ({ data: false, error: null })),
   from: (table: string) => {
     let write = false;
     const q: any = {
-      select: () => { mock.reads.push(table); return q; }, update: () => { write = true; mock.writes.push(table); return q; },
+      select: () => { mock.reads.push(table); return q; }, update: (payload: any) => { write = true; mock.writes.push(table); mock.updatePayloads[table] = payload; return q; },
       eq: () => q, limit: () => q, order: () => q,
       maybeSingle: () => Promise.resolve({ data: table === "settings" ? { id: "synthetic-settings" } : null, error: null }),
       then: (resolve: any) => Promise.resolve({ data: [], count: mock.count, error: mock.fail && (write || table === "services") ? new Error("offline") : null }).then(resolve),
@@ -41,7 +42,7 @@ function salonDraft(preview = false, extra = {}) {
   localStorage.setItem(preview ? "glowsuite_onboarding_v3_preview_synthetic" : draftKey,
     JSON.stringify({ step: 1, salonType: "kapper", salonName: "Fictieve salon", ...extra }));
 }
-beforeEach(() => { localStorage.clear(); mock.roles = ["eigenaar"]; mock.count = 0; mock.fail = false; mock.writes = []; mock.reads = []; vi.clearAllMocks(); });
+beforeEach(() => { localStorage.clear(); mock.roles = ["eigenaar"]; mock.count = 0; mock.fail = false; mock.writes = []; mock.reads = []; mock.updatePayloads = {}; vi.clearAllMocks(); });
 afterEach(cleanup);
 
 describe("Sprint 3 menu", () => {
