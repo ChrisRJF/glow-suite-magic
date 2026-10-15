@@ -8,7 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { usePlatformAccess } from "@/hooks/usePlatformAccess";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  currentPeriod, formatCents, lastPeriods, periodLabel, platformErrorMessage, statusLabel, sumFinance,
+  currentPeriod, formatCents, lastPeriods, periodLabel, shortMonthLabel, platformErrorMessage, statusLabel, sumFinance,
   type FinanceRow,
 } from "@/lib/platformMetrics";
 
@@ -192,9 +192,9 @@ export default function PlatformPage() {
           {usage && usage.trend.some((t) => t.total > 0) ? (
             <div className="h-48">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={usage.trend.map((t) => ({ ...t, label: periodLabel(t.month).split(" ")[0] }))}>
+                <BarChart data={usage.trend.map((t) => ({ ...t, label: shortMonthLabel(t.month) }))}>
                   <CartesianGrid vertical={false} stroke="hsl(var(--border))" />
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={11} stroke="hsl(var(--muted-foreground))" />
+                  <XAxis dataKey="label" interval={0} tickLine={false} axisLine={false} fontSize={11} stroke="hsl(var(--muted-foreground))" />
                   <YAxis allowDecimals={false} tickLine={false} axisLine={false} fontSize={11} width={28} stroke="hsl(var(--muted-foreground))" />
                   <Tooltip cursor={{ fill: "hsl(var(--secondary))" }} contentStyle={{ borderRadius: 12, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))", fontSize: 12 }} />
                   <Bar dataKey="total" name="Afspraken" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
