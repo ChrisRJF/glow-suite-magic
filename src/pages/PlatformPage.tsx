@@ -54,6 +54,23 @@ function Section({ title, note, children }: { title: string; note?: string; chil
   );
 }
 
+function FinanceGroup({ title, note, rows }: { title: string; note: string; rows: [string, string, boolean?][] }) {
+  return (
+    <div className="rounded-2xl border border-border/70 bg-card p-4 sm:p-5" style={{ boxShadow: "var(--shadow-xs)" }}>
+      <p className="text-sm font-semibold">{title}</p>
+      <p className="mt-0.5 text-[11px] text-muted-foreground">{note}</p>
+      <dl className="mt-3 divide-y divide-border/50">
+        {rows.map(([label, value, strong]) => (
+          <div key={label} className="flex items-baseline justify-between gap-3 py-2">
+            <dt className="text-xs text-muted-foreground min-w-0">{label}</dt>
+            <dd className={`tabular-nums text-sm ${strong ? "font-semibold text-foreground" : "text-foreground"}`}>{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
 export default function PlatformPage() {
   const { user, loading: authLoading } = useAuth();
   const access = usePlatformAccess();
@@ -115,29 +132,21 @@ export default function PlatformPage() {
     <AppLayout
       title="Platformoverzicht"
       subtitle="Alleen-lezen overzicht van alle salons op GlowSuite"
+      compactMobile
       actions={
         <Select value={period} onValueChange={setPeriod}>
-          <SelectTrigger className="w-[190px]" aria-label="Periode"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-full lg:w-[190px]" aria-label="Periode"><SelectValue /></SelectTrigger>
           <SelectContent>
             {periods.map((p) => <SelectItem key={p} value={p}>{periodLabel(p)}</SelectItem>)}
           </SelectContent>
         </Select>
       }
     >
-      <div className="lg:hidden">
-        <Select value={period} onValueChange={setPeriod}>
-          <SelectTrigger className="w-full" aria-label="Periode mobiel"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {periods.map((p) => <SelectItem key={p} value={p}>{periodLabel(p)}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </div>
-
       {error && (
         <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">{error}</div>
       )}
 
-      <Section title="Salons en abonnementen" note="Demo-salons tellen niet mee in de abonnementscijfers.">
+      <Section title="Salons en abonnementen" note="Huidige stand, los van de gekozen periode. Demo-salons tellen niet mee in de abonnementscijfers.">
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
           <Kpi label="Geregistreerde salons" value={overview?.salons_total ?? "…"} hint={overview ? `${overview.salons_real} echt, ${overview.salons_demo} demo` : undefined} />
           <Kpi label="Actief" value={overview?.subs_active ?? "…"} />
@@ -153,20 +162,18 @@ export default function PlatformPage() {
       </Section>
 
       <Section title={`Betalingen ${periodLabel(period)}`} note="Alleen door de betaalprovider bevestigde betalingen. Demobetalingen tellen niet mee.">
-        <div className="flex items-start gap-2 rounded-xl border border-border/70 bg-secondary/40 p-3 text-xs text-foreground">
-          <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-muted-foreground" />
-          <span>Salonbetalingsvolume is geen omzet van GlowSuite.</span>
-        </div>
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-          <Kpi label="Salonbetalingsvolume" value={finance ? formatCents(fin.grossCents) : "…"} />
-          <Kpi label="Terugbetalingen" value={finance ? formatCents(fin.refundCents) : "…"} />
-          <Kpi label="Netto salonbetalingsvolume" value={finance ? formatCents(fin.netCents) : "…"} />
-        </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <Kpi label="ISV-commissie verwacht" value={finance ? formatCents(fin.expectedIsvCents) : "…"} hint="Nog niet door Viva bevestigd. Geen inkomen." tone="muted" />
-          <Kpi label="ISV-commissie bevestigd" value={finance ? formatCents(fin.confirmedIsvCents) : "…"} />
-          <Kpi label="ISV-commissie teruggedraaid" value={finance ? formatCents(fin.reversedIsvCents) : "…"} />
-          <Kpi label="GlowPay-marge (oud)" value={finance ? formatCents(fin.legacyMarginCents) : "…"} />
+        <div className="grid gap-3 lg:grid-cols-2">
+          <FinanceGroup title="Salonbetalingsvolume" note="Geld van salons. Geen omzet van GlowSuite." rows={[
+            ["Bruto", finance ? formatCents(fin.grossCents) : "…"],
+            ["Terugbetalingen", finance ? formatCents(fin.refundCents) : "…"],
+            ["Netto", finance ? formatCents(fin.netCents) : "…", true],
+          ]} />
+          <FinanceGroup title="ISV-commissie" note="Alleen bevestigd telt als inkomen." rows={[
+            ["Verwacht (nog niet door Viva bevestigd)", finance ? formatCents(fin.expectedIsvCents) : "…"],
+            ["Bevestigd", finance ? formatCents(fin.confirmedIsvCents) : "…", true],
+            ["Teruggedraaid", finance ? formatCents(fin.reversedIsvCents) : "…"],
+            ["GlowPay-marge (oud)", finance ? formatCents(fin.legacyMarginCents) : "…"],
+          ]} />
         </div>
         {finance && fin.unconfirmedCount > 0 && (
           <p className="text-xs text-muted-foreground">{fin.unconfirmedCount} betaling(en) hebben nog alleen een verwachte commissie.</p>
