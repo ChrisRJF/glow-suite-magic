@@ -1,6 +1,6 @@
 # Roadmap
 
-- [ ] Gerichte onboardingafwerking: bestaand GlowPay-logo verifiëren, neutrale boekingsstatus, duidelijke uitgeschakelde activatieknop en mobiele afronding; zeven stappen fictief controleren op 390/1440 px, frontendtests draaien, niets publiceren
+- [x] Gerichte onboardingafwerking: boekingsstatus Ingesteld, duidelijke uitgeschakelde activatieknop en mobiele afronding; zeven stappen fictief gecontroleerd op 390/1440 px, 25 frontendtests geslaagd, niets gepubliceerd. GlowPay-logo ontbreekt, bestaand beeld ongewijzigd.
 
 - [x] Gerichte desktop-agendadatumkiezer herstellen en alleen kalenderstijl verfijnen; 27 bestaande tests geslaagd en geïsoleerde browsercontrole op 1280/390 px voor openen, datumselectie en Vandaag, zonder echte gegevens of publicatie
 
