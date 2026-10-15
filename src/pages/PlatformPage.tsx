@@ -28,7 +28,7 @@ type Usage = {
   trend: { month: string; total: number }[];
 };
 
-const rpc = supabase.rpc as any;
+const rpc = (fn: string, args?: Record<string, unknown>) => (supabase.rpc as any).call(supabase, fn, args);
 const fmtDate = (s: string | null) =>
   s ? new Intl.DateTimeFormat("nl-NL", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Europe/Amsterdam" }).format(new Date(s)) : "Niet beschikbaar";
 
