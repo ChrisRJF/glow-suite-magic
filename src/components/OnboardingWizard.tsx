@@ -239,7 +239,7 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
     } catch {}
   };
 
-  const next = async (quickStart = false) => {
+  const next = async () => {
     if (busyRef.current) return;
     busyRef.current = true;
     setSaving(true);
@@ -247,7 +247,6 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
       if (step === 1) {
         if (!data.salonType || !data.salonName.trim()) { toast.error("Vul je salonnaam in en kies je salontype"); return; }
         await saveSalon();
-        if (quickStart) { finish(); return; }
       }
       if (step === 5) saveAutomations();
       if (step === TOTAL - 1) { finish(); return; }
@@ -293,7 +292,6 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
   const canProceed = step !== 1 || Boolean(data.salonType && data.salonName.trim());
   const primaryLabel =
     step === 0 ? "Beginnen"
-    : step === 1 ? "Start met GlowSuite"
     : step === TOTAL - 1 ? "Start met GlowSuite"
     : "Volgende";
 
@@ -377,10 +375,7 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
               <ArrowLeft className="w-4 h-4" /> Terug
             </Button>
             <div className="flex flex-col-reverse sm:flex-row gap-2 min-w-0">
-              {step === 1 && (
-                <Button variant="outline" size="sm" onClick={() => next()} disabled={saving || !canProceed}>Meer instellen</Button>
-              )}
-              <Button variant="gradient" size="sm" onClick={() => next(step === 1)} disabled={saving || !canProceed}>
+              <Button variant="gradient" size="sm" onClick={() => next()} disabled={saving || !canProceed}>
                 {saving ? "Bezig..." : primaryLabel}
                 {!saving && <ArrowRight className="w-4 h-4" />}
               </Button>

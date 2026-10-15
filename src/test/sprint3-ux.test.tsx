@@ -87,50 +87,50 @@ describe("Sprint 3 menu", () => {
 describe("Sprint 3 snelle start", () => {
   it("vereist naam en type voordat gestart kan worden", () => {
     salonDraft(false, { salonName: " " }); wizard();
-    expect(screen.getByRole("button", { name: "Start met GlowSuite" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Volgende" })).toBeDisabled();
     fireEvent.change(screen.getByLabelText("Hoe heet jouw salon?"), { target: { value: "Fictief" } });
-    expect(screen.getByRole("button", { name: "Start met GlowSuite" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Volgende" })).toBeEnabled();
   });
-  it("bewaart salon eenmaal, seedt lege salon en toont PostWelcome zonder extra diensten aan te roepen", async () => {
-    salonDraft(); wizard(); const start = screen.getByRole("button", { name: "Start met GlowSuite" });
+  it("bewaart salon eenmaal, seedt lege salon en gaat via Volgende naar stap 3 GlowPay zonder af te ronden", async () => {
+    salonDraft(); wizard(); const start = screen.getByRole("button", { name: "Volgende" });
     fireEvent.click(start); fireEvent.click(start);
-    await screen.findByRole("button", { name: /Eerste afspraak maken/ });
+    await screen.findByRole("heading", { name: "Activeer GlowPay" });
     expect(mock.writes).toEqual(["profiles", "settings"]);
     expect(mock.insert).toHaveBeenCalledTimes(4);
     expect(mock.invoke).not.toHaveBeenCalled();
     expect(mock.reads).not.toContain("viva_terminals");
-    expect(localStorage.getItem("glowsuite_onboarding_v4_synthetic")).toBe("done");
-    expect(localStorage.getItem("glowsuite_onboarding_synthetic")).toBe("done");
-    expect(localStorage.getItem(draftKey)).toBeNull();
+    expect(localStorage.getItem("glowsuite_onboarding_v4_synthetic")).toBeNull();
+    expect(localStorage.getItem("glowsuite_onboarding_synthetic")).toBeNull();
+    expect(localStorage.getItem(draftKey)).not.toBeNull();
     expect(localStorage.getItem("glowsuite_automations_synthetic")).toBeNull();
   });
   it("stuurt alleen de bestaande kolom salon_name naar settings (geen salon_logo_url/salon_type, PGRST204)", async () => {
     salonDraft(false, { logoUrl: "https://example.invalid/logo.png" }); wizard();
-    fireEvent.click(screen.getByRole("button", { name: "Start met GlowSuite" }));
-    await screen.findByRole("button", { name: /Eerste afspraak maken/ });
+    fireEvent.click(screen.getByRole("button", { name: "Volgende" }));
+    await screen.findByRole("heading", { name: "Activeer GlowPay" });
     expect(mock.updatePayloads.settings).toEqual({ salon_name: "Fictieve salon" });
     expect(mock.updatePayloads.settings).not.toHaveProperty("salon_logo_url");
     expect(mock.updatePayloads.settings).not.toHaveProperty("salon_type");
   });
   it("seedt geen behandelingen als er al behandelingen zijn", async () => {
-    mock.count = 3; salonDraft(); wizard(); fireEvent.click(screen.getByRole("button", { name: "Start met GlowSuite" }));
-    await screen.findByRole("button", { name: /Eerste afspraak maken/ }); expect(mock.insert).not.toHaveBeenCalled();
+    mock.count = 3; salonDraft(); wizard(); fireEvent.click(screen.getByRole("button", { name: "Volgende" }));
+    await screen.findByRole("heading", { name: "Activeer GlowPay" }); expect(mock.insert).not.toHaveBeenCalled();
   });
   it("preview verandert geen DB of completionflags, ook bij logo", async () => {
     salonDraft(true); const close = vi.fn(); wizard(true, { onOpenChange: close });
     const original = URL.createObjectURL; URL.createObjectURL = vi.fn(() => "blob:synthetic");
     fireEvent.change(document.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [new File(["fake"], "fake.png")] } });
-    fireEvent.click(screen.getByRole("button", { name: "Start met GlowSuite" }));
-    await waitFor(() => expect(close).toHaveBeenCalledWith(false));
+    fireEvent.click(screen.getByRole("button", { name: "Volgende" }));
+    await screen.findByRole("heading", { name: "Activeer GlowPay" }); expect(close).not.toHaveBeenCalled();
     expect(mock.writes).toEqual([]); expect(mock.insert).not.toHaveBeenCalled();
     expect(localStorage.getItem("glowsuite_onboarding_v4_synthetic")).toBeNull(); URL.createObjectURL = original;
   });
   it("houdt bestaande volledige stappen inclusief terugknop bereikbaar", async () => {
-    salonDraft(); wizard(); fireEvent.click(screen.getByRole("button", { name: "Meer instellen" }));
+    salonDraft(); wizard(); fireEvent.click(screen.getByRole("button", { name: "Volgende" }));
     await screen.findByRole("heading", { name: "Activeer GlowPay" });
     fireEvent.click(screen.getByRole("button", { name: /^Terug$/ }));
     expect(screen.getByLabelText("Hoe heet jouw salon?")).toHaveValue("Fictieve salon");
-    fireEvent.click(screen.getByRole("button", { name: "Meer instellen" }));
+    fireEvent.click(screen.getByRole("button", { name: "Volgende" }));
     await screen.findByRole("heading", { name: "Activeer GlowPay" });
     fireEvent.click(screen.getByRole("button", { name: "Volgende" }));
     await screen.findByRole("button", { name: "Ik heb al een terminal" });
@@ -140,20 +140,20 @@ describe("Sprint 3 snelle start", () => {
     await screen.findByRole("heading", { name: "Slimme automatiseringen" });
     fireEvent.click(screen.getByRole("button", { name: "Volgende" }));
     await screen.findByRole("heading", { name: /Je salon is klaar/ });
-    fireEvent.click(screen.getByRole("button", { name: "Start met GlowSuite" }));
+    expect(screen.queryByRole("button", { name: /Eerste afspraak maken/ })).toBeNull(); fireEvent.click(screen.getByRole("button", { name: "Start met GlowSuite" }));
     await screen.findByRole("button", { name: /Eerste afspraak maken/ });
-    expect(localStorage.getItem("glowsuite_automations_synthetic")).not.toBeNull();
+    expect(localStorage.getItem("glowsuite_onboarding_v4_synthetic")).toBe("done"); expect(localStorage.getItem("glowsuite_automations_synthetic")).not.toBeNull();
   });
   it("blijft bij fouten op Salon zonder afronding en kan herstellen", async () => {
-    mock.fail = true; salonDraft(); wizard(); fireEvent.click(screen.getByRole("button", { name: "Start met GlowSuite" }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Start met GlowSuite" })).toBeEnabled());
+    mock.fail = true; salonDraft(); wizard(); fireEvent.click(screen.getByRole("button", { name: "Volgende" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Volgende" })).toBeEnabled());
     expect(localStorage.getItem("glowsuite_onboarding_v4_synthetic")).toBeNull();
-    mock.fail = false; fireEvent.click(screen.getByRole("button", { name: "Start met GlowSuite" }));
-    await screen.findByRole("button", { name: /Eerste afspraak maken/ });
+    mock.fail = false; fireEvent.click(screen.getByRole("button", { name: "Volgende" }));
+    await screen.findByRole("heading", { name: "Activeer GlowPay" });
   });
   it("onzekere service count blokkeert seeding en afronding", async () => {
-    mock.count = null; salonDraft(); wizard(); fireEvent.click(screen.getByRole("button", { name: "Start met GlowSuite" }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Start met GlowSuite" })).toBeEnabled());
+    mock.count = null; salonDraft(); wizard(); fireEvent.click(screen.getByRole("button", { name: "Volgende" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Volgende" })).toBeEnabled());
     expect(mock.insert).not.toHaveBeenCalled(); expect(localStorage.getItem("glowsuite_onboarding_v4_synthetic")).toBeNull();
   });
   it("skip behoudt voortgang voor hervatten via instellingen", async () => {
@@ -170,7 +170,7 @@ describe("Sprint 3 snelle start", () => {
 describe("Sprint 3 afronding", () => {
   async function toDone() {
     salonDraft(); wizard();
-    fireEvent.click(screen.getByRole("button", { name: "Meer instellen" }));
+    fireEvent.click(screen.getByRole("button", { name: "Volgende" }));
     await screen.findByRole("heading", { name: "Activeer GlowPay" });
     fireEvent.click(screen.getByRole("button", { name: "Volgende" }));
     await screen.findByRole("button", { name: "Ik heb al een terminal" });
@@ -204,10 +204,19 @@ describe("Sprint 3 afronding", () => {
     expect(root.querySelectorAll(".text-success")).toHaveLength(4);
   });
 
-  it("snelle start claimt de afronding niet", async () => {
+  it("stap 2 slaat GlowPay nooit over en rondt niet af", async () => {
     salonDraft(); wizard();
-    fireEvent.click(screen.getByRole("button", { name: "Start met GlowSuite" }));
-    await screen.findByRole("button", { name: /Eerste afspraak maken/ });
+    fireEvent.click(screen.getByRole("button", { name: "Volgende" }));
+    await screen.findByRole("heading", { name: "Activeer GlowPay" }); expect(screen.queryByRole("button", { name: /Eerste afspraak maken/ })).toBeNull(); expect(screen.queryByRole("button", { name: "Start met GlowSuite" })).toBeNull();
     expect(screen.queryByText("Later instellen")).toBeNull();
+  });
+  it("Later activeren is optioneel en gaat naar stap 4 zonder afronding", async () => {
+    salonDraft(); wizard();
+    fireEvent.click(screen.getByRole("button", { name: "Volgende" }));
+    await screen.findByRole("heading", { name: "Activeer GlowPay" });
+    fireEvent.click(screen.getByRole("button", { name: "Later activeren" }));
+    await screen.findByRole("button", { name: "Ik heb al een terminal" });
+    expect(localStorage.getItem("glowsuite_onboarding_v4_synthetic")).toBeNull();
+    expect(mock.invoke).not.toHaveBeenCalled();
   });
 });
