@@ -7,7 +7,7 @@ import {
   utcBoundsForLocalDays,
   localToUtc,
   appointmentStartInstant,
-} from "../../supabase/functions/_shared/inactive/reminderSafety";
+} from "../../supabase/functions/_shared/reminderSafety";
 
 // Fictional salons and rows only.
 const SALON_A = "aaaaaaaa-0000-0000-0000-000000000001";

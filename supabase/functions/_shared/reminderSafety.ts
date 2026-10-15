@@ -1,7 +1,5 @@
-// Prepared (inactive) reminder safety helpers. NOT imported by any entrypoint
-// yet: wiring them into sendAppointmentReminder.ts and
-// whatsapp-reminder-scheduler/index.ts auto-deploys, so that needs a separate GO.
-// See docs/prepared-patches/reminder-safety/README.md.
+// Reminder safety helpers: tenant-scoped lookups and exact-instant reminder
+// windows. Used by sendAppointmentReminder.ts and whatsapp-reminder-scheduler.
 
 // ---------- (1) Tenant scoping, fail closed ----------
 
