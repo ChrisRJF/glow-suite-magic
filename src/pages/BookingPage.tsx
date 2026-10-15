@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { isAutoKey } from "@/lib/employeeSchedule";
-import { useParams } from "react-router-dom";
+import { useParams, useLocation, useNavigate } from "react-router-dom";
+import { canonicalBookingPath } from "../../supabase/functions/public-booking/publicSalonResolve";
 import { services as fallbackServices, formatEuro } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -119,6 +120,8 @@ export default function BookingPage() {
     return map[i18n.language.split("-")[0]] || "nl-NL";
   }, [i18n.language]);
   const { salonSlug } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
   const isPublicBooking = Boolean(salonSlug);
   const { data: liveServices } = useServices();
   const { data: liveSettings } = useSettings();
@@ -169,6 +172,9 @@ export default function BookingPage() {
     callPublicBooking<PublicBookingData>({ action: "get_salon", slug: salonSlug })
       .then((data) => {
         if (cancelled) return;
+        // Legacy name link: switch to the canonical salon link, keeping query (e.g. ?rb=) and hash.
+        const next = canonicalBookingPath(location.pathname, location.search + location.hash, salonSlug, data.salon?.slug);
+        if (next) { navigate(next, { replace: true }); return; }
         setPublicData(data);
         setBranding((current) => ({
           ...current,

@@ -6,6 +6,7 @@ import { createVivaOrder, vivaCheckoutUrl, isVivaConfigured } from "../_shared/v
 import { getDefaultMessageTemplate, normalizeMessageLang, renderMessage, intlLocale } from "../_shared/messageTranslations.ts";
 import { decideDeposit } from "../_shared/depositDecision.ts";
 import { amsterdamToUtc, utcToAmsterdam, busyFromAppointments, normalizeBusyEmployees, resolveBooking, availabilitySlots, startTimes, canDoService, type ScheduleEmployee } from "../_shared/employeeSchedule.ts";
+import { resolvePublicSalon, LEGACY_SCAN_LIMIT } from "./publicSalonResolve.ts";
 import { buildAtomicBookingArgs, interpretAtomicResult, UNAVAILABLE_MSG } from "./publicBookingAtomic.ts";
 import { appendConfirmationBlock, buildConfirmationLink, claimReminderDispatch } from "../_shared/reminderEngine.ts";
 
@@ -82,18 +83,21 @@ async function getSalon(supabase: ReturnType<typeof createClient>, slug: string)
     .from("settings")
     .select("id, user_id, salon_name, opening_hours, demo_mode, is_demo, deposit_new_client, deposit_percentage, full_prepay_threshold, skip_prepay_vip, deposit_noshow_risk, group_bookings_enabled, mollie_mode, whitelabel_branding, public_slug, show_prices_online, public_employees_enabled, cancellation_notice, payment_provider, payment_provider_fallback_enabled")
     .or(`public_slug.eq.${normalized},public_slug.eq.${slug}`)
-    .limit(1);
+    .limit(2);
 
   if (error) throw error;
-  let settings = settingsRows?.[0];
+  let hit = resolvePublicSalon(slug, (settingsRows || []) as any[]);
 
-  if (!settings) {
-    const { data: fallbackRows } = await supabase
+  if (!hit && !(settingsRows || []).length) {
+    const { data: allRows, error: legacyError } = await supabase
       .from("settings")
       .select("id, user_id, salon_name, opening_hours, demo_mode, is_demo, deposit_new_client, deposit_percentage, full_prepay_threshold, skip_prepay_vip, deposit_noshow_risk, group_bookings_enabled, mollie_mode, whitelabel_branding, public_slug, show_prices_online, public_employees_enabled, cancellation_notice, payment_provider, payment_provider_fallback_enabled")
-      .limit(200);
-    settings = fallbackRows?.find((row: any) => slugify(row.salon_name || "") === normalized);
+      .not("public_slug", "is", null)
+      .limit(LEGACY_SCAN_LIMIT);
+    if (legacyError) throw legacyError;
+    hit = resolvePublicSalon(slug, (allRows || []) as any[]);
   }
+  const settings: any = hit?.row;
 
   if (!settings) return null;
 

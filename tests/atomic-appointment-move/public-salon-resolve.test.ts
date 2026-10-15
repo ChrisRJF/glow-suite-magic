@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { resolvePublicSalon, canonicalBookingPath, LEGACY_SCAN_LIMIT } from "../../docs/prepared-patches/atomic-appointment-move/public-slug/publicSalonResolve";
+import { resolvePublicSalon, canonicalBookingPath, LEGACY_SCAN_LIMIT } from "../../supabase/functions/public-booking/publicSalonResolve";
 import { buildAtomicBookingArgs } from "../../docs/prepared-patches/atomic-appointment-move/publicBookingAtomic";
 
 // Fictional salons only.
