@@ -117,11 +117,11 @@ describe("Sprint 3 snelle start", () => {
   });
   it("houdt bestaande volledige stappen inclusief terugknop bereikbaar", async () => {
     salonDraft(); wizard(); fireEvent.click(screen.getByRole("button", { name: "Meer instellen" }));
-    await screen.findByRole("heading", { name: "Betalingen instellen (optioneel)" });
+    await screen.findByRole("heading", { name: "Activeer GlowPay" });
     fireEvent.click(screen.getByRole("button", { name: /^Terug$/ }));
     expect(screen.getByLabelText("Hoe heet jouw salon?")).toHaveValue("Fictieve salon");
     fireEvent.click(screen.getByRole("button", { name: "Meer instellen" }));
-    await screen.findByRole("heading", { name: "Betalingen instellen (optioneel)" });
+    await screen.findByRole("heading", { name: "Activeer GlowPay" });
     fireEvent.click(screen.getByRole("button", { name: "Volgende" }));
     await screen.findByRole("button", { name: "Ik heb al een terminal" });
     fireEvent.click(screen.getByRole("button", { name: "Volgende" }));
@@ -151,7 +151,7 @@ describe("Sprint 3 snelle start", () => {
     fireEvent.click(screen.getByRole("button", { name: "Nu sluiten" }));
     expect(close).toHaveBeenCalledWith(false);
     expect(localStorage.getItem("glowsuite_onboarding_v4_synthetic")).toBe("skipped"); first.unmount(); wizard();
-    await screen.findByRole("heading", { name: "Betalingen instellen (optioneel)" });
+    await screen.findByRole("heading", { name: "Activeer GlowPay" });
     expect(JSON.parse(localStorage.getItem(draftKey) || "{}").step).toBe(2);
   });
 });
@@ -161,7 +161,7 @@ describe("Sprint 3 afronding", () => {
   async function toDone() {
     salonDraft(); wizard();
     fireEvent.click(screen.getByRole("button", { name: "Meer instellen" }));
-    await screen.findByRole("heading", { name: "Betalingen instellen (optioneel)" });
+    await screen.findByRole("heading", { name: "Activeer GlowPay" });
     fireEvent.click(screen.getByRole("button", { name: "Volgende" }));
     await screen.findByRole("button", { name: "Ik heb al een terminal" });
     fireEvent.click(screen.getByRole("button", { name: "Volgende" }));

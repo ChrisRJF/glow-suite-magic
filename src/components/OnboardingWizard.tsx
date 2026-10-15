@@ -18,6 +18,7 @@ import {
   Calendar, UserPlus, ShoppingBag, BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { glowpayPaymentStatus, bookingStatus, type PayStatus, type BookingStatus } from "@/lib/glowpayOnboardingStatus";
 import glowsuiteLogo from "@/assets/glowsuite-logo.png";
 
 
@@ -353,7 +354,7 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
             <>
               {step === 0 && <WelcomeStep />}
               {step === 1 && <SalonStep data={data} setData={setData} onLogo={onLogoUpload} />}
-              {step === 2 && <GlowPayStep demo={demoMode} />}
+              {step === 2 && <GlowPayStep demo={demoMode} onLater={() => next()} />}
               {step === 3 && <TerminalStep previewMode={previewMode} />}
               {step === 4 && <SystemCheckStep />}
               {step === 5 && <AutomationsStep data={data} setData={setData} />}
@@ -482,46 +483,86 @@ function SalonStep({ data, setData, onLogo }: any) {
   );
 }
 
-function GlowPayStep({ demo }: { demo: boolean }) {
-  const methods = ["iDEAL", "Bancontact", "Apple Pay", "Creditcard"];
+const PAY_LABEL: Record<PayStatus, string> = {
+  not_started: "Niet gestart",
+  pending: "In behandeling",
+  action_needed: "Actie nodig",
+  active: "Actief",
+};
+const PAY_TEXT: Record<PayStatus, string> = {
+  not_started: "Je kunt GlowPay activeren wanneer het jou uitkomt.",
+  pending: "Viva controleert je bedrijfsgegevens. Je hoort het zodra dit klaar is.",
+  action_needed: "Ga verder met de verificatie bij Viva om betalingen te ontvangen.",
+  active: "Je betaalaccount is goedgekeurd. Betalingen zijn beschikbaar.",
+};
+
+function GlowPayStep({ demo, onLater }: { demo: boolean; onLater: () => void }) {
+  const { user } = useAuth();
+  const [pay, setPay] = useState<PayStatus | null>(null);
+  const [booking, setBooking] = useState<BookingStatus | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      const [m, s] = await Promise.all([
+        (supabase as any).from("glowpay_connected_merchants")
+          .select("viva_account_id, viva_merchant_id, onboarding_status, kyc_status, online_payments_enabled, is_demo")
+          .eq("user_id", user.id).eq("is_demo", demo).maybeSingle(),
+        (supabase as any).from("settings").select("public_slug").eq("user_id", user.id).maybeSingle(),
+      ]);
+      if (cancelled) return;
+      setPay(m.error ? null : glowpayPaymentStatus(m.data ?? null));
+      setBooking(s.error ? null : bookingStatus(s.data?.public_slug));
+    })().catch(() => {});
+    return () => { cancelled = true; };
+  }, [user?.id, demo]);
+
+  const status: PayStatus = pay ?? "not_started";
+  const tone = (ok: boolean) => ok ? "text-success" : "text-muted-foreground";
+
   return (
-    <div className="space-y-5 max-w-lg mx-auto">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">Betalingen instellen (optioneel)</h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Stel je betaalaccount in via GlowPay. De beschikbare betaalmethoden hangen af van je koppeling.
+    <div className="space-y-6 max-w-lg mx-auto" data-testid="glowpay-step">
+      <div className="space-y-3">
+        <img src="/assets/glowsuite-viva-isv-logo.png" alt="GlowPay" className="h-9 w-auto object-contain" />
+        <h2 className="text-2xl font-bold tracking-tight">Activeer GlowPay</h2>
+        <p className="text-sm text-muted-foreground">
+          Activeer je betaalaccount via onze betaalpartner Viva. Viva begeleidt je bij de benodigde bedrijfsverificatie.
         </p>
       </div>
-      <div className="p-5 rounded-2xl border border-border bg-gradient-to-br from-primary/5 to-transparent">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-            <CreditCard className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <p className="font-semibold">{demo ? "Demo modus actief" : "GlowPay instellen"}</p>
-            <p className="text-xs text-muted-foreground">
-              {demo ? "Er worden geen echte betalingen verwerkt." : "Je kunt dit later instellen via GlowPay."}
-            </p>
-          </div>
+
+      <div className="rounded-2xl border border-border divide-y divide-border">
+        <div className="flex items-center justify-between gap-3 px-4 py-3">
+          <span className="text-sm">Online boeken</span>
+          <span className={cn("text-sm font-medium", tone(booking === "active"))}>
+            {booking === null ? "…" : booking === "active" ? "Actief" : "Nog niet ingesteld"}
+          </span>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {methods.map(m => (
-            <span key={m} className="px-3 py-1.5 rounded-lg bg-background border border-border text-xs font-medium">
-              {m}
+        <div className="px-4 py-3 space-y-1">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm">GlowPay-betalingen</span>
+            <span className={cn("text-sm font-medium", tone(status === "active"))} data-testid="glowpay-pay-status">
+              {pay === null ? "…" : PAY_LABEL[status]}
             </span>
-          ))}
+          </div>
+          {pay !== null && <p className="text-xs text-muted-foreground">{PAY_TEXT[status]}</p>}
         </div>
       </div>
-      {demo ? (
-        <div className="p-3 rounded-lg bg-amber-500/5 border border-amber-500/20 text-xs text-muted-foreground">
-          Dit scherm toont de betaalmogelijkheden; het bevestigt geen actieve koppeling.
-        </div>
-      ) : (
-        <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-success/5 border border-success/20 text-xs text-muted-foreground">
-          <Check className="w-3.5 h-3.5 text-success mt-0.5 shrink-0" />
-          <span>Controleer je betaalaccount via GlowPay voordat je betalingen ontvangt.</span>
+
+      {status !== "active" && (
+        <div className="space-y-2">
+          <Button variant="gradient" className="w-full" disabled aria-describedby="glowpay-soon">
+            Activeer GlowPay via Viva
+          </Button>
+          <p id="glowpay-soon" className="text-xs text-muted-foreground text-center">
+            {demo
+              ? "In de demo kun je GlowPay niet activeren. Er worden geen echte betalingen verwerkt."
+              : "Activeren is beschikbaar zodra de partnerkoppeling met Viva gereed is."}
+          </p>
+          <Button variant="ghost" className="w-full" onClick={onLater}>Later activeren</Button>
         </div>
       )}
+      <p className="text-xs text-muted-foreground text-center">GlowPay is optioneel. Online boeken werkt ook zonder.</p>
     </div>
   );
 }
