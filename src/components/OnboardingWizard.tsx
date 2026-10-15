@@ -185,16 +185,18 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
     if (previewMode) return;
     const name = data.salonName.trim() || "Mijn Salon";
     const { error: profileError } = await supabase.from("profiles").update({ salon_name: name }).eq("user_id", user.id);
-    if (profileError) throw profileError;
+    if (profileError) throw new OnboardingSaveError("profile", profileError);
+    // Deliberately maybeSingle: if several non-demo settings rows exist we stop (PGRST116)
+    // instead of silently picking an arbitrary one.
     const { data: s, error: settingsError } = await supabase.from("settings").select("id").eq("user_id", user.id).eq("is_demo", false).maybeSingle();
-    if (settingsError) throw settingsError;
+    if (settingsError) throw new OnboardingSaveError("settings_lookup", settingsError);
     if (s?.id) {
       const { error } = await (supabase.from("settings") as any).update({
         salon_name: name,
         salon_logo_url: data.logoUrl || null,
         salon_type: data.salonType || null,
       }).eq("id", s.id);
-      if (error) throw error;
+      if (error) throw new OnboardingSaveError("settings_update", error);
     }
     // Auto-seed default services only if the salon has no services yet (avoid duplicates on re-run).
     if (data.salonType) {
@@ -202,7 +204,7 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
         .from("services")
         .select("id", { count: "exact", head: true })
         .eq("user_id", user.id);
-      if (error || count === null) throw error || new Error("Behandelingen konden niet worden gecontroleerd");
+      if (error || count === null) throw new OnboardingSaveError("services_check", error);
       if (count === 0) {
         const seeds = SERVICES_BY_TYPE[data.salonType as SalonType] || [];
         for (const svc of seeds) {
@@ -214,7 +216,7 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
               is_active: true,
               is_online_bookable: true,
             });
-          if (!inserted) throw new Error("Behandeling kon niet worden opgeslagen");
+          if (!inserted) throw new OnboardingSaveError("services_seed", null);
         }
       }
     }
