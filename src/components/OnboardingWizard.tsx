@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import {
   Sparkles, Check, ArrowRight, ArrowLeft, Store, Scissors,
-  CreditCard, Rocket, Upload, PartyPopper, ShieldCheck, Zap,
+  CreditCard, Rocket, Upload, PartyPopper, ShieldCheck, Zap, LockKeyhole,
   Smartphone, Loader2, Heart, Stethoscope, Hand, Gem,
   Calendar, UserPlus, ShoppingBag, BarChart3,
 } from "lucide-react";
@@ -535,7 +535,7 @@ function GlowPayStep({ demo, onLater }: { demo: boolean; onLater: () => void }) 
         <div className="flex items-center justify-between gap-3 px-4 py-3">
           <span className="text-sm">Online boeken</span>
           <span className={cn("text-sm font-medium", tone(booking === "active"))}>
-            {booking === null ? "…" : booking === "active" ? "Actief" : "Nog niet ingesteld"}
+            {booking === null ? "…" : booking === "active" ? "Ingesteld" : "Nog niet ingesteld"}
           </span>
         </div>
         <div className="px-4 py-3 space-y-1">
@@ -551,7 +551,8 @@ function GlowPayStep({ demo, onLater }: { demo: boolean; onLater: () => void }) 
 
       {status !== "active" && (
         <div className="space-y-2">
-          <Button variant="gradient" className="w-full" disabled aria-describedby="glowpay-soon">
+          <Button variant="outline" className="w-full disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100 disabled:shadow-none" disabled aria-describedby="glowpay-soon">
+            <LockKeyhole aria-hidden="true" />
             Activeer GlowPay via Viva
           </Button>
           <p id="glowpay-soon" className="text-xs text-muted-foreground text-center">
@@ -949,22 +950,22 @@ function DoneStep({ logoUrl, salonName }: { logoUrl?: string; salonName?: string
           className="w-20 h-20 rounded-3xl object-contain mb-6 shadow-elegant bg-background"
         />
       )}
-      <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">🎉 Je salon is klaar!</h1>
+      <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">Je salon is klaar!</h1>
       <p className="text-base text-muted-foreground mb-6">
         Je kunt nu aan de slag. Je salon staat in GlowSuite en je kunt direct werken met:
       </p>
-      <div className="grid grid-cols-2 gap-2 w-full text-left">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full text-left">
         {ready.map(t => (
-          <div key={t} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-secondary/40 border border-border/50">
+          <div key={t} className="flex min-w-0 items-center gap-2 px-3 py-2 rounded-lg bg-secondary/40 border border-border/50">
             <Check className="w-4 h-4 text-success shrink-0" />
-            <span className="text-sm font-medium">{t}</span>
+            <span className="min-w-0 break-words text-sm font-medium">{t}</span>
           </div>
         ))}
       </div>
       <div className="w-full mt-4 rounded-2xl border border-border/60 bg-secondary/20 px-4 py-3 text-left">
         <p className="text-sm font-semibold">Later instellen</p>
         <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-          Betalingen en automatische berichten regel je apart via Instellingen, wanneer het je uitkomt.
+          GlowPay-betalingen en automatische berichten regel je apart via Instellingen, wanneer het je uitkomt.
         </p>
       </div>
     </div>
