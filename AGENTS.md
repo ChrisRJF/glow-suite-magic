@@ -20,4 +20,4 @@
 - Subdirectories have their own AGENTS.md (e.g. supabase/functions/); read it before changing files there.
 - Platform-wide owner data (/platform) is read only through SECURITY DEFINER RPCs that call platform_require_owner_aal2 and write audit_logs; the sidebar link and page gate are UI hints only; why: salon users must never read cross-tenant data or ISV commissions.
 - MFA settings only ever unenroll unverified setups or an explicitly chosen verified factor, and hide removal of a platform owner's final factor (docs/security/platform-owner-mfa.md); why: Supabase Auth cannot block final-factor unenroll server-side, so the UI is a hint and recovery is an admin procedure.
-- Appointment reminders resolve the real start instant via _shared/reminderSafety.ts (canonical UTC vs legacy wall clock by start_time) and load appointment, customer and service tenant-scoped before any claim; why: DST and mixed storage must never send at a guessed time or to another salon's data.
+- Reminders use _shared/reminderSafety.ts for tenant-scoped loads before claims and exact start instants; why: DST and mixed storage must not mis-send.
