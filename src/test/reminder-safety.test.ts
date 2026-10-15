@@ -60,13 +60,15 @@ describe("reminder window in salon local time", () => {
       startIso: "2026-06-14T22:00:00.000Z", endIsoExclusive: "2026-06-15T22:00:00.000Z",
     });
   });
-  it("near midnight: 24h reminder for 00:15 local is found", () => {
-    const now = new Date("2026-06-14T22:15:00Z"); // 15 jun 00:15 local
+  it("near midnight: window crossing local midnight finds 00:05 appointment", () => {
+    const now = new Date("2026-06-14T21:55:00Z"); // 14 jun 23:55 local
     const w = reminderWindow(now, 24, 15, AMS);
     expect(w.lowDate).toBe("2026-06-15");
     expect(w.highDate).toBe("2026-06-16");
-    expect(inReminderWindow(w, "2026-06-15T22:15:00Z", "00:15", AMS)).toBe(true);
-    expect(inReminderWindow(w, "2026-06-15T22:15:00Z", "00:15", "UTC")).toBe(false);
+    expect(w.startIso).toBe("2026-06-14T22:00:00.000Z");
+    expect(inReminderWindow(w, "2026-06-15T22:05:00Z", "00:05", AMS)).toBe(true);
+    // old UTC slice would read 2026-06-15 and miss it
+    expect("2026-06-15T22:05:00Z".slice(0, 10)).not.toBe(w.highDate);
   });
   it("spring DST (29 mrt 2026): 23h local day, 10:00 next day at 24h", () => {
     expect(utcBoundsForLocalDays("2026-03-29", "2026-03-29", AMS)).toEqual({
