@@ -20,6 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import { glowpayPaymentStatus, bookingStatus, type PayStatus, type BookingStatus } from "@/lib/glowpayOnboardingStatus";
 import glowsuiteLogo from "@/assets/glowsuite-logo.png";
+import glowpayLogo from "@/assets/glowpay/glowpay-logo.png.asset.json";
 
 
 interface Props {
@@ -524,7 +525,7 @@ function GlowPayStep({ demo, onLater }: { demo: boolean; onLater: () => void }) 
   return (
     <div className="space-y-6 max-w-lg mx-auto" data-testid="glowpay-step">
       <div className="space-y-3">
-        <img src="/assets/glowsuite-viva-isv-logo.png" alt="GlowPay" className="h-9 w-auto object-contain" />
+        <img src={glowpayLogo.url} alt="GlowPay" width={1470} height={335} className="h-auto w-52 max-w-full rounded-md object-contain" />
         <h2 className="text-2xl font-bold tracking-tight">Activeer GlowPay</h2>
         <p className="text-sm text-muted-foreground">
           Activeer je betaalaccount via onze betaalpartner Viva. Viva begeleidt je bij de benodigde bedrijfsverificatie.
