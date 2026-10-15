@@ -18,6 +18,7 @@ import {
 import { runAutoRebookSweep } from "../_shared/autoRebookPass.ts";
 import { canStillSendRebook, maskContact } from "../_shared/autoRebookGuards.ts";
 import { sendAppointmentReminder } from "../_shared/sendAppointmentReminder.ts";
+import { reminderWindow, classifyReminderCandidate } from "../_shared/reminderSafety.ts";
 import { runDossierFormPass } from "../_shared/dossierForms.ts";
 
 
@@ -341,17 +342,12 @@ Deno.serve(async (req) => {
         .maybeSingle();
       const tz = salonSettings?.timezone || DEFAULT_TZ;
 
-      // Current local wall-clock for the salon
+      // Exact-instant window: now + hoursBefore ± WINDOW_MIN (real elapsed time).
+      const w = reminderWindow(now, hoursBefore, WINDOW_MIN, tz);
       const nowLocal = getLocalParts(now, tz);
-      // Target local wall-clock = now_local + hoursBefore
-      const targetLocal = addMinutesLocal(nowLocal, hoursBefore * 60, tz);
-      const lowLocal = addMinutesLocal(targetLocal, -WINDOW_MIN, tz);
-      const highLocal = addMinutesLocal(targetLocal, WINDOW_MIN, tz);
-
-      const targetDate = fmtDate(targetLocal);
-      const lowMin = timeToMinutes(fmtTime(lowLocal));
-      const highMin = timeToMinutes(fmtTime(highLocal));
-      const crossesMidnight = fmtDate(lowLocal) !== fmtDate(highLocal);
+      const lowLocal = getLocalParts(new Date(w.startMs), tz);
+      const highLocal = getLocalParts(new Date(w.endMs), tz);
+      const targetLocal = getLocalParts(new Date(now.getTime() + hoursBefore * 3600000), tz);
 
       const windowInfo = {
         user_id: s.user_id,
@@ -364,17 +360,13 @@ Deno.serve(async (req) => {
       };
       stats.windows.push(windowInfo);
 
-      // Query appointments by local date (broad), then filter by start_time minutes
-      const dates = crossesMidnight ? [fmtDate(lowLocal), fmtDate(highLocal)] : [targetDate];
-      const startOfDay = `${dates[0]}T00:00:00Z`;
-      const endOfDay = `${dates[dates.length - 1]}T23:59:59Z`;
-
+      // Broad query (±1 day covers legacy wall-clock rows), exact filter below.
       const { data: appts, error: aErr } = await admin
         .from("appointments")
         .select("id, customer_id, appointment_date, start_time, status, user_id, booking_token, confirmation_status, service_id")
         .eq("user_id", s.user_id)
-        .gte("appointment_date", startOfDay)
-        .lte("appointment_date", endOfDay)
+        .gte("appointment_date", w.startIso)
+        .lt("appointment_date", w.endIsoExclusive)
         .in("status", ["confirmed", "gepland", "pending_confirmation"]);
       if (aErr) {
         stats.errors.push(`appts ${s.user_id}: ${aErr.message}`);
@@ -382,20 +374,15 @@ Deno.serve(async (req) => {
       }
 
       for (const appt of appts || []) {
-        // Filter by local start_time minutes within window
-        const apptDateOnly = String(appt.appointment_date).slice(0, 10);
-        const startTime = (appt.start_time as string | null) || String(appt.appointment_date).substring(11, 16);
-        if (!startTime) { stats.skipped++; continue; }
-        const apptMin = timeToMinutes(startTime);
-
-        let inWindow = false;
-        if (crossesMidnight) {
-          if (apptDateOnly === fmtDate(lowLocal) && apptMin >= lowMin) inWindow = true;
-          if (apptDateOnly === fmtDate(highLocal) && apptMin <= highMin) inWindow = true;
-        } else {
-          if (apptDateOnly === targetDate && apptMin >= lowMin && apptMin <= highMin) inWindow = true;
+        const v = classifyReminderCandidate(w, appt.appointment_date, appt.start_time, tz);
+        if (v === "out_of_window") continue;
+        if (v !== "in_window") {
+          // Privacy-safe: ids and reason only, no contact data or bodies.
+          stats.skipped++;
+          stats.windows.push({ user_id: s.user_id, appt_id: appt.id, skipped_reason: v });
+          console.log(JSON.stringify({ event: "reminder_skipped_unresolvable_time", appt_id: appt.id, reason: v }));
+          continue;
         }
-        if (!inWindow) continue;
 
         stats.checked++;
 

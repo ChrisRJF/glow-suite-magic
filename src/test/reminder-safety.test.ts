@@ -7,7 +7,7 @@ import {
   utcBoundsForLocalDays,
   localToUtc,
   appointmentStartInstant,
-} from "../../supabase/functions/_shared/inactive/reminderSafety";
+} from "../../supabase/functions/_shared/reminderSafety";
 
 // Fictional salons and rows only.
 const SALON_A = "aaaaaaaa-0000-0000-0000-000000000001";
@@ -118,5 +118,46 @@ describe("reminder window in salon local time", () => {
     const wNy = reminderWindow(new Date("2026-10-31T05:30:00Z"), 24, 15, NY);
     expect(inReminderWindow(wNy, "2026-11-01T05:30:00Z", "01:30", NY)).toBe(true);
     expect(inReminderWindow(wNy, "2026-11-01T06:30:00Z", "01:30", NY)).toBe(false);
+  });
+});
+
+import { classifyReminderCandidate } from "../../supabase/functions/_shared/reminderSafety";
+import { readFileSync } from "fs";
+import { resolve } from "path";
+
+describe("scheduler candidate classification", () => {
+  const w = reminderWindow(new Date("2026-10-24T00:30:00Z"), 24, 15, AMS);
+  it("first 02:30 in, second out, legacy ambiguous skipped with reason", () => {
+    expect(classifyReminderCandidate(w, "2026-10-25T00:30:00Z", "02:30", AMS)).toBe("in_window");
+    expect(classifyReminderCandidate(w, "2026-10-25T01:30:00Z", "02:30", AMS)).toBe("out_of_window");
+    expect(classifyReminderCandidate(w, "2026-10-25T02:30:00Z", "02:30", AMS)).toBe("unresolvable_time");
+    expect(classifyReminderCandidate(w, "2026-10-25T02:30:00Z", null, AMS)).toBe("missing_start_time");
+  });
+  it("far-away unresolvable rows are not reported", () => {
+    expect(classifyReminderCandidate(w, "2026-10-27T09:00:00Z", "10:30", AMS)).toBe("out_of_window");
+  });
+  it("legacy spring gap row is skipped", () => {
+    const ws = reminderWindow(new Date("2026-03-28T01:30:00Z"), 24, 15, AMS);
+    expect(classifyReminderCandidate(ws, "2026-03-29T02:30:00Z", "02:30", AMS)).toBe("unresolvable_time");
+  });
+});
+
+describe("live wiring order", () => {
+  const src = readFileSync(resolve(__dirname, "../../supabase/functions/_shared/sendAppointmentReminder.ts"), "utf8");
+  it("tenant-scoped load precedes dedup, test cooldown and claim; no unscoped lookups", () => {
+    const load = src.indexOf("await loadTenantScopedReminderRows(");
+    expect(load).toBeGreaterThan(0);
+    for (const k of ["reminderAlreadySent(admin", "TEST_COOLDOWN_SECONDS * 1000", "claimReminderDispatch(admin"]) {
+      expect(src.indexOf(k)).toBeGreaterThan(load);
+    }
+    expect(src).not.toMatch(/from\("customers"\)/);
+    expect(src).not.toMatch(/from\("services"\)/);
+    expect(src).toMatch(/if \(!test\) \{\s*const claimed = await claimReminderDispatch/);
+  });
+  const sched = readFileSync(resolve(__dirname, "../../supabase/functions/whatsapp-reminder-scheduler/index.ts"), "utf8");
+  it("scheduler uses exact window and no UTC day slice", () => {
+    expect(sched).toMatch(/classifyReminderCandidate\(w, appt\.appointment_date, appt\.start_time, tz\)/);
+    expect(sched).not.toMatch(/T00:00:00Z`/);
+    expect(sched).not.toMatch(/appointment_date\)\.slice\(0, 10\)/);
   });
 });
