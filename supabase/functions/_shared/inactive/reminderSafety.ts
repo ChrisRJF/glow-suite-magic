@@ -141,34 +141,62 @@ export function appointmentLocalDate(appointmentDate: string, timeZone: string):
 }
 
 /**
- * Reminder window, same semantics as the scheduler: target = now + hoursBefore,
- * plus/minus windowMin, compared on local date + local start_time minutes.
+ * Reminder window as real elapsed time: target = now + hoursBefore, plus/minus
+ * windowMin, compared on UTC instants (so repeated autumn wall times differ).
+ * Query bounds are widened by one day each side because legacy rows store the
+ * local wall clock as if it were UTC (later than the real instant by the
+ * offset); the exact instant filter in inReminderWindow decides.
  */
 export function reminderWindow(now: Date, hoursBefore: number, windowMin: number, timeZone: string) {
-  const nowLocal = localPartsOf(now, timeZone);
-  const target = addMinutesLocal(nowLocal, hoursBefore * 60, timeZone);
-  const low = addMinutesLocal(target, -windowMin, timeZone);
-  const high = addMinutesLocal(target, windowMin, timeZone);
-  const lowDate = localDateKey(low);
-  const highDate = localDateKey(high);
+  const targetMs = now.getTime() + hoursBefore * 3600000;
+  const startMs = targetMs - windowMin * 60000;
+  const endMs = targetMs + windowMin * 60000;
+  const lowDate = localDateKey(localPartsOf(new Date(startMs), timeZone));
+  const highDate = localDateKey(localPartsOf(new Date(endMs), timeZone));
   return {
-    lowDate, highDate, lowMin: low.hour * 60 + low.minute, highMin: high.hour * 60 + high.minute,
-    ...utcBoundsForLocalDays(lowDate, highDate, timeZone),
+    lowDate, highDate, startMs, endMs,
+    startIso: new Date(startMs - 86400000).toISOString(),
+    endIsoExclusive: new Date(endMs + 86400000 + 1).toISOString(),
   };
+}
+
+const hhmm = (h: number, m: number) => `${pad(h)}:${pad(m)}`;
+
+/**
+ * Real start instant of an appointment. Storage is mixed:
+ * - canonical: appointment_date is the real UTC instant, start_time its local HH:mm;
+ * - legacy: appointment_date holds the local wall clock written as UTC.
+ * Legacy wall times that do not exist (spring gap) or occur twice (autumn
+ * repeat) cannot be resolved and return null (fail closed, no reminder).
+ */
+export function appointmentStartInstant(
+  appointmentDate: string, startTime: string | null | undefined, timeZone: string,
+): { kind: "canonical" | "legacy"; ms: number } | null {
+  const d = new Date(appointmentDate);
+  if (Number.isNaN(d.getTime()) || !startTime) return null;
+  const st = startTime.slice(0, 5);
+  const l = localPartsOf(d, timeZone);
+  if (hhmm(l.hour, l.minute) === st) return { kind: "canonical", ms: d.getTime() };
+  if (hhmm(d.getUTCHours(), d.getUTCMinutes()) !== st) return null;
+  const wall: LocalParts = {
+    year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate(),
+    hour: d.getUTCHours(), minute: d.getUTCMinutes(),
+  };
+  const key = (p: LocalParts) => `${localDateKey(p)} ${hhmm(p.hour, p.minute)}`;
+  const ms = localToUtc(wall, timeZone).getTime();
+  if (key(localPartsOf(new Date(ms), timeZone)) !== key(wall)) return null; // gap
+  for (const alt of [ms - 3600000, ms + 3600000]) {
+    if (key(localPartsOf(new Date(alt), timeZone)) === key(wall)) return null; // repeated
+  }
+  return { kind: "legacy", ms };
 }
 
 export function inReminderWindow(
   w: ReturnType<typeof reminderWindow>,
   appointmentDate: string,
-  startTime: string,
+  startTime: string | null | undefined,
   timeZone: string,
 ): boolean {
-  const date = appointmentLocalDate(appointmentDate, timeZone);
-  if (!date || !startTime) return false;
-  const [h, m] = startTime.split(":").map(Number);
-  const min = h * 60 + (m || 0);
-  if (w.lowDate !== w.highDate) {
-    return (date === w.lowDate && min >= w.lowMin) || (date === w.highDate && min <= w.highMin);
-  }
-  return date === w.lowDate && min >= w.lowMin && min <= w.highMin;
+  const inst = appointmentStartInstant(appointmentDate, startTime, timeZone);
+  return !!inst && inst.ms >= w.startMs && inst.ms <= w.endMs;
 }
