@@ -131,6 +131,8 @@ describe("step 3A server route (fictional salon, mocks only)", () => {
       loadService: async () => ({ name: "Fictief" }), loadSalon: async () => ({ salon_name: "Fictief", public_slug: "fictief", demo_mode: false, is_demo: false }),
       emailAllowed: async () => true, sendingAllowed: async () => true, claim: async () => true, release: async () => {}, send,
       rendererTokenOnlyManageLink: true,
+      // Fixture update: the core now fails closed without an explicit test allow-list (privacy hardening).
+      allowedRecipients: new Set(["f@voorbeeld.test"]),
     });
     const { deps } = mk({ onCreated: async ({ appointmentId, sendToCustomer }) => { await dispatchManualConfirmation({ jwt: "jwt-ok", appointmentId, sendToCustomer }, mailDeps(appointmentId)); } });
     await call(deps, { ...body, send_confirmation: true });
