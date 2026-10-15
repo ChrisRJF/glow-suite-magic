@@ -2,18 +2,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { canOfferRemoval, verifiedTotpFactors } from "@/lib/mfaFactors";
 
-const mfa = {
-  listFactors: vi.fn(),
-  getAuthenticatorAssuranceLevel: vi.fn(),
-  enroll: vi.fn(),
-  challengeAndVerify: vi.fn(),
-  unenroll: vi.fn(),
-};
+const { mfa, pf } = vi.hoisted(() => ({
+  mfa: { listFactors: vi.fn(), getAuthenticatorAssuranceLevel: vi.fn(), enroll: vi.fn(), challengeAndVerify: vi.fn(), unenroll: vi.fn() },
+  pf: { current: { loading: false, owner: false, aal2: true } },
+}));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: { auth: { mfa, refreshSession: vi.fn() } },
 }));
-let platform = { loading: false, owner: false, aal2: true };
-vi.mock("@/hooks/usePlatformAccess", () => ({ usePlatformAccess: () => platform }));
+vi.mock("@/hooks/usePlatformAccess", () => ({ usePlatformAccess: () => pf.current }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 import { MfaSettingsCard } from "@/components/MfaSettingsCard";
@@ -29,7 +25,7 @@ beforeEach(() => {
   Object.values(mfa).forEach((f) => f.mockReset());
   mfa.getAuthenticatorAssuranceLevel.mockResolvedValue({ data: { currentLevel: "aal2" } });
   mfa.unenroll.mockResolvedValue({ error: null });
-  platform = { loading: false, owner: false, aal2: true };
+  pf.current = { loading: false, owner: false, aal2: true };
 });
 
 describe("mfa factor rules", () => {
@@ -65,7 +61,7 @@ describe("MfaSettingsCard", () => {
   });
 
   it("adds a second factor without removing the verified one; counts only after verification", async () => {
-    platform = { loading: false, owner: true, aal2: true };
+    pf.current = { loading: false, owner: true, aal2: true };
     setFactors([v("f1"), u("stale")]);
     mfa.enroll.mockResolvedValue({ data: { id: "f2", totp: { qr_code: "data:qr", secret: "S" } }, error: null });
     render(<MfaSettingsCard />);
@@ -99,7 +95,7 @@ describe("MfaSettingsCard", () => {
   });
 
   it("platform owner with one factor sees no remove button", async () => {
-    platform = { loading: false, owner: true, aal2: true };
+    pf.current = { loading: false, owner: true, aal2: true };
     setFactors([v("f1")]);
     render(<MfaSettingsCard />);
     await screen.findByTestId("mfa-owner-note");
@@ -107,7 +103,7 @@ describe("MfaSettingsCard", () => {
   });
 
   it("platform owner with two factors can remove one", async () => {
-    platform = { loading: false, owner: true, aal2: true };
+    pf.current = { loading: false, owner: true, aal2: true };
     setFactors([v("f1"), v("f2")]);
     render(<MfaSettingsCard />);
     await screen.findByTestId("mfa-count");
