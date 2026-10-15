@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { RoleProtectedRoute } from "@/components/RoleProtectedRoute";
 import DashboardPage from "./pages/DashboardPage";
+import OnboardingCheckPage from "./pages/__OnboardingCheck";
 import CalendarPage from "./pages/CalendarPage";
 import CustomersPage from "./pages/CustomersPage";
 import CustomerSegmentsPage from "./pages/CustomerSegmentsPage";
@@ -109,6 +110,7 @@ const App = () => (
             <TrialExpiredModal />
             <ReviewPromptModal />
             <Routes>
+              <Route path="/__onboarding_check" element={<OnboardingCheckPage />} />
               <Route path="/login" element={<AuthRoute><LoginPage /></AuthRoute>} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/.lovable/oauth/consent" element={<OAuthConsentPage />} />
