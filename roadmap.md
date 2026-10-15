@@ -28,3 +28,4 @@
 - [x] Vervang alle publieke faviconformaten door het officiële GlowSuite-icoon
 - [x] Voeg GlowSuite-manifest en Apple touch icon toe
 - [x] Verifieer publieke bereikbaarheid, browsericoon en typecheck
+- [x] Stap-2 PGRST204 opgelost: settings-update stuurt alleen salon_name; logo/salontype blijven lokale wizardstate met eerlijke melding (2026-10-15, preview only)

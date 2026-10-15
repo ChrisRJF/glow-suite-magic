@@ -192,12 +192,15 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
     const { data: s, error: settingsError } = await supabase.from("settings").select("id").eq("user_id", user.id).eq("is_demo", false).maybeSingle();
     if (settingsError) throw new OnboardingSaveError("settings_lookup", settingsError);
     if (s?.id) {
+      // Only verified existing column: salon_name. settings has no salon_logo_url/salon_type
+      // columns (PGRST204), so logo and salon type stay as local wizard state for now.
       const { error } = await (supabase.from("settings") as any).update({
         salon_name: name,
-        salon_logo_url: data.logoUrl || null,
-        salon_type: data.salonType || null,
       }).eq("id", s.id);
       if (error) throw new OnboardingSaveError("settings_update", error);
+    }
+    if (data.logoUrl || data.salonType) {
+      toast.info("Salonnaam opgeslagen. Logo en salontype worden nog niet definitief bewaard en blijven in deze wizard staan.");
     }
     // Auto-seed default services only if the salon has no services yet (avoid duplicates on re-run).
     if (data.salonType) {
