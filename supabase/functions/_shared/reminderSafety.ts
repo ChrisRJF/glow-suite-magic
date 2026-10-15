@@ -198,3 +198,27 @@ export function inReminderWindow(
   const inst = appointmentStartInstant(appointmentDate, startTime, timeZone);
   return !!inst && inst.ms >= w.startMs && inst.ms <= w.endMs;
 }
+
+/**
+ * Scheduler verdict for one candidate row. Unresolvable times (missing
+ * start_time, legacy DST gap/repeat, start_time matching neither storage
+ * form) are reported only when the row's plausible slot touches the window,
+ * so the skip reason is recorded once per affected run, not for every row.
+ */
+export function classifyReminderCandidate(
+  w: ReturnType<typeof reminderWindow>,
+  appointmentDate: string,
+  startTime: string | null | undefined,
+  timeZone: string,
+): "in_window" | "out_of_window" | "missing_start_time" | "unresolvable_time" {
+  const d = new Date(appointmentDate);
+  if (Number.isNaN(d.getTime())) return "out_of_window";
+  const inst = appointmentStartInstant(appointmentDate, startTime, timeZone);
+  if (inst) return inst.ms >= w.startMs && inst.ms <= w.endMs ? "in_window" : "out_of_window";
+  // Could this row plausibly be in the window? Either as real instant or as
+  // legacy wall clock (real instant up to 14h earlier than stored).
+  const ms = d.getTime();
+  const near = ms >= w.startMs - 14 * 3600000 && ms <= w.endMs + 14 * 3600000;
+  if (!near) return "out_of_window";
+  return startTime ? "unresolvable_time" : "missing_start_time";
+}

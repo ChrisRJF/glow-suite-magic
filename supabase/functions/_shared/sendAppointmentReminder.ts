@@ -21,6 +21,7 @@ import {
   selectChannel,
   type ReminderChannel,
 } from "./reminderEngine.ts";
+import { loadTenantScopedReminderRows } from "./reminderSafety.ts";
 
 export interface ReminderSendResult {
   status: "sent" | "skipped" | "failed";
@@ -70,15 +71,18 @@ export async function sendAppointmentReminder(
 
   const reminderType = test ? "reminder_test" : "reminder";
 
-  const { data: appt } = await admin
-    .from("appointments")
-    .select("id, user_id, customer_id, appointment_date, start_time, status, booking_token, confirmation_status, service_id")
-    .eq("id", appointmentId)
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (!appt) return { status: "skipped", channel: null, reason: "appointment_not_found" };
-  if (!appt.customer_id) return { status: "skipped", channel: null, reason: "no_customer" };
+  // Appointment, customer and service all scoped to the same salon; any
+  // mismatch or lookup error stops here, before dedup claims or sends.
+  const scoped = await loadTenantScopedReminderRows(
+    admin,
+    userId,
+    appointmentId,
+    "id, user_id, customer_id, appointment_date, start_time, status, booking_token, confirmation_status, service_id",
+    "id, user_id, name, phone, email, whatsapp_opt_in, preferred_language, archived_at, pseudonymized_at, communication_blocked_at",
+  );
+  if (!scoped.ok) return { status: "skipped", channel: null, reason: scoped.reason };
+  const appt = scoped.appt as any;
+  const customer = scoped.customer as any;
   if (appt.status === "geannuleerd" || appt.confirmation_status === "declined") {
     return { status: "skipped", channel: null, reason: "appointment_cancelled" };
   }
