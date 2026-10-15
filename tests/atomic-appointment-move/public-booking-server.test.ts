@@ -95,6 +95,8 @@ describe("prepared server file", () => {
     expect(oldLookup.length).toBeGreaterThan(100);
     const a = strip(atomic), r = strip(pre.replace(oldLookup, newLookup));
     const cut = (x: string[], from: string, to: string) => [...x.slice(0, x.findIndex((l) => l.includes(from))), ...x.slice(x.findIndex((l) => l.includes(to)))];
-    expect(cut(a, "ATOMIC SAVE", "if (rebookAction && appointments?.[0])")).toEqual(cut(r, "const stillAvailable", "if (rebookAction && appointments?.[0])"));
+    // Approved legacy-name lookup: getSalon's salon query is the only other intended difference.
+    const g = (x: string[]) => cut(x.filter((l) => !/publicSalonResolve/.test(l)), ".or(`public_slug.eq.", "if (!settings) return null;");
+    expect(cut(g(a), "ATOMIC SAVE", "if (rebookAction && appointments?.[0])")).toEqual(cut(g(r), "const stillAvailable", "if (rebookAction && appointments?.[0])"));
   });
 });
