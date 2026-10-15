@@ -87,3 +87,10 @@ export function platformErrorMessage(message: string | undefined): string {
   if (message.includes("not_platform_owner")) return "Je hebt geen toegang tot het platformoverzicht.";
   return "Gegevens konden niet worden geladen.";
 }
+
+/** Short Dutch month label for chart axes, e.g. "2026-09" -> "sep". */
+export function shortMonthLabel(period: string): string {
+  const [y, m] = period.split("-").map(Number);
+  if (!y || !m) return period;
+  return new Intl.DateTimeFormat("nl-NL", { month: "short", timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, 15))).replace(".", "");
+}
