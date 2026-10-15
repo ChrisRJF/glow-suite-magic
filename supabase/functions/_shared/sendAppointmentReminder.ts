@@ -103,12 +103,6 @@ export async function sendAppointmentReminder(
     return { status: "skipped", channel: null, reason: "already_sent" };
   }
 
-  const { data: customer } = await admin
-    .from("customers")
-    .select("id, name, phone, email, whatsapp_opt_in, preferred_language, archived_at, pseudonymized_at, communication_blocked_at")
-    .eq("id", appt.customer_id)
-    .maybeSingle();
-  if (!customer) return { status: "skipped", channel: null, reason: "customer_not_found" };
   if (customer.archived_at || customer.pseudonymized_at || customer.communication_blocked_at) {
     return { status: "skipped", channel: null, reason: "customer_communication_blocked" };
   }
@@ -139,10 +133,7 @@ export async function sendAppointmentReminder(
     month: "long",
   }).format(apptInstant);
 
-  const { data: service } = appt.service_id
-    ? await admin.from("services").select("name").eq("id", appt.service_id).maybeSingle()
-    : { data: null };
-  const serviceName = (service as any)?.name || "";
+  const serviceName = (scoped.service as any)?.name || "";
 
   const { data: tpl } = await admin
     .from("whatsapp_templates")
