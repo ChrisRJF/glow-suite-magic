@@ -20,6 +20,7 @@ vi.mock("@/hooks/useUserRole", async importOriginal => ({
 }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: {
+  rpc: vi.fn(async () => ({ data: false, error: null })),
   from: (table: string) => {
     let write = false;
     const q: any = {
