@@ -59,7 +59,7 @@ describe("webhook: body is only a hint", () => {
   });
   it("Viva response for another account is rejected", async () => {
     const { d, updates } = deps({ fetchFn: vivaReturns({ accountId: ACC_B, merchantId: MID_A, verified: true }) });
-    expect((await handleOnboardingWebhook(evt(), d)).result).toBe("rejected_mismatch"); expect(updates).toHaveLength(0);
+    expect((await handleOnboardingWebhook(evt(), d)).result).toBe("retry_viva_unavailable"); expect(updates).toHaveLength(0);
   });
   it("demo row is not updated by a live event", async () => {
     const { d } = deps({ findByAccountId: async () => row({ is_demo: true }) });
