@@ -1,6 +1,6 @@
 # Roadmap
 
-- [ ] Gerichte desktop-agendadatumkiezer herstellen en alleen kalenderstijl verfijnen; desktop/mobiel controleren zonder echte gegevens of publicatie
+- [x] Gerichte desktop-agendadatumkiezer herstellen en alleen kalenderstijl verfijnen; 27 bestaande tests geslaagd en geïsoleerde browsercontrole op 1280/390 px voor openen, datumselectie en Vandaag, zonder echte gegevens of publicatie
 
 - [x] Bundel mobiele no-showrisico's met ongewijzigde berekeningen en acties; beperkte previewcontrole op 390 px, niets publiceren
 
