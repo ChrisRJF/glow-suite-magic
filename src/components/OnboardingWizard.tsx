@@ -295,41 +295,41 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-full sm:max-w-2xl h-[100dvh] sm:h-auto sm:max-h-[92vh] p-0 gap-0 overflow-hidden border-0 sm:border rounded-none sm:rounded-2xl flex flex-col">
+      <DialogContent className="max-w-full sm:max-w-2xl h-[100dvh] sm:h-auto sm:max-h-[92vh] p-0 gap-0 overflow-hidden border-0 sm:border rounded-none sm:rounded-2xl flex flex-col [&>button:last-child]:top-3 [&>button:last-child]:right-3 [&>button:last-child]:flex [&>button:last-child]:h-11 [&>button:last-child]:w-11 [&>button:last-child]:items-center [&>button:last-child]:justify-center sm:[&>button:last-child]:top-4 sm:[&>button:last-child]:right-4 sm:[&>button:last-child]:h-4 sm:[&>button:last-child]:w-4">
         <DialogTitle className="sr-only">GlowSuite instellen</DialogTitle>
         <DialogDescription className="sr-only">Vul je salon in. Extra instellingen zijn optioneel.</DialogDescription>
         {/* Header */}
         {showChrome && (
           <div className="px-5 sm:px-8 pt-5 sm:pt-6 pb-3 border-b border-border/50 bg-gradient-to-br from-primary/[0.04] to-transparent">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between mb-3 pr-12 sm:pr-6">
+              <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 min-w-0">
                 {data.logoUrl ? (
                   <img
                     src={data.logoUrl}
                     alt={data.salonName || "Salonlogo"}
-                    className="w-7 h-7 rounded-lg object-cover border border-border/50 bg-background"
+                    className="w-7 h-7 shrink-0 rounded-lg object-cover border border-border/50 bg-background"
                   />
                 ) : (
                   <img
                     src={glowsuiteLogo}
                     alt="GlowSuite"
-                    className="w-7 h-7 rounded-lg object-contain bg-background"
+                    className="w-7 h-7 shrink-0 rounded-lg object-contain bg-background"
                   />
                 )}
                 <span className="text-sm font-semibold">{data.logoUrl && data.salonName ? data.salonName : "GlowSuite"}</span>
                 {previewMode && (
-                  <span className="inline-flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded-md bg-muted text-muted-foreground text-[10px] font-medium">
+                  <>
+                    <span className="shrink-0 px-2 py-0.5 rounded-md bg-muted text-muted-foreground text-[10px] font-medium">
                       Voorbeeld
                     </span>
-                    <span className="text-[10px] text-muted-foreground/80">
+                    <span className="basis-full sm:basis-auto text-[10px] text-muted-foreground/80">
                       Wijzigingen worden niet opgeslagen.
                     </span>
-                  </span>
+                  </>
                 )}
               </div>
               {step > 0 && step < TOTAL - 1 && (
-                <div className="flex flex-col items-end">
+                <div className="flex flex-col items-end self-end shrink-0">
                   <Button variant="ghost" size="sm" onClick={skipAll} disabled={saving} className="text-xs text-muted-foreground">
                     Nu sluiten
                   </Button>
@@ -525,7 +525,7 @@ function GlowPayStep({ demo, onLater }: { demo: boolean; onLater: () => void }) 
   return (
     <div className="space-y-6 max-w-lg mx-auto" data-testid="glowpay-step">
       <div className="space-y-3">
-        <img src={glowpayLogo.url} alt="GlowPay" width={1470} height={335} className="h-auto w-52 max-w-full rounded-md object-contain" />
+        <img src={glowpayLogo.url} alt="GlowPay" width={1470} height={335} className="h-auto w-44 max-w-full rounded-md object-contain" />
         <h2 className="text-2xl font-bold tracking-tight">Activeer GlowPay</h2>
         <p className="text-sm text-muted-foreground">
           Activeer je betaalaccount via onze betaalpartner Viva. Viva begeleidt je bij de benodigde bedrijfsverificatie.

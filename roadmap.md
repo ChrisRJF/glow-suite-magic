@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Eén previewpolish: mobiele voorbeeldkop vrij van botsingen en disclaimer op eigen regel; GlowPay-logo stap 3 circa 15% kleiner; stap 7 en overige inhoud ongewijzigd; fictief controleren op 390/1440 px en relevante tests, geen gegevens of publicatie.
+
 - [x] Gerichte onboardingafwerking: boekingsstatus Ingesteld, duidelijke uitgeschakelde activatieknop en mobiele afronding; zeven stappen fictief gecontroleerd op 390/1440 px, 25 frontendtests geslaagd, niets gepubliceerd. GlowPay-logo ontbreekt, bestaand beeld ongewijzigd.
 
 - [x] Gerichte desktop-agendadatumkiezer herstellen en alleen kalenderstijl verfijnen; 27 bestaande tests geslaagd en geïsoleerde browsercontrole op 1280/390 px voor openen, datumselectie en Vandaag, zonder echte gegevens of publicatie
