@@ -38,3 +38,12 @@ describe("platform helpers", () => {
     expect(p[11]).toBe("2025-11");
   });
 });
+
+import { shortMonthLabel as _sml } from "@/lib/platformMetrics";
+describe("shortMonthLabel", () => {
+  it("labels September as sep", () => { expect(_sml("2026-09")).toBe("sep"); });
+  it("gives six distinct labels for May to October", () => {
+    const labels = ["2026-05","2026-06","2026-07","2026-08","2026-09","2026-10"].map(_sml);
+    expect(new Set(labels).size).toBe(6);
+  });
+});
