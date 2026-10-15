@@ -89,7 +89,11 @@ describe("prepared server file", () => {
   });
   it("everything outside the save block is unchanged", () => {
     const strip = (s: string) => s.split("\n").filter((l) => !/groupId|booking_group_id|publicBookingAtomic|PREPARED|reference of|Reference/i.test(l));
-    const a = strip(atomic), r = strip(pre);
+    // The live server later gained the approved lookup_customer privacy hardening; apply it to the historical copy.
+    const oldLookup = pre.slice(pre.indexOf("      const email = parsed.data.email.toLowerCase();"), pre.indexOf("recentAppointments: appts || [] });") + "recentAppointments: appts || [] });".length);
+    const newLookup = atomic.slice(atomic.indexOf("      // Privacy: an unverified email"), atomic.indexOf("return json({ customer: null, recentAppointments: [] });", atomic.indexOf("// Privacy: an unverified email")) + "return json({ customer: null, recentAppointments: [] });".length);
+    expect(oldLookup.length).toBeGreaterThan(100);
+    const a = strip(atomic), r = strip(pre.replace(oldLookup, newLookup));
     const cut = (x: string[], from: string, to: string) => [...x.slice(0, x.findIndex((l) => l.includes(from))), ...x.slice(x.findIndex((l) => l.includes(to)))];
     expect(cut(a, "ATOMIC SAVE", "if (rebookAction && appointments?.[0])")).toEqual(cut(r, "const stillAvailable", "if (rebookAction && appointments?.[0])"));
   });
