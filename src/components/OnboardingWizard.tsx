@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useDemoMode } from "@/hooks/useDemoMode";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { OnboardingSaveError, describeOnboardingSaveError } from "@/lib/onboardingSaveError";
 import { useNavigate } from "react-router-dom";
 import {
   Sparkles, Check, ArrowRight, ArrowLeft, Store, Scissors,
@@ -248,8 +249,8 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
       if (step === 5) saveAutomations();
       if (step === TOTAL - 1) { finish(); return; }
       setStep(step + 1);
-    } catch (e: any) {
-      toast.error("Er ging iets mis");
+    } catch (e: unknown) {
+      toast.error(describeOnboardingSaveError(e));
     } finally { busyRef.current = false; setSaving(false); }
   };
 
