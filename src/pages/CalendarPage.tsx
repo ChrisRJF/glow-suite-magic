@@ -129,7 +129,7 @@ export default function CalendarPage() {
   const [selectedEmployee, setSelectedEmployee] = useState<string>('alle');
   const [showFilters, setShowFilters] = useState(false);
   const [filterAvailability, setFilterAvailability] = useState<string>('beschikbaar'); // alle, beschikbaar (werkend + afwezig met afspraken)
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [datePickerOpen, setDatePickerOpen] = useState<'mobile' | 'desktop' | null>(null);
   const [employeePickerOpen, setEmployeePickerOpen] = useState(false);
 
   // Phase 3: drag/drop + move sheet state
@@ -1216,6 +1216,40 @@ export default function CalendarPage() {
   // DayApptDraggable / DaySlotDroppable are hoisted to CalendarDayDnd.tsx
   // so they keep a stable identity across renders (no remount mid-drag).
 
+  const renderDatePicker = (placement: 'mobile' | 'desktop') => (
+    <Popover open={datePickerOpen === placement} onOpenChange={open => setDatePickerOpen(open ? placement : null)}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="icon" className="h-9 w-9 shrink-0 rounded-lg" aria-label="Datum kiezen">
+          <CalendarDays className="w-4 h-4" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-auto p-0 max-w-[calc(100vw-2rem)] rounded-lg border-border shadow-lg pointer-events-auto">
+        <Calendar mode="single" selected={currentDate} defaultMonth={currentDate} locale={nl} weekStartsOn={1}
+          captionLayout="dropdown-buttons" fromYear={1900} toYear={2100} initialFocus className="p-3 pointer-events-auto"
+          classNames={{
+            cell: 'h-9 w-9 text-center text-sm p-0 relative focus-within:z-20',
+            day_selected: 'rounded-md bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground',
+            day_today: 'rounded-md bg-secondary text-primary font-semibold',
+            day_outside: 'day-outside text-muted-foreground opacity-50 aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:opacity-100',
+            caption: 'relative flex justify-center items-center pt-1',
+            caption_label: 'hidden',
+            caption_dropdowns: 'flex items-center justify-center gap-2 px-8',
+            dropdown_month: 'relative',
+            dropdown_year: 'relative',
+            dropdown: 'h-9 rounded-md border border-input bg-popover px-2 text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            dropdown_icon: 'hidden',
+            vhidden: 'sr-only',
+            nav_button: 'inline-flex h-9 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+          }}
+          labels={{ labelMonthDropdown: () => 'Maand', labelYearDropdown: () => 'Jaar' }}
+          onSelect={date => { if (date) { setCurrentDate(date); setDatePickerOpen(null); } }} />
+        <div className="border-t border-border p-2">
+          <Button variant="ghost" size="sm" className="w-full rounded-md text-primary" onClick={() => { goToToday(); setDatePickerOpen(null); }}>Vandaag</Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+
   // -----------------------------------------------------------------------
 
   return (
@@ -1270,31 +1304,7 @@ export default function CalendarPage() {
             <p className="text-[11px] text-muted-foreground">{dayAppts.length} afspraken</p>
           </div>
           <Button variant="ghost" size="icon" className="h-9 w-8 shrink-0" aria-label="Vorige dag" onClick={() => navigate(-1)}><ChevronLeft className="w-4 h-4" /></Button>
-          <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" aria-label="Datum kiezen"><CalendarDays className="w-4 h-4" /></Button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-auto p-0 max-w-[calc(100vw-2rem)]">
-              <Calendar mode="single" selected={currentDate} defaultMonth={currentDate} locale={nl} weekStartsOn={1}
-                captionLayout="dropdown-buttons" fromYear={1900} toYear={2100} initialFocus className="p-3 pointer-events-auto"
-                classNames={{
-                  cell: 'h-9 w-9 text-center text-sm p-0 relative focus-within:z-20',
-                  day_selected: 'rounded-md bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground',
-                  day_outside: 'day-outside text-muted-foreground opacity-50 aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:opacity-100',
-                  caption: 'relative flex justify-center pt-1',
-                  caption_label: 'hidden',
-                  caption_dropdowns: 'flex items-center justify-center gap-2 px-8',
-                  dropdown_month: 'relative',
-                  dropdown_year: 'relative',
-                  dropdown: 'h-9 rounded-md border border-input bg-background px-2 text-xs text-foreground',
-                  dropdown_icon: 'hidden',
-                  vhidden: 'sr-only',
-                }}
-                labels={{ labelMonthDropdown: () => 'Maand', labelYearDropdown: () => 'Jaar' }}
-                onSelect={date => { if (date) { setCurrentDate(date); setDatePickerOpen(false); } }} />
-              <div className="px-3 pb-3"><Button variant="ghost" size="sm" className="w-full" onClick={() => { goToToday(); setDatePickerOpen(false); }}>Vandaag</Button></div>
-            </PopoverContent>
-          </Popover>
+          {renderDatePicker('mobile')}
           <Button variant="ghost" size="icon" className="h-9 w-8 shrink-0" aria-label="Volgende dag" onClick={() => navigate(1)}><ChevronRight className="w-4 h-4" /></Button>
         </div>
         <div role="group" aria-label="Agendaweergave" className="flex rounded-lg border border-border overflow-hidden">
@@ -1767,6 +1777,7 @@ export default function CalendarPage() {
                 : `${weekDays[0].toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })} – ${weekDays[6].toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })}`
               }
             </h3>
+            {renderDatePicker('desktop')}
             <button className="p-2 rounded-lg hover:bg-secondary transition-colors" onClick={() => navigate(1)}><ChevronRight className="w-4 h-4" /></button>
           </div>
           <span className="text-xs sm:text-sm text-muted-foreground shrink-0">

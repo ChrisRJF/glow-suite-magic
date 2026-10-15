@@ -1,6 +1,7 @@
 # AGENTS
 
 - AppLayout compactMobile is opt-in presentation spacing only; why: the mobile agenda can start higher without changing other pages or desktop layout.
+- Agenda mobile and desktop date pickers reuse one local renderer with placement-specific open state; why: both date bars stay functional without mounting a second hidden calendar or changing shared calendar styles.
 - Dashboard mobile finishing is scoped by data-mobile-dashboard and a mobile-only stylesheet block; why: shared layout and Autopilot components keep their desktop and other-page presentation unchanged.
 - DashboardPage passes its existing tomorrow-risk count to TodayAtAGlance for mobile consolidation only; why: the customer-wide selector and both existing action destinations remain intact without changing desktop metrics.
 
