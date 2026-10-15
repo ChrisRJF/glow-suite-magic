@@ -93,13 +93,16 @@ export default function PlatformPage() {
 
   useEffect(() => {
     if (!allowed) return;
+    let stale = false;
     setLoading(true);
     Promise.all([rpc("platform_usage", { _period: period }), rpc("platform_finance_report", { _period: period })])
       .then(([u, f]: any[]) => {
+        if (stale) return;
         if (u.error || f.error) setError(platformErrorMessage((u.error || f.error).message));
         else { setUsage(u.data); setFinance(f.data ?? []); setError(null); }
       })
-      .finally(() => setLoading(false));
+      .finally(() => { if (!stale) setLoading(false); });
+    return () => { stale = true; };
   }, [allowed, period]);
 
   if (authLoading || access.loading) {
