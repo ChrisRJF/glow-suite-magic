@@ -24,6 +24,7 @@ import glowsuiteLogo from "@/assets/glowsuite-logo.png";
 import glowpayLogo from "@/assets/glowpay/glowpay-logo.png.asset.json";
 import { missingSeedServices } from "@/lib/onboardingServiceSeed";
 import { buildSettingsPayload } from "@/lib/onboardingSalonProfile";
+import { inviteActionFromResponse, inviteActionFromError, INVITE_UNAVAILABLE } from "@/lib/vivaInviteAction";
 
 
 interface Props {
@@ -354,7 +355,7 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
             <>
               {step === 0 && <WelcomeStep />}
               {step === 1 && <SalonStep data={data} setData={setData} onLogo={onLogoUpload} />}
-              {step === 2 && <GlowPayStep demo={demoMode} onLater={() => next()} />}
+              {step === 2 && <GlowPayStep demo={demoMode} previewMode={previewMode} salonName={data.salonName} onLater={() => next()} />}
               {step === 3 && <TerminalStep previewMode={previewMode} />}
               {step === 4 && <SystemCheckStep />}
               {step === 5 && <AutomationsStep data={data} setData={setData} />}
@@ -493,10 +494,13 @@ const PAY_TEXT: Record<PayStatus, string> = {
   active: "Je betaalaccount is goedgekeurd. Betalingen zijn beschikbaar.",
 };
 
-function GlowPayStep({ demo, onLater }: { demo: boolean; onLater: () => void }) {
+function GlowPayStep({ demo, previewMode = false, salonName, onLater }: { demo: boolean; previewMode?: boolean; salonName: string; onLater: () => void }) {
   const { user } = useAuth();
   const [pay, setPay] = useState<PayStatus | null>(null);
   const [booking, setBooking] = useState<BookingStatus | null>(null);
+  const [inviteBusy, setInviteBusy] = useState(false);
+  const [inviteMsg, setInviteMsg] = useState<string | null>(null);
+  const inviteFlight = useRef(false);
 
   useEffect(() => {
     if (!user) return;
@@ -517,6 +521,44 @@ function GlowPayStep({ demo, onLater }: { demo: boolean; onLater: () => void }) 
 
   const status: PayStatus = pay ?? "not_started";
   const tone = (ok: boolean) => ok ? "text-success" : "text-muted-foreground";
+
+  // Alleen interactief voor een ingelogde, niet-demo gebruiker buiten preview.
+  const canInvite = Boolean(user && !demo && !previewMode && salonName.trim() && user.email);
+
+  const startVivaInvite = async () => {
+    // Single-flight: nooit twee registratieverzoeken tegelijk of na elkaar
+    // automatisch herhalen. Alleen een expliciete nieuwe klik mag opnieuw.
+    if (!canInvite || inviteFlight.current) return;
+    inviteFlight.current = true;
+    setInviteBusy(true);
+    setInviteMsg(null);
+    const forUserId = user!.id;
+    try {
+      const { data: res, error } = await supabase.functions.invoke("create-viva-connected-account", {
+        body: { business_name: salonName.trim(), contact_email: user!.email, country: "NL" },
+      });
+      // Gebruiker is tijdens het wachten gewisseld: nooit met een vorige
+      // gebruikers-URL navigeren of status tonen.
+      if (user?.id !== forUserId) return;
+      const action = error
+        ? inviteActionFromError(error)
+        : inviteActionFromResponse((res as any) ?? {});
+      if (action.kind === "navigate") {
+        // Zelfde tabblad; de wizard-stap is al in localStorage bewaard en Viva
+        // stuurt na afronden terug naar /glowpay/registratie-status.
+        window.location.assign(action.url);
+        return;
+      }
+      setInviteMsg(action.text);
+    } catch (e) {
+      if (user?.id !== forUserId) return;
+      const action = inviteActionFromError(e);
+      setInviteMsg(action.kind === "message" ? action.text : INVITE_UNAVAILABLE);
+    } finally {
+      inviteFlight.current = false;
+      setInviteBusy(false);
+    }
+  };
 
   return (
     <div className="space-y-6 max-w-lg mx-auto" data-testid="glowpay-step">
@@ -551,14 +593,24 @@ function GlowPayStep({ demo, onLater }: { demo: boolean; onLater: () => void }) 
 
       {status !== "active" && (
         <div className="space-y-2">
-          <Button variant="outline" className="w-full disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100 disabled:shadow-none" disabled aria-describedby="glowpay-soon">
-            <LockKeyhole aria-hidden="true" />
-            Activeer GlowPay via Viva
+          <Button
+            variant="outline"
+            className="w-full disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100 disabled:shadow-none"
+            disabled={!canInvite || inviteBusy}
+            onClick={startVivaInvite}
+            aria-describedby="glowpay-soon"
+            data-testid="glowpay-invite-button"
+          >
+            {inviteBusy ? <Loader2 className="animate-spin" aria-hidden="true" /> : <LockKeyhole aria-hidden="true" />}
+            {inviteBusy ? "Aanvraag wordt verstuurd..." : "Account aanmaken of koppelen bij Viva"}
           </Button>
+          {inviteMsg && (
+            <p className="text-xs text-center text-muted-foreground" role="status" data-testid="glowpay-invite-message">{inviteMsg}</p>
+          )}
           <p id="glowpay-soon" className="text-xs text-muted-foreground text-center">
-            {demo
+            {demo || previewMode
               ? "In de demo kun je GlowPay niet activeren. Er worden geen echte betalingen verwerkt."
-              : "Activeren is beschikbaar zodra de partnerkoppeling met Viva gereed is."}
+              : "De koppeling met Viva wordt nu ingeschakeld. Lukt het nog niet, probeer het later of neem contact op met GlowSuite."}
           </p>
           <Button variant="ghost" className="w-full" onClick={onLater}>Later activeren</Button>
         </div>

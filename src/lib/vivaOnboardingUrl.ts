@@ -6,6 +6,8 @@ const VIVA_HOSTS = new Set([
   "www.vivapayments.com",
   "viva.com",
   "www.viva.com",
+  "vivawallet.com",
+  "www.vivawallet.com",
 ]);
 
 export function isTrustedVivaUrl(raw: string | null | undefined): boolean {
@@ -14,7 +16,7 @@ export function isTrustedVivaUrl(raw: string | null | undefined): boolean {
     const url = new URL(raw);
     if (url.protocol !== "https:") return false;
     const host = url.hostname.toLowerCase();
-    return VIVA_HOSTS.has(host) || host.endsWith(".vivapayments.com") || host.endsWith(".viva.com");
+    return VIVA_HOSTS.has(host) || host.endsWith(".vivapayments.com") || host.endsWith(".viva.com") || host.endsWith(".vivawallet.com");
   } catch {
     return false;
   }
