@@ -148,6 +148,13 @@
       "when": 1792014730058,
       "tag": "0020_platform_owner_dashboard_read_functions",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1792179245150,
+      "tag": "0021_platform_isv_fees",
+      "breakpoints": true
     }
   ]
 }

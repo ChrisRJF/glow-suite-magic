@@ -61,6 +61,7 @@ import MijnAbonnementPage from "./pages/MijnAbonnementPage";
 import OAuthConsentPage from "./pages/OAuthConsentPage";
 import PlatformPage from "./pages/PlatformPage";
 import PlatformVivaWebhooksPage from "./pages/PlatformVivaWebhooksPage";
+import PlatformIsvFeesPage from "./pages/PlatformIsvFeesPage";
 import { useLeadAutomation } from "@/hooks/useLeadAutomation";
 import { OnboardingGate } from "@/components/OnboardingGate";
 
@@ -177,6 +178,7 @@ const App = () => (
               <Route path="/admin/demo-requests" element={<RoleProtectedRoute allow={["eigenaar","manager","admin"]}><AdminDemoRequestsPage /></RoleProtectedRoute>} />
               <Route path="/platform" element={<PlatformPage />} />
               <Route path="/platform/viva-webhooks" element={<PlatformVivaWebhooksPage />} />
+              <Route path="/platform/isv-fees" element={<PlatformIsvFeesPage />} />
               <Route path="*" element={<RoleProtectedRoute><NotFound /></RoleProtectedRoute>} />
             </Routes>
           </BrowserRouter>
