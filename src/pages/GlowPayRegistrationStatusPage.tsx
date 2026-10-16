@@ -8,6 +8,7 @@ import { registrationView, visibleView, type RegistrationView } from "@/lib/glow
 import { trustedVivaUrl } from "@/lib/vivaOnboardingUrl";
 import { Check, Clock, AlertTriangle, Loader2, LogIn, ExternalLink, ShieldCheck, HelpCircle } from "lucide-react";
 import glowpayLogo from "@/assets/glowpay/glowpay-logo.png.asset.json";
+import { GlowSuiteLogo } from "@/components/GlowSuiteLogo";
 
 // Return page after the Viva registration flow. It never assumes approval:
 // status comes only from the user's own RLS-filtered merchant row
@@ -87,6 +88,8 @@ export default function GlowPayRegistrationStatusPage() {
     <div className="min-h-screen bg-background flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-md space-y-6">
         <div className="flex flex-col items-center text-center space-y-3">
+          <GlowSuiteLogo size="sm" withWordmark className="opacity-70" />
+          <span aria-hidden="true" className="h-px w-10 bg-border" />
           <img
             src={glowpayLogo.url}
             alt="GlowPay"
@@ -96,7 +99,7 @@ export default function GlowPayRegistrationStatusPage() {
           />
           <h1 className="text-2xl font-bold tracking-tight">Registratie bij Viva</h1>
           <p className="text-sm text-muted-foreground">
-            De registratie en verificatie van je betaalaccount gebeuren bij onze betaalpartner Viva.
+            GlowPay is de betaaloplossing van GlowSuite. Viva verzorgt de registratie en controle van je betaalaccount.
             Terugkeren naar GlowSuite betekent niet automatisch dat de verificatie al is afgerond.
           </p>
         </div>
