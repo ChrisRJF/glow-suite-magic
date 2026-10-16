@@ -2,6 +2,7 @@
 
 - [x] Bestaande ISV-betaalroutes aangesloten en zes functies veilig gedeployed; migraties 0022/0023 aanwezig, 64 gerichte tests en 18 geïsoleerde opslag/concurrentietests geslaagd. Vijfminutenjob actief; KYC-refresh slaat salons over zolang de contractgate uitstaat, geen LIVE orders.
 - [ ] LIVE charge-activatie wacht op sluitend Viva LIVE webhook/retrieve-contractbewijs, geverifieerde salon-KYC/acquiring en afzonderlijke activatie-GO; geen salonallowlist.
+- [ ] Account/KYC/acquiring-refresh onafhankelijk van betaalgate testen en veilig deployen; officiële LIVE contractvelden verifiëren, geen orders of klantwijzigingen.
 
 - [x] GlowPay-branding voorbereid; bestaande merchant-UNIQUE read-only geverifieerd, geen salonrijen gelezen.
 - [ ] LIVE ISV-create koppelen: blokkerende server-only reservering/recovery vereist aparte schema-GO en LIVE-contractverificatie; schakelaar blijft uit.
