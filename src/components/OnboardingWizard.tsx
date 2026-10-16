@@ -504,7 +504,7 @@ function GlowPayStep({ demo, onLater }: { demo: boolean; onLater: () => void }) 
     (async () => {
       const [m, s] = await Promise.all([
         (supabase as any).from("glowpay_connected_merchants")
-          .select("viva_account_id, viva_merchant_id, onboarding_status, kyc_status, online_payments_enabled, is_demo")
+          .select("viva_account_id, viva_merchant_id, onboarding_status, kyc_status, online_payments_enabled, viva_source_code, is_demo")
           .eq("user_id", user.id).eq("is_demo", demo).maybeSingle(),
         (supabase as any).from("settings").select("public_slug").eq("user_id", user.id).maybeSingle(),
       ]);
@@ -524,7 +524,9 @@ function GlowPayStep({ demo, onLater }: { demo: boolean; onLater: () => void }) 
         <img src={glowpayLogo.url} alt="GlowPay" width={1470} height={335} className="h-auto w-44 max-w-full rounded-md object-contain" />
         <h2 className="text-2xl font-bold tracking-tight">Activeer GlowPay</h2>
         <p className="text-sm text-muted-foreground">
-          Activeer je betaalaccount via onze betaalpartner Viva. Viva begeleidt je bij de benodigde bedrijfsverificatie.
+          Je maakt zelf een account aan bij onze betaalpartner Viva, of je koppelt je bestaande Viva-account.
+          Viva controleert je bedrijfsgegevens. Dat is een aparte stap en kan even duren.
+          GlowSuite kun je ondertussen gewoon gebruiken.
         </p>
       </div>
 
@@ -949,7 +951,7 @@ function DoneStep({ logoUrl, salonName }: { logoUrl?: string; salonName?: string
       )}
       <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">Je salon is klaar!</h1>
       <p className="text-base text-muted-foreground mb-6">
-        Je kunt nu aan de slag. Je salon staat in GlowSuite en je kunt direct werken met:
+        De inrichting van GlowSuite is afgerond. Je kunt direct werken met:
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full text-left">
         {ready.map(t => (
@@ -962,7 +964,8 @@ function DoneStep({ logoUrl, salonName }: { logoUrl?: string; salonName?: string
       <div className="w-full mt-4 rounded-2xl border border-border/60 bg-secondary/20 px-4 py-3 text-left">
         <p className="text-sm font-semibold">Later instellen</p>
         <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-          GlowPay-betalingen en automatische berichten regel je apart via Instellingen, wanneer het je uitkomt.
+          GlowPay-betalingen rond je apart af bij Viva. Dat is een eigen stap met verificatie en wordt niet automatisch actief.
+          Automatische berichten regel je via Instellingen, wanneer het je uitkomt.
         </p>
       </div>
     </div>
