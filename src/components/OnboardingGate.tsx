@@ -4,6 +4,7 @@ import { useServices } from "@/hooks/useSupabaseData";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useDemoMode } from "@/hooks/useDemoMode";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchServerOnboardingState, persistOnboardingState } from "@/lib/onboardingPrefs";
 import { OnboardingWizard } from "./OnboardingWizard";
 
 /**
@@ -66,6 +67,14 @@ export function OnboardingGate() {
     if (hasLocalCompletion(user.id)) return;
 
     (async () => {
+      // Server-authoritative account state (cross-device). Any stored state
+      // (dismissed/done/skipped) means: never auto-open again.
+      const serverState = await fetchServerOnboardingState(user.id);
+      if (serverState) {
+        markCompleted(user.id, `server-${serverState}`);
+        return;
+      }
+
       // Check legacy GlowPay activation completion on settings row → migrate.
       try {
         const { data: s } = await supabase
@@ -109,7 +118,10 @@ export function OnboardingGate() {
   // via Instellingen opens the wizard directly and is unaffected.
   const handleOpenChange = (o: boolean) => {
     setOpen(o);
-    if (!o && user && !hasLocalCompletion(user.id)) markCompleted(user.id, "dismissed");
+    if (!o && user && !hasLocalCompletion(user.id)) {
+      markCompleted(user.id, "dismissed");
+      void persistOnboardingState(user.id, "dismissed");
+    }
   };
 
   return <OnboardingWizard open={open} onOpenChange={handleOpenChange} />;
