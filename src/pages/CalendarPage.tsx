@@ -42,6 +42,7 @@ import { DayApptDraggable, DaySlotDroppable } from "@/components/CalendarDayDnd"
 import { resolveDropTarget, validateDropWindow, isTouchActivation, agendaCollision } from "@/lib/calendarDrop";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { EmployeeColumnDayView } from "@/components/EmployeeColumnDayView";
+import { staffLabels } from "@/lib/agendaStaff";
 import { MoveAppointmentSheet, type MoveTarget } from "@/components/MoveAppointmentSheet";
 import { SmartReflowDialog, type ReflowAppointment } from "@/components/SmartReflowDialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -248,6 +249,7 @@ export default function CalendarPage() {
   };
 
 
+  const staffLabelMap = useMemo(() => staffLabels(displayEmployees as any), [displayEmployees]);
   const dateStr = formatLocalDate(currentDate);
   const currentDayOfWeek = currentDate.getDay() === 0 ? 7 : currentDate.getDay(); // 1=ma..7=zo
 
@@ -378,7 +380,7 @@ export default function CalendarPage() {
   const hiddenEmployeeCount = displayEmployees.length - filteredMedewerkers.length;
   const workingEmployeeCount = displayEmployees.filter((m: any) => getEmployeeStatus(m, currentDate) === 'beschikbaar').length;
   const employeeFilterSummary = workingEmployeeCount === displayEmployees.length
-    ? `Alle ${workingEmployeeCount} medewerkers werken op deze dag, dus beide keuzes tonen hetzelfde`
+    ? ''
     : `${workingEmployeeCount} werken · ${hiddenEmployeeCount} verborgen${filterAvailability === 'beschikbaar' && absentWithAppts.length > 0 ? ` · ${absentWithAppts.length} met afspraken blijven zichtbaar` : ''}`;
 
   const dayAppts = useMemo(() =>
@@ -1426,7 +1428,7 @@ export default function CalendarPage() {
                 )}
               >
                 <EmployeeAvatar employee={emp} size="xs" ring={false} />
-                {emp.name}
+                {staffLabelMap.get(emp.id) || emp.name}
                 {status !== 'beschikbaar' ? (() => {
                   const badge = getEmployeeAbsenceBadge(emp, currentDate);
                   return <span className={cn("text-[10px] px-1.5 py-0.5 rounded", badge?.tone || "text-destructive")}>{badge?.label || 'Afwezig'}{apptCount > 0 ? ` · ${apptCount}` : ''}</span>;
@@ -1451,7 +1453,7 @@ export default function CalendarPage() {
                   className="p-2.5 rounded-xl bg-secondary/30 border border-border hover:bg-secondary/50 transition-all text-left">
                   <div className="flex items-center gap-2 mb-1">
                     <EmployeeAvatar employee={emp} size="sm" ring={false} />
-                    <span className="text-xs font-medium truncate">{emp.name}</span>
+                    <span className="text-xs font-medium truncate">{staffLabelMap.get(emp.id) || emp.name}</span>
                     <span className={cn("text-[10px] px-1.5 py-0.5 rounded ml-auto", workloadColors[wl.variant])}>{wl.label}</span>
                   </div>
                   <div className="text-[10px] text-muted-foreground">
@@ -1977,6 +1979,7 @@ export default function CalendarPage() {
             isPauseSlot={isPauseSlotForEmpId}
             onRequestMove={openMoveSheet}
             onSlotClick={(empId, slot) => openAddModal(dateStr, slot)}
+            onOpenAppointment={(apt) => setDossierAppt(apt)}
             draggable
           />
         ) : (
@@ -2003,7 +2006,10 @@ export default function CalendarPage() {
                         const time = getAppointmentTime(apt);
                         const displayEmps = getDisplayEmployees(apt);
                         return (
-                          <div key={apt.id} className="p-2.5 rounded-xl cursor-pointer transition-all duration-200 hover:scale-[1.02]"
+                          <div key={apt.id} role="button" tabIndex={0} aria-label={`Open afspraak ${cust?.name || 'Klant'} ${dayNames[i]} ${day.getDate()} om ${time}`}
+                            onClick={() => setDossierAppt(apt)}
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDossierAppt(apt); } }}
+                            className="p-2.5 rounded-xl cursor-pointer transition-all duration-200 hover:scale-[1.02]"
                             style={{ backgroundColor: `${svc?.color || '#7B61FF'}12`, borderLeft: `2px solid ${svc?.color || '#7B61FF'}` }}>
                             <div className="flex items-start gap-2">
                               {displayEmps.length > 0 && (
