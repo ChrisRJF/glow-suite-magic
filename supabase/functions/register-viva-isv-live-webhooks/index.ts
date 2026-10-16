@@ -1,4 +1,4 @@
-// Platform-admin (AAL2) only. POST {"confirm":"register_live_isv_webhooks_8193_8194"}. Never runs on deploy.
+// Platform-admin (AAL2) only, explicit five-event confirmation. Never runs on deploy.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { CONFIRM_WORD, registerLiveIsvWebhooksForAdmin } from "../_shared/isvLiveWebhookRegister.ts";
@@ -13,7 +13,9 @@ Deno.serve(async (req) => {
   const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
   let userId: string | null = null, aal: string | null = null;
   if (token) {
-    const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!);
+    const url = Deno.env.get("SUPABASE_URL"), anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+    if (!url || !anonKey) return json(503, { error: "auth_unavailable" });
+    const sb = createClient(url, anonKey);
     const { data, error } = await sb.auth.getClaims(token);
     if (!error && data?.claims) { userId = (data.claims.sub as string) ?? null; aal = (data.claims.aal as string) ?? null; }
   }

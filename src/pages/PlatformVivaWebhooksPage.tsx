@@ -8,15 +8,16 @@ import { Card } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 
 // Temporary admin-only page. UI gate is a hint; the server checks admin list, AAL2 and confirm word.
-const CONFIRM = "register_live_isv_webhooks_8193_8194";
-const LABEL: Record<string, string> = { registered: "Geregistreerd", already_registered: "Was al geregistreerd", failed: "Mislukt" };
+const CONFIRM = "register_live_isv_webhooks_1796_1797_1798_8193_8194";
+const LABEL: Record<string, string> = { registered: "Geregistreerd", failed: "Niet bevestigd", unknown: "Uitkomst onbekend" };
+type EventResult = { status: string; httpStatus: number | null; at: string };
 
 export default function PlatformVivaWebhooksPage() {
   const { user, loading: authLoading } = useAuth();
   const access = usePlatformAccess();
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
-  const [result, setResult] = useState<{ events?: Record<string, string>; error?: string; list?: string } | null>(null);
+  const [result, setResult] = useState<{ events?: Record<string, EventResult>; error?: string } | null>(null);
 
   // Wait for the session first: on mobile the auth state restores later, and an early "not owner" used to redirect away.
   if (authLoading || access.loading) return <div className="flex justify-center p-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
@@ -34,9 +35,10 @@ export default function PlatformVivaWebhooksPage() {
   }
 
   const run = async () => {
-    if (busy || done) return;
-    if (!window.confirm("Webhooks 8193 en 8194 eenmalig bij Viva LIVE registreren?")) return;
+    if (busy || done || !access.aal2) return;
+    if (!window.confirm("Alle vijf events (1796, 1797, 1798, 8193 en 8194) bij Viva LIVE registreren? Betalingen blijven uit.")) return;
     setBusy(true);
+    try {
     const { data, error } = await supabase.functions.invoke("register-viva-isv-live-webhooks", { body: { confirm: CONFIRM } });
     let body: any = data;
     let httpStatus: number | undefined;
@@ -47,26 +49,37 @@ export default function PlatformVivaWebhooksPage() {
     }
     const code = typeof body?.error === "string" && /^[a-z0-9_]{1,64}$/.test(body.error) ? body.error : undefined;
     const kind = (error as any)?.name === "FunctionsFetchError" ? "netwerk_of_cors_geblokkeerd" : (error as any)?.name === "FunctionsRelayError" ? "gateway_fout" : "request_failed";
-    const safe = { events: body?.events, error: error || code ? `${code ?? kind}${httpStatus ? ` (HTTP ${httpStatus})` : ""}` : undefined, list: body?.list };
+    const events: Record<string, EventResult> = {};
+    for (const ev of [1796, 1797, 1798, 8193, 8194]) {
+      const v = body?.events?.[String(ev)];
+      if (v && ["registered", "failed", "unknown"].includes(v.status)) events[String(ev)] = {
+        status: v.status, httpStatus: Number.isInteger(v.httpStatus) ? v.httpStatus : null,
+        at: typeof v.at === "string" && Number.isFinite(Date.parse(v.at)) ? v.at : "",
+      };
+    }
+    const safe = { events: Object.keys(events).length ? events : undefined, error: error || code ? `${code ?? kind}${httpStatus ? ` (HTTP ${httpStatus})` : ""}` : undefined };
     setResult(safe);
     if (safe.events) setDone(true);
-    setBusy(false);
+    } catch {
+      setResult({ error: "Verbinding onderbroken; uitkomst onbekend. Laat Viva de registraties controleren voordat je opnieuw probeert." });
+      setDone(true);
+    } finally { setBusy(false); }
   };
 
   return (
     <div className="mx-auto max-w-xl p-6">
       <Card className="space-y-4 p-6">
         <h1 className="text-xl font-semibold">Viva LIVE webhooks registreren</h1>
-        <p className="text-sm text-muted-foreground">Eenmalige beheeractie voor events 8193 en 8194. Vereist inloggen met tweestapsverificatie. Druk maar één keer.</p>
+        <p className="text-sm text-muted-foreground">Events 1796, 1797, 1798, 8193 en 8194. LIVE-betalingen blijven uitgeschakeld.</p>
         {!access.aal2 && <p className="text-sm text-destructive">Log opnieuw in met je tweestapscode om door te gaan.</p>}
         <Button onClick={run} disabled={busy || done || !access.aal2}>
-          {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Registreer 8193 en 8194
+          {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Registreer alle vijf events
         </Button>
         {result && (
           <div className="space-y-1 text-sm" aria-live="polite">
-            {result.events && Object.entries(result.events).map(([ev, s]) => <p key={ev}>Event {ev}: {LABEL[s] ?? s}</p>)}
+            {result.events && Object.entries(result.events).map(([ev, s]) => <p key={ev}>Event {ev}: {LABEL[s.status]}{s.httpStatus !== null ? ` (HTTP ${s.httpStatus})` : ""}{s.at ? ` · ${new Date(s.at).toLocaleString("nl-NL")}` : ""}</p>)}
             {result.error && <p className="text-destructive">Niet gelukt: {result.error}</p>}
-            {result.list === "unsupported" && <p className="text-muted-foreground">Viva kon bestaande registraties niet tonen. Niet opnieuw uitvoeren.</p>}
+            {result.events && Object.values(result.events).some((s) => s.status !== "registered") && <p className="text-destructive">Niet alle registraties zijn bevestigd. Een fout kan ook een bestaande registratie betreffen. Vraag Viva de uitkomst per event te bevestigen voordat je opnieuw probeert.</p>}
           </div>
         )}
       </Card>

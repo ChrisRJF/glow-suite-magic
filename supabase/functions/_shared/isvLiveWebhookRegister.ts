@@ -1,29 +1,48 @@
-// Admin-only registration of LIVE Viva ISV webhooks (8193/8194) on the fixed viva-webhook URL.
-// LIVE ISV secrets only; token/secret never returned or logged; fixed URL and event types (no client input).
-import { LIVE_ISV_SECRET_NAMES, scopedEnv, type EnvGet } from "./inactive/isvLiveConfig.ts";
+// Fixed LIVE ISV registration. Contract supplied by owner from official Viva docs.
+import { LIVE_ISV_API_HOST, loadLiveIsvConfig, getLiveIsvToken, type EnvGet } from "./inactive/isvLiveConfig.ts";
 import { isPlatformAdmin } from "./isvLiveWebhookKeyFetch.ts";
-
 type Fetch = (url: string, init?: RequestInit) => Promise<Response>;
 export const ISV_WEBHOOK_URL = "https://ueqhckkuuwdsrjrdczbb.supabase.co/functions/v1/viva-webhook?isv=1";
-// Vendor-confirmed POST /isv/v1/webhooks event set, prepared only. No listing API exists.
 export const ISV_EVENT_TYPES = [1796, 1797, 1798, 8193, 8194] as const;
-export const CONFIRM_WORD = "register_live_isv_webhooks_8193_8194";
-
-type EventResult = "registered" | "already_registered" | "failed";
-export type RegisterResult = { status: number; body: { error?: string; list?: "checked" | "unsupported"; events?: Record<string, EventResult> } };
-
+export const CONFIRM_WORD = "register_live_isv_webhooks_1796_1797_1798_8193_8194";
+type EventResult = { status: "registered" | "failed" | "unknown"; httpStatus: number | null; at: string };
+export type RegisterResult = { status: number; body: { error?: string; events?: Record<string, EventResult> } };
 export async function registerLiveIsvWebhooksForAdmin(
   auth: { userId: string | null; aal: string | null; confirmed: boolean },
-  adminIdsRaw: string | undefined, rawGet: EnvGet, _f: Fetch,
+  adminIdsRaw: string | undefined, rawGet: EnvGet, f: Fetch,
 ): Promise<RegisterResult> {
   if (!auth.userId) return { status: 401, body: { error: "unauthorized" } };
   if (!isPlatformAdmin(auth.userId, adminIdsRaw)) return { status: 403, body: { error: "forbidden" } };
   if (auth.aal !== "aal2") return { status: 403, body: { error: "mfa_required" } };
   if (!auth.confirmed) return { status: 400, body: { error: "confirmation_required" } };
-  const get = scopedEnv(rawGet);
-  if ((get(LIVE_ISV_SECRET_NAMES.enabled) ?? "").trim() !== "true") return { status: 503, body: { error: "live_isv_disabled" } };
-  // No durable, account/URL/event-bound evidence exists in this installation.
-  // Do not accept client evidence, interpret 405 as absence, or send any provider request.
-  // Viva partner must first confirm exact existing subscriptions and verified missing events.
-  return { status: 409, body: { error: "registration_evidence_required" } };
+  const config = loadLiveIsvConfig(rawGet);
+  if (!config.ok) return { status: 503, body: { error: config.reason } };
+  const token = await getLiveIsvToken(rawGet, f);
+  if (!token) return { status: 502, body: { error: "live_isv_token_unavailable" } };
+  // Endpoint ownership, not POST authentication. Keys/provider bodies never returned or logged.
+  try {
+    const kr = await f(`${LIVE_ISV_API_HOST}/isv/v1/webhooks/token`, {
+      headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15000), redirect: "error",
+    });
+    const kb = await kr.json().catch(() => null);
+    if (kr.status !== 200 || typeof kb?.key !== "string" || !kb.key.trim()) return { status: 502, body: { error: "verification_key_unavailable" } };
+    const cr = await f(ISV_WEBHOOK_URL, { signal: AbortSignal.timeout(15000), redirect: "error" });
+    const cb = await cr.json().catch(() => null);
+    if (cr.status !== 200 || cb?.key !== kb.key) return { status: 502, body: { error: "callback_verification_failed" } };
+  } catch { return { status: 502, body: { error: "callback_verification_unavailable" } }; }
+  const events: Record<string, EventResult> = {};
+  for (const eventTypeId of ISV_EVENT_TYPES) {
+    try {
+      const r = await f(`${LIVE_ISV_API_HOST}/isv/v1/webhooks`, {
+        method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ url: ISV_WEBHOOK_URL, eventTypeId }), signal: AbortSignal.timeout(15000), redirect: "error",
+      });
+      // Partner confirms identical URL/event cannot duplicate. ONLY 204 proves success.
+      // No listing, invented duplicate error codes or automatic retries.
+      events[String(eventTypeId)] = { status: r.status === 204 ? "registered" : "failed", httpStatus: r.status, at: new Date().toISOString() };
+    } catch {
+      events[String(eventTypeId)] = { status: "unknown", httpStatus: null, at: new Date().toISOString() };
+    }
+  }
+  return { status: 200, body: { events } };
 }

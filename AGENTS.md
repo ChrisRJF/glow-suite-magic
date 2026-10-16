@@ -1,6 +1,6 @@
 # AGENTS
 
-- Subdirectories have their own AGENTS.md (src/, supabase/functions/); read it before changing files there.
+- Read src/ and supabase/functions/AGENTS.md before edits; LIVE webhook registration rules live there.
 
 - Per-tenant feature gates live in public.tenant_feature_flags (read-only for app users, set only by platform admins) and are enforced inside the SECURITY DEFINER RPCs; why: client flags or emails can be spoofed.
 - Unapproved code/SQL stays inactive/proposed. LIVE ISV needs own secrets, default-off gate and durable server-only tenant/env create claims; why: active edits auto-deploy; row uniqueness cannot prevent external duplicates.

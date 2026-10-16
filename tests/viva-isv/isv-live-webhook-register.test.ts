@@ -1,40 +1,59 @@
 import { describe, it, expect } from "vitest";
-import { registerLiveIsvWebhooksForAdmin, ISV_EVENT_TYPES, CONFIRM_WORD } from "../../supabase/functions/_shared/isvLiveWebhookRegister";
-
+import { registerLiveIsvWebhooksForAdmin, ISV_EVENT_TYPES, ISV_WEBHOOK_URL, CONFIRM_WORD } from "../../supabase/functions/_shared/isvLiveWebhookRegister";
 const A = "11111111-2222-4333-8444-555555555555";
 const env = (o: Record<string, string>) => (n: string) => o[n];
 const ON = env({ VIVA_ISV_LIVE_ENABLED: "true", VIVA_ISV_LIVE_CLIENT_ID: "fid", VIVA_ISV_LIVE_CLIENT_SECRET: "fsec" });
 const ok = { userId: A, aal: "aal2", confirmed: true };
-function viva(calls: { u: string; m: string; b?: string }[], listStatus = 405, list: unknown = [], postOk = true) {
-  return (async (u: string, i?: RequestInit) => {
-    calls.push({ u, m: i?.method ?? "GET", b: i?.body as string });
-    if (u.endsWith("/connect/token")) return new Response(JSON.stringify({ access_token: "t" }));
-    if ((i?.method ?? "GET") === "GET") return new Response(JSON.stringify(list), { status: listStatus });
-    return new Response("{}", { status: postOk ? 200 : 400 });
-  }) as any;
+function fixture(status = 204, callbackKey = "key", throws = false) {
+  const calls: { url: string; init?: RequestInit }[] = [];
+  const fetch = async (url: string, init?: RequestInit) => {
+    calls.push({ url, init });
+    if (url.endsWith("/connect/token")) return Response.json({ access_token: "test-token" });
+    if (url.endsWith("/webhooks/token")) return Response.json({ key: "key" });
+    if (url === ISV_WEBHOOK_URL) return Response.json({ key: callbackKey });
+    if (throws) throw new Error("sensitive-provider-text");
+    return new Response(status === 204 ? null : "sensitive-provider-text", { status });
+  };
+  return { calls, fetch };
 }
-
-describe("LIVE ISV webhook registration", () => {
-  it("refuses without admin/MFA/confirm/switch, zero calls", async () => {
-    const c: any[] = [];
-    expect((await registerLiveIsvWebhooksForAdmin({ ...ok, aal: "aal1" }, A, ON, viva(c))).body.error).toBe("mfa_required");
-    expect((await registerLiveIsvWebhooksForAdmin(ok, undefined, ON, viva(c))).status).toBe(403);
-    expect((await registerLiveIsvWebhooksForAdmin({ ...ok, confirmed: false }, A, ON, viva(c))).status).toBe(400);
-    expect((await registerLiveIsvWebhooksForAdmin(ok, A, env({ VIVA_ISV_LIVE_CLIENT_ID: "a", VIVA_ISV_LIVE_CLIENT_SECRET: "b" }), viva(c))).body.error).toBe("live_isv_disabled");
-    expect(c).toHaveLength(0);
+describe("LIVE ISV five-event registration", () => {
+  it.each([
+    [{ ...ok, userId: null }, A, ON, 401],
+    [ok, undefined, ON, 403],
+    [{ ...ok, aal: "aal1" }, A, ON, 403],
+    [{ ...ok, confirmed: false }, A, ON, 400],
+    [ok, A, env({}), 503],
+  ] as const)("rejects unauthorized configuration before provider access %#", async (auth, ids, get, status) => {
+    const f = fixture();
+    expect((await registerLiveIsvWebhooksForAdmin(auth, ids, get, f.fetch)).status).toBe(status);
+    expect(f.calls).toHaveLength(0);
   });
-  it("prepares all five vendor-confirmed event types", () => {
-    expect(ISV_EVENT_TYPES).toEqual([1796, 1797, 1798, 8193, 8194]);
+  it("registers exactly five fixed events only after matching callback key, 204 required", async () => {
+    const f = fixture(); const r = await registerLiveIsvWebhooksForAdmin(ok, A, ON, f.fetch);
+    expect(ISV_EVENT_TYPES).toEqual([1796,1797,1798,8193,8194]);
+    expect(CONFIRM_WORD).toBe("register_live_isv_webhooks_1796_1797_1798_8193_8194");
+    const posts = f.calls.filter(c => c.url.endsWith("/isv/v1/webhooks"));
+    expect(posts.map(c => JSON.parse(String(c.init?.body)))).toEqual(ISV_EVENT_TYPES.map(eventTypeId => ({ url: ISV_WEBHOOK_URL, eventTypeId })));
+    expect(posts.every(c => c.init?.method === "POST")).toBe(true);
+    expect(f.calls[2].url).toBe(ISV_WEBHOOK_URL);
+    expect(Object.values(r.body.events ?? {}).map(e => [e.status,e.httpStatus])).toEqual(ISV_EVENT_TYPES.map(() => ["registered",204]));
+    expect(JSON.stringify(r)).not.toContain("test-token");
   });
-  it.each([200, 404, 405, 500])("no internal evidence means zero provider calls, regardless of hypothetical listing status %s", async (status) => {
-    const c: any[] = [];
-    expect(await registerLiveIsvWebhooksForAdmin(ok, A, ON, viva(c, status))).toEqual({ status: 409, body: { error: "registration_evidence_required" } });
-    expect(c).toHaveLength(0);
+  it("mismatched verification challenge sends no registration", async () => {
+    const f = fixture(204,"wrong");
+    expect((await registerLiveIsvWebhooksForAdmin(ok,A,ON,f.fetch)).body.error).toBe("callback_verification_failed");
+    expect(f.calls).toHaveLength(3);
   });
-  it("repeated admin requests cannot register duplicates", async () => {
-    const c: any[] = [];
-    await Promise.all([1, 2].map(() => registerLiveIsvWebhooksForAdmin(ok, A, ON, viva(c))));
-    expect(c).toHaveLength(0);
+  it.each([200,400,409,500])("HTTP %s never proves already registered", async status => {
+    const f = fixture(status);const r = await registerLiveIsvWebhooksForAdmin(ok,A,ON,f.fetch);
+    expect(Object.values(r.body.events ?? {}).map(e => [e.status,e.httpStatus])).toEqual(ISV_EVENT_TYPES.map(() => ["failed",status]));
+    expect(JSON.stringify(r)).not.toContain("sensitive-provider-text");
+    expect(f.calls).toHaveLength(8);
   });
-  it("confirm word is fixed", () => expect(CONFIRM_WORD).toBe("register_live_isv_webhooks_8193_8194"));
+  it("uncertain outcomes are not retried or claimed successful", async () => {
+    const f = fixture(204,"key",true);const r = await registerLiveIsvWebhooksForAdmin(ok,A,ON,f.fetch);
+    expect(Object.values(r.body.events ?? {}).map(e => [e.status,e.httpStatus])).toEqual(ISV_EVENT_TYPES.map(() => ["unknown",null]));
+    expect(f.calls).toHaveLength(8);
+    expect(JSON.stringify(r)).not.toContain("sensitive-provider-text");
+  });
 });
