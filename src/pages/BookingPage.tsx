@@ -9,6 +9,8 @@ import { Check, Clock, ArrowLeft, ArrowRight, Calendar, User, CreditCard, Loader
 import { cn } from "@/lib/utils";
 import { usePaymentRules } from "@/hooks/usePaymentRules";
 import { useServices, useSettings } from "@/hooks/useSupabaseData";
+import { bookingOutcome } from "@/lib/bookingResult";
+import { Info } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { queueLeadIntent } from "@/hooks/useLeadAutomation";

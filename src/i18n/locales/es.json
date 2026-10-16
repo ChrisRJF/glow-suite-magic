@@ -210,6 +210,7 @@
       "demoNoCharge": "Demo: no se cobrará nada.",
       "methodsInfo": "En la página de pago verás los métodos de pago disponibles.",
       "appointmentSaved": "Cita registrada",
+      "savedUnpaid": "Tu cita está registrada. El depósito online aún no está disponible en este salón; el salón te contactará sobre el pago. No se ha cobrado nada.",
       "choosePaymentMethod": "Elige tu método de pago",
       "statusPaid": "Pagado",
       "statusPending": "Pendiente",

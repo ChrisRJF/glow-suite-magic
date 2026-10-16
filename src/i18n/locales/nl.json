@@ -210,6 +210,7 @@
       "demoNoCharge": "Demo: er wordt niets afgeschreven.",
       "methodsInfo": "Op de betaalpagina zie je welke betaalmethoden beschikbaar zijn.",
       "appointmentSaved": "Afspraak vastgelegd",
+      "savedUnpaid": "Je afspraak is vastgelegd. Online aanbetalen is bij deze salon nog niet beschikbaar; de salon neemt contact met je op over de betaling. Er is niets afgeschreven.",
       "choosePaymentMethod": "Kies je betaalmethode",
       "statusPaid": "Betaald",
       "statusPending": "In afwachting",
