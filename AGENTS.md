@@ -2,7 +2,7 @@
 
 - AppLayout compactMobile is opt-in presentation spacing only; why: the mobile agenda can start higher without changing other pages or desktop layout.
 - Agenda mobile and desktop date pickers reuse one local renderer with placement-specific open state; why: both date bars stay functional without mounting a second hidden calendar or changing shared calendar styles.
-- Dashboard mobile finishing is scoped by data-mobile-dashboard and a mobile-only stylesheet block; why: shared layout and Autopilot components keep their desktop and other-page presentation unchanged.
+- Dashboard mobile finishing is scoped by data-mobile-dashboard and a mobile-only stylesheet block; why: shared components keep desktop presentation.
 - DashboardPage passes its existing tomorrow-risk count to TodayAtAGlance for mobile consolidation only; why: the customer-wide selector and both existing action destinations remain intact without changing desktop metrics.
 
 - Per-tenant feature gates live in public.tenant_feature_flags (read-only for app users, set only by platform admins) and are enforced inside the SECURITY DEFINER RPCs; why: client flags or emails can be spoofed.
@@ -21,4 +21,4 @@
 - Platform-wide owner data (/platform) is read only through SECURITY DEFINER RPCs that call platform_require_owner_aal2 and write audit_logs; the sidebar link and page gate are UI hints only; why: salon users must never read cross-tenant data or ISV commissions.
 - MFA settings only ever unenroll unverified setups or an explicitly chosen verified factor, and hide removal of a platform owner's final factor (docs/security/platform-owner-mfa.md); why: Supabase Auth cannot block final-factor unenroll server-side, so the UI is a hint and recovery is an admin procedure.
 - Reminders use _shared/reminderSafety.ts for tenant-scoped loads before claims and exact start instants; why: DST and mixed storage must not mis-send.
-- Onboarding salon_type/salon_logo_url writes are gated by SETTINGS_SALON_PROFILE_COLUMNS_ENABLED in src/lib/onboardingSalonProfile.ts (default false) and only accept own salon-logos URLs; why: the columns exist only after a separately approved migration.
+- Onboarding salon_type/logo writes sit behind the default-off gate in onboardingSalonProfile.ts and accept only own salon-logos URLs; why: columns need an approved migration.
