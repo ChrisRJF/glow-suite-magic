@@ -1486,6 +1486,7 @@ function MessagingSettingsCard() {
 function SnelleSetupCard() {
   const [open, setOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [glowPayOpen, setGlowPayOpen] = useState(false);
   const { user } = useAuth();
   const { isOwner, roles } = useUserRole();
   const canReview = isOwner || roles.includes("admin" as any) || roles.includes("manager" as any);
@@ -1513,6 +1514,11 @@ function SnelleSetupCard() {
             <Button size="sm" variant="gradient" onClick={() => setOpen(true)}>
               <Sparkles className="w-3.5 h-3.5" /> Start setup wizard
             </Button>
+            {isOwner && (
+              <Button size="sm" variant="outline" onClick={() => setGlowPayOpen(true)}>
+                <CreditCard className="w-3.5 h-3.5" /> GlowPay activeren
+              </Button>
+            )}
             <Button size="sm" variant="outline" onClick={() => window.dispatchEvent(new CustomEvent("glowsuite:start-tour"))}>
               <PlayCircle className="w-3.5 h-3.5" /> Bekijk rondleiding
             </Button>
@@ -1530,6 +1536,7 @@ function SnelleSetupCard() {
         </div>
       </div>
       <OnboardingWizard open={open} onOpenChange={setOpen} />
+      <OnboardingWizard open={glowPayOpen} onOpenChange={setGlowPayOpen} startAtGlowPay />
       <OnboardingWizard open={previewOpen} onOpenChange={setPreviewOpen} previewMode />
     </div>
   );
