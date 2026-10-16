@@ -22,3 +22,4 @@
 - MFA settings only ever unenroll unverified setups or an explicitly chosen verified factor, and hide removal of a platform owner's final factor (docs/security/platform-owner-mfa.md); why: Supabase Auth cannot block final-factor unenroll server-side, so the UI is a hint and recovery is an admin procedure.
 - Reminders use _shared/reminderSafety.ts for tenant-scoped loads before claims and exact start instants; why: DST must not mis-send.
 - Onboarding salon_type/logo writes sit behind the default-off gate in onboardingSalonProfile.ts and accept only own salon-logos URLs; why: columns need an approved migration.
+- create-payment routes only on an explicitly stored payment_provider via _shared/paymentProviderRoute.ts, and a Viva failure is fail-closed (never Mollie); why: Viva may already hold an order, so a silent second provider order must be impossible.
