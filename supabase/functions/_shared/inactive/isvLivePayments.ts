@@ -95,6 +95,10 @@ export type WebhookResult = { status: 200 | 503; note: string };
 export async function handleLivePaymentEvent(eventTypeId: number, data: any, d: WebhookDeps, nowIso: string): Promise<WebhookResult> {
   if (!(d.enabled ?? LIVE_ISV_CHECKOUT_ENABLED)) return { status: 200, note: "live_disabled" };
   if (!LIVE_PAYMENT_EVENTS.has(eventTypeId)) return { status: 200, note: "ignored_event" };
+  // Sale major units do not prove reversal sign, original-ID field or status semantics.
+  // Code-only hold before any lookup/write, including synthetic contract injection.
+  // Fixed diagnostic contains no provider payload, identifiers or credentials.
+  if (eventTypeId === 1797) return { status: 503, note: "refund_contract_unverified_hold" };
   const contract = d.transactionContract ?? LIVE_TRANSACTION_CONTRACT;
   if (!contract) return { status: 503, note: "contract_unverified_hold" };
   const orderCode = String(data?.OrderCode ?? ""), txId = String(data?.TransactionId ?? "");
