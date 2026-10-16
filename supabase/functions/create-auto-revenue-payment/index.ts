@@ -2,6 +2,8 @@
 // Creates a Mollie payment for a held auto-revenue offer + appointment, returns checkout URL.
 // Demo mode: never calls Mollie — returns a simulated checkout URL.
 
+import { authorizeAutoRevenue, customerPaymentProvider } from "../_shared/customerPaymentAuth.ts";
+import { resolveCheckoutTenant } from "../_shared/checkoutGuard.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { GLOWPAY_MARGIN_CENTS } from "../_shared/glowpayMargin.ts";
 
@@ -82,6 +84,24 @@ Deno.serve(async (req) => {
       return json({ error: "user_id, appointment_id, offer_id, customer_id verplicht" }, 400);
     }
 
+    // ---- AUTH (fail-closed): verified owner/admin/manager of this salon, or internal service role ----
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    const bearer = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
+    const isServiceRole = !!bearer && bearer.length === serviceKey.length && (() => { let r = 0; for (let i = 0; i < bearer.length; i++) r |= bearer.charCodeAt(i) ^ serviceKey.charCodeAt(i); return r === 0; })();
+    let authUserId: string | null = null; let memberTenantId: string | null = null; let memberRole: string | null = null;
+    if (!isServiceRole && bearer) {
+      const { data: u } = await admin.auth.getUser(bearer);
+      authUserId = u?.user?.id ?? null;
+      if (authUserId) { const t = await resolveCheckoutTenant(admin, authUserId); memberTenantId = t?.tenantId ?? null; memberRole = t?.role ?? null; }
+    }
+    const [{ data: apptOwner }, { data: offerOwner }] = await Promise.all([
+      admin.from("appointments").select("user_id").eq("id", appointment_id).maybeSingle(),
+      admin.from("auto_revenue_offers").select("user_id").eq("id", offer_id).maybeSingle(),
+    ]);
+    const auth = authorizeAutoRevenue({ isServiceRole, authUserId, memberTenantId, memberRole, bodyUserId: user_id,
+      appointmentOwnerId: (apptOwner as any)?.user_id ?? null, offerOwnerId: (offerOwner as any)?.user_id ?? null });
+    if (!auth.ok) return json({ error: "Niet toegestaan", reason: auth.reason }, auth.status);
+
     // Load settings (deposit config + payment mode + demo flag + provider)
     const { data: settings } = await admin
       .from("settings")
@@ -97,6 +117,12 @@ Deno.serve(async (req) => {
     const paymentMode: "none" | "deposit" | "full" =
       (bodyMode as any) || ((settings as any)?.auto_revenue_payment_mode as any) || "deposit";
     const provider = ((settings as any)?.payment_provider as string) || "mollie";
+    if (!settings) return json({ error: "Salon niet gevonden" }, 404);
+    // Fail-closed: salon customer payments never use Mollie (only demo simulation below may run).
+    if (!demoMode && customerPaymentProvider(provider) === "deny") {
+      return json({ success: false, payment_status: "payment_pending", blocked: "provider_not_allowed",
+        error: "Online aanbetalen is voor deze salon nog niet beschikbaar. Er is niets afgeschreven." }, 409);
+    }
 
     if (paymentMode === "none") {
       return json({ error: "payment_mode=none vereist geen betaling" }, 400);
