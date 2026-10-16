@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { registerLiveIsvWebhooksForAdmin, ISV_WEBHOOK_URL, CONFIRM_WORD } from "../../supabase/functions/_shared/isvLiveWebhookRegister";
+import { registerLiveIsvWebhooksForAdmin, ISV_EVENT_TYPES, CONFIRM_WORD } from "../../supabase/functions/_shared/isvLiveWebhookRegister";
 
 const A = "11111111-2222-4333-8444-555555555555";
 const env = (o: Record<string, string>) => (n: string) => o[n];
@@ -23,29 +23,18 @@ describe("LIVE ISV webhook registration", () => {
     expect((await registerLiveIsvWebhooksForAdmin(ok, A, env({ VIVA_ISV_LIVE_CLIENT_ID: "a", VIVA_ISV_LIVE_CLIENT_SECRET: "b" }), viva(c))).body.error).toBe("live_isv_disabled");
     expect(c).toHaveLength(0);
   });
-  it("registers both with fixed body on LIVE host", async () => {
-    const c: any[] = [];
-    const r = await registerLiveIsvWebhooksForAdmin(ok, A, ON, viva(c));
-    expect(r).toEqual({ status: 200, body: { list: "unsupported", events: { 8193: "registered", 8194: "registered" } } });
-    const posts = c.filter((x) => x.m === "POST" && x.u.endsWith("/isv/v1/webhooks"));
-    expect(posts.map((p) => JSON.parse(p.b))).toEqual([{ url: ISV_WEBHOOK_URL, eventTypeId: 8193 }, { url: ISV_WEBHOOK_URL, eventTypeId: 8194 }]);
-    expect(posts[0].u).toBe("https://api.vivapayments.com/isv/v1/webhooks");
-    expect(JSON.stringify(r)).not.toMatch(/fid|fsec|"t"/);
+  it("prepares all five vendor-confirmed event types", () => {
+    expect(ISV_EVENT_TYPES).toEqual([1796, 1797, 1798, 8193, 8194]);
   });
-  it("skips already registered when list works", async () => {
+  it.each([200, 404, 405, 500])("no internal evidence means zero provider calls, regardless of hypothetical listing status %s", async (status) => {
     const c: any[] = [];
-    const r = await registerLiveIsvWebhooksForAdmin(ok, A, ON, viva(c, 200, [{ url: ISV_WEBHOOK_URL, eventTypeId: 8193 }]));
-    expect(r.body.events).toEqual({ 8193: "already_registered", 8194: "registered" });
+    expect(await registerLiveIsvWebhooksForAdmin(ok, A, ON, viva(c, status))).toEqual({ status: 409, body: { error: "registration_evidence_required" } });
+    expect(c).toHaveLength(0);
   });
-  it("unclear list error stops before any POST", async () => {
+  it("repeated admin requests cannot register duplicates", async () => {
     const c: any[] = [];
-    expect((await registerLiveIsvWebhooksForAdmin(ok, A, ON, viva(c, 500))).body.error).toBe("list_failed");
-    expect(c.some((x) => x.m === "POST" && x.u.includes("/isv/v1/webhooks"))).toBe(false);
-  });
-  it("first POST failure stops, no retry", async () => {
-    const c: any[] = [];
-    const r = await registerLiveIsvWebhooksForAdmin(ok, A, ON, viva(c, 405, [], false));
-    expect(r.status).toBe(502); expect(r.body.events).toEqual({ 8193: "failed" });
+    await Promise.all([1, 2].map(() => registerLiveIsvWebhooksForAdmin(ok, A, ON, viva(c))));
+    expect(c).toHaveLength(0);
   });
   it("confirm word is fixed", () => expect(CONFIRM_WORD).toBe("register_live_isv_webhooks_8193_8194"));
 });
