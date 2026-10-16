@@ -29,6 +29,13 @@ For 1797 the independent response must also contain a negative amount and parent
 
 The patch does not prove major units, choose a new endpoint, introduce authentication or enable charges. Tests use injected fictitious responses only. The patch includes the regression test at `tests/viva-isv/isv-live-contract.test.ts` for use after approval.
 
+## Test results
+
+- Existing code: 62 selected tests passed across confirmation, payment orchestration, verification key, webhook registration, account refresh and fees.
+- Isolated correction: the same 62 plus 22 focused contract-safety tests passed (84 total).
+- Regression proof: running the 22 new tests against the original parser produced 9 failures and 13 passes. Failures cover malformed amount coercion, invented sub-cent rounding, unsafe amounts and a mismatching returned transaction ID.
+- No provider request or salon data was used. These tests prove local safeguards only, not the unresolved LIVE API contract or authenticated POST delivery.
+
 ## Remaining precise LIVE blockers
 
 1. Authoritative API documentation for the **exact ISV retrieve route**, required authentication, sale/reversal response schema, amount units, signed reversal semantics, parent field, returned transaction ID and currency/status representation. The existing `amount * 100` conversion and lowercase/PascalCase fallback remain contract assumptions.
