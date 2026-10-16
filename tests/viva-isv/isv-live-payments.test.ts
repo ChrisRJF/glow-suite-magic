@@ -50,10 +50,20 @@ describe("LIVE deposit start", () => {
     expect(await startLiveDeposit(input, depDeps({ loadMerchant: async () => null }).d)).toMatchObject({ reason: "merchant_unclear" });
     expect(await startLiveDeposit(input, depDeps({ feeConfig: async () => null }).d)).toMatchObject({ reason: "fee_config_unavailable" });
   });
-  it("unclear Viva response marks payment failed", async () => {
+  it("unclear Viva response is held without releasing its reservation", async () => {
     const { d, log } = depDeps({ fetch: (async (u: string) => new Response(u.includes("token") ? JSON.stringify({ access_token: "t" }) : "x", { status: u.includes("token") ? 200 : 500 })) as any });
     expect(await startLiveDeposit(input, d)).toMatchObject({ reason: "order_unclear" });
     expect(log.failed).toBe("order_unclear");
+  });
+  it("concurrent reservation loser never dispatches an order", async () => {
+    const { d, log } = depDeps({ insertPending: async () => "duplicate" });
+    expect(await startLiveDeposit(input, d)).toMatchObject({ reason: "duplicate_in_flight" });
+    expect(log.posts).toHaveLength(0);
+  });
+  it("held order cannot be retried as a new charge", async () => {
+    const { d, log } = depDeps({ findExisting: async () => ({ id: "p1", checkout_url: null, status: "held" }) });
+    expect(await startLiveDeposit(input, d)).toMatchObject({ reason: "existing_held" });
+    expect(log.posts).toHaveLength(0);
   });
 });
 
@@ -109,5 +119,10 @@ describe("LIVE payment webhooks", () => {
     const { d } = whDeps(okTx, { enabled: undefined, findByOrderCode: async () => { called = true; return null; } });
     expect((await handleLivePaymentEvent(1796, ev, d, "now")).note).toBe("live_disabled");
     expect(called).toBe(false);
+  });
+  it("refund must name the original confirmed transaction", async () => {
+    const { d, log } = whDeps({ ...okTx, amount: -12.5, parentId: "other" }, {}, "paid");
+    expect((await handleLivePaymentEvent(1797, ev, d, "now")).note).toBe("refund_mismatch_hold");
+    expect(log.refund).toBeNull();
   });
 });

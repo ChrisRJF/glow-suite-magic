@@ -1,0 +1,14 @@
+SELECT assert_test('concurrent reservation exactly one',(SELECT count(*)::text FROM isv_payment_orders),'1');
+SELECT assert_test('atomic payment exactly one',(SELECT count(*)::text FROM payments),'1');
+SELECT assert_test('atomic snapshot exactly one',(SELECT count(*)::text FROM isv_fee_snapshots),'1');
+SELECT assert_test('salon cannot reserve',has_function_privilege('authenticated','isv_payment_reserve(jsonb,jsonb)','EXECUTE')::text,'false');
+SELECT assert_test('salon cannot read snapshots',has_table_privilege('authenticated','isv_fee_snapshots','SELECT')::text,'false');
+SELECT assert_test('salon cannot read orders',has_table_privilege('authenticated','isv_payment_orders','SELECT')::text,'false');
+SELECT assert_test('reserve second',test_reserve('d0000000-0000-4000-8000-000000000003','payment-key'),'ok');
+SELECT assert_test('reject external checkout',isv_payment_attach('d0000000-0000-4000-8000-000000000003','1234567890123','https://evil.invalid')::text,'false');
+SELECT assert_test('attach',isv_payment_attach('d0000000-0000-4000-8000-000000000003','1234567890123','https://www.vivapayments.com/web/checkout?ref=1234567890123')::text,'true');
+SELECT assert_test('wrong paid amount',isv_payment_record('d0000000-0000-4000-8000-000000000003','tx','payment',100),'error');
+SELECT assert_test('confirmed payment',isv_payment_record('d0000000-0000-4000-8000-000000000003','tx','payment',2500),'ok');
+SELECT assert_test('payment duplicate',isv_payment_record('d0000000-0000-4000-8000-000000000003','tx','payment',2500),'duplicate');
+SELECT assert_test('snapshot survives fee change',(SELECT fee_cents::text FROM isv_fee_snapshots WHERE payment_id='d0000000-0000-4000-8000-000000000003'),'35');
+SELECT assert_test('confirmed fee once',(SELECT count(*)::text FROM platform_commission_entries WHERE kind='confirmed'),'1');

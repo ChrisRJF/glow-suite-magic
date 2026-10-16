@@ -43,7 +43,7 @@ interface ReconcileSummary {
 const DLQ_THRESHOLD = 5; // promote to DLQ after this many failed retries
 
 async function recordFailure(
-  supabase: ReturnType<typeof createClient>,
+  supabase: ReturnType<typeof createClient<any>>,
   args: {
     user_id: string | null;
     payment_id: string;

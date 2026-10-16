@@ -77,7 +77,7 @@ function slugify(value: string) {
   return value.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
-async function getSalon(supabase: ReturnType<typeof createClient>, slug: string): Promise<SalonContext | null> {
+async function getSalon(supabase: ReturnType<typeof createClient<any>>, slug: string): Promise<SalonContext | null> {
   const normalized = slugify(slug);
   const { data: settingsRows, error } = await supabase
     .from("settings")
@@ -195,7 +195,7 @@ function addMinutesToTime(time: string, minutes: number) {
   return `${String(nextHour).padStart(2, "0")}:${String(nextMinute).padStart(2, "0")}:00`;
 }
 
-async function sendWhiteLabelEmail(supabase: ReturnType<typeof createClient>, body: Record<string, unknown>) {
+async function sendWhiteLabelEmail(supabase: ReturnType<typeof createClient<any>>, body: Record<string, unknown>) {
   const { error } = await supabase.functions.invoke("send-white-label-email", { body });
   if (error) console.error("White-label email failed", error.message);
 }
@@ -210,7 +210,7 @@ function todayAmsterdam() {
   return utcToAmsterdam(new Date());
 }
 
-async function loadDay(supabase: ReturnType<typeof createClient>, ctx: SalonContext, date: string) {
+async function loadDay(supabase: ReturnType<typeof createClient<any>>, ctx: SalonContext, date: string) {
   const userId = ctx.settings.user_id;
   // Local-day bounds in UTC (DST-safe), widened by a day so long treatments are never missed.
   const from = new Date(amsterdamToUtc(date, "00:00").getTime() - 24 * 3600000).toISOString();
@@ -243,7 +243,7 @@ async function loadDay(supabase: ReturnType<typeof createClient>, ctx: SalonCont
 }
 
 /** Server-side availability decision. Returns the rows with verified employee ids, or null. */
-async function assertAvailability(supabase: ReturnType<typeof createClient>, ctx: SalonContext, date: string, bookings: Array<{ time: string; service: ServiceRow; employee: string | null }>): Promise<{ ids: Array<string | null> } | { code: "slot_unavailable" | "booking_page_outdated" }> {
+async function assertAvailability(supabase: ReturnType<typeof createClient<any>>, ctx: SalonContext, date: string, bookings: Array<{ time: string; service: ServiceRow; employee: string | null }>): Promise<{ ids: Array<string | null> } | { code: "slot_unavailable" | "booking_page_outdated" }> {
   if (date < todayAmsterdam().date) return { code: "slot_unavailable" };
   // A requested employee must be a real employee id of this salon. Old booking pages send names
   // (e.g. "Bas"): refuse explicitly instead of silently picking someone else.
@@ -257,7 +257,7 @@ async function assertAvailability(supabase: ReturnType<typeof createClient>, ctx
 
 const OUTDATED_MSG = "Deze boekingspagina is verouderd. Vernieuw de pagina en kies opnieuw een medewerker en tijd.";
 
-async function createMolliePayment(args: { req: Request; supabase: ReturnType<typeof createClient>; amount: number; paymentType: string; method: string; appointmentId: string; customerId: string; salonId: string; salonOwnerId: string; settingsId: string; bookingToken: string; isDemo: boolean }) {
+async function createMolliePayment(args: { req: Request; supabase: ReturnType<typeof createClient<any>>; amount: number; paymentType: string; method: string; appointmentId: string; customerId: string; salonId: string; salonOwnerId: string; settingsId: string; bookingToken: string; isDemo: boolean }) {
   if (args.isDemo) {
     return { demo: true, status: "paid", mollieId: `demo_${crypto.randomUUID().slice(0, 8)}`, checkoutUrl: null };
   }

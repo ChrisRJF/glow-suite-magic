@@ -27,7 +27,7 @@ function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
 
-async function refreshConnection(admin: ReturnType<typeof createClient>, connection: any) {
+async function refreshConnection(admin: ReturnType<typeof createClient<any>>, connection: any) {
   if (
     connection.mollie_access_token_expires_at &&
     new Date(connection.mollie_access_token_expires_at).getTime() > Date.now() + 120_000

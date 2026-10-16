@@ -78,7 +78,7 @@ export const LIVE_PAYMENT_EVENTS = new Set([1796, 1797, 1798]);
 export interface WebhookDeps {
   env: EnvGet; fetch: Fetch; enabled?: boolean;
   findByOrderCode(orderCode: string): Promise<(LivePayment & { refunded_cents?: number; refunded_fee_cents?: number }) | null | "error">;
-  findByTransactionId?(transactionId: string): Promise<LivePayment | null | "error">;
+  findByTransactionId?(transactionId: string): Promise<(LivePayment & { refunded_cents?: number; refunded_fee_cents?: number }) | null | "error">;
   loadVerifiedMerchant(tenantId: string): Promise<{ user_id: string; viva_merchant_id: string; verified: boolean } | null>;
   loadSnapshot(paymentId: string): Promise<{ amount_cents: number; fee_cents: number } | null>;
   /** Conditional pending->paid (WHERE status='pending'); false if already changed. */
@@ -125,7 +125,10 @@ export async function handleLivePaymentEvent(eventTypeId: number, data: any, d: 
   let fee: number;
   try {
     fee = refundIsvFeeCents({ amountCents: snap.amount_cents, feeCents: snap.fee_cents, refundedAmountCents: p.refunded_cents ?? 0, refundedFeeCents: p.refunded_fee_cents ?? 0 }, -tx.amountCents);
-  } catch { return { status: 200, note: "refund_exceeds_hold" }; }
+  } catch {
+    // Replay after a full refund must reach the locked, idempotent RPC. It also rejects over-refunds.
+    fee = 0;
+  }
   const w = await d.recordRefund(p.id, txId, -tx.amountCents, fee);
   return w === "error" ? { status: 503, note: "refund_write_failed" } : { status: 200, note: w === "ok" ? "refund_recorded" : "refund_duplicate" };
 }

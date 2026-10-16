@@ -5,6 +5,7 @@
 import type { Fetch, MerchantRow } from "./isvOnboardingSafety.ts";
 import { loadLiveIsvConfig, getLiveIsvToken, type EnvGet } from "./isvLiveConfig.ts";
 import { retrieveV2, deriveUpdateV2 } from "./isvOnboardingV2.ts";
+import { LIVE_ISV_CHECKOUT_ENABLED } from "./isvLiveCheckout.ts";
 
 export const ISV_ONBOARDING_EVENTS = new Set([8193, 8194]);
 const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -49,17 +50,20 @@ export async function handleIsvOnboardingEvent(eventData: unknown, d: IsvWebhook
   const upd = deriveUpdateV2(row, acc);
   if (!upd) return { processed: true, status: 200, note: "isv_onboarding_identity_mismatch_hold", userId: row.user_id };
   const eligible = acc.verified && acc.acquiringEnabled && !!acc.merchantId && (!row.viva_merchant_id || acc.merchantId === row.viva_merchant_id);
-  upd.online_payments_enabled = eligible;
-  upd.payouts_enabled = eligible;
-  upd.terminals_enabled = eligible && !!row.viva_source_code && row.viva_source_code !== "Default";
-  upd.setup_complete = eligible;
+  // Global contract gate is not a salon approval toggle. KYC alone cannot open another live route.
+  upd.online_payments_enabled = eligible && LIVE_ISV_CHECKOUT_ENABLED;
+  upd.payouts_enabled = eligible && LIVE_ISV_CHECKOUT_ENABLED;
+  upd.terminals_enabled = false; // Terminal acquiring/physical-source confirmation is separate.
+  upd.setup_complete = eligible && LIVE_ISV_CHECKOUT_ENABLED;
   const ok = await d.updateRow(row, upd);
   if (!ok) return { processed: false, status: 503, note: "isv_onboarding_update_failed", userId: row.user_id };
   return { processed: true, status: 200, note: "isv_onboarding_synced", userId: row.user_id };
 }
 
 /** Uses the existing five-minute worker. Keyset paging avoids starving later salons. */
-export async function refreshLiveMerchants(admin: any, env: EnvGet, fetchFn: Fetch = fetch) {
+export async function refreshLiveMerchants(admin: any, env: EnvGet, fetchFn: Fetch = fetch, enabled: boolean = LIVE_ISV_CHECKOUT_ENABLED) {
+  // While contract verification is blocked, the scheduled job must not alter Beautycare either.
+  if (!enabled) return { scanned: 0, synced: 0, blocked: "live_contract_gate_off" };
   if (!loadLiveIsvConfig(env).ok) return { scanned: 0, synced: 0 };
   let after = "", scanned = 0, synced = 0;
   for (;;) {
