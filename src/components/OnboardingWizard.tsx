@@ -501,6 +501,17 @@ function GlowPayStep({ demo, previewMode = false, salonName, onLater }: { demo: 
   const [inviteBusy, setInviteBusy] = useState(false);
   const [inviteMsg, setInviteMsg] = useState<string | null>(null);
   const inviteFlight = useRef(false);
+  // Altijd-actuele gebruikers-id: het user-object uit de render-closure is
+  // verouderd zodra de async request loopt. Deze ref wordt synchroon tijdens
+  // elke render bijgewerkt, zodat een accountwissel tijdens de await fail-closed
+  // wordt opgevangen en een invitation van gebruiker A nooit bij B opent.
+  const currentUserIdRef = useRef<string | null>(null);
+  currentUserIdRef.current = user?.id ?? null;
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   useEffect(() => {
     if (!user) return;
