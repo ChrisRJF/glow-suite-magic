@@ -11,7 +11,7 @@ import { refreshLiveMerchants } from "../_shared/inactive/isvLiveWebhook.ts";
 import { handleLivePaymentEvent, makeWebhookDeps } from "../_shared/inactive/isvLivePayments.ts";
 import { resolvePrivateIsvRoute } from "../_shared/inactive/isvLiveRouting.ts";
 import { getVivaTransaction, vivaEnv } from "../_shared/viva.ts";
-import { schedulerAuthorized } from "./schedulerAuth.ts";
+import { schedulerAuthorizedVault } from "./schedulerAuth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -232,8 +232,8 @@ async function reconcileOnce(supabase: ReturnType<typeof createClient<any>>): Pr
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  // Authorization precedes client construction, database reads, locks and provider calls.
-  if (!schedulerAuthorized(req, Deno.env.get("VIVA_RECONCILE_CRON_SECRET"))) {
+  // Authorization (Vault secret, constant-time) precedes service client, locks and provider calls.
+  if (!(await schedulerAuthorizedVault(req, Deno.env.get("SUPABASE_DB_URL")))) {
     return json({ error: "unauthorized" }, 401);
   }
   if (req.method !== "POST") {
