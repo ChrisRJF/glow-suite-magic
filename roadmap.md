@@ -1,5 +1,6 @@
 # Roadmap
 
+- [ ] Gerichte schedulerherstelrun: uitsluitend ondersteunde credentialbinding of defecte job deactiveren via Cloud Jobs; productie-auth controleren zonder secrets te tonen. Geen SQL-schedulerfallback, charges, klantwijzigingen of publicatie.
 - [x] Reconcile-auth vóór serveracties gedeployed: dedicated secret, constante-tijdvergelijking, anonieme GET/POST 401, POST-only, holdergebonden lease; 121 tests, drie Deno-checks en 18 lokale storage/concurrencychecks geslaagd. Beperkte siblingcontrole uitgevoerd; vendorclaims zonder officiële bron afgewezen, subscriptions/contract ongewijzigd.
 - [ ] Authenticated vijfminuten-KYC-flow: bestaande unmanaged HTTP-job blijft actief maar krijgt 401; ondersteunde migratie/tools en generated cron-auth ontbreken, handgeschreven HTTP-schedule-SQL verboden. Vereist platformondersteunde credentialbinding, geen onveilige fallback.
 - [x] Veilige correctie-GO: parser contract-fail-closed (null contract), private orderrouting en herhaalbare holds hersteld; 109 synthetische regressies en drie Deno-functiechecks geslaagd; viva-webhook, verify-viva-payment en viva-payment-reconcile gedeployed; geen LIVE-activatie of Beautycare-acties. Providerlijst GET 405: subscriptions blijven onverifieerbaar.
