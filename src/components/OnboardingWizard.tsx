@@ -11,10 +11,10 @@ import { useDemoMode } from "@/hooks/useDemoMode";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { OnboardingSaveError, describeOnboardingSaveError } from "@/lib/onboardingSaveError";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import {
   Sparkles, Check, ArrowRight, ArrowLeft, Store, Scissors,
-  CreditCard, Rocket, Upload, PartyPopper, ShieldCheck, Zap, LockKeyhole,
+  CreditCard, Rocket, Upload, PartyPopper, ShieldCheck, Zap, LockKeyhole, ExternalLink,
   Smartphone, Loader2, Heart, Stethoscope, Hand, Gem,
   Calendar, UserPlus, ShoppingBag, BarChart3,
 } from "lucide-react";

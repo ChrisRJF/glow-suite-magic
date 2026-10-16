@@ -27,7 +27,7 @@ const STATUS_CONTENT: Record<PayStatus, { icon: any; tone: string; title: string
   pending: {
     icon: Clock,
     tone: "text-muted-foreground",
-    title: "Registratie nog niet afgerond",
+    title: "Verificatie in behandeling",
     text: "Je registratie is nog niet bevestigd als afgerond. Controleer bij Viva of je nog stappen moet afronden, zoals het koppelen van je account of de verificatie. GlowSuite kun je ondertussen gewoon gebruiken.",
   },
   action_needed: {
