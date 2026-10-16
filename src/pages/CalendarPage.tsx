@@ -411,6 +411,10 @@ export default function CalendarPage() {
 
 
   const weekDays = useMemo(() => weekDaysFor(currentDate), [currentDate]);
+  // Mobile week view shows a window of 3 days with prev/next controls.
+  const [weekWindow, setWeekWindow] = useState(0);
+  useEffect(() => setWeekWindow(0), [currentDate]);
+  const visibleWeekDays = isMobile ? weekDays.slice(weekWindow, weekWindow + 3) : weekDays;
 
   const dayNames = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'];
 
@@ -2033,7 +2037,7 @@ export default function CalendarPage() {
                       title="Open deze dag"
                       className={cn("text-sm font-semibold mb-3 pb-2 border-b-2 transition-colors text-left",
                         isSelected ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground')}>
-                      {dayNames[i]} <span className="text-xs">{day.getDate()}</span>
+                      {dayNames[(isMobile ? weekWindow : 0) + i]} <span className="text-xs">{day.getDate()}</span>
                       <span className="ml-2 text-xs text-muted-foreground">{apts.length}</span>
                       {freeSlots > 10 && <span className="ml-1 text-[10px] text-primary">• {freeSlots} vrij</span>}
                     </button>
@@ -2066,12 +2070,10 @@ export default function CalendarPage() {
                           </div>
                         );
                       })}
-                      {apts.length < 4 && (
-                        <button onClick={() => openAddModal(ds, '09:00')}
-                          className="w-full p-2 rounded-xl border border-dashed border-border/50 text-xs text-muted-foreground hover:bg-primary/5 hover:border-primary/30 hover:text-foreground transition-colors">
-                          <Plus className="w-3 h-3 inline mr-1" />Vrij
-                        </button>
-                      )}
+                      <button onClick={() => openAddModal(ds, '09:00')}
+                        className="w-full p-2 rounded-xl border border-dashed border-border/50 text-xs text-muted-foreground hover:bg-primary/5 hover:border-primary/30 hover:text-foreground transition-colors">
+                        <Plus className="w-3 h-3 inline mr-1" />Vrij
+                      </button>
                     </div>
                   </div>
                 );
