@@ -5,7 +5,7 @@
 import { getLiveIsvToken, retrieveLiveAccount, type EnvGet } from "./isvLiveConfig.ts";
 import type { Fetch, MerchantRow, AuthoritativeAccount } from "./isvOnboardingSafety.ts";
 import { deriveCapabilities, prepareLiveIsvOrder, LIVE_ISV_CHECKOUT_ENABLED } from "./isvLiveCheckout.ts";
-import { evaluateLiveConfirmation, fetchLiveIsvTransaction, type LivePayment } from "./isvLiveConfirm.ts";
+import { evaluateLiveConfirmation, fetchLiveIsvTransaction, LIVE_TRANSACTION_CONTRACT, type TransactionContract, type LivePayment } from "./isvLiveConfirm.ts";
 import { feeSnapshot, refundIsvFeeCents, type FeeConfig } from "./isvFee.ts";
 
 export type DepositSource = "public_booking" | "auto_revenue" | "payment_link";
@@ -77,6 +77,8 @@ export const LIVE_PAYMENT_EVENTS = new Set([1796, 1797, 1798]);
 
 export interface WebhookDeps {
   env: EnvGet; fetch: Fetch; enabled?: boolean;
+  /** Injected synthetic contract for isolated tests only; production adapter never supplies it. */
+  transactionContract?: TransactionContract;
   findByOrderCode(orderCode: string): Promise<(LivePayment & { refunded_cents?: number; refunded_fee_cents?: number }) | null | "error">;
   findByTransactionId?(transactionId: string): Promise<(LivePayment & { refunded_cents?: number; refunded_fee_cents?: number }) | null | "error">;
   loadVerifiedMerchant(tenantId: string): Promise<{ user_id: string; viva_merchant_id: string; verified: boolean } | null>;
@@ -93,6 +95,8 @@ export type WebhookResult = { status: 200 | 503; note: string };
 export async function handleLivePaymentEvent(eventTypeId: number, data: any, d: WebhookDeps, nowIso: string): Promise<WebhookResult> {
   if (!(d.enabled ?? LIVE_ISV_CHECKOUT_ENABLED)) return { status: 200, note: "live_disabled" };
   if (!LIVE_PAYMENT_EVENTS.has(eventTypeId)) return { status: 200, note: "ignored_event" };
+  const contract = d.transactionContract ?? LIVE_TRANSACTION_CONTRACT;
+  if (!contract) return { status: 503, note: "contract_unverified_hold" };
   const orderCode = String(data?.OrderCode ?? ""), txId = String(data?.TransactionId ?? "");
   const eventMerchant = data?.MerchantId ? String(data.MerchantId) : null;
   const p = orderCode ? await d.findByOrderCode(orderCode) : data?.ParentId && d.findByTransactionId ? await d.findByTransactionId(String(data.ParentId)) : null;
@@ -102,7 +106,7 @@ export async function handleLivePaymentEvent(eventTypeId: number, data: any, d: 
   const stored = String((p.metadata as any)?.viva_merchant_id ?? "");
   if (!merchant || merchant.user_id !== p.user_id || merchant.viva_merchant_id !== stored) return { status: 200, note: "merchant_hold" };
   if (eventMerchant && eventMerchant !== stored) return { status: 200, note: "merchant_hold" };
-  const tx = await fetchLiveIsvTransaction(d.env, stored, txId, d.fetch);
+  const tx = await fetchLiveIsvTransaction(d.env, stored, txId, d.fetch, contract);
   const boundOrder = String(p.metadata?.viva_order_code ?? "");
 
   if (eventTypeId === 1798) {
