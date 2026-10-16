@@ -1,6 +1,7 @@
 // LIVE ISV create orchestration (imported only by create-viva-connected-account).
 // Default off: VIVA_ISV_LIVE_ENABLED !== "true" returns before any DB, token or Viva call.
-import { loadLiveIsvConfig, getLiveIsvToken, isLivePilotUserAllowed, LIVE_ISV_API_HOST, type EnvGet } from "./isvLiveConfig.ts";
+import { loadLiveIsvConfig, getLiveIsvToken, LIVE_ISV_API_HOST, type EnvGet } from "./isvLiveConfig.ts";
+import { liveCreateAccess, type LiveTenantFacts } from "./isvLiveAccess.ts";
 import { buildCreatePayload, parseCreateV2, safeInvitationUrl } from "./isvOnboardingV2.ts";
 import { glowPayVivaBranding } from "./isvGlowPayBranding.ts";
 import { reservedCreate, type ReservationStore, type ProviderOutcome } from "./isvCreateReservation.ts";
@@ -12,8 +13,12 @@ export interface LiveMerchantRow { id: string; user_id: string; is_demo: boolean
 export interface LiveCreateDeps {
   get: EnvGet; fetchFn: Fetch; store: ReservationStore; newAttemptId: () => string;
   findLiveRow: (uid: string) => Promise<LiveMerchantRow | null | "error">;
+  /** Server-side facts for the session user only. */
+  tenantFacts: (uid: string) => Promise<LiveTenantFacts | null | "error">;
+  /** Durable per-user limiter; true = allowed, false = limited, "error" = unknown (fail closed). Only consumed before a new create. */
+  rateLimit: (uid: string) => Promise<boolean | "error">;
   /** Tenant-guarded insert/update; must never overwrite a different viva_account_id. */
-  persist: (uid: string, existing: LiveMerchantRow | null, accountId: string, inviteUrl: string, email: string) => Promise<boolean>;
+  persist: (uid: string, existing: LiveMerchantRow | null, accountId: string, inviteUrl: string, email: string, salonName: string) => Promise<boolean>;
 }
 
 export type LiveCreateResponse =
@@ -21,15 +26,16 @@ export type LiveCreateResponse =
   | { status: 202; body: { status: "persistence_pending" | "reconciliation_required" | "busy" } }
   | { status: number; body: { error: string } };
 
-const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
-
-export async function liveCreateForSession(sessionUserId: string | null, rawEmail: unknown, d: LiveCreateDeps): Promise<LiveCreateResponse> {
+/** The contact email always comes from tenantFacts (verified auth session); the request body is never trusted for it. */
+export async function liveCreateForSession(sessionUserId: string | null, d: LiveCreateDeps): Promise<LiveCreateResponse> {
   if (!sessionUserId) return { status: 401, body: { error: "unauthorized" } };
   const cfg = loadLiveIsvConfig(d.get);
   if (!cfg.ok) return { status: 503, body: { error: cfg.reason } };
-  if (!isLivePilotUserAllowed(sessionUserId, d.get)) return { status: 503, body: { error: "pilot_not_enabled" } };
-  const email = String(rawEmail ?? "").trim();
-  if (!EMAIL.test(email) || email.length > 254) return { status: 400, body: { error: "invalid_email" } };
+  let facts: LiveTenantFacts | null | "error";
+  try { facts = await d.tenantFacts(sessionUserId); } catch { facts = "error"; }
+  const access = liveCreateAccess(facts);
+  if (!access.ok) return { status: access.status, body: { error: access.error } };
+  const { email, salonName } = access;
 
   const payload = buildCreatePayload({ email, returnUrl: LIVE_RETURN_URL, branding: glowPayVivaBranding() });
   if (!payload) return { status: 400, body: { error: "invalid_email" } };
@@ -40,6 +46,12 @@ export async function liveCreateForSession(sessionUserId: string | null, rawEmai
     const url = safeInvitationUrl(row.onboarding_url);
     return url ? { status: 200, body: { status: "reused", onboarding_url: url } } : { status: 409, body: { error: "manual_recovery_required" } };
   }
+
+  // Only a genuinely new create consumes the durable per-user limit.
+  let allowed: boolean | "error";
+  try { allowed = await d.rateLimit(sessionUserId); } catch { allowed = "error"; }
+  if (allowed === "error") return { status: 503, body: { error: "unavailable" } };
+  if (!allowed) return { status: 429, body: { error: "rate_limited" } };
 
   const post = async (): Promise<ProviderOutcome> => {
     const token = await getLiveIsvToken(d.get, d.fetchFn);
@@ -58,7 +70,7 @@ export async function liveCreateForSession(sessionUserId: string | null, rawEmai
 
   const res = await reservedCreate({
     sessionUserId, rowUserId: sessionUserId, isDemo: false, attemptId: d.newAttemptId(), store: d.store, post,
-    persistMerchant: (acc, url) => d.persist(sessionUserId, row, acc, url, email),
+    persistMerchant: (acc, url) => d.persist(sessionUserId, row, acc, url, email, salonName),
   });
   if (res.status === "created" || res.status === "reused") {
     const url = safeInvitationUrl(res.redirectUrl);

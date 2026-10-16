@@ -24,7 +24,7 @@ function viva(routes: Record<string, unknown>, calls: string[] = []) {
 const TOKEN = { "/connect/token": { access_token: "fake-token" } };
 
 describe("secret names and isolation", () => {
-  it("uses only the separate LIVE names", () => expect(Object.values(LIVE_ISV_SECRET_NAMES)).toEqual(["VIVA_ISV_LIVE_CLIENT_ID", "VIVA_ISV_LIVE_CLIENT_SECRET", "VIVA_ISV_LIVE_ENABLED", "VIVA_ISV_LIVE_PILOT_USER_IDS", "VIVA_ISV_LIVE_WEBHOOK_VERIFICATION_KEY"]));
+  it("uses only the separate LIVE names", () => expect(Object.values(LIVE_ISV_SECRET_NAMES)).toEqual(["VIVA_ISV_LIVE_CLIENT_ID", "VIVA_ISV_LIVE_CLIENT_SECRET", "VIVA_ISV_LIVE_ENABLED", "VIVA_ISV_LIVE_WEBHOOK_VERIFICATION_KEY"]));
   it("cannot see demo ISV, merchant or VIVA_ENVIRONMENT", () => {
     const g = scopedEnv(envOf({ VIVA_ENVIRONMENT: "production", VIVA_ISV_CLIENT_ID: "x", VIVA_CLIENT_SECRET: "y" }));
     ["VIVA_ENVIRONMENT", "VIVA_ISV_CLIENT_ID", "VIVA_CLIENT_SECRET"].forEach((n) => expect(g(n)).toBeUndefined());

@@ -3,7 +3,7 @@
 // from the authoritative LIVE ISV Retrieve. Never creates, never rebinds, never sets
 // source code or payment-enabled flags. Default-off via VIVA_ISV_LIVE_ENABLED.
 import type { Fetch, MerchantRow } from "./isvOnboardingSafety.ts";
-import { loadLiveIsvConfig, getLiveIsvToken, isLivePilotUserAllowed, type EnvGet } from "./isvLiveConfig.ts";
+import { loadLiveIsvConfig, getLiveIsvToken, type EnvGet } from "./isvLiveConfig.ts";
 import { retrieveV2, deriveUpdateV2 } from "./isvOnboardingV2.ts";
 
 export const ISV_ONBOARDING_EVENTS = new Set([8193, 8194]);
@@ -41,7 +41,6 @@ export async function handleIsvOnboardingEvent(eventData: unknown, d: IsvWebhook
   if (live.length === 0) return { processed: true, status: 200, note: "isv_onboarding_unknown_account" };
   if (live.length > 1) return { processed: true, status: 200, note: "isv_onboarding_ambiguous_hold" };
   const row = live[0];
-  if (!isLivePilotUserAllowed(row.user_id, d.env)) return { processed: true, status: 200, note: "isv_onboarding_pilot_not_enabled" };
   const token = await getLiveIsvToken(d.env, d.fetch);
   if (!token) return { processed: false, status: 503, note: "isv_onboarding_token_unavailable" };
   const acc = await retrieveV2(row.viva_account_id!, "live", token, d.fetch);
