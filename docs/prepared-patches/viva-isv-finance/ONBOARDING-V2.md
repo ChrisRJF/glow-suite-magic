@@ -15,7 +15,7 @@ Code: `supabase/functions/_shared/inactive/isvOnboardingV2.ts` (builds on `isvOn
 
 ## Branding
 - logoUrl: official GlowPay logo `https://glowsuite.nl/__l5e/assets-v1/b5dafa8b-3daf-4b09-927d-474084acabdc/glowpay-logo.png` (verified public 2026-10-16).
-- primaryColor: UNRESOLVED. Logo is black/white only; no GlowPay hex in tokens. Needs the owner to supply it; create stays blocked (payload refuses).
+- primaryColor: owner-confirmed `#002448`; separate GlowPay accent `#00C878`, not sent as primaryColor. Official logo retained unchanged. Prepared factory: `_shared/inactive/isvGlowPayBranding.ts`, no active import. GlowSuite theme unchanged.
 
 ## Wizard step 3 plan (OnboardingWizard GlowPayStep ~line 485)
 - Title "Activeer GlowPay", CTA "Activeer GlowPay via Viva" (opens invitation link; demo shows a note instead, demo cannot follow production onboarding).
@@ -36,8 +36,15 @@ Code: `supabase/functions/_shared/inactive/isvOnboardingV2.ts` (builds on `isvOn
 - Never reads `VIVA_ENVIRONMENT`, `VIVA_ISV_CLIENT_*`, merchant or POS credentials (scoped getter).
 - Hosts fixed to LIVE: token `accounts.vivapayments.com/connect/token`, API `api.vivapayments.com`.
 - Fail closed: switch off, missing credentials, token/Viva failure, unparseable response, demo row, missing brand hex or source code.
-- Open blockers: brand hex for `primaryColor`; live source-code provisioning; token scope for ISV accounts unverified on LIVE; logo URL still the older ISV asset (official GlowPay logo needs a public https URL).
+- Open create blockers: durable server-only reservation/recovery and LIVE accounts contract/token scope verification. Branding/logo resolved. Source-code provisioning is outside KYC-create scope, not a payment authorization.
 - Session-derived user ID must match the supplied row before create/status; no database writes are implemented here. The future adapter must enforce tenant-scoped lookup, atomic create claims and persistence. Ambiguous create outcomes require reconciliation, never automatic retry (otherwise duplicate external accounts are possible).
-- LIVE status readiness here is only a prepared check, not a payment-routing activation or permission. No active function imports this module. The account/token contracts remain DEMO-derived, not LIVE-verified.
+- LIVE status readiness is not payment authorization. Only sync-viva-connected-account imports isvLiveConfig.ts; this round leaves that module and its existing dependencies unchanged. Contracts remain DEMO-derived, not LIVE-verified.
 - The earlier activation list is historical planning, not permission to execute. Credentials are now present; enable switch remains absent/off. No secret was read or changed during preparation.
 - 2026-10-16: sync-viva-connected-account now uses syncLiveForSession (LIVE-only, off until VIVA_ISV_LIVE_ENABLED=true; tests tests/viva-isv/isv-live-sync.test.ts). Create, webhook and payment gate remain unchanged.
+
+## Create reservation blocker (catalog-only verification, 2026-10-16)
+- Verified `uniq_glowpay_cm_user_demo`: UNIQUE on `public.glowpay_connected_merchants(user_id, is_demo)`. Do not recreate it. It constrains rows, not external POSTs.
+- Prepared create has no durable atomic claim; stale/null rows can lead to duplicate POSTs. Catalog checks found no create reservation columns/RPC and own-row INSERT/UPDATE/DELETE policies. Editable metadata or process-local locks are insufficient. No salon/customer rows were read.
+- STOP before DB writes/schema changes or entrypoint wiring. Minimal separate migration GO: service-role-only reservation table, UNIQUE `(user_id,is_demo)`, attempt/fencing UUID, state (`reserved`, `dispatching`, `reconciliation_required`, `completed`), timestamps and provider account ID/invitation URL. Explicit service_role grants, RLS, no client access; atomic parameterized claim/dispatch/complete/recover RPCs with service-role-only EXECUTE, fixed search_path and tenant/environment predicates. Existing merchant index unchanged.
+- One claim wins; losers return busy or reuse completed result. Persist dispatching before POST. Never automatically expire/retry dispatched or ambiguous attempts. Journal provider result before tenant-scoped merchant persistence. After merchant DB failure, retry only persistence, never POST. If provider success cannot be journaled or the worker crashes, hold the durable dispatch marker for provider-evidence/operator reconciliation. Without verified provider idempotency/authoritative lookup, automatic recovery of a lost account ID is unavailable; no second create allowed.
+- Exact next GO: prepare/review this narrow migration plus inactive reservation adapter and fictitious concurrency/crash tests. Applying SQL requires explicit approval. Only afterwards consider one-entrypoint wiring with automatic deployment explicitly scoped; LIVE switch still absent/off. No LIVE requests, frontend activation or payments in this round.
