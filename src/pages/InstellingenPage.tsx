@@ -70,7 +70,7 @@ export default function InstellingenPage() {
   const [notifications, setNotifications] = useState({ email: true, whatsapp: false, push: false });
   const [demoMode, setDemoMode] = useState(false);
   const [mollieMode, setMollieMode] = useState("test");
-  const [paymentProvider, setPaymentProvider] = useState<"mollie" | "viva">("mollie");
+  const [paymentProvider, setPaymentProvider] = useState<"mollie" | "viva">("viva");
   const [paymentFallback, setPaymentFallback] = useState(false);
   const [vivaStatus, setVivaStatus] = useState<{ configured: boolean; environment: "demo" | "live"; credentials_present: boolean; source_code_present: boolean } | null>(null);
   const [vivaChecklist, setVivaChecklist] = useState<Record<string, boolean>>({});
@@ -163,8 +163,9 @@ export default function InstellingenPage() {
       setNotifications({ email: s.email_enabled || false, whatsapp: s.whatsapp_enabled || false, push: false });
       setDemoMode(s.demo_mode || false);
       setMollieMode(s.mollie_mode || 'test');
-      setPaymentProvider((s.payment_provider === 'viva' ? 'viva' : 'mollie'));
-      setPaymentFallback(Boolean(s.payment_provider_fallback_enabled));
+      // GlowPay/Viva is de enige zichtbare provider; Mollie blijft verborgen legacy.
+      setPaymentProvider('viva');
+      setPaymentFallback(false);
       setVivaActivation(String(s.viva_status || 'not_started'));
       setDepositNewClient(s.deposit_new_client ?? true);
       setDepositPct(s.deposit_percentage ?? 50);
@@ -215,7 +216,7 @@ export default function InstellingenPage() {
 
   useEffect(() => {
     if (!user || !canManageIntegrations) return;
-    fetchMollieStatus();
+    // Mollie-status wordt niet meer opgehaald: de koppeling is verborgen legacy.
     // Load Viva status from edge function
     supabase.functions.invoke("viva-status", { body: {} }).then(({ data }) => {
       if (data && typeof data === "object") setVivaStatus(data as any);
@@ -444,8 +445,8 @@ export default function InstellingenPage() {
         email_enabled: notifications.email,
         whatsapp_enabled: notifications.whatsapp,
         mollie_mode: mollieMode,
-        payment_provider: paymentProvider,
-        payment_provider_fallback_enabled: paymentFallback,
+        payment_provider: 'viva',
+        payment_provider_fallback_enabled: false,
         deposit_new_client: depositNewClient,
         deposit_percentage: depositPct,
         full_prepay_threshold: fullPrepayThreshold,
@@ -636,7 +637,7 @@ export default function InstellingenPage() {
   });
 
   const integrations = [
-    { name: "GlowPay (Mollie)", desc: "Online betalingen en aanbetalingen", enabled: mollieMode !== '', icon: CreditCard, toggle: undefined },
+    { name: "GlowPay", desc: "Online betalingen en aanbetalingen via Viva", enabled: false, icon: CreditCard, toggle: undefined },
     { name: "Google Calendar", desc: "Synchroniseer je agenda met Google", enabled: googleCalendar, toggle: () => setGoogleCalendar(!googleCalendar), icon: Calendar },
     { name: "WhatsApp", desc: "Stuur berichten en herinneringen", enabled: notifications.whatsapp, toggle: () => setNotifications(p => ({ ...p, whatsapp: !p.whatsapp })), icon: Bell },
     { name: "E-mail", desc: "Bevestigingen en marketing e-mails", enabled: notifications.email, toggle: () => setNotifications(p => ({ ...p, email: !p.email })), icon: Bell },
@@ -1007,52 +1008,18 @@ export default function InstellingenPage() {
           <div className="space-y-3 w-full max-w-full min-w-0 overflow-x-hidden">
             <h3 className="text-sm font-semibold flex items-center gap-2"><Plug className="w-4 h-4 text-primary" /> Integraties</h3>
 
-            {/* Payment Provider Selector */}
+            {/* GlowPay (Viva) - enige zichtbare betaalprovider */}
             <div className="glass-card p-4 flex flex-col gap-3 border border-primary/10">
               <div className="flex items-start gap-3">
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-primary/15">
                   <CreditCard className="w-5 h-5 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">Betaalprovider</p>
-                  <p className="text-[11px] text-muted-foreground">Kies welk platform online betalingen verwerkt.</p>
+                  <p className="text-sm font-medium">GlowPay betalingen</p>
+                  <p className="text-[11px] text-muted-foreground">GlowPay gebruikt Viva voor betalingen. Activatie volgt na verificatie bij Viva.</p>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setPaymentProvider("mollie")}
-                  className={`text-left rounded-xl border p-3 transition ${paymentProvider === "mollie" ? "border-primary bg-primary/5" : "border-border bg-background hover:border-primary/40"}`}
-                >
-                  <p className="text-sm font-semibold">Mollie</p>
-                  <p className="text-[11px] text-muted-foreground">iDEAL, Bancontact, kaart</p>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPaymentProvider("viva")}
-                  className={`text-left rounded-xl border p-3 transition ${paymentProvider === "viva" ? "border-primary bg-primary/5" : "border-border bg-background hover:border-primary/40"}`}
-                >
-                  <p className="text-sm font-semibold">Viva Smart Checkout</p>
-                  <p className="text-[11px] text-muted-foreground">Kaart, wallets, lokaal</p>
-                </button>
-              </div>
-              {/* Provider status labels */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <div className="rounded-lg border border-border bg-secondary/30 p-2 flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-medium">Mollie</span>
-                  <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-success/15 text-success">Fallback actief</span>
-                </div>
-                <div className="rounded-lg border border-border bg-secondary/30 p-2 flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-medium">Viva</span>
-                  {paymentProvider !== "viva" ? (
-                    <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-secondary text-muted-foreground">Niet actief</span>
-                  ) : vivaStatus?.environment === "live" && vivaStatus?.configured ? (
-                    <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-success/15 text-success">Klaar voor live</span>
-                  ) : (
-                    <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-warning/15 text-warning">Testmodus</span>
-                  )}
-                </div>
-              </div>
+
 
               {paymentProvider === "viva" && (
                 <div className="space-y-3">
@@ -1124,14 +1091,6 @@ export default function InstellingenPage() {
                           </div>
                         </div>
 
-                        {/* Fallback toggle */}
-                        <div className="rounded-xl border border-border bg-background/60 p-3 flex items-center justify-between gap-3">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[12px] font-medium">Automatisch terugvallen op Mollie</p>
-                            <p className="text-[10px] text-muted-foreground">Bij een Viva-fout wordt de betaling automatisch via Mollie afgehandeld.</p>
-                          </div>
-                          <Switch checked={paymentFallback} onCheckedChange={setPaymentFallback} />
-                        </div>
 
                         {/* Webhook URL */}
                         <div className="rounded-xl border border-border bg-background/60 p-3">
@@ -1277,59 +1236,10 @@ export default function InstellingenPage() {
                 </div>
               )}
 
-              <p className="text-[11px] text-muted-foreground">Standaard: Mollie. Viva wordt de standaard provider zodra alle tests groen zijn.</p>
+              <p className="text-[11px] text-muted-foreground">Viva is de betaalprovider van GlowPay. Betalingen werken zodra Viva je account heeft geverifieerd.</p>
 
             </div>
 
-            <div className="glass-card p-4 flex flex-col gap-4 border border-primary/10">
-              <div className="flex items-start gap-3">
-
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${mollieStatus?.connected ? "bg-success/15" : "bg-secondary/50"}`}>
-                  <CreditCard className={`w-5 h-5 ${mollieStatus?.connected ? "text-success" : "text-muted-foreground"}`} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm font-medium">Mollie Connect</p>
-                    <span className={`px-2 py-0.5 rounded-lg text-[11px] font-semibold ${mollieStatus?.connected ? "bg-success/15 text-success" : "bg-secondary text-muted-foreground"}`}>
-                      {mollieStatus?.connected ? "Verbonden" : "Niet verbonden"}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground">Salons ontvangen betalingen rechtstreeks op hun eigen Mollie account</p>
-                </div>
-              </div>
-              {mollieStatus?.connected && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-muted-foreground">
-                  <div className="p-2 rounded-lg bg-secondary/40">Account: <span className="text-foreground font-medium">{mollieStatus.connection?.organization_name || mollieStatus.connection?.account_name}</span></div>
-                  <div className="p-2 rounded-lg bg-secondary/40">Modus: <span className="text-foreground font-medium">{mollieStatus.connection?.mollie_mode || mollieMode}</span></div>
-                  <div className="p-2 rounded-lg bg-secondary/40">Webhook: <span className="text-foreground font-medium">{mollieStatus.connection?.webhook_status || "unknown"}</span></div>
-                  <div className="p-2 rounded-lg bg-secondary/40">Laatste sync: <span className="text-foreground font-medium">{mollieStatus.connection?.last_sync_at ? new Date(mollieStatus.connection.last_sync_at).toLocaleDateString("nl-NL") : "—"}</span></div>
-                  <div className="sm:col-span-2 p-2 rounded-lg bg-secondary/40">
-                    Methoden: <span className="text-foreground font-medium">{mollieMethods.map((m: any) => m.description || m.id).join(", ") || "Nog niet gesynchroniseerd"}</span>
-                  </div>
-                </div>
-              )}
-              {mollieStatus?.demo && <div className="p-3 rounded-xl bg-secondary/50 text-xs text-muted-foreground">Demo modus gebruikt geen echte Mollie-koppeling en simuleert betalingen veilig.</div>}
-              <div className="flex gap-2 flex-wrap">
-                <Button variant="gradient" size="sm" onClick={handleConnectMollie} disabled={mollieLoading || mollieStatus?.demo}>
-                  {mollieLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
-                  {mollieStatus?.connected ? "Opnieuw verbinden" : "Koppel Mollie"}
-                </Button>
-                {mollieStatus?.connected && <Button variant="outline" size="sm" onClick={handleDisconnectMollie} disabled={mollieLoading}>Ontkoppelen</Button>}
-                {mollieStatus?.connected && <Button variant="outline" size="sm" onClick={handleSyncMollieMethods} disabled={mollieLoading}>
-                  {mollieLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Methoden syncen
-                </Button>}
-                {mollieStatus?.connected && canManageMollie && (
-                  <>
-                    <Button variant="outline" size="sm" onClick={handleOneEuroLiveTest} disabled={mollieTestLoading || mollieStatus.connection?.mollie_mode !== "live"}>
-                      {mollieTestLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlayCircle className="w-4 h-4" />} €1 live test
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={handleRefundOneEuroTest} disabled={mollieTestLoading || mollieStatus.connection?.mollie_mode !== "live"}>
-                      <RotateCcw className="w-4 h-4" /> Refund test
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 w-full min-w-0">
               {integrations.map((intg, i) => (
                 <div key={i} className="glass-card p-3 sm:p-4 flex flex-col gap-1.5 sm:gap-3 min-w-0">

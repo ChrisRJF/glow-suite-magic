@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { z } from "https://esm.sh/zod@3.23.8";
+import { routePayment } from "../_shared/paymentProviderRoute.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -118,18 +119,32 @@ Deno.serve(async (req) => {
     const { appointment_id, customer_id, membership_id, payment_type, method, source, redirect_url } = parsed.data;
     const amount = source === "test_button" ? 1 : parsed.data.amount;
 
-    // Check if demo mode + provider selection
-    const { data: settings } = await supabase
+    // Check if demo mode + provider selection (tenant-scoped, session-authenticated)
+    const { data: settings, error: settingsError } = await supabase
       .from("settings")
       .select("id, demo_mode, is_demo, mollie_mode, payment_provider, payment_provider_fallback_enabled")
       .eq("user_id", user.id)
       .maybeSingle();
 
     const demoMode = Boolean(settings?.is_demo || settings?.demo_mode);
-    const provider = ((settings as any)?.payment_provider as string) || "mollie";
+    const route = routePayment({
+      settingsError: Boolean(settingsError),
+      settings: (settings as any) ?? null,
+      source,
+    });
 
-    // Route to Viva when selected (test_button stays on Mollie since it tests Mollie Connect specifically)
-    if (provider === "viva" && source !== "test_button") {
+    if (route.kind === "deny") {
+      return new Response(JSON.stringify({ error: route.reason === "test_button_not_available"
+        ? "Deze test is niet beschikbaar voor dit account."
+        : "Betaalinstellingen konden niet worden bevestigd. Probeer het later opnieuw." }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Viva (GlowPay) route. Any Viva failure is fail-closed: never fall back to Mollie,
+    // because Viva may already have created an order.
+    if (route.kind === "viva") {
       const { data: result, error: vivaErr } = await supabase.functions.invoke("create-viva-payment", {
         body: {
           appointment_id,
@@ -143,26 +158,22 @@ Deno.serve(async (req) => {
         },
       });
       if (vivaErr || (result as any)?.error) {
-        const fallbackEnabled = Boolean((settings as any)?.payment_provider_fallback_enabled);
         const errMsg = (result as any)?.error || vivaErr?.message || "Viva fout";
-        if (!fallbackEnabled) {
-          return new Response(JSON.stringify({ error: errMsg, provider: "viva", fallbackAvailable: false }), {
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        // Fallback enabled — fall through to Mollie below
-        console.warn("[create-payment] Viva failed, falling back to Mollie:", errMsg);
-      } else {
-        return new Response(JSON.stringify({
-          success: true,
-          demo: !!(result as any)?.demo,
-          provider: "viva",
-          payment: { id: (result as any)?.payment_id },
-          checkoutUrl: (result as any)?.checkout_url,
-        }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ error: errMsg, provider: "viva", fallbackAvailable: false }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
+      return new Response(JSON.stringify({
+        success: true,
+        demo: !!(result as any)?.demo,
+        provider: "viva",
+        payment: { id: (result as any)?.payment_id },
+        checkoutUrl: (result as any)?.checkout_url,
+      }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+
+
 
 
     if (demoMode) {
