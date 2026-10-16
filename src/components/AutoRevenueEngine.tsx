@@ -179,7 +179,7 @@ export function AutoRevenueEngine({ source = "overview" }: AutoRevenueEngineProp
     const next = { ...autopilot, enabled };
     setAutopilot(next);
     saveAutopilotState(next, demoMode);
-    toast.success(enabled ? "Autopilot ingeschakeld ✨" : "Autopilot uitgeschakeld");
+    toast.success(enabled ? "Autopilot ingeschakeld" : "Autopilot uitgeschakeld");
   };
 
   const updateSetting = (key: string, value: number) => {
@@ -281,7 +281,7 @@ export function AutoRevenueEngine({ source = "overview" }: AutoRevenueEngineProp
     if (demoState.addedAppointmentIds.length > 0) {
       await refetchAppointments();
     }
-    toast.success("Demo opnieuw geladen 🔄");
+    toast.success("Demo opnieuw geladen");
   }, [demoMode, showcaseAccess, demoState.addedAppointmentIds, removeAppointment, refetchAppointments]);
 
   // Auto-run when enabled — never auto-run during demo mode.

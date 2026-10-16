@@ -444,10 +444,10 @@ export default function WachtlijstPage() {
                   <div className="flex-shrink-0">{statusBadge(w.status)}</div>
                 </div>
                 <div className="flex flex-wrap gap-1.5 mb-4">
-                  {w.preferred_employee && <span className="bg-secondary px-2 py-1 rounded-md text-[11px] text-muted-foreground">👤 {w.preferred_employee}</span>}
-                  {w.preferred_day && <span className="bg-secondary px-2 py-1 rounded-md text-[11px] text-muted-foreground">📅 {w.preferred_day}</span>}
-                  {w.preferred_time && <span className="bg-secondary px-2 py-1 rounded-md text-[11px] text-muted-foreground">🕐 {w.preferred_time}</span>}
-                  <span className="bg-secondary px-2 py-1 rounded-md text-[11px] text-muted-foreground">🔄 {w.flexibility}</span>
+                  {w.preferred_employee && <span className="bg-secondary px-2 py-1 rounded-md text-[11px] text-muted-foreground">{w.preferred_employee}</span>}
+                  {w.preferred_day && <span className="bg-secondary px-2 py-1 rounded-md text-[11px] text-muted-foreground">{w.preferred_day}</span>}
+                  {w.preferred_time && <span className="bg-secondary px-2 py-1 rounded-md text-[11px] text-muted-foreground">{w.preferred_time}</span>}
+                  <span className="bg-secondary px-2 py-1 rounded-md text-[11px] text-muted-foreground">{w.flexibility}</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button variant="gradient" size="sm" onClick={() => handlePlace(w)} disabled={placingId === w.id}>

@@ -1078,7 +1078,7 @@ function PostWelcomeStep({ onNavigate }: { onNavigate: (path: string) => void })
   return (
     <div className="h-full flex flex-col py-4 sm:py-6 max-w-lg mx-auto w-full">
       <div className="text-center mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-2">Welkom bij GlowSuite 👋</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-2">Welkom bij GlowSuite</h1>
         <p className="text-sm text-muted-foreground">Je salon is klaar. Wat wil je als eerste doen?</p>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
