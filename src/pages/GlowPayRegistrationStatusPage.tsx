@@ -87,21 +87,22 @@ export default function GlowPayRegistrationStatusPage() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-md space-y-6">
-        <div className="flex flex-col items-center text-center space-y-3">
+        <div className="flex flex-col items-center text-center">
           <GlowSuiteLogo size="sm" withWordmark className="opacity-70" />
-          <span aria-hidden="true" className="h-px w-10 bg-border" />
-          <img
-            src={glowpayLogo.url}
-            alt="GlowPay"
-            width={1470}
-            height={335}
-            className="h-auto w-40 max-w-full rounded-md object-contain"
-          />
-          <h1 className="text-2xl font-bold tracking-tight">Registratie bij Viva</h1>
-          <p className="text-sm text-muted-foreground">
-            GlowPay is de betaaloplossing van GlowSuite. Viva verzorgt de registratie en controle van je betaalaccount.
-            Terugkeren naar GlowSuite betekent niet automatisch dat de verificatie al is afgerond.
-          </p>
+          <div className="mt-6 flex flex-col items-center space-y-3">
+            <img
+              src={glowpayLogo.url}
+              alt="GlowPay"
+              width={1470}
+              height={335}
+              className="h-auto w-40 max-w-full rounded-md object-contain"
+            />
+            <h1 className="text-2xl font-bold tracking-tight">Registratie bij Viva</h1>
+            <p className="text-sm text-muted-foreground max-w-xs sm:max-w-sm">
+              GlowPay is de betaaloplossing van GlowSuite. Viva verzorgt de registratie en controle van je betaalaccount.
+              Terugkeren naar GlowSuite betekent niet automatisch dat de verificatie al is afgerond.
+            </p>
+          </div>
         </div>
 
         <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
