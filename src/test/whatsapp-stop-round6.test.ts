@@ -1,3 +1,4 @@
+import { inactiveImportViolations } from "./helpers/inactiveImportPolicy";
 // Round 6: STOP compatibility with Gateway round 5. Fictitious data only, no DB, no network.
 // Expected digests are FIXED constants from the spec, not recomputed with the code under test.
 import { describe, it, expect, vi } from "vitest";
@@ -152,13 +153,8 @@ describe("14-17. isolation", () => {
     parseKeyRing("bad");
     for (const s of spies) { expect(s).not.toHaveBeenCalled(); s.mockRestore(); }
   });
-  it("15. no active edge function imports inactive modules", () => {
-    for (const d of readdirSync(FUNCS).filter((d) => d !== "_shared")) {
-      const p = join(FUNCS, d, "index.ts");
-      if (existsSync(p)) expect(readFileSync(p, "utf8")).not.toMatch(/inactive\//);
-    }
-    for (const f of readdirSync(join(FUNCS, "_shared")).filter((f) => f.endsWith(".ts")))
-      expect(readFileSync(join(FUNCS, "_shared", f), "utf8")).not.toMatch(/inactive\//);
+  it("15. no active edge function imports non-approved inactive modules", () => {
+    expect(inactiveImportViolations()).toEqual([]);
   });
   it("16. old whatsapp-inbound stays disabled", () => {
     const src = readFileSync(join(FUNCS, "whatsapp-inbound/index.ts"), "utf8");
