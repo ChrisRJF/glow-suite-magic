@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { glowpayPaymentStatus, bookingStatus, type PayStatus, type BookingStatus } from "@/lib/glowpayOnboardingStatus";
 import glowsuiteLogo from "@/assets/glowsuite-logo.png";
 import glowpayLogo from "@/assets/glowpay/glowpay-logo.png.asset.json";
+import { missingSeedServices } from "@/lib/onboardingServiceSeed";
 
 
 interface Props {
@@ -252,7 +253,7 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
       if (step === TOTAL - 1) { finish(); return; }
       setStep(step + 1);
     } catch (e: unknown) {
-      (console.log("ERR", e), toast.error(describeOnboardingSaveError(e)));
+      toast.error(describeOnboardingSaveError(e));
     } finally { busyRef.current = false; setSaving(false); }
   };
 
