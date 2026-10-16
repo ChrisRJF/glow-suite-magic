@@ -18,6 +18,10 @@
     --primary: 255 100% 69%;
     --primary-foreground: 0 0% 100%;
 
+    /* Calm deep purple for in-app primary actions (buttons, active tabs) */
+    --cta: 259 62% 53%;
+    --cta-foreground: 0 0% 100%;
+
     --secondary: 240 8% 14%;
     --secondary-foreground: 0 0% 85%;
 
@@ -72,6 +76,9 @@
 
     --primary: 255 92% 65%;
     --primary-foreground: 0 0% 100%;
+
+    --cta: 259 62% 53%;
+    --cta-foreground: 0 0% 100%;
 
     --secondary: 240 16% 96.5%;
     --secondary-foreground: 240 10% 22%;

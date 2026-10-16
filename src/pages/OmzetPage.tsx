@@ -48,7 +48,7 @@ export default function OmzetPage() {
         <div className="flex gap-2">
           {(["week", "maand"] as const).map((p) => (
             <button key={p} onClick={() => setPeriod(p)}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${period === p ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-secondary/80"}`}>
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${period === p ? "bg-cta text-cta-foreground" : "bg-secondary text-secondary-foreground hover:bg-secondary/80"}`}>
               {p === "week" ? "Deze week" : "Deze maand"}
             </button>
           ))}
