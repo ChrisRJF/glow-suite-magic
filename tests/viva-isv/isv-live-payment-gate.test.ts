@@ -30,7 +30,15 @@ describe("LIVE payment gate (Smart Checkout + Cloud Terminal)", () => {
     expect((await run({}, "terminal")).r).toEqual({ ok: true, demo: false });
   });
   it("demo salon: allowed as demo, no Viva calls", async () => {
-    const { r, calls } = await run({ settings: { is_demo: true } });
+    const { r, calls } = await run({ settings: { is_demo: true }, providerEnv: "demo" });
+    expect(r).toEqual({ ok: true, demo: true }); expect(calls.length).toBe(0);
+  });
+  it("demo salon + provider env 'live' -> fail closed, zero Viva calls (POS live host)", async () => {
+    const { r, calls } = await run({ settings: { is_demo: true }, providerEnv: "live" });
+    expect(r).toEqual({ ok: false, demo: true, reason: "environment_mismatch" }); expect(calls.length).toBe(0);
+  });
+  it("demo salon + provider env 'demo' -> allowed, zero Viva calls", async () => {
+    const { r, calls } = await run({ settings: { is_demo: true }, providerEnv: "demo" });
     expect(r).toEqual({ ok: true, demo: true }); expect(calls.length).toBe(0);
   });
   it("settings unreadable -> block", async () => expect((await run({ settings: null })).r.ok).toBe(false));
