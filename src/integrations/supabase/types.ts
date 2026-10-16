@@ -4326,7 +4326,9 @@ export type Database = {
           payment_provider_fallback_enabled: boolean
           public_employees_enabled: boolean | null
           public_slug: string | null
+          salon_logo_url: string | null
           salon_name: string | null
+          salon_type: string | null
           show_prices_online: boolean | null
           skip_prepay_vip: boolean | null
           timezone: string | null
@@ -4379,7 +4381,9 @@ export type Database = {
           payment_provider_fallback_enabled?: boolean
           public_employees_enabled?: boolean | null
           public_slug?: string | null
+          salon_logo_url?: string | null
           salon_name?: string | null
+          salon_type?: string | null
           show_prices_online?: boolean | null
           skip_prepay_vip?: boolean | null
           timezone?: string | null
@@ -4432,7 +4436,9 @@ export type Database = {
           payment_provider_fallback_enabled?: boolean
           public_employees_enabled?: boolean | null
           public_slug?: string | null
+          salon_logo_url?: string | null
           salon_name?: string | null
+          salon_type?: string | null
           show_prices_online?: boolean | null
           skip_prepay_vip?: boolean | null
           timezone?: string | null
