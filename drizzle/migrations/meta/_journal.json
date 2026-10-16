@@ -162,6 +162,13 @@
       "when": 1792180984880,
       "tag": "0022_isv_payment_atomic_state",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1792181030628,
+      "tag": "0023_isv_atomic_commission_reconciliation",
+      "breakpoints": true
     }
   ]
 }
