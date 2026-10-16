@@ -60,7 +60,7 @@ export function prepareLiveIsvOrder(i: {
   }
   const feeCents = fee ? fee.feeCents : onlineIsvFeeCents(i.amountCents);
   return {
-    ok: true, merchantId, feeCents,
+    ok: true, merchantId, feeCents, fee,
     url: `${LIVE_ISV_API_HOST}/checkout/v2/isv/orders?merchantId=${encodeURIComponent(merchantId)}`,
     body: {
       amount: i.amountCents, isvAmount: feeCents, sourceCode: ISV_WEB_SOURCE_CODE,
