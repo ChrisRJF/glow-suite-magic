@@ -1,9 +1,9 @@
-// PREPARED, NOT ACTIVE. Not imported by any entrypoint.
+// PREPARED. Only syncLiveForSession is imported by sync-viva-connected-account (default-off switch).
 // Separate LIVE Viva ISV configuration. Reads ONLY the secret NAMES below through an
 // injected getter; never VIVA_ENVIRONMENT, VIVA_ISV_CLIENT_*, merchant or POS credentials.
 // Every check fails closed. No network call happens unless a caller injects fetch.
 import { ISV_HOSTS, type Fetch, type MerchantRow } from "./isvOnboardingSafety.ts";
-import { buildCreatePayload, parseCreateV2, parseRetrieveV2, decideCreateV2, livePaymentAllowedV2, type Branding, type AccountV2 } from "./isvOnboardingV2.ts";
+import { buildCreatePayload, parseCreateV2, parseRetrieveV2, decideCreateV2, livePaymentAllowedV2, deriveUpdateV2, type Branding, type AccountV2 } from "./isvOnboardingV2.ts";
 
 export const LIVE_ISV_SECRET_NAMES = {
   clientId: "VIVA_ISV_LIVE_CLIENT_ID",
@@ -121,4 +121,29 @@ export async function liveAccountStatus(sessionUserId: string | null, row: Merch
   if (row.is_demo) return { ok: false, reason: "not_live_env" };
   const a = await retrieveLiveAccount(row.viva_account_id, rawGet, f);
   return livePaymentAllowedV2(row, a, "live");
+}
+export interface LiveSyncDeps {
+  get: EnvGet;
+  fetchFn: Fetch;
+  /** Must select by session user_id AND is_demo=false only. "error" = storage unavailable. */
+  findLiveRowByUser(userId: string): Promise<MerchantRow | null | "error">;
+  /** Must update scoped by row id AND user_id. */
+  update(rowId: string, userId: string, upd: Record<string, unknown>): Promise<boolean>;
+}
+
+/** Tenant-authenticated LIVE sync. Config is checked before any read; Retrieve decides; nothing written on failure. */
+export async function syncLiveForSession(sessionUserId: string | null, d: LiveSyncDeps): Promise<{ status: number; result: string }> {
+  if (!sessionUserId) return { status: 401, result: "unauthorized" };
+  const c = loadLiveIsvConfig(d.get);
+  if (!c.ok) return { status: 503, result: c.reason };
+  const row = await d.findLiveRowByUser(sessionUserId);
+  if (row === "error") return { status: 503, result: "unavailable" };
+  if (!row || !row.viva_account_id) return { status: 404, result: "not_connected" };
+  if (row.user_id !== sessionUserId) return { status: 403, result: "tenant_mismatch" };
+  if (row.is_demo) return { status: 409, result: "not_live_env" };
+  const a = await retrieveLiveAccount(row.viva_account_id, d.get, d.fetchFn);
+  if (!a) return { status: 503, result: "viva_unavailable" };
+  const upd = deriveUpdateV2(row, a);
+  if (!upd) return { status: 409, result: "rejected_mismatch" };
+  return (await d.update(row.id, sessionUserId, upd)) ? { status: 200, result: "updated" } : { status: 503, result: "unavailable" };
 }

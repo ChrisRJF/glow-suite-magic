@@ -1,8 +1,9 @@
-// Sync a Viva ISV connected account status into glowpay_connected_merchants.
-// Accepts { user_id?, viva_account_id? }. If no user_id and called by a logged-in
-// user, syncs that user's merchant. Tolerates missing/partial Viva responses.
+// LIVE Viva ISV connected-account sync. Tenant comes only from the session (body ignored).
+// Uses ONLY the separate LIVE ISV secrets and is off unless VIVA_ISV_LIVE_ENABLED === "true".
+// Off/missing config -> 503 before any database read. Status comes only from an
+// authoritative Viva Retrieve; any failure writes nothing. Never sets source code.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import { getVivaAccessToken, vivaEnv } from "../_shared/viva.ts";
+import { syncLiveForSession } from "../_shared/inactive/isvLiveConfig.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,69 +11,35 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-
-function pickStatus(data: any): string | null {
-  const s = String(data?.status ?? data?.Status ?? data?.onboardingStatus ?? data?.OnboardingStatus ?? "").toLowerCase();
-  const allowed = ["not_started","invited","in_progress","connected","kyc_pending","active","rejected","suspended"];
-  if (allowed.includes(s)) return s;
-  if (s === "pending" || s === "kyc") return "kyc_pending";
-  if (s === "verified" || s === "approved") return "active";
-  return null;
-}
+const COLS = "id, user_id, is_demo, viva_account_id, viva_merchant_id, viva_source_code, onboarding_status, kyc_status, onboarding_url";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
-
   try {
-    const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    const authHeader = req.headers.get("Authorization") || "";
-    const userClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authHeader } } });
-    const { data: udata } = await userClient.auth.getUser();
-    const callerId = udata?.user?.id || null;
-
-    const body = await req.json().catch(() => ({}));
-    const targetUserId = body?.user_id || callerId;
-    const accountIdInput = body?.viva_account_id || null;
-
-    let query = admin.from("glowpay_connected_merchants").select("*").eq("is_demo", false);
-    if (accountIdInput) query = query.eq("viva_account_id", accountIdInput);
-    else if (targetUserId) query = query.eq("user_id", targetUserId);
-    else return json({ error: "user_id_or_account_id_required" }, 400);
-
-    const { data: merchant } = await query.maybeSingle();
-    if (!merchant) return json({ error: "merchant_not_found" }, 404);
-    if (!merchant.viva_account_id) return json({ error: "no_viva_account_id" }, 400);
-
-    const env = vivaEnv();
-    const token = await getVivaAccessToken();
-    const res = await fetch(`${env.api}/isv/v1/connected-accounts/${encodeURIComponent(merchant.viva_account_id)}`, {
-      headers: { Authorization: `Bearer ${token}` },
+    const userClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: req.headers.get("Authorization") || "" } },
     });
-    const data = await res.json().catch(() => ({} as any));
+    const { data: udata } = await userClient.auth.getUser();
+    const sessionUserId = udata?.user?.id || null;
+    const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-    if (!res.ok) {
-      await admin.from("glowpay_connected_merchants").update({
-        last_synced_at: new Date().toISOString(),
-        metadata: { ...(merchant.metadata as any || {}), last_sync_error: data || { status: res.status } },
-      }).eq("id", merchant.id);
-      return json({ error: "viva_sync_failed", status: res.status, detail: data }, 502);
-    }
-
-    const updates: Record<string, unknown> = { last_synced_at: new Date().toISOString() };
-    const newStatus = pickStatus(data);
-    if (newStatus) updates.onboarding_status = newStatus;
-    if (data?.kycStatus ?? data?.KycStatus) updates.kyc_status = String(data.kycStatus ?? data.KycStatus);
-    if (data?.merchantId ?? data?.MerchantId) updates.viva_merchant_id = String(data.merchantId ?? data.MerchantId);
-    if (typeof data?.payoutsEnabled === "boolean") updates.payouts_enabled = data.payoutsEnabled;
-    if (typeof data?.terminalsEnabled === "boolean") updates.terminals_enabled = data.terminalsEnabled;
-    if (typeof data?.onlinePaymentsEnabled === "boolean") updates.online_payments_enabled = data.onlinePaymentsEnabled;
-    updates.metadata = { ...(merchant.metadata as any || {}), last_sync_response: data };
-
-    const { data: row } = await admin.from("glowpay_connected_merchants").update(updates).eq("id", merchant.id).select("*").maybeSingle();
-    return json({ ok: true, merchant: row });
-  } catch (e) {
-    console.error("sync-viva-connected-account error", e);
-    return json({ error: String((e as Error).message || e) }, 500);
+    const r = await syncLiveForSession(sessionUserId, {
+      get: (n) => Deno.env.get(n),
+      fetchFn: fetch,
+      findLiveRowByUser: async (uid) => {
+        const { data, error } = await admin.from("glowpay_connected_merchants").select(COLS).eq("user_id", uid).eq("is_demo", false).limit(2);
+        if (error || (data && data.length > 1)) return "error";
+        return (data?.[0] as any) ?? null;
+      },
+      update: async (id, uid, upd) => {
+        const { error } = await admin.from("glowpay_connected_merchants").update(upd).eq("id", id).eq("user_id", uid).eq("is_demo", false);
+        return !error;
+      },
+    });
+    return json(r.status === 200 ? { ok: true, result: r.result } : { error: r.result }, r.status);
+  } catch (_e) {
+    console.error("sync-viva-connected-account failed");
+    return json({ error: "internal_error" }, 500);
   }
 });
