@@ -49,11 +49,41 @@ describe("ISV onboarding webhook 8193/8194", () => {
     expect(updates[0]).toMatchObject({ onboarding_status: "active", kyc_status: "verified", viva_merchant_id: MID });
     expect(updates[0].online_payments_enabled).toBe(false);
   });
-  it("periodic refresh with contract gate OFF never reads or changes any salon", async () => {
+  it("periodic refresh without LIVE account credentials makes no reads or writes", async () => {
     let reads = 0;
     const admin = { from: () => { reads++; throw new Error("must not read"); } };
-    expect(await refreshLiveMerchants(admin, (n) => ON[n])).toMatchObject({ scanned: 0, synced: 0, blocked: "live_contract_gate_off" });
+    expect(await refreshLiveMerchants(admin, () => undefined)).toMatchObject({ scanned: 0, synced: 0, blocked: "live_isv_disabled" });
     expect(reads).toBe(0);
+  });
+  it("periodic refresh runs with charges OFF and only touches merchant status", async () => {
+    const { d, calls } = deps({ retrieve: { accountId: ACC, verified: true, acquiringEnabled: true, merchantId: MID } });
+    const writes: any[] = [];
+    const admin = { from: (table: string) => {
+      expect(table).toBe("glowpay_connected_merchants");
+      let update = false;
+      const q: any = {
+        select: () => q, eq: () => q, not: () => q, order: () => q, limit: () => q,
+        update: (u: any) => { update = true; writes.push(u); return q; },
+        then: (resolve: any) => resolve({ data: update ? [{ id: "r1" }] : [row({ metadata: { keep: "value" } })], error: null }),
+      };
+      return q;
+    } };
+    expect(await refreshLiveMerchants(admin, d.env, d.fetch)).toEqual({ scanned: 1, synced: 1, failed: 0 });
+    expect(calls).toHaveLength(2);
+    expect(writes[0]).toMatchObject({ kyc_status: "verified", online_payments_enabled: false, metadata: { keep: "value", viva_account_status: { acquiring_enabled: true } } });
+  });
+  it("eligible salons activate automatically only when global charging is enabled", async () => {
+    const { d, updates } = deps({ retrieve: { accountId: ACC, verified: true, acquiringEnabled: true, merchantId: MID } });
+    await handleIsvOnboardingEvent(forged, { ...d, checkoutEnabled: true });
+    expect(updates[0].online_payments_enabled).toBe(true);
+  });
+  it("KYC revocation or acquiring disabled automatically blocks an eligible salon", async () => {
+    for (const state of [{ verified: false, acquiringEnabled: true }, { verified: true, acquiringEnabled: false }]) {
+      const { d, updates } = deps({ rows: [row({ viva_merchant_id: MID })], retrieve: { accountId: ACC, merchantId: MID, ...state } });
+      await handleIsvOnboardingEvent(forged, { ...d, checkoutEnabled: true });
+      expect(updates[0].online_payments_enabled).toBe(false);
+      expect(updates[0].metadata.viva_account_status.acquiring_enabled).toBe(state.acquiringEnabled);
+    }
   });
   it("token/Retrieve/update/lookup failures: no status update, retry 503", async () => {
     for (const o of [{ token: false }, { retrieve: null }, { rows: null }]) {
@@ -84,7 +114,7 @@ describe("ISV onboarding webhook 8193/8194", () => {
 describe("viva-webhook updateRow guard", () => {
   const src = readFileSync("supabase/functions/viva-webhook/index.ts", "utf8");
   it("requires exactly one updated row", () => {
-    expect(src).toContain('.eq("viva_account_id", row.viva_account_id!)\n          .select("id");');
+    expect(src).toContain('.eq("viva_account_id", row.viva_account_id)\n          .select("id");');
     expect(src).toContain("return !error && Array.isArray(data) && data.length === 1;");
   });
   it("0 or >1 affected rows (updateRow false) -> 503, unprocessed", async () => {

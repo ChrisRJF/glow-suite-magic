@@ -94,7 +94,13 @@ async function reconcileOnce(): Promise<ReconcileSummary> {
     scanned: 0, updated: 0, unchanged: 0, failed: 0, no_transaction_id: 0, details: [],
   };
 
-  await refreshLiveMerchants(supabase, (n) => Deno.env.get(n));
+  try {
+    const kyc = await refreshLiveMerchants(supabase, (n) => Deno.env.get(n));
+    console.log("[viva-reconcile] account_refresh", JSON.stringify(kyc));
+  } catch {
+    // A status refresh outage must not regress existing payment reconciliation.
+    console.error("[viva-reconcile] account_refresh failed");
+  }
   const since = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
   const { data: pending, error } = await supabase
     .from("payments")
