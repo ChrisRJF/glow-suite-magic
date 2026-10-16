@@ -3,6 +3,8 @@
 // Demo mode never calls Viva.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { z } from "https://esm.sh/zod@3.23.8";
+import { startLiveDeposit, makeDepositDeps } from "../_shared/inactive/isvLivePayments.ts";
+import { tenantIsDemo as resolveSalonDemo } from "../_shared/checkoutGuard.ts";
 import { livePaymentGate } from "../_shared/inactive/isvLivePaymentGate.ts";
 import { vivaCheckoutUrl } from "../_shared/viva.ts";
 import {
@@ -87,6 +89,23 @@ Deno.serve(async (req) => {
           return json({ error: "Verificatie (KYC) of online betalen is nog niet actief voor deze salon.", code: "kyc_not_ready" }, 409);
         }
       }
+    }
+    // Real salon payment links use the same guarded ISV path. SaaS functions are separate and untouched.
+    const salonDemo = await resolveSalonDemo(admin, ownerId);
+    if (salonDemo === null) return json({ error: "Salonmodus onduidelijk." }, 409);
+    if (!salonDemo) {
+      const tenant = await resolveCheckoutTenant(admin, user.id);
+      if (!tenant || !["eigenaar", "admin", "manager", "financieel"].includes(tenant.role)) return json({ error: "Niet toegestaan." }, 403);
+      ownerId = tenant.tenantId;
+      if (!input.appointment_id || input.membership_id) return json({ error: "Alleen afspraakgebonden betaallinks zijn beschikbaar." }, 409);
+      const r = await admin.from("appointments").select("id,user_id,customer_id,price,deposit_amount").eq("id", input.appointment_id).eq("user_id", ownerId).maybeSingle();
+      if (r.error || !r.data || (input.customer_id && input.customer_id !== r.data.customer_id)) return json({ error: "Afspraak niet gevonden." }, 403);
+      if (isCheckout) return json({ error: "Live afrekenen blijft geblokkeerd tot saldoverificatie is aangesloten." }, 409);
+      const amount = Math.round(Number(input.payment_type === "deposit" ? r.data.deposit_amount : r.data.price) * 100);
+      const ret = "https://glowsuite.nl/boeken?status=payment-return";
+      const live = await startLiveDeposit({ tenantId: ownerId, source: "payment_link", idempotencyKey: `appointment:${input.appointment_id}:${input.payment_type === "deposit" ? "deposit" : "full"}`,
+        amountCents: amount, description: "GlowPay betaling", successUrl: ret, failureUrl: ret, refs: { appointment_id: input.appointment_id, customer_id: r.data.customer_id, payment_type: input.payment_type === "deposit" ? "deposit" : "full" } }, makeDepositDeps(admin, (n) => Deno.env.get(n)));
+      return live.ok ? json({ success: true, demo: false, provider: "viva", payment_id: live.paymentId, checkout_url: live.checkoutUrl }) : json({ error: "Online betalen is nog niet beschikbaar. Er is niets afgeschreven.", code: live.reason }, 409);
     }
     // LIVE KYC payment gate (all Smart Checkout routes): demo/live from salon settings only.
     const gate = await livePaymentGate(ownerId, "link", { admin, env: (n) => Deno.env.get(n), fetch, providerEnv: Deno.env.get("VIVA_ENVIRONMENT") });

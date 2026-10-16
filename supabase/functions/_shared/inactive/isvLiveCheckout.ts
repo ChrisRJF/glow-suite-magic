@@ -25,6 +25,7 @@ export function deriveCapabilities(row: MerchantRow | null, acc: AuthoritativeAc
   const off = (reason: string): Capabilities => ({ online_payments_enabled: false, terminals_enabled: false, reason });
   if (!row || row.is_demo !== false) return off("not_live_merchant");
   if (!acc || !row.viva_account_id || acc.accountId !== row.viva_account_id) return off("retrieve_unavailable");
+  if (acc.acquiringEnabled !== true) return off("acquiring_disabled");
   if (acc.verified !== true) return off("kyc_not_verified");
   if (!acc.merchantId || !row.viva_merchant_id || acc.merchantId !== row.viva_merchant_id) return off("merchant_mismatch");
   // Viva docs (Source for ISV): sources created for ISV merchants are physical-only;
@@ -52,7 +53,8 @@ export function prepareLiveIsvOrder(i: {
   if (!r || r.user_id !== i.tenantId || r.is_demo !== false) return { ok: false, error: "merchant_not_salon" };
   if (!i.caps.online_payments_enabled) return { ok: false, error: i.caps.reason };
   if (!Number.isInteger(i.amountCents) || i.amountCents <= 0) return { ok: false, error: "invalid_amount_cents" };
-  const merchantId = r.viva_merchant_id!;
+  const merchantId = r.viva_merchant_id;
+  if (!merchantId) return { ok: false, error: "merchant_missing" };
   let fee: FeeBreakdown | undefined;
   if (i.feeConfig !== undefined) {
     if (!validFeeConfig(i.feeConfig)) return { ok: false, error: "invalid_fee_config" };

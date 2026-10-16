@@ -21,6 +21,7 @@ export const ISV_HOSTS = {
 export interface AuthoritativeAccount {
   accountId: string;
   merchantId: string | null;
+  acquiringEnabled?: boolean;
   verified: boolean | null; // null = unknown -> treated as not verified
 }
 

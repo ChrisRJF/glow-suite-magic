@@ -3,6 +3,7 @@
 // viva_webhook_events ledger BEFORE side-effects so duplicates and
 // failures are recoverable. Returns 2xx fast.
 
+import { handleLivePaymentEvent, makeWebhookDeps } from "../_shared/inactive/isvLivePayments.ts";
 import { isCheckoutPayment, makeLedgerDeps } from "../_shared/checkoutGuard.ts";
 import { applyEvidence, syncAppointment } from "../_shared/providerLedger.ts";
 import { isKassaPayment, processKassaEvent } from "../_shared/kassaGuard.ts";
@@ -530,6 +531,14 @@ Deno.serve(async (req) => {
           .eq("id", ledgerId);
       }
       return okText();
+    }
+
+    if (payment.metadata?.route === "viva_isv_live") {
+      // Never let a LIVE ISV row fall through to legacy/platform verification, even with switch OFF.
+      const result = await handleLivePaymentEvent(eventTypeId ?? 0, eventData, makeWebhookDeps(supabase, (n) => Deno.env.get(n)), new Date().toISOString());
+      if (ledgerId) await supabase.from("viva_webhook_events").update({ processed: result.status === 200 && !result.note.startsWith("hold_") && result.note !== "live_disabled", error: result.note, payment_id: payment.id, user_id: payment.user_id }).eq("id", ledgerId);
+      if (result.note === "paid" || result.note === "refund_recorded") await syncAppointment(payment, makeLedgerDeps(supabase));
+      return result.status === 503 ? retryResponse() : okText();
     }
 
     // Tag ledger with user/payment for merchant isolation.

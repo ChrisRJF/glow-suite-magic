@@ -2,6 +2,7 @@
 // Creates a Mollie payment for a held auto-revenue offer + appointment, returns checkout URL.
 // Demo mode: never calls Mollie — returns a simulated checkout URL.
 
+import { startLiveDeposit, makeDepositDeps } from "../_shared/inactive/isvLivePayments.ts";
 import { authorizeAutoRevenue, customerPaymentProvider } from "../_shared/customerPaymentAuth.ts";
 import { resolveCheckoutTenant } from "../_shared/checkoutGuard.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
@@ -115,7 +116,7 @@ Deno.serve(async (req) => {
 
     const demoMode = Boolean((settings as any)?.is_demo || (settings as any)?.demo_mode);
     const paymentMode: "none" | "deposit" | "full" =
-      (bodyMode as any) || ((settings as any)?.auto_revenue_payment_mode as any) || "deposit";
+      ((settings as any)?.auto_revenue_payment_mode as any) || "deposit";
     const provider = ((settings as any)?.payment_provider as string) || "mollie";
     if (!settings) return json({ error: "Salon niet gevonden" }, 404);
     // Fail-closed: salon customer payments never use Mollie (only demo simulation below may run).
@@ -132,11 +133,12 @@ Deno.serve(async (req) => {
     // Load appointment to compute base amount (price)
     const { data: appt } = await admin
       .from("appointments")
-      .select("id, user_id, price, service_id")
+      .select("id, user_id, price, service_id, customer_id")
       .eq("id", appointment_id)
       .maybeSingle();
     if (!appt || appt.user_id !== user_id) return json({ error: "Afspraak niet gevonden" }, 404);
 
+    if (appt.customer_id !== customer_id) return json({ error: "Klant hoort niet bij deze afspraak" }, 403);
     const priceCents = Math.round(Number(appt.price || 0) * 100);
     const cfg = settings as any;
 
@@ -199,9 +201,12 @@ Deno.serve(async (req) => {
         return json({ success: true, demo: true, provider: "viva", checkout_url: checkoutUrl, payment, deposit_cents: depositCents, total_amount_cents: totalCents });
       }
 
-      // Fail-closed (security): never charge salon customers via GlowSuite platform Viva credentials.
-      // Salon-specific ISV routing is not live yet: no order, no charge, no payment row.
-      return json({ success: false, demo: false, provider: "viva", payment_status: "payment_pending", blocked: "salon_routing_unavailable",
+      const ret = `${REDIRECT_BASE}/boeken?status=payment-return&offer=${offer_id}`;
+      const live = await startLiveDeposit({ tenantId: auth.tenantId, source: "auto_revenue", idempotencyKey: `appointment:${appointment_id}:${paymentType}`,
+        amountCents: depositCents, description: "GlowPay aanbetaling", successUrl: ret, failureUrl: ret,
+        refs: { appointment_id, customer_id, offer_id, payment_type: paymentType } }, makeDepositDeps(admin, (n) => Deno.env.get(n)));
+      if (live.ok) return json({ success: true, demo: false, provider: "viva", payment_id: live.paymentId, checkout_url: live.checkoutUrl, total_amount_cents: depositCents });
+      return json({ success: false, demo: false, provider: "viva", payment_status: "payment_pending", blocked: live.reason,
         error: "Online aanbetalen is voor deze salon nog niet beschikbaar. Er is niets afgeschreven." }, 409);
     }
 

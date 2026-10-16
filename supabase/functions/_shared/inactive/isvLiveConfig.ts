@@ -115,7 +115,7 @@ export async function createLiveAccount(
 }
 
 /** Low-level parser adapter. Only call with an ID obtained from a session-scoped row. */
-async function retrieveLiveAccount(accountId: string, rawGet: EnvGet, f: Fetch): Promise<AccountV2 | null> {
+export async function retrieveLiveAccount(accountId: string, rawGet: EnvGet, f: Fetch): Promise<AccountV2 | null> {
   if (!/^[0-9a-fA-F-]{8,64}$/.test(accountId)) return null;
   const token = await getLiveIsvToken(rawGet, f);
   if (!token) return null;
