@@ -163,8 +163,9 @@ export default function InstellingenPage() {
       setNotifications({ email: s.email_enabled || false, whatsapp: s.whatsapp_enabled || false, push: false });
       setDemoMode(s.demo_mode || false);
       setMollieMode(s.mollie_mode || 'test');
-      setPaymentProvider((s.payment_provider === 'viva' ? 'viva' : 'mollie'));
-      setPaymentFallback(Boolean(s.payment_provider_fallback_enabled));
+      // GlowPay/Viva is de enige zichtbare provider; Mollie blijft verborgen legacy.
+      setPaymentProvider('viva');
+      setPaymentFallback(false);
       setVivaActivation(String(s.viva_status || 'not_started'));
       setDepositNewClient(s.deposit_new_client ?? true);
       setDepositPct(s.deposit_percentage ?? 50);
