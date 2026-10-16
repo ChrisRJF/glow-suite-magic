@@ -349,7 +349,7 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
         )}
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto px-5 sm:px-8 py-6 sm:py-8">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 sm:px-8 pt-6 sm:pt-8 pb-10 sm:pb-8 scroll-pb-24" data-testid="wizard-body">
           {data.postWelcome ? (
             <PostWelcomeStep onNavigate={goTo} />
           ) : (
@@ -367,7 +367,7 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
 
         {/* Footer */}
         {showChrome && (
-          <div className="px-5 sm:px-8 py-4 border-t border-border/50 bg-background flex flex-wrap items-center justify-between gap-3">
+          <div className="shrink-0 px-5 sm:px-8 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] border-t border-border/50 bg-background flex flex-wrap items-center justify-between gap-3">
             <Button variant="ghost" size="sm" onClick={back} disabled={saving || step === 0}>
               <ArrowLeft className="w-4 h-4" /> Terug
             </Button>
