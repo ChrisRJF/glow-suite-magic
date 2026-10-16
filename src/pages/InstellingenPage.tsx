@@ -1091,14 +1091,6 @@ export default function InstellingenPage() {
                           </div>
                         </div>
 
-                        {/* Fallback toggle */}
-                        <div className="rounded-xl border border-border bg-background/60 p-3 flex items-center justify-between gap-3">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[12px] font-medium">Automatisch terugvallen op Mollie</p>
-                            <p className="text-[10px] text-muted-foreground">Bij een Viva-fout wordt de betaling automatisch via Mollie afgehandeld.</p>
-                          </div>
-                          <Switch checked={paymentFallback} onCheckedChange={setPaymentFallback} />
-                        </div>
 
                         {/* Webhook URL */}
                         <div className="rounded-xl border border-border bg-background/60 p-3">
