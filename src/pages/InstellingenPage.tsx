@@ -216,7 +216,7 @@ export default function InstellingenPage() {
 
   useEffect(() => {
     if (!user || !canManageIntegrations) return;
-    fetchMollieStatus();
+    // Mollie-status wordt niet meer opgehaald: de koppeling is verborgen legacy.
     // Load Viva status from edge function
     supabase.functions.invoke("viva-status", { body: {} }).then(({ data }) => {
       if (data && typeof data === "object") setVivaStatus(data as any);
