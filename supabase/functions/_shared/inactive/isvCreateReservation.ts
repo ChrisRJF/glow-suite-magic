@@ -16,11 +16,18 @@ export interface ReservationStore {
 
 export type ProviderOutcome =
   | { kind: "created"; accountId: string; redirectUrl: string }
-  | { kind: "rejected" } // definite provider refusal, no account created
-  | { kind: "ambiguous" }; // timeout, network error, 5xx, unparseable
+  // "rejected" is ONLY allowed when this specific Viva response provably guarantees
+  // that no external account was created (e.g. a documented validation error code).
+  // Unclear 4xx/5xx, timeouts, network errors and exceptions are ALWAYS "ambiguous".
+  | { kind: "rejected" }
+  | { kind: "ambiguous" };
 
 export type CreateResult =
-  | { status: "created" | "reused"; accountId: string; redirectUrl: string; persisted: boolean }
+  | { status: "created"; accountId: string; redirectUrl: string; persisted: boolean }
+  | { status: "reused"; accountId: string; redirectUrl: string; persisted: boolean }
+  // Persistence of the merchant row failed: the invitation exists at Viva but the
+  // flow is NOT complete. Recovery may retry persistence only, never a Viva POST.
+  | { status: "persistence_pending"; accountId: string; redirectUrl: string }
   | { status: "busy" | "reconciliation_required" | "rejected" | "unavailable" };
 
 export async function reservedCreate(i: {
@@ -37,8 +44,11 @@ export async function reservedCreate(i: {
   if (!c) return { status: "unavailable" };
   if (c.state === "completed") {
     if (!c.provider_account_id || !c.invitation_url) return { status: "reconciliation_required" };
-    // Retry only persistence, never POST.
-    return { status: "reused", accountId: c.provider_account_id, redirectUrl: c.invitation_url, persisted: await persist(c.provider_account_id, c.invitation_url) };
+    // Retry only persistence, never POST. Report clearly while persistence is still pending.
+    const ok = await persist(c.provider_account_id, c.invitation_url);
+    return ok
+      ? { status: "reused", accountId: c.provider_account_id, redirectUrl: c.invitation_url, persisted: true }
+      : { status: "persistence_pending", accountId: c.provider_account_id, redirectUrl: c.invitation_url };
   }
   if (c.state === "reconciliation_required") return { status: "reconciliation_required" };
   if (c.state === "dispatching") return c.attempt_id === a ? { status: "reconciliation_required" } : { status: "busy" };
@@ -57,5 +67,11 @@ export async function reservedCreate(i: {
   let journaled = false;
   try { journaled = await store.complete(u, d, a, out.accountId, out.redirectUrl); } catch { journaled = false; }
   if (!journaled) { try { await store.hold(u, d, a); } catch { /* stays dispatching */ } return { status: "reconciliation_required" }; }
-  return { status: "created", accountId: out.accountId, redirectUrl: out.redirectUrl, persisted: await persist(out.accountId, out.redirectUrl) };
+  const persisted = await persist(out.accountId, out.redirectUrl);
+  if (!persisted) {
+    // Viva account exists and is journaled, but the merchant row is not saved:
+    // do NOT present the invitation as fully successful.
+    return { status: "persistence_pending", accountId: out.accountId, redirectUrl: out.redirectUrl };
+  }
+  return { status: "created", accountId: out.accountId, redirectUrl: out.redirectUrl, persisted: true };
 }
