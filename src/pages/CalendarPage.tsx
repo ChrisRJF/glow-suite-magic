@@ -836,7 +836,7 @@ export default function CalendarPage() {
             user_id: user.id,
             assigned_employee_id: null,
             assignment_mode: sub.assignment_mode,
-            notes: `Medewerker: ${sub.assigned_employee || 'Niet toegewezen'} | Tijd: ${subTime}${sub.assignment_mode === 'auto' ? ' | ⚡ Automatisch geplaatst' : ' | ✋ Handmatig gekozen'}`,
+            notes: `Medewerker: ${sub.assigned_employee || 'Niet toegewezen'} | Tijd: ${subTime}${sub.assignment_mode === 'auto' ? ' | ⚡ Automatisch geplaatst' : ' | Handmatig gekozen'}`,
           });
         }
       }
@@ -1557,8 +1557,8 @@ export default function CalendarPage() {
                           {p.service} · {p.time} · <span className="font-medium">{p.employee}</span>
                         </p>
                         <span className="text-[10px] text-primary">
-                          {idx === 0 ? '✋ Hoofdpersoon' :
-                            subAppts[idx - 1]?.assignment_mode === 'auto' ? '⚡ Automatisch geplaatst' : '✋ Handmatig gekozen'}
+                          {idx === 0 ? 'Hoofdpersoon' :
+                            subAppts[idx - 1]?.assignment_mode === 'auto' ? 'Automatisch geplaatst' : 'Handmatig gekozen'}
                         </span>
                       </div>
                       <span className="text-xs font-medium">
@@ -1726,7 +1726,7 @@ export default function CalendarPage() {
                             <button onClick={() => { const u = [...subAppts]; u[idx].assignment_mode = 'manual'; setSubAppts(u); }}
                               className={cn("flex-1 px-2 py-1.5 rounded-lg text-xs font-medium border transition-colors",
                                 sub.assignment_mode === 'manual' ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground")}>
-                              ✋ Handmatig
+                              Handmatig
                             </button>
                             <button onClick={() => { const u = [...subAppts]; u[idx].assignment_mode = 'auto'; u[idx].assigned_employee = ''; setSubAppts(u); }}
                               className={cn("flex-1 px-2 py-1.5 rounded-lg text-xs font-medium border transition-colors",
@@ -1849,7 +1849,7 @@ export default function CalendarPage() {
                       null
                     ) : isPauzeSlot && !apt ? (
                       <div className="absolute inset-x-0 top-1 h-[40px] rounded-xl bg-accent/50 border border-border/30 flex items-center justify-center z-0">
-                        <span className="text-[11px] text-muted-foreground">☕ Pauze · {selectedEmp?.name || selectedEmployee}</span>
+                        <span className="text-[11px] text-muted-foreground">Pauze · {selectedEmp?.name || selectedEmployee}</span>
                       </div>
                     ) : apt ? (() => {
                       const displayEmps = getDisplayEmployees(apt);
@@ -1905,7 +1905,7 @@ export default function CalendarPage() {
                                   paymentStatus === 'mislukt' ? 'bg-destructive/15 text-destructive' :
                                   'bg-accent text-foreground'
                                 )}>
-                                  {paymentStatus === 'betaald' ? '€ ✓' : paymentStatus === 'mislukt' ? '€ ✗' : '€ …'}
+                                  {paymentStatus === 'betaald' ? 'Betaald' : paymentStatus === 'mislukt' ? 'Mislukt' : 'Open'}
                                 </span>
                               )}
                             </div>

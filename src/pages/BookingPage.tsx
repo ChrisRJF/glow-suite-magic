@@ -14,7 +14,6 @@ import { toast } from "sonner";
 import { queueLeadIntent } from "@/hooks/useLeadAutomation";
 import { getBranding, fetchBranding, applyBrandingToDocument, type WhiteLabelBranding } from "@/lib/whitelabel";
 import { callPublicBooking, nextBookingDate, type PublicBookingData } from "@/lib/publicBooking";
-import { PaymentMethodLogo } from "@/components/PaymentMethodLogo";
 import { useTranslation } from "react-i18next";
 import { useLanguagePersistence } from "@/hooks/useLanguagePersistence";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -56,11 +55,6 @@ const SLOT_LABEL_KEYS: Record<string, { key: string; tone: "primary" | "success"
 const STORAGE_KEY = "glowsuite:booking-progress";
 
 const LEGACY_SLOTS = ["09:00", "10:00", "11:30", "13:00", "14:30", "16:00", "17:00"];
-const paymentMethods = [
-  { id: "ideal", label: "iDEAL | Wero" },
-  { id: "creditcard", label: "Creditcard" },
-  { id: "bancontact", label: "Bancontact" },
-];
 
 // Legacy sample staff: only used until the server sends real employees (availability_version 2).
 const EMPLOYEES: Array<{ key?: string; name: string; role: string }> = [
@@ -1481,7 +1475,7 @@ export default function BookingPage() {
                       <p className="text-xs text-muted-foreground">{t("booking.payment.payTo")}</p>
                       <p className="text-base font-bold">{publicData?.salon.name || branding.salon_name || "Glow Studio"}</p>
                     </div>
-                    <span className="trust-chip shrink-0"><Lock className="w-3 h-3 text-primary" /> Mollie</span>
+                    <span className="trust-chip shrink-0"><Lock className="w-3 h-3 text-primary" /> GlowPay</span>
                   </div>
                   <div className="rounded-xl bg-background border border-border p-3">
                     <div className="flex items-center justify-between gap-3">
@@ -1490,31 +1484,14 @@ export default function BookingPage() {
                     </div>
                     <p className="text-[11px] text-muted-foreground mt-1">{t("booking.payment.noHidden")}</p>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] text-muted-foreground">
-                    <span className="flex items-center gap-1"><Lock className="w-3 h-3 text-primary" /> {t("booking.payment.secureMollie")}</span>
-                    <span className="flex items-center gap-1"><Check className="w-3 h-3 text-primary" /> {t("booking.payment.instantConfirm")}</span>
-                    <span className="flex items-center gap-1"><Shield className="w-3 h-3 text-primary" /> {t("booking.payment.thousandSafe")}</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-muted-foreground">
+                    <span className="flex items-center gap-1"><Lock className="w-3 h-3 text-primary" /> {t("booking.payment.secureGlowPay")}</span>
+                    <span className="flex items-center gap-1"><Check className="w-3 h-3 text-primary" /> {t("booking.payment.confirmAfterPayment")}</span>
                   </div>
-                </div>
-
-                <label className="text-sm font-medium block">{t("booking.payment.choosePaymentMethod")}</label>
-                <div className="grid grid-cols-1 gap-2">
-                  {paymentMethods.map((method) => (
-                    <button
-                      key={method.id}
-                      onClick={() => setSelectedMethod(method.id)}
-                      className={cn(
-                        "min-h-16 p-4 rounded-xl border text-sm font-semibold transition-all duration-200 flex items-center justify-between gap-4 active:scale-[0.99]",
-                        selectedMethod === method.id ? "border-primary bg-primary/10 text-primary shadow-[var(--shadow-sm)]" : "border-border bg-card hover:bg-secondary/60"
-                      )}
-                    >
-                      <span className="flex items-center gap-3 min-w-0">
-                        <PaymentMethodLogo method={method.id} className="h-6 max-w-28" />
-                        <span className="truncate">{method.label}</span>
-                      </span>
-                      {selectedMethod === method.id && <Check className="w-4 h-4 shrink-0" />}
-                    </button>
-                  ))}
+                  <p className="text-xs text-muted-foreground">
+                    {isDemoMode ? t("booking.payment.demoNoCharge") : t("booking.payment.paymentPageInfo")}
+                  </p>
+                  {!isDemoMode && <p className="text-[11px] text-muted-foreground">{t("booking.payment.methodsInfo")}</p>}
                 </div>
               </div>
             )}
@@ -1528,8 +1505,8 @@ export default function BookingPage() {
                 <p className="text-sm text-muted-foreground mt-1">{t("booking.confirmation.subtext")}</p>
 
                 <div className="mt-4 flex flex-wrap justify-center gap-2">
-                  <span className="trust-chip"><Check className="w-3 h-3 text-primary" /> {t("booking.payment.instantConfirm")}</span>
-                  <span className="trust-chip"><Lock className="w-3 h-3 text-primary" /> {t("booking.payment.secureMollie")}</span>
+                  <span className="trust-chip"><Check className="w-3 h-3 text-primary" /> {t("booking.payment.appointmentSaved")}</span>
+                  {isDemoMode && <span className="trust-chip"><Lock className="w-3 h-3 text-primary" /> {t("booking.payment.demoNoCharge")}</span>}
                 </div>
 
                 <div className="mt-4 grid gap-1.5 text-left text-sm bg-background/60 rounded-xl p-3">

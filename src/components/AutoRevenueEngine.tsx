@@ -1,3 +1,4 @@
+import { CheckCircle2 as ArCheck, CalendarDays as ArCalendar, Zap as ArZap, Users as ArUsers } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -179,7 +180,7 @@ export function AutoRevenueEngine({ source = "overview" }: AutoRevenueEngineProp
     const next = { ...autopilot, enabled };
     setAutopilot(next);
     saveAutopilotState(next, demoMode);
-    toast.success(enabled ? "Autopilot ingeschakeld ✨" : "Autopilot uitgeschakeld");
+    toast.success(enabled ? "Autopilot ingeschakeld" : "Autopilot uitgeschakeld");
   };
 
   const updateSetting = (key: string, value: number) => {
@@ -281,7 +282,7 @@ export function AutoRevenueEngine({ source = "overview" }: AutoRevenueEngineProp
     if (demoState.addedAppointmentIds.length > 0) {
       await refetchAppointments();
     }
-    toast.success("Demo opnieuw geladen 🔄");
+    toast.success("Demo opnieuw geladen");
   }, [demoMode, showcaseAccess, demoState.addedAppointmentIds, removeAppointment, refetchAppointments]);
 
   // Auto-run when enabled — never auto-run during demo mode.
@@ -332,28 +333,28 @@ export function AutoRevenueEngine({ source = "overview" }: AutoRevenueEngineProp
           {demoComplete ? (
             <>
               <p className="text-sm flex items-start gap-2">
-                <span className="text-success font-semibold">✅</span>
+                <span className="text-success font-semibold"><ArCheck className="w-4 h-4 mt-0.5" aria-hidden="true" /></span>
                 <span><span className="font-semibold text-success">{formatEuro(demoState.addedRevenue)}</span> extra omzet gegenereerd</span>
               </p>
               <p className="text-sm flex items-start gap-2">
-                <span className="text-success font-semibold">📅</span>
+                <span className="text-success font-semibold"><ArCalendar className="w-4 h-4 mt-0.5" aria-hidden="true" /></span>
                 <span><span className="font-semibold text-success">{demoState.addedAppointments}</span> afspraken automatisch gevuld</span>
               </p>
             </>
           ) : (
             <>
               <p className="text-sm flex items-start gap-2">
-                <span className="text-primary font-semibold">⚡</span>
+                <span className="text-primary font-semibold"><ArZap className="w-4 h-4 mt-0.5" aria-hidden="true" /></span>
                 <span>GlowSuite kan vandaag <span className="font-semibold text-primary">{formatEuro(emptySlots * 65)}</span> extra omzet voor je genereren</span>
               </p>
               <p className="text-sm flex items-start gap-2">
-                <span className="text-warning font-semibold">👥</span>
+                <span className="text-warning font-semibold"><ArUsers className="w-4 h-4 mt-0.5" aria-hidden="true" /></span>
                 <span>{inactiveCustomers.length} klanten klaar voor een comeback-actie</span>
               </p>
             </>
           )}
           <p className="text-sm flex items-start gap-2">
-            <span className="font-semibold">📅</span>
+            <span className="font-semibold"><ArCalendar className="w-4 h-4 mt-0.5" aria-hidden="true" /></span>
             <span>Bezettingsgraad vandaag: <span className="font-semibold">{totalSlots > 0 ? Math.round((todaysAppts.length / totalSlots) * 100) : 0}%</span>. {emptySlots > 0 ? `${emptySlots} plekken te vullen` : 'Volledig gevuld.'}</span>
           </p>
         </div>

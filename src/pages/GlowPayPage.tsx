@@ -1,3 +1,4 @@
+import { Landmark, User, UserPlus, ShieldCheck as ShieldCheckIcon, Star, Gem } from "lucide-react";
 import { isProviderPayment } from "@/lib/providerPayment";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -125,12 +126,8 @@ export default function GlowPayPage() {
   };
 
   const getMethodIcon = (method: string | null) => {
-    if (method === "ideal") return "🏦";
-    if (method === "bancontact") return "💳";
-    if (method === "creditcard") return "💳";
-    if (method === "pin") return "📱";
-    if (method === "contant") return "💵";
-    return "💰";
+    const Icon = method === "ideal" ? Landmark : method === "pin" ? Smartphone : method === "contant" ? Banknote : method === "bancontact" || method === "creditcard" ? CreditCard : Wallet;
+    return <Icon className="w-4 h-4 text-muted-foreground" aria-hidden="true" />;
   };
 
   const handleCreateLink = async () => {
@@ -439,7 +436,7 @@ export default function GlowPayPage() {
                       {getLinkStatusBadge(l.status)}
                     </div>
                     {l.customer_id && (
-                      <p className="text-xs text-muted-foreground mb-2">👤 {customers.find(c => c.id === l.customer_id)?.name || "Onbekend"}</p>
+                      <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1"><User className="w-3 h-3" aria-hidden="true" /> {customers.find(c => c.id === l.customer_id)?.name || "Onbekend"}</p>
                     )}
 
                     {/* QR Code visual */}
@@ -482,13 +479,13 @@ export default function GlowPayPage() {
             </h3>
             <div className="space-y-3">
               {[
-                { label: "Aanbetaling nieuwe klanten", desc: "Nieuwe klanten betalen vooraf", active: s?.deposit_new_client ?? true, icon: "👤" },
-                { label: "No-show bescherming", desc: "Klanten met no-show geschiedenis betalen vooraf", active: s?.deposit_noshow_risk ?? true, icon: "🛡️" },
-                { label: "VIP vrijstelling", desc: "VIP klanten betalen niet vooraf", active: s?.skip_prepay_vip ?? true, icon: "⭐" },
-                { label: `Volledige betaling boven ${formatEuro(Number(s?.full_prepay_threshold) || 150)}`, desc: "Dure behandelingen vereisen volledige vooruitbetaling", active: true, icon: "💎" },
+                { label: "Aanbetaling nieuwe klanten", desc: "Nieuwe klanten betalen vooraf", active: s?.deposit_new_client ?? true, icon: UserPlus },
+                { label: "No-show bescherming", desc: "Klanten met no-show geschiedenis betalen vooraf", active: s?.deposit_noshow_risk ?? true, icon: ShieldCheckIcon },
+                { label: "VIP vrijstelling", desc: "VIP klanten betalen niet vooraf", active: s?.skip_prepay_vip ?? true, icon: Star },
+                { label: `Volledige betaling boven ${formatEuro(Number(s?.full_prepay_threshold) || 150)}`, desc: "Dure behandelingen vereisen volledige vooruitbetaling", active: true, icon: Gem },
               ].map((rule, i) => (
                 <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30">
-                  <span className="text-lg flex-shrink-0">{rule.icon}</span>
+                  <rule.icon className="w-4 h-4 text-primary flex-shrink-0" aria-hidden="true" />
                   <div className="flex-1">
                     <p className="text-sm font-medium">{rule.label}</p>
                     <p className="text-xs text-muted-foreground">{rule.desc}</p>
@@ -511,15 +508,15 @@ export default function GlowPayPage() {
             </h3>
             <div className="grid grid-cols-2 gap-3">
               {[
-                { name: "iDEAL", icon: "🏦", desc: "Bankbetaling NL" },
-                { name: "Bancontact", icon: "💳", desc: "Bankbetaling BE" },
-                { name: "Creditcard", icon: "💳", desc: "Visa / Mastercard" },
-                { name: "Apple Pay", icon: "🍎", desc: "Mobiel betalen" },
-                { name: "Pin", icon: "📱", desc: "In salon" },
-                { name: "Contant", icon: "💵", desc: "In salon" },
+                { name: "iDEAL", icon: Landmark, desc: "Bankbetaling NL" },
+                { name: "Bancontact", icon: CreditCard, desc: "Bankbetaling BE" },
+                { name: "Creditcard", icon: CreditCard, desc: "Visa / Mastercard" },
+                { name: "Apple Pay", icon: Smartphone, desc: "Mobiel betalen" },
+                { name: "Pin", icon: Smartphone, desc: "In salon" },
+                { name: "Contant", icon: Banknote, desc: "In salon" },
               ].map(m => (
                 <div key={m.name} className="p-3 rounded-xl bg-secondary/30 flex items-center gap-3">
-                  <span className="text-lg">{m.icon}</span>
+                  <m.icon className="w-4 h-4 text-primary" aria-hidden="true" />
                   <div>
                     <p className="text-sm font-medium">{m.name}</p>
                     <p className="text-[11px] text-muted-foreground">{m.desc}</p>
