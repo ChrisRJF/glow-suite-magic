@@ -1,5 +1,17 @@
 # Focused final Viva contract review
 
+## Scheduler security pass, 2026-10-16
+
+Deployed `viva-payment-reconcile/index.ts` plus its new local `schedulerAuth.ts`: dedicated `VIVA_RECONCILE_CRON_SECRET`, fixed-digest constant-time Bearer comparison before service-client construction, anonymous GET/POST 401, authorized GET 405, POST-only processing, owner-bound 600-second lease and holder-filtered release. OPTIONS does not process anything. Runtime exceptions return a generic error rather than provider/credential text. No contract, subscription, charge gate or customer data changed.
+
+121 focused tests passed, including 12 scheduler auth/lease/refresh tests; all three payment entrypoint Deno checks passed. The isolated local PostgreSQL reservation/payment/refund suite passed 18 assertions including concurrent reservation and refunds. Existing lock RPCs are not executable by anon/users; service role can release its own row.
+
+**Scheduler integration remains blocked:** existing job 6 is an unmanaged HTTP callback (five minutes, public apikey only), and this project has neither generated `cron-auth.ts` nor supported managed HTTP schedule tools. Platform instructions forbid hand-authored HTTP schedule SQL and automatic migration of unmanaged callbacks. The app-generated secret is not exposed and cannot be copied into this job. The job is unchanged and active, but its requests now fail closed with 401; this is not a working authenticated KYC schedule. Authenticated refresh still works with charges off in synthetic handler tests, not verified against the deployed scheduled flow. No real manual refresh was invoked.
+
+**Vendor research:** direct official-page requests timed out again. Background research supplied third-party GitHub claims for endpoint, integer cents and subscription management; these are not authoritative Viva proof and were rejected. No amount unit, 1798 interpretation, registration payload or new API contract was accepted. Existing subscriptions remain unknown, not absent; no registration POST was made. User-confirmed 1796/1797 webhook fields and verification-key handshake remain evidence only for those webhook documents, not the separate transaction API.
+
+**Narrow sibling review:** create-viva-payment checks getUser before business reads, create-auto-revenue-payment has service-token/member authorization (but performs ownership reads before final rejection); verify-viva-payment is a public reference-limited redirect fallback and viva-webhook an intentionally untrusted notification trigger with independent verification. Neither is a second unrestricted global sweep. Their sources were not changed or redeployed during this pass. This is not a full endpoint audit.
+
 ## Approved safety correction follow-up
 
 The subsequent safety GO applied and deployed only `viva-webhook`, `verify-viva-payment` and `viva-payment-reconcile`. Their bundles include changed `_shared/inactive/isvLiveConfirm.ts`, `_shared/inactive/isvLivePayments.ts` and new `_shared/inactive/isvLiveRouting.ts`. No charge-creation entrypoint was explicitly redeployed, and no secrets, switches, merchant/customer data or provider subscriptions were changed.
