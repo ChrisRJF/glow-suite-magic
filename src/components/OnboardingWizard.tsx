@@ -270,6 +270,7 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
       localStorage.setItem(`glowsuite_onboarding_${user.id}`, "done");
       localStorage.setItem(`glowsuite_onboarding_v4_${user.id}`, "done");
       localStorage.removeItem(storageKey);
+      void persistOnboardingState(user.id, "done");
     }
     onComplete?.();
     // Show post-onboarding welcome card instead of dumping user on empty dashboard
@@ -285,6 +286,7 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
     if (!previewMode && user) {
       localStorage.setItem(`glowsuite_onboarding_${user.id}`, "skipped");
       localStorage.setItem(`glowsuite_onboarding_v4_${user.id}`, "skipped");
+      void persistOnboardingState(user.id, "skipped");
     }
     onOpenChange(false);
   };
