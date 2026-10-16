@@ -3,30 +3,31 @@ import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { glowpayPaymentStatus, type PayStatus } from "@/lib/glowpayOnboardingStatus";
+import type { PayStatus } from "@/lib/glowpayOnboardingStatus";
+import { registrationView, type RegistrationView } from "@/lib/glowpayRegistrationStatus";
 import { trustedVivaUrl } from "@/lib/vivaOnboardingUrl";
-import { Check, Clock, AlertTriangle, Loader2, LogIn, ExternalLink, ShieldCheck } from "lucide-react";
+import { Check, Clock, AlertTriangle, Loader2, LogIn, ExternalLink, ShieldCheck, HelpCircle } from "lucide-react";
 import glowpayLogo from "@/assets/glowpay/glowpay-logo.png.asset.json";
 
 // Return page after the Viva registration flow. It never assumes approval:
 // status comes only from the user's own RLS-filtered merchant row
 // (is_demo = false). No tenant or account IDs are trusted from the URL,
 // no Edge Functions are called and no account is ever created here.
-
-type LoadState = "loading" | "ready" | "error";
+// A missing row is never shown as "not started": local persistence can lag
+// behind a successful Viva signup, so that case stays honestly unknown.
 
 const STATUS_CONTENT: Record<PayStatus, { icon: any; tone: string; title: string; text: string }> = {
   not_started: {
     icon: Clock,
     tone: "text-muted-foreground",
     title: "Registratie nog niet gestart",
-    text: "Er is nog geen GlowPay-account gekoppeld. Je kunt GlowSuite ondertussen gewoon gebruiken.",
+    text: "Je GlowPay-account is nog niet aangemaakt. Je kunt GlowSuite ondertussen gewoon gebruiken.",
   },
   pending: {
     icon: Clock,
     tone: "text-muted-foreground",
-    title: "Verificatie in behandeling",
-    text: "Viva controleert je bedrijfsgegevens. Dat kan even duren. Je hoeft niets te doen en kunt GlowSuite ondertussen gebruiken.",
+    title: "Registratie nog niet afgerond",
+    text: "Je registratie is nog niet bevestigd als afgerond. Controleer bij Viva of je nog stappen moet afronden, zoals het koppelen van je account of de verificatie. GlowSuite kun je ondertussen gewoon gebruiken.",
   },
   action_needed: {
     icon: AlertTriangle,
@@ -44,13 +45,14 @@ const STATUS_CONTENT: Record<PayStatus, { icon: any; tone: string; title: string
 
 export default function GlowPayRegistrationStatusPage() {
   const { user, loading: authLoading } = useAuth();
-  const [state, setState] = useState<LoadState>("loading");
-  const [status, setStatus] = useState<PayStatus | null>(null);
-  const [continueUrl, setContinueUrl] = useState<string | null>(null);
+  const [view, setView] = useState<RegistrationView | null>(null);
 
   useEffect(() => {
+    // Reset on user switch / sign-out so a previous user's status or Viva
+    // link is never shown while new data loads.
+    setView(null);
     if (authLoading) return;
-    if (!user) { setState("ready"); return; }
+    if (!user) { setView(registrationView({ signedIn: false, hadError: false, row: null, trustedUrl: null })); return; }
     let cancelled = false;
     (async () => {
       const { data, error } = await (supabase as any)
@@ -60,19 +62,17 @@ export default function GlowPayRegistrationStatusPage() {
         .eq("is_demo", false)
         .maybeSingle();
       if (cancelled) return;
-      if (error) {
-        setState("error");
-        setStatus(null);
-      } else {
-        setState("ready");
-        setStatus(glowpayPaymentStatus(data ?? null));
-        setContinueUrl(trustedVivaUrl(data?.onboarding_url));
-      }
+      setView(registrationView({
+        signedIn: true,
+        hadError: !!error,
+        row: data ?? null,
+        trustedUrl: trustedVivaUrl(data?.onboarding_url),
+      }));
     })();
     return () => { cancelled = true; };
   }, [user?.id, authLoading]);
 
-  const content = status ? STATUS_CONTENT[status] : null;
+  const content = view?.kind === "status" ? STATUS_CONTENT[view.status] : null;
   const Icon = content?.icon;
 
   return (
@@ -94,11 +94,11 @@ export default function GlowPayRegistrationStatusPage() {
         </div>
 
         <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-          {authLoading || state === "loading" ? (
+          {authLoading || view === null ? (
             <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
               <Loader2 className="w-4 h-4 animate-spin" /> Status ophalen…
             </div>
-          ) : !user ? (
+          ) : view.kind === "signed_out" ? (
             <div className="space-y-4 text-center">
               <p className="text-sm text-muted-foreground">
                 Log in om de status van je GlowPay-registratie te bekijken.
@@ -107,13 +107,18 @@ export default function GlowPayRegistrationStatusPage() {
                 <Link to="/login"><LogIn className="w-4 h-4" /> Inloggen</Link>
               </Button>
             </div>
-          ) : state === "error" ? (
-            <div className="space-y-3 text-center">
-              <p className="text-sm font-medium">Status tijdelijk onbekend</p>
-              <p className="text-xs text-muted-foreground">
-                We kunnen je registratiestatus nu niet ophalen. Probeer het later opnieuw.
-                Er is niets misgegaan met je gegevens.
-              </p>
+          ) : view.kind === "unavailable" ? (
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center shrink-0">
+                <HelpCircle className="w-5 h-5 text-muted-foreground" />
+              </div>
+              <div className="min-w-0">
+                <p className="font-semibold">Status nog niet beschikbaar</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  We kunnen nu niet vaststellen of je registratie bij Viva is gestart of afgerond.
+                  Controleer je status bij Viva of probeer het later opnieuw.
+                </p>
+              </div>
             </div>
           ) : content && Icon ? (
             <div className="space-y-4">
@@ -126,9 +131,9 @@ export default function GlowPayRegistrationStatusPage() {
                   <p className="text-sm text-muted-foreground mt-1">{content.text}</p>
                 </div>
               </div>
-              {continueUrl && status !== "active" && (
+              {view.kind === "status" && view.continueUrl && view.status !== "active" && (
                 <Button asChild variant="outline" className="w-full">
-                  <a href={continueUrl} target="_blank" rel="noopener noreferrer">
+                  <a href={view.continueUrl} target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="w-4 h-4" /> Verder bij Viva
                   </a>
                 </Button>
