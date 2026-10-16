@@ -206,22 +206,21 @@ export default function DashboardPage() {
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-4">
             {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28 sm:h-36 rounded-2xl" />)}
           </div>
         ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-6 gap-2.5 sm:gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-4">
           {/* Omzet vandaag — hero KPI */}
-          <button
+          <Button variant="outline"
             onClick={() => navigate("/rapporten?type=omzet")}
-            className="text-left p-4 sm:p-5 rounded-2xl border border-border/70 bg-card hover:border-primary/30 hover:-translate-y-0.5 transition-all col-span-2 lg:col-span-2 group"
-            style={{ boxShadow: "var(--shadow-sm)" }}
+            className="block h-auto min-w-0 whitespace-normal text-left p-3.5 sm:p-5 rounded-2xl border-border/70 hover:bg-card hover:border-primary/30 motion-safe:hover:-translate-y-0.5 col-span-2 group shadow-[var(--shadow-sm)]"
           >
-            <div className="flex items-center gap-2 mb-2.5">
-              <Euro className="w-4 h-4 text-success" />
-              <span className="text-eyebrow">Omzet vandaag (betaald)</span>
+            <div className="flex items-start gap-2 mb-2.5">
+              <Euro className="w-4 h-4 shrink-0 text-success" />
+              <span className="min-w-0 text-xs sm:text-[13px] font-semibold leading-snug tracking-normal text-muted-foreground [overflow-wrap:anywhere]">Omzet vandaag (betaald)</span>
             </div>
-            <p className="text-metric text-foreground">
+            <p className="text-metric tracking-normal text-foreground [overflow-wrap:anywhere]">
               <AnimatedCounter value={omzetVandaag} format={(n) => formatEuro(n)} />
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -229,23 +228,22 @@ export default function DashboardPage() {
                 {todaysAppts.length} {todaysAppts.length === 1 ? "afspraak" : "afspraken"}
               </span>
             </div>
-          </button>
+          </Button>
 
           <DashboardKpi icon={Calendar} label="Afspraken vandaag" value={String(report.appointments.today)} trend={trendLabel(report.appointments.trend)} trendValue={report.appointments.trend} onClick={() => navigate("/agenda")} />
           <DashboardKpi icon={UserPlus} label="Nieuwe klanten deze week" value={String(newCustomersThisWeek)} trend="ma t/m zo" onClick={() => navigate("/klanten")} />
-          <DashboardKpi icon={RefreshCw} label="Herhaalboekingen" value={`${rebookPct}%`} trend="retentie" onClick={() => navigate("/herboekingen")} />
-          <DashboardKpi icon={Crown} label="Abonnement omzet" value={formatEuro(membershipRevenue)} trend="recurring" onClick={() => navigate("/abonnementen")} />
-          <DashboardKpi icon={AlertTriangle} label="Open acties" value={String(openActions)} trend="vandaag" compactMobile onClick={() => navigate("/acties")} />
+          <DashboardKpi icon={RefreshCw} label="Herhaalboekingen" value={`${rebookPct}%`} trend="Terugkerende klanten" onClick={() => navigate("/herboekingen")} />
+          <DashboardKpi icon={Crown} label="Abonnementen" value={formatEuro(membershipRevenue)} trend="Terugkerende omzet" onClick={() => navigate("/abonnementen")} />
+          <DashboardKpi icon={AlertTriangle} label="Open acties" value={String(openActions)} trend="vandaag" onClick={() => navigate("/acties")} />
 
           {/* No-show risico */}
-          <button
+          <Button variant="outline"
             onClick={() => navigate("/whatsapp")}
-            className="hidden sm:block self-start sm:self-auto text-left p-3 sm:p-5 rounded-2xl border border-border/70 bg-card hover:border-destructive/30 hover:-translate-y-0.5 transition-all"
-            style={{ boxShadow: "var(--shadow-sm)" }}
+            className="hidden sm:block h-auto min-w-0 whitespace-normal text-left p-3.5 sm:p-5 rounded-2xl border-border/70 hover:bg-card hover:border-destructive/30 motion-safe:hover:-translate-y-0.5 shadow-[var(--shadow-sm)] [overflow-wrap:anywhere]"
           >
             <div className="flex items-start sm:items-center gap-2 mb-1.5 sm:mb-2.5">
               <AlertTriangle className={`w-4 h-4 ${noShowRiskTomorrow > 0 ? "text-destructive" : "text-success"}`} />
-              <span className="text-eyebrow leading-snug">No-show risico morgen</span>
+              <span className="min-w-0 text-xs sm:text-[13px] font-semibold tracking-normal text-muted-foreground leading-snug">No-show risico morgen</span>
             </div>
             <p className="text-metric-sm">
               {noShowRiskTomorrow > 0 ? (
@@ -268,7 +266,7 @@ export default function DashboardPage() {
                 </span>
               )}
             </div>
-          </button>
+          </Button>
         </div>
         )}
       </section>
@@ -446,17 +444,17 @@ export default function DashboardPage() {
   );
 }
 
-function DashboardKpi({ icon: Icon, label, value, trend, trendValue, onClick, compactMobile = false }: { icon: React.ElementType; label: string; value: string; trend: string; trendValue?: number; onClick: () => void; compactMobile?: boolean }) {
+function DashboardKpi({ icon: Icon, label, value, trend, trendValue, onClick }: { icon: React.ElementType; label: string; value: string; trend: string; trendValue?: number; onClick: () => void }) {
   return (
-    <button onClick={onClick} className={cn("min-w-0 text-left sm:p-5 rounded-2xl border border-border/70 bg-card hover:border-primary/30 hover:-translate-y-0.5 transition-all", compactMobile ? "self-start sm:self-auto p-3" : "p-3.5")} style={{ boxShadow: "var(--shadow-sm)" }}>
-      <div className={cn("flex items-start gap-2 sm:mb-2.5", compactMobile ? "mb-1.5" : "mb-2.5")}>
+    <Button variant="outline" onClick={onClick} className="block h-auto min-w-0 whitespace-normal text-left p-3.5 sm:p-5 rounded-2xl border-border/70 hover:bg-card hover:border-primary/30 motion-safe:hover:-translate-y-0.5 shadow-[var(--shadow-sm)]">
+      <div className="flex items-start gap-2 mb-2.5">
         <Icon className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-        <span className="text-eyebrow leading-snug">{label}</span>
+        <span className="min-w-0 text-xs sm:text-[13px] font-semibold leading-snug tracking-normal text-muted-foreground [overflow-wrap:anywhere]">{label}</span>
       </div>
-      <div className="flex items-end justify-between gap-2">
-        <p className="text-metric-sm break-words">{value}</p>
-        <span className={cn("text-[11px] font-semibold px-2 py-0.5 rounded-md flex-shrink-0", typeof trendValue === "number" ? trendClass(trendValue) : "text-muted-foreground bg-secondary/50")}>{trend}</span>
+      <div className="space-y-2">
+        <p className="text-metric-sm tracking-normal [overflow-wrap:anywhere]">{value}</p>
+        <span className={cn("block text-[11px] sm:text-xs leading-snug [overflow-wrap:anywhere]", typeof trendValue === "number" ? cn("w-fit max-w-full font-semibold px-2 py-0.5 rounded-md", trendClass(trendValue)) : "font-normal text-muted-foreground")}>{trend}</span>
       </div>
-    </button>
+    </Button>
   );
 }
