@@ -94,7 +94,7 @@ export function livePaymentAllowedV2(row: MerchantRow | null, a: AccountV2 | nul
   if (isvEnv !== "live" || row.is_demo) return { ok: false, reason: "not_live_env" };
   if (!a.verified) return { ok: false, reason: "kyc_not_verified" };
   if (!a.acquiringEnabled) return { ok: false, reason: "acquiring_disabled" };
-  if (!row.viva_merchant_id || row.viva_merchant_id !== (a.merchantId ?? row.viva_merchant_id)) return { ok: false, reason: "merchant_id_missing" };
+  if (!row.viva_merchant_id || !a.merchantId || row.viva_merchant_id.toLowerCase() !== a.merchantId.toLowerCase()) return { ok: false, reason: "merchant_id_missing" };
   if (!(row.viva_source_code || "").trim()) return { ok: false, reason: "source_code_missing" };
   return { ok: true, reason: "ok" };
 }
