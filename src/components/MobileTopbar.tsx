@@ -1,4 +1,4 @@
-import { Menu, Bell } from "lucide-react";
+import { Menu } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface MobileTopbarProps {
@@ -40,12 +40,9 @@ export function MobileTopbar({ title, onMenuOpen }: MobileTopbarProps) {
         <h1 className="flex-1 text-center text-[15px] font-semibold tracking-tight truncate px-2">
           {title}
         </h1>
-        <button
-          aria-label="Meldingen"
-          className="h-10 w-10 inline-flex items-center justify-center rounded-xl text-muted-foreground hover:bg-secondary hover:text-foreground active:scale-95 transition-all"
-        >
-          <Bell className="w-[18px] h-[18px]" />
-        </button>
+        {/* Spacer keeps the title optically centered; a notifications bell only
+            returns here once a real notifications feature exists. */}
+        <div className="h-10 w-10" aria-hidden />
       </div>
     </header>
   );

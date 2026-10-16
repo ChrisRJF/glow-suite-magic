@@ -148,12 +148,12 @@ export function DropCell({ employeeId, slot, slotPx, onClick, isPause }: DropCel
       className={cn(
         "border-t border-border/30 transition-colors",
         isOver && "bg-primary/15 ring-1 ring-primary/40",
-        isPause && "bg-accent/40",
+        isPause && "bg-muted/70",
         onClick && "cursor-pointer hover:bg-primary/5",
       )}
     >
       {isPause && slot.endsWith(":00") && (
-        <span className="text-[9px] text-muted-foreground pl-1">☕</span>
+        <span className="text-[9px] text-muted-foreground pl-1 select-none">Pauze</span>
       )}
     </div>
   );
