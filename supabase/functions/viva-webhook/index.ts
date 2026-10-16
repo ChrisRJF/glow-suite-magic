@@ -365,9 +365,11 @@ Deno.serve(async (req) => {
         return error ? null : ((data as any[]) ?? []);
       },
       async updateRow(row, upd) {
-        const { error } = await supabase.from("glowpay_connected_merchants").update(upd)
-          .eq("id", row.id).eq("user_id", row.user_id).eq("is_demo", false).eq("viva_account_id", row.viva_account_id!);
-        return !error;
+        const { data, error } = await supabase.from("glowpay_connected_merchants").update(upd)
+          .eq("id", row.id).eq("user_id", row.user_id).eq("is_demo", false).eq("viva_account_id", row.viva_account_id!)
+          .select("id");
+        // Fail closed: success only when exactly one row was actually updated.
+        return !error && Array.isArray(data) && data.length === 1;
       },
     });
     console.log("[viva-webhook] isv onboarding", eventTypeId, r.note);
