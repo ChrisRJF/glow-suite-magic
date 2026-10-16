@@ -183,7 +183,6 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
     // instead of silently picking an arbitrary one.
     const { data: s, error: settingsError } = await supabase.from("settings").select("id").eq("user_id", user.id).eq("is_demo", false).maybeSingle();
     if (settingsError) throw new OnboardingSaveError("settings_lookup", settingsError);
-    if (s?.id) {
     // Gate-controlled: until the proposed settings migration is applied only salon_name is sent.
     const built = buildSettingsPayload({
       name, salonType: data.salonType, logoUrl: data.logoUrl, userId: user.id,
