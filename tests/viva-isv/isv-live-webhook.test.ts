@@ -73,3 +73,15 @@ describe("ISV onboarding webhook 8193/8194", () => {
     for (const s of ["OnboardingStatus", "PayoutsEnabled", "OnlinePaymentsEnabled", "evtSourceCode"]) expect(src).not.toContain(s);
   });
 });
+
+describe("viva-webhook updateRow guard", () => {
+  const src = readFileSync("supabase/functions/viva-webhook/index.ts", "utf8");
+  it("requires exactly one updated row", () => {
+    expect(src).toContain('.eq("viva_account_id", row.viva_account_id!)\n          .select("id");');
+    expect(src).toContain("return !error && Array.isArray(data) && data.length === 1;");
+  });
+  it("0 or >1 affected rows (updateRow false) -> 503, unprocessed", async () => {
+    const r = await handleIsvOnboardingEvent(forged, deps({ updOk: false }).d);
+    expect(r).toMatchObject({ processed: false, status: 503, note: "isv_onboarding_update_failed" });
+  });
+});
