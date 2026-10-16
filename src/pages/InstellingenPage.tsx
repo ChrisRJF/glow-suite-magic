@@ -1486,6 +1486,7 @@ function MessagingSettingsCard() {
 function SnelleSetupCard() {
   const [open, setOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [glowPayOpen, setGlowPayOpen] = useState(false);
   const { user } = useAuth();
   const { isOwner, roles } = useUserRole();
   const canReview = isOwner || roles.includes("admin" as any) || roles.includes("manager" as any);
