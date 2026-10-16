@@ -139,6 +139,7 @@ export default function PlatformPage() {
       actions={
         <div className="flex w-full flex-col gap-2 lg:w-auto lg:flex-row lg:items-center">
         <Link to="/platform/viva-webhooks" className="text-sm text-primary underline whitespace-nowrap">Viva LIVE webhooks</Link>
+        <Link to="/platform/isv-fees" className="text-sm text-primary underline whitespace-nowrap">GlowPay fees</Link>
         <Select value={period} onValueChange={setPeriod}>
           <SelectTrigger className="w-full lg:w-[190px]" aria-label="Periode"><SelectValue /></SelectTrigger>
           <SelectContent>

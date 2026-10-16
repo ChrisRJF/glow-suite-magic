@@ -61,6 +61,7 @@ import MijnAbonnementPage from "./pages/MijnAbonnementPage";
 import OAuthConsentPage from "./pages/OAuthConsentPage";
 import PlatformPage from "./pages/PlatformPage";
 import PlatformVivaWebhooksPage from "./pages/PlatformVivaWebhooksPage";
+import PlatformIsvFeesPage from "./pages/PlatformIsvFeesPage";
 import { useLeadAutomation } from "@/hooks/useLeadAutomation";
 import { OnboardingGate } from "@/components/OnboardingGate";
 
