@@ -6,7 +6,7 @@ import { OnboardingWizard } from "@/components/OnboardingWizard";
 import { canAccessRoute, ROUTE_PERMISSIONS } from "@/hooks/useUserRole";
 
 const mock = vi.hoisted(() => ({
-  roles: ["eigenaar"], count: 0 as number | null, fail: false,
+  roles: ["eigenaar"], count: 0 as number | null, serviceNames: [] as string[] | null, fail: false,
   writes: [] as string[], reads: [] as string[], insert: vi.fn(async () => ({ id: "synthetic-service" })),
   updatePayloads: {} as Record<string, any>,
   invoke: vi.fn(async () => ({ data: null, error: null })),
@@ -28,7 +28,7 @@ vi.mock("@/integrations/supabase/client", () => ({ supabase: {
       select: () => { mock.reads.push(table); return q; }, update: (payload: any) => { write = true; mock.writes.push(table); mock.updatePayloads[table] = payload; return q; },
       eq: () => q, limit: () => q, order: () => q,
       maybeSingle: () => Promise.resolve({ data: table === "settings" ? { id: "synthetic-settings" } : null, error: null }),
-      then: (resolve: any) => Promise.resolve({ data: [], count: mock.count, error: mock.fail && (write || table === "services") ? new Error("offline") : null }).then(resolve),
+      then: (resolve: any) => Promise.resolve({ data: table === "services" ? (mock.serviceNames === null ? null : mock.serviceNames.map(name => ({ name }))) : [], count: mock.count, error: mock.fail && (write || table === "services") ? new Error("offline") : null }).then(resolve),
     };
     return q;
   }, functions: { invoke: mock.invoke }, storage: { from: vi.fn(() => { throw new Error("Storage writes forbidden in preview"); }) },
@@ -42,7 +42,7 @@ function salonDraft(preview = false, extra = {}) {
   localStorage.setItem(preview ? "glowsuite_onboarding_v3_preview_synthetic" : draftKey,
     JSON.stringify({ step: 1, salonType: "kapper", salonName: "Fictieve salon", ...extra }));
 }
-beforeEach(() => { localStorage.clear(); mock.roles = ["eigenaar"]; mock.count = 0; mock.fail = false; mock.writes = []; mock.reads = []; mock.updatePayloads = {}; vi.clearAllMocks(); });
+beforeEach(() => { localStorage.clear(); mock.roles = ["eigenaar"]; mock.count = 0; mock.serviceNames = []; mock.fail = false; mock.writes = []; mock.reads = []; mock.updatePayloads = {}; vi.clearAllMocks(); });
 afterEach(cleanup);
 
 describe("Sprint 3 menu", () => {
@@ -113,8 +113,14 @@ describe("Sprint 3 snelle start", () => {
     expect(mock.updatePayloads.settings).not.toHaveProperty("salon_type");
   });
   it("seedt geen behandelingen als er al behandelingen zijn", async () => {
-    mock.count = 3; salonDraft(); wizard(); fireEvent.click(screen.getByRole("button", { name: "Volgende" }));
+    mock.serviceNames = ["Eigen dienst A", "Eigen dienst B", "Eigen dienst C"]; salonDraft(); wizard(); fireEvent.click(screen.getByRole("button", { name: "Volgende" }));
     await screen.findByRole("heading", { name: "Activeer GlowPay" }); expect(mock.insert).not.toHaveBeenCalled();
+  });
+  it("vult na gedeeltelijke seeding alleen ontbrekende standaarddiensten aan", async () => {
+    mock.serviceNames = ["Knippen dames", " knippen HEREN "]; salonDraft(); wizard(); fireEvent.click(screen.getByRole("button", { name: "Volgende" }));
+    await screen.findByRole("heading", { name: "Activeer GlowPay" });
+    const names = mock.insert.mock.calls.map((c: any[]) => c[0].name);
+    expect(names).toContain("Kleuren"); expect(names).not.toContain("Knippen dames"); expect(names).not.toContain("Knippen heren");
   });
   it("preview verandert geen DB of completionflags, ook bij logo", async () => {
     salonDraft(true); const close = vi.fn(); wizard(true, { onOpenChange: close });
@@ -152,7 +158,7 @@ describe("Sprint 3 snelle start", () => {
     await screen.findByRole("heading", { name: "Activeer GlowPay" });
   });
   it("onzekere service count blokkeert seeding en afronding", async () => {
-    mock.count = null; salonDraft(); wizard(); fireEvent.click(screen.getByRole("button", { name: "Volgende" }));
+    mock.serviceNames = null; salonDraft(); wizard(); fireEvent.click(screen.getByRole("button", { name: "Volgende" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Volgende" })).toBeEnabled());
     expect(mock.insert).not.toHaveBeenCalled(); expect(localStorage.getItem("glowsuite_onboarding_v4_synthetic")).toBeNull();
   });

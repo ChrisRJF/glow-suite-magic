@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { glowpayPaymentStatus, bookingStatus, type PayStatus, type BookingStatus } from "@/lib/glowpayOnboardingStatus";
 import glowsuiteLogo from "@/assets/glowsuite-logo.png";
 import glowpayLogo from "@/assets/glowpay/glowpay-logo.png.asset.json";
+import { missingSeedServices } from "@/lib/onboardingServiceSeed";
 
 
 interface Props {
@@ -202,26 +203,26 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
     if (data.logoUrl || data.salonType) {
       toast.info("Salonnaam opgeslagen. Logo en salontype worden nog niet definitief bewaard en blijven in deze wizard staan.");
     }
-    // Auto-seed default services only if the salon has no services yet (avoid duplicates on re-run).
+    // Recoverable, idempotent seeding scoped to this salon: fills only missing default services
+    // after a partial failure, never duplicates and skips salons that have their own services.
     if (data.salonType) {
-      const { count, error } = await supabase
+      const { data: rows, error } = await supabase
         .from("services")
-        .select("id", { count: "exact", head: true })
+        .select("name")
         .eq("user_id", user.id);
-      if (error || count === null) throw new OnboardingSaveError("services_check", error);
-      if (count === 0) {
-        const seeds = SERVICES_BY_TYPE[data.salonType as SalonType] || [];
-        for (const svc of seeds) {
-          const inserted = await servicesCrud.insert({
-              name: svc.name,
-              price: svc.price,
-              duration_minutes: svc.duration_minutes,
-              color: svc.color,
-              is_active: true,
-              is_online_bookable: true,
-            });
-          if (!inserted) throw new OnboardingSaveError("services_seed", null);
-        }
+      if (error || !Array.isArray(rows)) throw new OnboardingSaveError("services_check", error);
+      const seeds = SERVICES_BY_TYPE[data.salonType as SalonType] || [];
+      const missing = missingSeedServices(seeds, rows.map((r: any) => String(r?.name ?? "")));
+      for (const svc of missing) {
+        const inserted = await servicesCrud.insert({
+            name: svc.name,
+            price: svc.price,
+            duration_minutes: svc.duration_minutes,
+            color: svc.color,
+            is_active: true,
+            is_online_bookable: true,
+          });
+        if (!inserted) throw new OnboardingSaveError("services_seed", null);
       }
     }
   };
