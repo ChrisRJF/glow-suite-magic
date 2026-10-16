@@ -369,13 +369,14 @@ Deno.serve(async (req) => {
       fetch,
       async findLiveRows(accountId) {
         const { data, error } = await supabase.from("glowpay_connected_merchants")
-          .select("id, user_id, is_demo, viva_account_id, viva_merchant_id, viva_source_code, onboarding_status, kyc_status")
+          .select("id, user_id, is_demo, viva_account_id, viva_merchant_id, viva_source_code, onboarding_status, kyc_status, metadata")
           .eq("viva_account_id", accountId).eq("is_demo", false).limit(2);
         return error ? null : ((data as any[]) ?? []);
       },
       async updateRow(row, upd) {
+        if (!row.viva_account_id) return false;
         const { data, error } = await supabase.from("glowpay_connected_merchants").update(upd)
-          .eq("id", row.id).eq("user_id", row.user_id).eq("is_demo", false).eq("viva_account_id", row.viva_account_id!)
+          .eq("id", row.id).eq("user_id", row.user_id).eq("is_demo", false).eq("viva_account_id", row.viva_account_id)
           .select("id");
         // Fail closed: success only when exactly one row was actually updated.
         return !error && Array.isArray(data) && data.length === 1;

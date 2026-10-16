@@ -1,7 +1,7 @@
 // Imported by viva-webhook for ISV onboarding events 8193/8194 only.
 // The webhook body is a HINT: only ConnectedAccountId is read. Status comes exclusively
 // from the authoritative LIVE ISV Retrieve. Never creates, never rebinds, never sets
-// source code or payment-enabled flags. Default-off via VIVA_ISV_LIVE_ENABLED.
+// source code. Status refresh uses VIVA_ISV_LIVE_ENABLED independently of the charge gate.
 import type { Fetch, MerchantRow } from "./isvOnboardingSafety.ts";
 import { loadLiveIsvConfig, getLiveIsvToken, type EnvGet } from "./isvLiveConfig.ts";
 import { retrieveV2, deriveUpdateV2 } from "./isvOnboardingV2.ts";
@@ -24,6 +24,8 @@ export function connectedAccountId(eventData: unknown): string | null {
 export interface IsvWebhookDeps {
   env: EnvGet;
   fetch: Fetch;
+  /** Production uses the global charge gate; injectable only for isolated eligibility tests. */
+  checkoutEnabled?: boolean;
   /** LIVE rows (is_demo=false) with this viva_account_id. null = query error. */
   findLiveRows(accountId: string): Promise<MerchantRow[] | null>;
   /** Update scoped by id + user_id + is_demo=false + viva_account_id. false = failed. */
@@ -50,24 +52,29 @@ export async function handleIsvOnboardingEvent(eventData: unknown, d: IsvWebhook
   const upd = deriveUpdateV2(row, acc);
   if (!upd) return { processed: true, status: 200, note: "isv_onboarding_identity_mismatch_hold", userId: row.user_id };
   const eligible = acc.verified && acc.acquiringEnabled && !!acc.merchantId && (!row.viva_merchant_id || acc.merchantId === row.viva_merchant_id);
+  const chargingEnabled = d.checkoutEnabled ?? LIVE_ISV_CHECKOUT_ENABLED;
+  // Persist provider facts, not an approval toggle. Preserve unrelated merchant metadata.
+  const metadata = (row as MerchantRow & { metadata?: Record<string, unknown> }).metadata;
+  upd.metadata = { ...(metadata && typeof metadata === "object" ? metadata : {}), viva_account_status: {
+    verified: acc.verified, acquiring_enabled: acc.acquiringEnabled, checked_at: upd.last_synced_at,
+  } };
   // Global contract gate is not a salon approval toggle. KYC alone cannot open another live route.
-  upd.online_payments_enabled = eligible && LIVE_ISV_CHECKOUT_ENABLED;
-  upd.payouts_enabled = eligible && LIVE_ISV_CHECKOUT_ENABLED;
+  upd.online_payments_enabled = eligible && chargingEnabled;
+  upd.payouts_enabled = eligible && chargingEnabled;
   upd.terminals_enabled = false; // Terminal acquiring/physical-source confirmation is separate.
-  upd.setup_complete = eligible && LIVE_ISV_CHECKOUT_ENABLED;
+  upd.setup_complete = eligible && chargingEnabled;
   const ok = await d.updateRow(row, upd);
   if (!ok) return { processed: false, status: 503, note: "isv_onboarding_update_failed", userId: row.user_id };
   return { processed: true, status: 200, note: "isv_onboarding_synced", userId: row.user_id };
 }
 
 /** Uses the existing five-minute worker. Keyset paging avoids starving later salons. */
-export async function refreshLiveMerchants(admin: any, env: EnvGet, fetchFn: Fetch = fetch, enabled: boolean = LIVE_ISV_CHECKOUT_ENABLED) {
-  // While contract verification is blocked, the scheduled job must not alter Beautycare either.
-  if (!enabled) return { scanned: 0, synced: 0, blocked: "live_contract_gate_off" };
-  if (!loadLiveIsvConfig(env).ok) return { scanned: 0, synced: 0 };
-  let after = "", scanned = 0, synced = 0;
+export async function refreshLiveMerchants(admin: any, env: EnvGet, fetchFn: Fetch = fetch) {
+  const config = loadLiveIsvConfig(env);
+  if (!config.ok) return { scanned: 0, synced: 0, failed: 0, blocked: config.reason };
+  let after = "", scanned = 0, synced = 0, failed = 0;
   for (;;) {
-    let q = admin.from("glowpay_connected_merchants").select("id,user_id,is_demo,viva_account_id,viva_merchant_id,viva_source_code,onboarding_status,kyc_status")
+    let q = admin.from("glowpay_connected_merchants").select("id,user_id,is_demo,viva_account_id,viva_merchant_id,viva_source_code,onboarding_status,kyc_status,metadata")
       .eq("is_demo", false).not("viva_account_id", "is", null).order("id").limit(100);
     if (after) q = q.gt("id", after);
     const r = await q;
@@ -83,9 +90,10 @@ export async function refreshLiveMerchants(admin: any, env: EnvGet, fetchFn: Fet
         },
       });
       if (result.note === "isv_onboarding_synced") synced++;
+      else failed++;
     }
     if (rows.length < 100) break;
     const last = rows[rows.length - 1]; if (!last) break; after = last.id;
   }
-  return { scanned, synced };
+  return { scanned, synced, failed };
 }
