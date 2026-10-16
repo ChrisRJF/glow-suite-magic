@@ -494,10 +494,13 @@ const PAY_TEXT: Record<PayStatus, string> = {
   active: "Je betaalaccount is goedgekeurd. Betalingen zijn beschikbaar.",
 };
 
-function GlowPayStep({ demo, onLater }: { demo: boolean; onLater: () => void }) {
+function GlowPayStep({ demo, previewMode = false, salonName, onLater }: { demo: boolean; previewMode?: boolean; salonName: string; onLater: () => void }) {
   const { user } = useAuth();
   const [pay, setPay] = useState<PayStatus | null>(null);
   const [booking, setBooking] = useState<BookingStatus | null>(null);
+  const [inviteBusy, setInviteBusy] = useState(false);
+  const [inviteMsg, setInviteMsg] = useState<string | null>(null);
+  const inviteFlight = useRef(false);
 
   useEffect(() => {
     if (!user) return;
