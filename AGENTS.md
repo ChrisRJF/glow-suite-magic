@@ -1,9 +1,6 @@
 # AGENTS
 
-- AppLayout compactMobile is opt-in presentation spacing only; why: the mobile agenda can start higher without changing other pages or desktop layout.
-- Agenda mobile and desktop date pickers reuse one local renderer with placement-specific open state; why: both date bars stay functional without mounting a second hidden calendar or changing shared calendar styles.
-- Dashboard mobile finishing is scoped by data-mobile-dashboard and a mobile-only stylesheet block; why: shared components keep desktop presentation.
-- DashboardPage passes its existing tomorrow-risk count to TodayAtAGlance for mobile consolidation only; why: the customer-wide selector and both existing action destinations remain intact without changing desktop metrics.
+- Subdirectories have their own AGENTS.md (src/, supabase/functions/); read it before changing files there.
 
 - Per-tenant feature gates live in public.tenant_feature_flags (read-only for app users, set only by platform admins) and are enforced inside the SECURITY DEFINER RPCs; why: client flags or emails can be spoofed.
 - Unapproved code/SQL stays inactive/proposed. LIVE ISV needs own secrets, default-off gate and durable server-only tenant/env create claims; why: active edits auto-deploy; row uniqueness cannot prevent external duplicates.
