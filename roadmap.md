@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] GlowPay-branding voorbereid; bestaande merchant-UNIQUE read-only geverifieerd, geen salonrijen gelezen.
+- [ ] LIVE ISV-create koppelen: blokkerende server-only reservering/recovery vereist aparte schema-GO en LIVE-contractverificatie; schakelaar blijft uit.
+
 - [x] Eén inactieve LIVE ISV-voorbereiding: eigen secretnamen, default-off configuratie, token/create/retrieve/status; 73 fictieve tests geslaagd, geen activatie of externe verzoeken. Activatie wacht op aparte GO, brandingkleur/logo en source-codevoorziening.
 
 - [x] Laatste mobiele voorbeeldkopcorrectie: in previewmodus verbergen "Nu sluiten" en "Verder via Instellingen › Snelle setup" op smalle schermen (44px-X blijft), kop compact zodat "Stap 3 van 7" 12px onder de disclaimer staat; desktop en normale onboarding onveranderd; 25 tests geslaagd, stappen 1/3/7 fictief gecontroleerd op 390/1440 px; geen echte gegevens of publicatie.
