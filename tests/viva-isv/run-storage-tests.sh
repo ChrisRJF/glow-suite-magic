@@ -6,7 +6,7 @@ AS() { env -i PATH="$PATH" HOME=/tmp setpriv --reuid="$U" --regid="$U" --clear-g
 AS initdb -D "$BASE/data" -U postgres -A trust >/dev/null
 AS pg_ctl -D "$BASE/data" -l "$BASE/log" -o "-c listen_addresses='' -k $BASE/sock" -w start >/dev/null
 trap 'AS pg_ctl -D "$BASE/data" -m immediate stop >/dev/null; rm -rf "$BASE"' EXIT
-P=(psql -X -q -At -h "$BASE/sock" -U postgres -d postgres -v ON_ERROR_STOP=1)
+P=(psql -X -q -At -h "$BASE/sock" -U postgres -p 5432 -d postgres -v ON_ERROR_STOP=1)
 "${P[@]}" -f "$ROOT/tests/viva-isv/storage-fixture.sql" >/dev/null
 "${P[@]}" -c "BEGIN; SELECT test_reserve('d0000000-0000-4000-8000-000000000001','same-key'); SELECT pg_sleep(1); COMMIT;" >"$BASE/race1" & A=$!
 "${P[@]}" -c "SELECT test_reserve('d0000000-0000-4000-8000-000000000002','same-key');" >"$BASE/race2" & B=$!
