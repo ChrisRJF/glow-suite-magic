@@ -56,12 +56,25 @@ describe("ISV create reservation", () => {
     expect((await run(s, "a2", async () => { posts++; return ok; })).status).toBe("reconciliation_required");
     expect(posts).toBe(1);
   });
-  it("merchant persistence failure retries only persistence", async () => {
+  it("merchant persistence failure reports persistence_pending, never as fully successful", async () => {
     const s = memStore(); let posts = 0;
     const r1 = await run(s, "a1", async () => { posts++; return ok; }, async () => { throw new Error("db"); });
-    expect(r1).toMatchObject({ status: "created", persisted: false });
-    const r2 = await run(s, "a2", async () => { posts++; return ok; });
+    expect(r1).toMatchObject({ status: "persistence_pending", accountId: "acc-fake-0001" });
+    expect(r1).not.toMatchObject({ status: "created" });
+    expect(posts).toBe(1);
+  });
+  it("persistence_pending recovery retries only persistence, never a Viva POST", async () => {
+    const s = memStore(); let posts = 0; let persists = 0;
+    await run(s, "a1", async () => { posts++; return ok; }, async () => { persists++; return false; });
+    const r2 = await run(s, "a2", async () => { posts++; return ok; }, async () => { persists++; return true; });
     expect(r2).toMatchObject({ status: "reused", persisted: true, accountId: "acc-fake-0001" });
+    expect(posts).toBe(1); expect(persists).toBe(2);
+  });
+  it("persistence still failing on retry keeps reporting persistence_pending", async () => {
+    const s = memStore(); let posts = 0;
+    await run(s, "a1", async () => { posts++; return ok; }, async () => false);
+    const r2 = await run(s, "a2", async () => { posts++; return ok; }, async () => { throw new Error("db"); });
+    expect(r2.status).toBe("persistence_pending");
     expect(posts).toBe(1);
   });
   it("definite rejection releases so a later attempt may create", async () => {
@@ -69,6 +82,14 @@ describe("ISV create reservation", () => {
     expect((await run(s, "a1", async () => { posts++; return { kind: "rejected" }; })).status).toBe("rejected");
     expect((await run(s, "a2", async () => { posts++; return ok; })).status).toBe("created");
     expect(posts).toBe(2);
+  });
+  it("unclear provider outcome (ambiguous) is held, never released or retried", async () => {
+    const s = memStore(); let posts = 0;
+    expect((await run(s, "a1", async () => { posts++; return { kind: "ambiguous" }; })).status).toBe("reconciliation_required");
+    expect(s.rows.get("u1:false")?.state).toBe("reconciliation_required");
+    s.tick(60 * 60_000);
+    expect((await run(s, "a2", async () => { posts++; return ok; })).status).toBe("reconciliation_required");
+    expect(posts).toBe(1);
   });
   it("fence persistence failure: no POST", async () => {
     const s = memStore({ failDispatch: true }); let posts = 0;

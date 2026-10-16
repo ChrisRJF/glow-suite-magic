@@ -24,50 +24,56 @@ REVOKE ALL ON public.isv_create_reservations FROM anon, authenticated;
 ALTER TABLE public.isv_create_reservations ENABLE ROW LEVEL SECURITY;
 -- No policies: no client access.
 
+-- All SECURITY DEFINER functions below:
+--   SET search_path = pg_catalog, public, pg_temp  (pg_catalog first; no caller-controlled path)
+--   every table reference is fully qualified as public.isv_create_reservations
+--   EXECUTE granted to service_role only; revoked from PUBLIC, anon, authenticated.
+
 -- Claim: one winner. Returns state + attempt_id; caller dispatches only if attempt_id equals its own and state='reserved'.
 CREATE OR REPLACE FUNCTION public.isv_create_claim(_user uuid, _is_demo boolean, _attempt uuid, _expiry interval DEFAULT interval '2 minutes')
 RETURNS TABLE(state text, attempt_id uuid, provider_account_id text, invitation_url text)
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
 BEGIN
-  INSERT INTO isv_create_reservations(user_id, is_demo, attempt_id, state)
+  INSERT INTO public.isv_create_reservations(user_id, is_demo, attempt_id, state)
   VALUES (_user, _is_demo, _attempt, 'reserved')
   ON CONFLICT (user_id, is_demo) DO UPDATE
     SET attempt_id = EXCLUDED.attempt_id, reserved_at = now(), updated_at = now()
-    WHERE isv_create_reservations.state = 'reserved'
-      AND isv_create_reservations.reserved_at < now() - _expiry;
+    WHERE public.isv_create_reservations.state = 'reserved'
+      AND public.isv_create_reservations.reserved_at < now() - _expiry;
   RETURN QUERY SELECT r.state, r.attempt_id, r.provider_account_id, r.invitation_url
-    FROM isv_create_reservations r WHERE r.user_id = _user AND r.is_demo = _is_demo;
+    FROM public.isv_create_reservations r WHERE r.user_id = _user AND r.is_demo = _is_demo;
 END $$;
 
 -- Fence: persist 'dispatching' before POST. False = lost fence, do not POST.
 CREATE OR REPLACE FUNCTION public.isv_create_mark_dispatching(_user uuid, _is_demo boolean, _attempt uuid)
-RETURNS boolean LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
-  WITH u AS (UPDATE isv_create_reservations SET state='dispatching', dispatched_at=now(), updated_at=now()
+RETURNS boolean LANGUAGE sql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
+  WITH u AS (UPDATE public.isv_create_reservations SET state='dispatching', dispatched_at=now(), updated_at=now()
     WHERE user_id=_user AND is_demo=_is_demo AND attempt_id=_attempt AND state='reserved' RETURNING 1)
   SELECT EXISTS (SELECT 1 FROM u);
 $$;
 
 -- Journal provider result (before merchant row persistence).
 CREATE OR REPLACE FUNCTION public.isv_create_complete(_user uuid, _is_demo boolean, _attempt uuid, _account text, _invite text)
-RETURNS boolean LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
-  WITH u AS (UPDATE isv_create_reservations SET state='completed', provider_account_id=_account,
+RETURNS boolean LANGUAGE sql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
+  WITH u AS (UPDATE public.isv_create_reservations SET state='completed', provider_account_id=_account,
       invitation_url=_invite, completed_at=now(), updated_at=now()
     WHERE user_id=_user AND is_demo=_is_demo AND attempt_id=_attempt AND state='dispatching' RETURNING 1)
   SELECT EXISTS (SELECT 1 FROM u);
 $$;
 
--- Ambiguous outcome (timeout, unparseable, crash detected): hold for operator reconciliation.
+-- Ambiguous outcome (timeout, unparseable, crash detected, unclear 4xx/5xx): hold for operator reconciliation.
 CREATE OR REPLACE FUNCTION public.isv_create_hold(_user uuid, _is_demo boolean, _attempt uuid)
-RETURNS boolean LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
-  WITH u AS (UPDATE isv_create_reservations SET state='reconciliation_required', updated_at=now()
+RETURNS boolean LANGUAGE sql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
+  WITH u AS (UPDATE public.isv_create_reservations SET state='reconciliation_required', updated_at=now()
     WHERE user_id=_user AND is_demo=_is_demo AND attempt_id=_attempt AND state='dispatching' RETURNING 1)
   SELECT EXISTS (SELECT 1 FROM u);
 $$;
 
--- Definite provider rejection (4xx before account creation): release 'dispatching' back so a later claim may retry.
+-- Definite provider rejection ONLY when the specific Viva response proves no account was created
+-- (caller must verify this per-response; unclear 4xx/5xx/timeouts/exceptions are NEVER released).
 CREATE OR REPLACE FUNCTION public.isv_create_release(_user uuid, _is_demo boolean, _attempt uuid)
-RETURNS boolean LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
-  WITH d AS (DELETE FROM isv_create_reservations
+RETURNS boolean LANGUAGE sql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
+  WITH d AS (DELETE FROM public.isv_create_reservations
     WHERE user_id=_user AND is_demo=_is_demo AND attempt_id=_attempt AND state IN ('reserved','dispatching') RETURNING 1)
   SELECT EXISTS (SELECT 1 FROM d);
 $$;
