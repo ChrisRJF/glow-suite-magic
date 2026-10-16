@@ -109,10 +109,10 @@ describe("LIVE payment webhooks", () => {
     await handleLivePaymentEvent(1798, ev, d, "now");
     expect(log.failed).toBe("viva_E");
   });
-  it("1797 partial refund returns fee proportionally", async () => {
+  it("1797 remains held even when the old assumed refund shape matches", async () => {
     const { d, log } = whDeps({ ...okTx, amount: -12.5, parentId: TX }, {}, "paid");
-    expect((await handleLivePaymentEvent(1797, ev, d, "now")).note).toBe("refund_recorded");
-    expect(log.refund).toEqual({ c: 1250, f: 25 });
+    expect(await handleLivePaymentEvent(1797, ev, d, "now")).toEqual({ status: 503, note: "refund_contract_unverified_hold" });
+    expect(log.refund).toBeNull();
   });
   it("switch off = ignored, no lookup", async () => {
     let called = false;
@@ -122,7 +122,7 @@ describe("LIVE payment webhooks", () => {
   });
   it("refund must name the original confirmed transaction", async () => {
     const { d, log } = whDeps({ ...okTx, amount: -12.5, parentId: "other" }, {}, "paid");
-    expect((await handleLivePaymentEvent(1797, ev, d, "now")).note).toBe("refund_mismatch_hold");
+    expect((await handleLivePaymentEvent(1797, ev, d, "now")).note).toBe("refund_contract_unverified_hold");
     expect(log.refund).toBeNull();
   });
 });

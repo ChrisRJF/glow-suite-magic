@@ -1,16 +1,16 @@
-// PREPARED, NOT WIRED. LIVE confirmation of salon ISV orders (from isvLiveCheckout.ts).
-// Mirrors the demo flow (../isvDemoConfirm.ts) on the LIVE host with LIVE ISV OAuth only.
+// LIVE sale confirmation of salon ISV orders, with LIVE ISV OAuth only.
 // Endpoint: GET {LIVE_ISV_API_HOST}/checkout/v2/isv/transactions/{transactionId}?merchantId={merchantId}
-// Status semantics (same as demo): statusId "F" = finished/paid; anything else = not paid.
-// Exact LIVE ISV endpoint/schema/amount units remain unverified. Production is blocked.
+// Sale statusId "F" = finished/paid; anything else = not paid.
+// Written Viva partner confirmation relayed by Chris on 2026-10-16 proves route and major EUR units.
+// This sale contract does NOT establish reversal sign, parent field or reversal status semantics.
 import { getLiveIsvToken, LIVE_ISV_API_HOST, type EnvGet } from "./isvLiveConfig.ts";
 import type { Fetch } from "./isvOnboardingSafety.ts";
 
 export type LiveTx = { statusId: string; amountCents: number; currencyCode: string; orderCode: string; merchantId: string | null; parentId?: string | null };
 
 export type TransactionContract = { amountUnit: "major" | "minor" };
-// No env/client override: only authoritative vendor proof plus separate GO can replace null.
-export const LIVE_TRANSACTION_CONTRACT: TransactionContract | null = null;
+// Code-only vendor contract, never an env/client override. Charge creation remains separately disabled.
+export const LIVE_TRANSACTION_CONTRACT: TransactionContract = { amountUnit: "major" };
 
 export function parseLiveTransaction(d: any, transactionId: string, contract: TransactionContract | null): LiveTx | null {
   if (!contract || !d || typeof d.amount !== "number" || !Number.isFinite(d.amount)) return null;
