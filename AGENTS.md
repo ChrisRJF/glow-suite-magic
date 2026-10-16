@@ -8,7 +8,7 @@
 - Per-tenant feature gates live in public.tenant_feature_flags (read-only for app users, set only by platform admins) and are enforced inside the SECURITY DEFINER RPCs; why: client flags or emails can be spoofed.
 - Not-yet-approved edge code lives in supabase/functions/_shared/inactive/ and proposed SQL in docs/proposed-migrations/, never imported by an entrypoint; why: edge function edits deploy automatically.
 - The customer email stop switch is the single row in public.customer_email_controls, read fresh on every send and fail-closed; why: a database value takes effect without redeploy, unlike secrets.
-- Employee availability rules live only in supabase/functions/_shared/inactive/employeeSchedule.ts (re-exported by src/lib/employeeSchedule.ts) and are used by calendar, booking page and public-booking; why: one rule set prevents calendar and online booking from disagreeing.
+- Employee availability rules live only in supabase/functions/_shared/inactive/employeeSchedule.ts (re-exported by src/lib/employeeSchedule.ts) and are used by calendar, booking page and public-booking; why: calendar and booking must agree.
 - Onboarding quick start and extended setup share OnboardingWizard's saveSalon and finish paths; why: one completion path preserves preview isolation, default-service seeding and existing gate flags.
 - Sidebar collapse preferences use the versioned v2 storage key and migrate legacy non-default groups; why: former default-open AI preferences must not override daily-first navigation while deliberate other choices survive.
 - Agenda writes route per salon through agendaWriteCore's mode (flag true = atomic RPC only, false/missing = unchanged legacy until the slot guard, unreadable = no write); why: publishing must not block salons that are not switched on, and atomic salons must never fall back.
@@ -20,5 +20,5 @@
 - Subdirectories have their own AGENTS.md (e.g. supabase/functions/); read it before changing files there.
 - Platform-wide owner data (/platform) is read only through SECURITY DEFINER RPCs that call platform_require_owner_aal2 and write audit_logs; the sidebar link and page gate are UI hints only; why: salon users must never read cross-tenant data or ISV commissions.
 - MFA settings only ever unenroll unverified setups or an explicitly chosen verified factor, and hide removal of a platform owner's final factor (docs/security/platform-owner-mfa.md); why: Supabase Auth cannot block final-factor unenroll server-side, so the UI is a hint and recovery is an admin procedure.
-- Reminders use _shared/reminderSafety.ts for tenant-scoped loads before claims and exact start instants; why: DST and mixed storage must not mis-send.
+- Reminders use _shared/reminderSafety.ts for tenant-scoped loads before claims and exact start instants; why: DST must not mis-send.
 - Onboarding salon_type/logo writes sit behind the default-off gate in onboardingSalonProfile.ts and accept only own salon-logos URLs; why: columns need an approved migration.
