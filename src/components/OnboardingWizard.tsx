@@ -34,6 +34,8 @@ interface Props {
   onComplete?: () => void;
   /** Preview/review mode: no DB writes, no completion flags, no seeding. Safe to reopen without corrupting production state. */
   previewMode?: boolean;
+  /** Resume directly at the GlowPay step (step 3 of 7) for salons that already finished setup. Never runs finish/seeding by itself. */
+  startAtGlowPay?: boolean;
 }
 
 type SalonType = "kapper" | "barbershop" | "nagelstudio" | "beautysalon" | "kliniek" | "overig";
@@ -115,7 +117,7 @@ const STEPS = [
 ];
 const TOTAL = STEPS.length;
 
-export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode = false }: Props) {
+export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode = false, startAtGlowPay = false }: Props) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const servicesCrud = useCrud("services");
@@ -133,10 +135,11 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
     if (!storageKey || !open) return;
     try {
       const raw = localStorage.getItem(storageKey);
-      setData(raw ? { ...EMPTY, ...JSON.parse(raw) } : EMPTY);
-    } catch { setData(EMPTY); }
+      const base = raw ? { ...EMPTY, ...JSON.parse(raw) } : EMPTY;
+      setData(startAtGlowPay ? { ...base, step: 2, postWelcome: false } : base);
+    } catch { setData(startAtGlowPay ? { ...EMPTY, step: 2 } : EMPTY); }
     setLoadedKey(storageKey);
-  }, [storageKey, open]);
+  }, [storageKey, open, startAtGlowPay]);
 
   useEffect(() => {
     if (!storageKey || !open || loadedKey !== storageKey || data.postWelcome) return;
