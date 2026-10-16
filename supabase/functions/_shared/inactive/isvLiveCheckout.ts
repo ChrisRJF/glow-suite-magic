@@ -26,10 +26,15 @@ export function deriveCapabilities(row: MerchantRow | null, acc: AuthoritativeAc
   if (!acc || !row.viva_account_id || acc.accountId !== row.viva_account_id) return off("retrieve_unavailable");
   if (acc.verified !== true) return off("kyc_not_verified");
   if (!acc.merchantId || !row.viva_merchant_id || acc.merchantId !== row.viva_merchant_id) return off("merchant_mismatch");
+  // Viva docs (Source for ISV): sources created for ISV merchants are physical-only;
+  // "For web-based payments, use the Default source code." So online needs no stored source,
+  // terminals need the salon's own physical source.
   const sc = (row.viva_source_code ?? "").trim();
-  if (!sc || sc === "1234") return off("source_code_missing");
-  return { online_payments_enabled: true, terminals_enabled: true, reason: "ok" };
+  const physical = !!sc && sc !== "1234" && sc.toLowerCase() !== "default";
+  return { online_payments_enabled: true, terminals_enabled: physical, reason: physical ? "ok" : "physical_source_missing" };
 }
+
+export const ISV_WEB_SOURCE_CODE = "Default";
 
 export type LiveOrder =
   | { ok: true; url: string; body: Record<string, unknown>; merchantId: string; feeCents: number }
@@ -50,7 +55,7 @@ export function prepareLiveIsvOrder(i: {
     ok: true, merchantId, feeCents,
     url: `${LIVE_ISV_API_HOST}/checkout/v2/isv/orders?merchantId=${encodeURIComponent(merchantId)}`,
     body: {
-      amount: i.amountCents, isvAmount: feeCents, sourceCode: r.viva_source_code!.trim(),
+      amount: i.amountCents, isvAmount: feeCents, sourceCode: ISV_WEB_SOURCE_CODE,
       customerTrns: i.description.slice(0, 100), merchantTrns: i.description.slice(0, 100),
       paymentTimeout: 1800, preauth: false, allowRecurring: false, maxInstallments: 1, disableCash: true,
       successUrl: i.successUrl, failureUrl: i.failureUrl,
