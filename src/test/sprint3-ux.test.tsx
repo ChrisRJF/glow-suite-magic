@@ -116,6 +116,12 @@ describe("Sprint 3 snelle start", () => {
     mock.serviceNames = ["Eigen dienst A", "Eigen dienst B", "Eigen dienst C"]; salonDraft(); wizard(); fireEvent.click(screen.getByRole("button", { name: "Volgende" }));
     await screen.findByRole("heading", { name: "Activeer GlowPay" }); expect(mock.insert).not.toHaveBeenCalled();
   });
+  it("vult na gedeeltelijke seeding alleen ontbrekende standaarddiensten aan", async () => {
+    mock.serviceNames = ["Knippen dames", " knippen HEREN "]; salonDraft(); wizard(); fireEvent.click(screen.getByRole("button", { name: "Volgende" }));
+    await screen.findByRole("heading", { name: "Activeer GlowPay" });
+    const names = mock.insert.mock.calls.map((c: any[]) => c[0].name);
+    expect(names).toContain("Kleuren"); expect(names).not.toContain("Knippen dames"); expect(names).not.toContain("Knippen heren");
+  });
   it("preview verandert geen DB of completionflags, ook bij logo", async () => {
     salonDraft(true); const close = vi.fn(); wizard(true, { onOpenChange: close });
     const original = URL.createObjectURL; URL.createObjectURL = vi.fn(() => "blob:synthetic");
