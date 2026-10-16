@@ -16,8 +16,8 @@ describe("per-salon ISV fee", () => {
     expect(computeIsvFee(4000, BUILTIN_FEE, "terminal").feeCents).toBe(60);
   });
   it("fee always stays below the total and salon net is amount minus fee", () => {
-    const b = computeIsvFee(20, cfg, "online");
-    expect(b.feeCents).toBe(19);
+    const b = computeIsvFee(5, cfg, "online");
+    expect(b.feeCents).toBe(4);
     expect(b.salonNetCents).toBe(1);
     expect(computeIsvFee(1, cfg, "online").feeCents).toBe(0);
   });
