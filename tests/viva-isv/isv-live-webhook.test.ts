@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
-import { handleIsvOnboardingEvent, isIsvOnboardingEvent, type IsvWebhookDeps } from "../../supabase/functions/_shared/inactive/isvLiveWebhook";
+import { handleIsvOnboardingEvent, isIsvOnboardingEvent, refreshLiveMerchants, type IsvWebhookDeps } from "../../supabase/functions/_shared/inactive/isvLiveWebhook";
 
 const ACC = "11111111-2222-4333-8444-555555555555";
 const MID = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
@@ -47,6 +47,13 @@ describe("ISV onboarding webhook 8193/8194", () => {
     await handleIsvOnboardingEvent({ ConnectedAccountId: ACC }, d);
     expect(calls[1]).toBe(`https://api.vivapayments.com/isv/v1/accounts/${ACC}`);
     expect(updates[0]).toMatchObject({ onboarding_status: "active", kyc_status: "verified", viva_merchant_id: MID });
+    expect(updates[0].online_payments_enabled).toBe(false);
+  });
+  it("periodic refresh with contract gate OFF never reads or changes any salon", async () => {
+    let reads = 0;
+    const admin = { from: () => { reads++; throw new Error("must not read"); } };
+    expect(await refreshLiveMerchants(admin, (n) => ON[n])).toMatchObject({ scanned: 0, synced: 0, blocked: "live_contract_gate_off" });
+    expect(reads).toBe(0);
   });
   it("token/Retrieve/update/lookup failures: no status update, retry 503", async () => {
     for (const o of [{ token: false }, { retrieve: null }, { rows: null }]) {
