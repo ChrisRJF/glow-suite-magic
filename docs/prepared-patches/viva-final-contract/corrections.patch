@@ -1,0 +1,94 @@
+--- a/supabase/functions/_shared/inactive/isvLiveConfirm.ts
++++ b/supabase/functions/_shared/inactive/isvLiveConfirm.ts
+@@ -2,7 +2,8 @@
+ // Mirrors the demo flow (../isvDemoConfirm.ts) on the LIVE host with LIVE ISV OAuth only.
+ // Endpoint: GET {LIVE_ISV_API_HOST}/checkout/v2/isv/transactions/{transactionId}?merchantId={merchantId}
+ // Status semantics (same as demo): statusId "F" = finished/paid; anything else = not paid.
+-// Amount in the response is in currency units (EUR), currencyCode "978".
++// Existing major-unit assumption is NOT verified for the exact LIVE ISV API.
++// Keep checkout disabled until authoritative units/schema are confirmed.
+ import { getLiveIsvToken, LIVE_ISV_API_HOST, type EnvGet } from "./isvLiveConfig.ts";
+ import type { Fetch } from "./isvOnboardingSafety.ts";
+ 
+@@ -56,10 +57,18 @@
+     });
+     if (!r.ok) return null;
+     const d: any = await r.json().catch(() => null);
+-    const amount = Number(d?.amount ?? d?.Amount);
+-    if (!d || !Number.isFinite(amount)) return null;
++    const amount = d?.amount ?? d?.Amount;
++    if (!d || typeof amount !== "number" || !Number.isFinite(amount)) return null;
++    // Never invent provider rounding. This checks precision under the existing
++    // major-unit assumption; it does NOT establish that assumption as correct.
++    const scaled = amount * 100;
++    const amountCents = Math.round(scaled);
++    const tolerance = Math.min(0.000001, Number.EPSILON * Math.max(1, Math.abs(scaled)) * 4);
++    if (!Number.isSafeInteger(amountCents) || Math.abs(scaled - amountCents) > tolerance) return null;
++    const returnedId = d.transactionId ?? d.TransactionId;
++    if (returnedId != null && (typeof returnedId !== "string" || returnedId.toLowerCase() !== transactionId.toLowerCase())) return null;
+     const mid = d.merchantId ?? d.MerchantId;
+-    return { statusId: String(d.statusId ?? d.StatusId ?? ""), amountCents: Math.round(amount * 100),
++    return { statusId: String(d.statusId ?? d.StatusId ?? ""), amountCents,
+       currencyCode: String(d.currencyCode ?? d.CurrencyCode ?? ""), orderCode: String(d.orderCode ?? d.OrderCode ?? ""), merchantId: mid ? String(mid) : null, parentId: d.parentId ?? d.ParentId ?? null };
+   } catch { return null; }
+ }
+--- /dev/null
++++ b/tests/viva-isv/isv-live-contract.test.ts
+@@ -0,0 +1,57 @@
++import { describe, it, expect } from "vitest";
++import { fetchLiveIsvTransaction } from "../../supabase/functions/_shared/inactive/isvLiveConfirm.ts";
++import { handleLivePaymentEvent, type WebhookDeps } from "../../supabase/functions/_shared/inactive/isvLivePayments.ts";
++const MID = "11111111-2222-3333-4444-555555555555";
++const TX = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
++const env = (n: string) => ({ VIVA_ISV_LIVE_ENABLED: "true", VIVA_ISV_LIVE_CLIENT_ID: "test-id", VIVA_ISV_LIVE_CLIENT_SECRET: "test-secret" } as Record<string, string>)[n];
++const tx = { transactionId: TX, statusId: "F", amount: 25, currencyCode: "978", orderCode: "1234567890", merchantId: MID };
++const lookup = (body: unknown) => fetchLiveIsvTransaction(env, MID, TX, async (url) => new Response(JSON.stringify(url.includes("token") ? { access_token: "test-token" } : body)));
++describe("prepared parser safety, not provider unit evidence", () => {
++  it.each([null, "", false, true, "25", [], {}])("rejects malformed amount %j", async (amount) => {
++    expect(await lookup({ ...tx, amount })).toBeNull();
++  });
++  it.each([1.005, -1.005, Number.MAX_SAFE_INTEGER])("does not invent rounding for %s", async (amount) => {
++    expect(await lookup({ ...tx, amount })).toBeNull();
++  });
++  it.each([[12.5, 1250], [-12.5, -1250], [0.29, 29], [-0.29, -29]])("preserves exact assumed cents %s", async (amount, amountCents) => {
++    expect(await lookup({ ...tx, amount })).toMatchObject({ amountCents });
++  });
++  it("rejects returned transaction ID mismatch", async () => {
++    expect(await lookup({ ...tx, transactionId: MID })).toBeNull();
++  });
++  it("accepts identical UUID with case differences", async () => {
++    expect(await lookup({ ...tx, transactionId: TX.toUpperCase() })).toMatchObject({ amountCents: 2500 });
++  });
++});
++describe("untrusted event never proves a payment", () => {
++  function deps(response: unknown) {
++    const writes: string[] = [];
++    const d: WebhookDeps = {
++      env, enabled: true,
++      fetch: async (url, init) => {
++        if (!url.includes("token")) expect(init?.headers).toMatchObject({ Authorization: "Bearer test-token" });
++        return new Response(JSON.stringify(url.includes("token") ? { access_token: "test-token" } : response));
++      },
++      findByOrderCode: async () => ({ id: "p", user_id: "t", status: "pending", provider: "viva", is_demo: false, amount: 25, metadata: { route: "viva_isv_live", viva_merchant_id: MID, viva_order_code: "1234567890" } }),
++      loadVerifiedMerchant: async () => ({ user_id: "t", viva_merchant_id: MID, verified: true }),
++      loadSnapshot: async () => ({ amount_cents: 2500, fee_cents: 35 }),
++      markPaid: async () => { writes.push("paid"); return true; },
++      markFailedIfPending: async () => { writes.push("failed"); },
++      recordRefund: async () => { writes.push("refund"); return "ok"; },
++    };
++    return { d, writes };
++  }
++  it.each([{ amount: 1 }, { currencyCode: "840" }, { orderCode: "999" }, { merchantId: TX }, { statusId: "A" }])("holds API mismatch %j despite claimed F and Amount", async (override) => {
++    const { d, writes } = deps({ ...tx, ...override });
++    await handleLivePaymentEvent(1796, { OrderCode: "1234567890", TransactionId: TX, MerchantId: MID, StatusId: "F", Amount: 2500 }, d, "now");
++    expect(writes).toEqual([]);
++  });
++  it("off means no lookup or write for an untrusted POST", async () => {
++    const { d, writes } = deps(tx);
++    d.enabled = undefined;
++    d.findByOrderCode = async () => { throw new Error("unexpected read"); };
++    d.fetch = async () => { throw new Error("unexpected network"); };
++    expect(await handleLivePaymentEvent(1796, { OrderCode: "1234567890", TransactionId: TX }, d, "now")).toEqual({ status: 200, note: "live_disabled" });
++    expect(writes).toEqual([]);
++  });
++});
