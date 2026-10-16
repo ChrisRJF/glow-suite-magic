@@ -2646,6 +2646,77 @@ export type Database = {
         }
         Relationships: []
       }
+      isv_payment_orders: {
+        Row: {
+          checkout_url: string | null
+          created_at: string
+          failure_reason: string | null
+          merchant_id: string
+          order_code: string | null
+          payment_id: string
+          request_key: string
+          state: string
+          tenant_id: string
+          transaction_id: string | null
+        }
+        Insert: {
+          checkout_url?: string | null
+          created_at?: string
+          failure_reason?: string | null
+          merchant_id: string
+          order_code?: string | null
+          payment_id: string
+          request_key: string
+          state?: string
+          tenant_id: string
+          transaction_id?: string | null
+        }
+        Update: {
+          checkout_url?: string | null
+          created_at?: string
+          failure_reason?: string | null
+          merchant_id?: string
+          order_code?: string | null
+          payment_id?: string
+          request_key?: string
+          state?: string
+          tenant_id?: string
+          transaction_id?: string | null
+        }
+        Relationships: []
+      }
+      isv_payment_refunds: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          fee_cents: number
+          payment_id: string
+          transaction_id: string
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          fee_cents: number
+          payment_id: string
+          transaction_id: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          fee_cents?: number
+          payment_id?: string
+          transaction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "isv_payment_refunds_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "isv_payment_orders"
+            referencedColumns: ["payment_id"]
+          },
+        ]
+      }
       kassa_order_lines: {
         Row: {
           id: string
@@ -6240,6 +6311,27 @@ export type Database = {
         Returns: boolean
       }
       isv_fee_config: { Args: { _tenant: string }; Returns: Json }
+      isv_payment_attach: {
+        Args: {
+          _checkout_url: string
+          _order_code: string
+          _payment_id: string
+        }
+        Returns: boolean
+      }
+      isv_payment_record: {
+        Args: {
+          _amount_cents: number
+          _kind: string
+          _payment_id: string
+          _transaction_id: string
+        }
+        Returns: string
+      }
+      isv_payment_reserve: {
+        Args: { _payment: Json; _snapshot: Json }
+        Returns: string
+      }
       kassa_actor_tenant: {
         Args: { _actor: string }
         Returns: {
