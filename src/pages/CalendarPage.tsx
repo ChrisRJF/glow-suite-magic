@@ -42,7 +42,7 @@ import { DayApptDraggable, DaySlotDroppable } from "@/components/CalendarDayDnd"
 import { resolveDropTarget, validateDropWindow, isTouchActivation, agendaCollision } from "@/lib/calendarDrop";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { EmployeeColumnDayView } from "@/components/EmployeeColumnDayView";
-import { staffLabels } from "@/lib/agendaStaff";
+import { staffLabels, noteStaffName, NO_STAFF_MESSAGE } from "@/lib/agendaStaff";
 import { MoveAppointmentSheet, type MoveTarget } from "@/components/MoveAppointmentSheet";
 import { SmartReflowDialog, type ReflowAppointment } from "@/components/SmartReflowDialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -249,6 +249,22 @@ export default function CalendarPage() {
   };
 
 
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewPick, setReviewPick] = useState<Record<string, string>>({});
+  const [assigningId, setAssigningId] = useState<string | null>(null);
+  // Explicit, per-appointment assignment chosen by the user. Never automatic.
+  const assignReviewed = async (apt: any) => {
+    const empId = reviewPick[apt.id];
+    if (!empId || !user || !activeDbEmployees.some((e: any) => e.id === empId)) return;
+    setAssigningId(apt.id);
+    const { error } = await (supabase.from("appointment_employees") as any).insert({
+      appointment_id: apt.id, employee_id: empId, user_id: user.id, is_primary: true, is_demo: apt.is_demo === true,
+    });
+    setAssigningId(null);
+    if (error) { toast.error("Toewijzen is niet gelukt. Er is niets gewijzigd."); return; }
+    toast.success(`Toegewezen aan ${staffLabelMap.get(empId) || "medewerker"}`);
+    refetchApptEmps();
+  };
   const staffLabelMap = useMemo(() => staffLabels(displayEmployees as any), [displayEmployees]);
   const dateStr = formatLocalDate(currentDate);
   const currentDayOfWeek = currentDate.getDay() === 0 ? 7 : currentDate.getDay(); // 1=ma..7=zo
@@ -557,6 +573,7 @@ export default function CalendarPage() {
   };
 
   const handlePrepareConfirmation = () => {
+    if (activeDbEmployees.length > 0 && selectedEmployeeIds.length === 0) { toast.error(NO_STAFF_MESSAGE); return; }
     if (!form.customer_id || !form.service_id || !form.date || !form.time) { toast.error("Vul alle velden in"); return; }
     if (subAppts.length > 0) {
       const options = generatePlacementOptions();
@@ -725,6 +742,7 @@ export default function CalendarPage() {
 
   const handleAdd = async () => {
     if (savingRef.current) return;
+    if (activeDbEmployees.length > 0 && selectedEmployeeIds.length === 0) { toast.error(NO_STAFF_MESSAGE); return; }
     savingRef.current = true; setSaving(true);
     try {
       if (pendingBodyRef.current) { await atomicCreate(pendingOwnerRef.current?.tenantId ?? null); return; }
@@ -741,6 +759,7 @@ export default function CalendarPage() {
   // LEGACY-UNCHANGED: used only while atomic_agenda_enabled is off for this salon.
   const legacyHandleAdd = async () => {
     if (!form.customer_id || !form.service_id || !form.date || !form.time) { toast.error("Vul alle velden in"); return; }
+    if (activeDbEmployees.length > 0 && selectedEmployeeIds.length === 0) { toast.error(NO_STAFF_MESSAGE); return; }
     const svc = services.find(s => s.id === form.service_id);
     const mainEmployee = placementOptions.length > 0 ? placementOptions[selectedOption].placements[0]?.employee : '';
     const dt = `${form.date}T${form.time}:00`;
@@ -797,7 +816,7 @@ export default function CalendarPage() {
         is_demo: (result as any).is_demo === true,
       }));
       const { error: aeErr } = await (supabase.from("appointment_employees") as any).insert(rows);
-      if (aeErr) console.error("appointment_employees insert error", aeErr);
+      if (aeErr) { console.error("appointment_employees insert error", aeErr); toast.error("De afspraak staat erin, maar de medewerker is niet gekoppeld. Wijs de medewerker toe via 'Afspraken zonder medewerker'."); }
     }
 
     if (result && subAppts.length > 0 && user) {
@@ -1980,6 +1999,7 @@ export default function CalendarPage() {
             onRequestMove={openMoveSheet}
             onSlotClick={(empId, slot) => openAddModal(dateStr, slot)}
             onOpenAppointment={(apt) => setDossierAppt(apt)}
+            onReviewUnassigned={() => setReviewOpen(true)}
             draggable
           />
         ) : (
@@ -2043,6 +2063,40 @@ export default function CalendarPage() {
         )}
         </DndContext>
       </div>
+      <Sheet open={reviewOpen} onOpenChange={setReviewOpen}>
+        <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto pb-[calc(1rem+env(safe-area-inset-bottom))]">
+          <SheetHeader><SheetTitle>Afspraken zonder medewerker</SheetTitle></SheetHeader>
+          <p className="text-xs text-muted-foreground mt-1">Deze afspraken op {currentDate.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' })} zijn aan niemand gekoppeld. Kies zelf de juiste medewerker. Een naam in de notitie wordt niet automatisch overgenomen.</p>
+          <div className="mt-3 space-y-2">
+            {appointments.filter(a => getAppointmentDate(a) === dateStr && getColumnIdForAppointment(a) === 'unassigned').map((apt: any) => {
+              const cust = customers.find(c => c.id === apt.customer_id);
+              const svc = services.find(s => s.id === apt.service_id);
+              const note = noteStaffName(apt.notes);
+              return (
+                <div key={apt.id} className="rounded-xl border border-border p-3">
+                  <button type="button" className="text-left w-full" onClick={() => { setReviewOpen(false); setDossierAppt(apt); }}>
+                    <p className="text-sm font-medium">{getAppointmentTime(apt)} · {cust?.name || 'Klant'}</p>
+                    <p className="text-xs text-muted-foreground">{svc?.name || ''}{note ? ` · Notitie: ${note}` : ''}</p>
+                  </button>
+                  {activeDbEmployees.length > 0 ? (
+                    <div className="mt-2 flex gap-2">
+                      <select aria-label={`Medewerker voor ${cust?.name || 'afspraak'}`} value={reviewPick[apt.id] || ''}
+                        onChange={e => setReviewPick(p => ({ ...p, [apt.id]: e.target.value }))}
+                        className="flex-1 h-10 rounded-lg border border-border bg-background px-2 text-sm">
+                        <option value="">Kies medewerker</option>
+                        {activeDbEmployees.map((e: any) => <option key={e.id} value={e.id}>{staffLabelMap.get(e.id) || e.name}</option>)}
+                      </select>
+                      <Button className="h-10" disabled={!reviewPick[apt.id] || assigningId === apt.id} onClick={() => assignReviewed(apt)}>
+                        {assigningId === apt.id ? 'Bezig...' : 'Toewijzen'}
+                      </Button>
+                    </div>
+                  ) : <p className="mt-2 text-xs text-muted-foreground">Voeg eerst medewerkers toe om deze afspraak toe te wijzen.</p>}
+                </div>
+              );
+            })}
+          </div>
+        </SheetContent>
+      </Sheet>
 
       <MoveAppointmentSheet
         open={moveSheetOpen}
