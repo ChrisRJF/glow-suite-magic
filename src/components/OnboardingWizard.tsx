@@ -252,7 +252,7 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
       if (step === TOTAL - 1) { finish(); return; }
       setStep(step + 1);
     } catch (e: unknown) {
-      toast.error(describeOnboardingSaveError(e));
+      (console.log("ERR", e), toast.error(describeOnboardingSaveError(e)));
     } finally { busyRef.current = false; setSaving(false); }
   };
 
