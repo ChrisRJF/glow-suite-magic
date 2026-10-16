@@ -36,7 +36,16 @@ const compiled = ts.transpileModule(
   { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } },
 ).outputText;
 
-const context = vm.createContext({ Intl, globalThis: {} });
+// The sender imports its language helpers from _shared/emailTranslations.ts;
+// load that real module so the extracted templates use the same strings.
+const translationsSrc = readFileSync("supabase/functions/_shared/emailTranslations.ts", "utf8");
+const translationsJs = ts.transpileModule(translationsSrc, {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+}).outputText;
+const translationsModule = { exports: {} as Record<string, unknown> };
+vm.runInContext(translationsJs, vm.createContext({ Intl, module: translationsModule, exports: translationsModule.exports }));
+
+const context = vm.createContext({ Intl, globalThis: {}, ...translationsModule.exports });
 vm.runInContext(compiled, context);
 
 const renderTemplate = (context.globalThis as { __renderTemplate: (key: TemplateKey, data: Record<string, unknown>, salonName: string, branding: SalonFixture["branding"]) => { html: string; subject: string; text: string } }).__renderTemplate;
