@@ -524,6 +524,7 @@ function GlowPayStep({ demo, onLater }: { demo: boolean; onLater: () => void }) 
         <img src={glowpayLogo.url} alt="GlowPay" width={1470} height={335} className="h-auto w-44 max-w-full rounded-md object-contain" />
         <h2 className="text-2xl font-bold tracking-tight">Activeer GlowPay</h2>
         <p className="text-sm text-muted-foreground">
+          GlowPay is de betaaloplossing van GlowSuite.
           Je maakt zelf een account aan bij onze betaalpartner Viva, of je koppelt je bestaande Viva-account.
           Viva controleert je bedrijfsgegevens. Dat is een aparte stap en kan even duren.
           GlowSuite kun je ondertussen gewoon gebruiken.
