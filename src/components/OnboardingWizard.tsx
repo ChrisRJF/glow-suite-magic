@@ -522,6 +522,43 @@ function GlowPayStep({ demo, previewMode = false, salonName, onLater }: { demo: 
   const status: PayStatus = pay ?? "not_started";
   const tone = (ok: boolean) => ok ? "text-success" : "text-muted-foreground";
 
+  // Alleen interactief voor een ingelogde, niet-demo gebruiker buiten preview.
+  const canInvite = Boolean(user && !demo && !previewMode && salonName.trim() && user.email);
+
+  const startVivaInvite = async () => {
+    // Single-flight: nooit twee registratieverzoeken tegelijk of na elkaar
+    // automatisch herhalen. Alleen een expliciete nieuwe klik mag opnieuw.
+    if (!canInvite || inviteFlight.current) return;
+    inviteFlight.current = true;
+    setInviteBusy(true);
+    setInviteMsg(null);
+    const forUserId = user!.id;
+    try {
+      const { data: res, error } = await supabase.functions.invoke("create-viva-connected-account", {
+        body: { business_name: salonName.trim(), contact_email: user!.email, country: "NL" },
+      });
+      // Gebruiker is tijdens het wachten gewisseld: nooit met een vorige
+      // gebruikers-URL navigeren of status tonen.
+      if (user?.id !== forUserId) return;
+      const action = error
+        ? inviteActionFromError(error)
+        : inviteActionFromResponse((res as any) ?? {});
+      if (action.kind === "navigate") {
+        // Zelfde tabblad; de wizard-stap is al in localStorage bewaard en Viva
+        // stuurt na afronden terug naar /glowpay/registratie-status.
+        window.location.assign(action.url);
+        return;
+      }
+      setInviteMsg(action.text);
+    } catch (e) {
+      if (user?.id !== forUserId) return;
+      setInviteMsg(inviteActionFromError(e).kind === "message" ? (inviteActionFromError(e) as any).text : INVITE_UNAVAILABLE);
+    } finally {
+      inviteFlight.current = false;
+      setInviteBusy(false);
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-lg mx-auto" data-testid="glowpay-step">
       <div className="space-y-3">
