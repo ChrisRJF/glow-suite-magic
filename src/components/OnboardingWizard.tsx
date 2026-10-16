@@ -592,14 +592,24 @@ function GlowPayStep({ demo, previewMode = false, salonName, onLater }: { demo: 
 
       {status !== "active" && (
         <div className="space-y-2">
-          <Button variant="outline" className="w-full disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100 disabled:shadow-none" disabled aria-describedby="glowpay-soon">
-            <LockKeyhole aria-hidden="true" />
-            Activeer GlowPay via Viva
+          <Button
+            variant="outline"
+            className="w-full disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100 disabled:shadow-none"
+            disabled={!canInvite || inviteBusy}
+            onClick={startVivaInvite}
+            aria-describedby="glowpay-soon"
+            data-testid="glowpay-invite-button"
+          >
+            {inviteBusy ? <Loader2 className="animate-spin" aria-hidden="true" /> : <LockKeyhole aria-hidden="true" />}
+            {inviteBusy ? "Aanvraag wordt verstuurd..." : "Account aanmaken of koppelen bij Viva"}
           </Button>
+          {inviteMsg && (
+            <p className="text-xs text-center text-muted-foreground" role="status" data-testid="glowpay-invite-message">{inviteMsg}</p>
+          )}
           <p id="glowpay-soon" className="text-xs text-muted-foreground text-center">
-            {demo
+            {demo || previewMode
               ? "In de demo kun je GlowPay niet activeren. Er worden geen echte betalingen verwerkt."
-              : "Activeren is beschikbaar zodra de partnerkoppeling met Viva gereed is."}
+              : "De koppeling met Viva wordt nu ingeschakeld. Lukt het nog niet, probeer het later of neem contact op met GlowSuite."}
           </p>
           <Button variant="ghost" className="w-full" onClick={onLater}>Later activeren</Button>
         </div>
