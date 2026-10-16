@@ -73,10 +73,15 @@ export type LiveCreateResult =
 
 /** Idempotent LIVE create. Refuses before any call when row/payload/config is unsafe. */
 export async function createLiveAccount(
+  sessionUserId: string | null,
   row: MerchantRow | null,
   input: { email: string; returnUrl: string; branding: Branding },
   rawGet: EnvGet, f: Fetch,
 ): Promise<LiveCreateResult> {
+  if (!sessionUserId) return { ok: false, reason: "unauthorized" };
+  if (row && row.user_id !== sessionUserId) return { ok: false, reason: "tenant_mismatch" };
+  const config = loadLiveIsvConfig(rawGet);
+  if (!config.ok) return { ok: false, reason: config.reason };
   const step = decideCreateV2(row, "live");
   if (step.action === "refuse") return { ok: false, reason: step.reason };
   if (step.action === "reuse") return { ok: true, action: "reuse", redirectUrl: step.redirectUrl };
@@ -95,7 +100,8 @@ export async function createLiveAccount(
   } catch { return { ok: false, reason: "viva_create_failed" }; }
 }
 
-export async function retrieveLiveAccount(accountId: string, rawGet: EnvGet, f: Fetch): Promise<AccountV2 | null> {
+/** Low-level parser adapter. Only call with an ID obtained from a session-scoped row. */
+async function retrieveLiveAccount(accountId: string, rawGet: EnvGet, f: Fetch): Promise<AccountV2 | null> {
   if (!/^[0-9a-fA-F-]{8,64}$/.test(accountId)) return null;
   const token = await getLiveIsvToken(rawGet, f);
   if (!token) return null;
@@ -106,7 +112,9 @@ export async function retrieveLiveAccount(accountId: string, rawGet: EnvGet, f: 
 }
 
 /** LIVE payment readiness: config on + authoritative Retrieve + V2 gate (incl. source code). */
-export async function liveAccountStatus(row: MerchantRow | null, rawGet: EnvGet, f: Fetch) {
+export async function liveAccountStatus(sessionUserId: string | null, row: MerchantRow | null, rawGet: EnvGet, f: Fetch) {
+  if (!sessionUserId) return { ok: false, reason: "unauthorized" };
+  if (row && row.user_id !== sessionUserId) return { ok: false, reason: "tenant_mismatch" };
   const c = loadLiveIsvConfig(rawGet);
   if (!c.ok) return { ok: false, reason: c.reason };
   if (!row?.viva_account_id) return { ok: false, reason: "not_connected" };

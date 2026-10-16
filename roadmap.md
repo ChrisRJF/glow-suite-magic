@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Eén inactieve LIVE ISV-voorbereiding: eigen secretnamen, default-off configuratie, token/create/retrieve/status en fictieve tests; geen activatie of externe verzoeken.
+
 - [x] Laatste mobiele voorbeeldkopcorrectie: in previewmodus verbergen "Nu sluiten" en "Verder via Instellingen › Snelle setup" op smalle schermen (44px-X blijft), kop compact zodat "Stap 3 van 7" 12px onder de disclaimer staat; desktop en normale onboarding onveranderd; 25 tests geslaagd, stappen 1/3/7 fictief gecontroleerd op 390/1440 px; geen echte gegevens of publicatie.
 
 - [x] Eén previewpolish: mobiele voorbeeldkop met disclaimer op eigen regel en vrije 44px-sluitknop; GlowPay-logo stap 3 15,4% kleiner; stap 7 en overige inhoud ongewijzigd; stappen 1/3/7 fictief gecontroleerd op 390/1440 px, sluitactie geslaagd, 25 relevante tests geslaagd; geen echte gegevens of publicatie.

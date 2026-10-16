@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  LIVE_ISV_SECRET_NAMES, loadLiveIsvConfig, liveIsvStatus, getLiveIsvToken, createLiveAccount, retrieveLiveAccount, liveAccountStatus, scopedEnv,
+  LIVE_ISV_SECRET_NAMES, loadLiveIsvConfig, liveIsvStatus, getLiveIsvToken, createLiveAccount, liveAccountStatus, scopedEnv,
 } from "../../supabase/functions/_shared/inactive/isvLiveConfig";
 import { GLOWPAY_LOGO_URL } from "../../supabase/functions/_shared/inactive/isvOnboardingV2";
 import type { MerchantRow } from "../../supabase/functions/_shared/inactive/isvOnboardingSafety";
@@ -56,30 +56,51 @@ describe("create", () => {
   const created = { ...TOKEN, "/isv/v1/accounts": { accountId: ACC, invitation: { redirectUrl: "https://www.vivapayments.com/inv/1" } } };
   it("creates on LIVE API host", async () => {
     const calls: string[] = [];
-    const r = await createLiveAccount(null, input, ON, viva(created, calls));
+    const r = await createLiveAccount("salon-a", null, input, ON, viva(created, calls));
     expect(r).toMatchObject({ ok: true, action: "created", accountId: ACC });
     expect(calls[1]).toBe("https://api.vivapayments.com/isv/v1/accounts");
   });
   it("missing brand colour refuses before any call", async () => {
     const calls: string[] = [];
-    const r = await createLiveAccount(null, { ...input, branding: { ...input.branding, primaryColor: null } }, ON, viva(created, calls));
+    const r = await createLiveAccount("salon-a", null, { ...input, branding: { ...input.branding, primaryColor: null } }, ON, viva(created, calls));
     expect(r).toEqual({ ok: false, reason: "invalid_payload" }); expect(calls).toHaveLength(0);
   });
-  it("demo row never used for LIVE", async () => expect(await createLiveAccount(row({ is_demo: true, viva_account_id: ACC }), input, ON, viva(created))).toEqual({ ok: false, reason: "env_mismatch" }));
+  it("demo row never used for LIVE", async () => expect(await createLiveAccount("salon-a", row({ is_demo: true, viva_account_id: ACC }), input, ON, viva(created))).toEqual({ ok: false, reason: "env_mismatch" }));
   it("existing account reuses link, no second account", async () => {
     const calls: string[] = [];
-    const r = await createLiveAccount(row({ viva_account_id: ACC, onboarding_status: "invited", onboarding_url: "https://www.vivapayments.com/inv/1" }), input, ON, viva(created, calls));
+    const r = await createLiveAccount("salon-a", row({ viva_account_id: ACC, onboarding_status: "invited", onboarding_url: "https://www.vivapayments.com/inv/1" }), input, ON, viva(created, calls));
     expect(r.ok && r.action).toBe("reuse"); expect(calls).toHaveLength(0);
+  });
+});
+
+describe("tenant and activation checks", () => {
+  it("create disabled even when an invitation exists", async () => {
+    const calls: string[] = [];
+    expect(await createLiveAccount("salon-a", row({ viva_account_id: ACC, onboarding_status: "invited", onboarding_url: "https://www.vivapayments.com/inv/1" }), input, envOf({}), viva(TOKEN, calls))).toEqual({ ok: false, reason: "live_isv_disabled" });
+    expect(calls).toHaveLength(0);
+  });
+  it("cross-tenant create and retrieve refuse before any call", async () => {
+    const calls: string[] = [];
+    const foreign = row({ user_id: "salon-b", viva_account_id: ACC });
+    expect(await createLiveAccount("salon-a", foreign, input, ON, viva(TOKEN, calls))).toEqual({ ok: false, reason: "tenant_mismatch" });
+    expect(await liveAccountStatus("salon-a", foreign, ON, viva(TOKEN, calls))).toEqual({ ok: false, reason: "tenant_mismatch" });
+    expect(calls).toHaveLength(0);
+  });
+  it("missing session refuses", async () => {
+    const calls: string[] = [];
+    expect(await createLiveAccount(null, null, input, ON, viva(TOKEN, calls))).toEqual({ ok: false, reason: "unauthorized" });
+    expect(await liveAccountStatus(null, row(), ON, viva(TOKEN, calls))).toEqual({ ok: false, reason: "unauthorized" });
+    expect(calls).toHaveLength(0);
   });
 });
 
 describe("retrieve and status", () => {
   const ret = (o: any) => ({ ...TOKEN, [`/isv/v1/accounts/${ACC}`]: { accountId: ACC, verified: true, acquiringEnabled: true, merchantId: MID, ...o } });
   const linked = row({ viva_account_id: ACC, viva_merchant_id: MID, viva_source_code: "fake-src", onboarding_status: "active" });
-  it("strict parse", async () => expect(await retrieveLiveAccount(ACC, ON, viva(ret({ verified: "yes" })))).toBeNull());
-  it("ready only when all confirmed", async () => expect((await liveAccountStatus(linked, ON, viva(ret({})))).ok).toBe(true));
-  it("acquiring off blocks", async () => expect((await liveAccountStatus(linked, ON, viva(ret({ acquiringEnabled: false })))).reason).toBe("acquiring_disabled"));
-  it("source code missing blocks", async () => expect((await liveAccountStatus({ ...linked, viva_source_code: null }, ON, viva(ret({})))).reason).toBe("source_code_missing"));
-  it("switch off blocks before Viva", async () => expect((await liveAccountStatus(linked, envOf({}), viva(ret({})))).reason).toBe("live_isv_disabled"));
-  it("Viva down blocks", async () => expect((await liveAccountStatus(linked, ON, viva(TOKEN))).ok).toBe(false));
+  it("strict parse blocks", async () => expect((await liveAccountStatus("salon-a", linked, ON, viva(ret({ verified: "yes" })))).ok).toBe(false));
+  it("ready only when all confirmed", async () => expect((await liveAccountStatus("salon-a", linked, ON, viva(ret({})))).ok).toBe(true));
+  it("acquiring off blocks", async () => expect((await liveAccountStatus("salon-a", linked, ON, viva(ret({ acquiringEnabled: false })))).reason).toBe("acquiring_disabled"));
+  it("source code missing blocks", async () => expect((await liveAccountStatus("salon-a", { ...linked, viva_source_code: null }, ON, viva(ret({})))).reason).toBe("source_code_missing"));
+  it("switch off blocks before Viva", async () => expect((await liveAccountStatus("salon-a", linked, envOf({}), viva(ret({})))).reason).toBe("live_isv_disabled"));
+  it("Viva down blocks", async () => expect((await liveAccountStatus("salon-a", linked, ON, viva(TOKEN))).ok).toBe(false));
 });
