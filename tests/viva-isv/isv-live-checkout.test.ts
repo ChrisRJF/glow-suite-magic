@@ -21,9 +21,11 @@ describe("LIVE ISV capabilities (Retrieve only)", () => {
   });
   it("Retrieve failure = off", () => expect(deriveCapabilities(row, null).reason).toBe("retrieve_unavailable"));
   it("wrong merchant = off", () => expect(deriveCapabilities(row, { ...acc, merchantId: "99999999-2222-3333-4444-555555555555" }).reason).toBe("merchant_mismatch"));
-  it("missing or placeholder source code = off", () => {
-    expect(deriveCapabilities({ ...row, viva_source_code: null }, acc).reason).toBe("source_code_missing");
-    expect(deriveCapabilities({ ...row, viva_source_code: "1234" }, acc).reason).toBe("source_code_missing");
+  it("online uses Viva's Default web source; terminals need the salon's own physical source", () => {
+    const c = deriveCapabilities({ ...row, viva_source_code: null }, acc);
+    expect(c.online_payments_enabled).toBe(true);
+    expect(c.terminals_enabled).toBe(false);
+    expect(deriveCapabilities({ ...row, viva_source_code: "1234" }, acc).terminals_enabled).toBe(false);
   });
   it("demo merchant row = off", () => expect(deriveCapabilities({ ...row, is_demo: true }, acc).online_payments_enabled).toBe(false));
 });
@@ -38,7 +40,8 @@ describe("LIVE ISV order builder", () => {
     expect(o.ok).toBe(true);
     if (o.ok) {
       expect(o.url).toBe(`https://api.vivapayments.com/checkout/v2/isv/orders?merchantId=${MID}`);
-      expect(o.body.sourceCode).toBe("5555");
+      expect(o.body.sourceCode).toBe("Default");
+      expect(o.url).not.toMatch(/checkout\/v2\/orders/);
     }
   });
   it("blocks other tenant, disabled capability and bad amount", () => {

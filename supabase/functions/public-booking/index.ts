@@ -620,6 +620,12 @@ Deno.serve(async (req) => {
           provider = "none";
         }
       }
+      if (provider === "mollie" && !isDemo) {
+        // Fail-closed (security): salon customer payments never run through Mollie.
+        paymentInitError = "Je afspraak is vastgelegd. Online aanbetalen is bij deze salon nog niet beschikbaar; de salon regelt de betaling met je.";
+        paymentStatus = "payment_pending";
+        provider = "none";
+      }
       if (provider === "mollie") {
         // Mollie (default fallback) — unchanged
         const payment = await createMolliePayment({
@@ -667,7 +673,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      const nextPaymentStatus = paymentStatus === "paid" ? "paid" : paymentInitError ? "payment_failed" : "pending";
+      const nextPaymentStatus = paymentStatus === "paid" ? "paid" : paymentStatus === "payment_pending" ? "payment_pending" : paymentInitError ? "payment_failed" : "pending";
       if (bookingGroupId) await supabase.from("appointments").update({ payment_status: nextPaymentStatus, status: paymentStatus === "paid" ? "confirmed" : "pending_confirmation" }).eq("booking_group_id", bookingGroupId).eq("user_id", ctx.settings.user_id);
       await supabase.from("appointments").update({ payment_status: nextPaymentStatus, status: paymentStatus === "paid" ? "confirmed" : "pending_confirmation" }).eq("id", primaryAppointment.id);
     }
