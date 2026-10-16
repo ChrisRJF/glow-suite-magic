@@ -177,6 +177,7 @@ const App = () => (
               <Route path="/admin/demo-requests" element={<RoleProtectedRoute allow={["eigenaar","manager","admin"]}><AdminDemoRequestsPage /></RoleProtectedRoute>} />
               <Route path="/platform" element={<PlatformPage />} />
               <Route path="/platform/viva-webhooks" element={<PlatformVivaWebhooksPage />} />
+              <Route path="/platform/isv-fees" element={<PlatformIsvFeesPage />} />
               <Route path="*" element={<RoleProtectedRoute><NotFound /></RoleProtectedRoute>} />
             </Routes>
           </BrowserRouter>
