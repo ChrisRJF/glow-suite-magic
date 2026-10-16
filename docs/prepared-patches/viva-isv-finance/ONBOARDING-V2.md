@@ -37,3 +37,6 @@ Code: `supabase/functions/_shared/inactive/isvOnboardingV2.ts` (builds on `isvOn
 - Hosts fixed to LIVE: token `accounts.vivapayments.com/connect/token`, API `api.vivapayments.com`.
 - Fail closed: switch off, missing credentials, token/Viva failure, unparseable response, demo row, missing brand hex or source code.
 - Open blockers: brand hex for `primaryColor`; live source-code provisioning; token scope for ISV accounts unverified on LIVE; logo URL still the older ISV asset (official GlowPay logo needs a public https URL).
+- Session-derived user ID must match the supplied row before create/status; no database writes are implemented here. The future adapter must enforce tenant-scoped lookup, atomic create claims and persistence. Ambiguous create outcomes require reconciliation, never automatic retry (otherwise duplicate external accounts are possible).
+- LIVE status readiness here is only a prepared check, not a payment-routing activation or permission. No active function imports this module. The account/token contracts remain DEMO-derived, not LIVE-verified.
+- The earlier activation list is historical planning, not permission to execute. Credentials are now present; enable switch remains absent/off. No secret was read or changed during preparation.

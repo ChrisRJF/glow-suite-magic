@@ -6,7 +6,7 @@
 - DashboardPage passes its existing tomorrow-risk count to TodayAtAGlance for mobile consolidation only; why: the customer-wide selector and both existing action destinations remain intact without changing desktop metrics.
 
 - Per-tenant feature gates live in public.tenant_feature_flags (read-only for app users, set only by platform admins) and are enforced inside the SECURITY DEFINER RPCs; why: client flags or emails can be spoofed.
-- Not-yet-approved edge code lives in supabase/functions/_shared/inactive/ and proposed SQL in docs/proposed-migrations/, never imported by an entrypoint; why: edge function edits deploy automatically.
+- Unapproved edge code stays in _shared/inactive/ and SQL in docs/proposed-migrations/; LIVE ISV uses separate secrets and a default-off gate (functions/AGENTS.md); why: active edits deploy automatically.
 - The customer email stop switch is the single row in public.customer_email_controls, read fresh on every send and fail-closed; why: a database value takes effect without redeploy, unlike secrets.
 - Employee availability rules live only in supabase/functions/_shared/inactive/employeeSchedule.ts (re-exported by src/lib/employeeSchedule.ts) and are used by calendar, booking page and public-booking; why: calendar and booking must agree.
 - Onboarding quick start and extended setup share OnboardingWizard's saveSalon and finish paths; why: one completion path preserves preview isolation, default-service seeding and existing gate flags.
