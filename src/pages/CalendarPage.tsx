@@ -42,6 +42,7 @@ import { DayApptDraggable, DaySlotDroppable } from "@/components/CalendarDayDnd"
 import { resolveDropTarget, validateDropWindow, isTouchActivation, agendaCollision } from "@/lib/calendarDrop";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { EmployeeColumnDayView } from "@/components/EmployeeColumnDayView";
+import { staffLabels } from "@/lib/agendaStaff";
 import { MoveAppointmentSheet, type MoveTarget } from "@/components/MoveAppointmentSheet";
 import { SmartReflowDialog, type ReflowAppointment } from "@/components/SmartReflowDialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -248,6 +249,7 @@ export default function CalendarPage() {
   };
 
 
+  const staffLabelMap = useMemo(() => staffLabels(displayEmployees as any), [displayEmployees]);
   const dateStr = formatLocalDate(currentDate);
   const currentDayOfWeek = currentDate.getDay() === 0 ? 7 : currentDate.getDay(); // 1=ma..7=zo
 
@@ -1426,7 +1428,7 @@ export default function CalendarPage() {
                 )}
               >
                 <EmployeeAvatar employee={emp} size="xs" ring={false} />
-                {emp.name}
+                {staffLabelMap.get(emp.id) || emp.name}
                 {status !== 'beschikbaar' ? (() => {
                   const badge = getEmployeeAbsenceBadge(emp, currentDate);
                   return <span className={cn("text-[10px] px-1.5 py-0.5 rounded", badge?.tone || "text-destructive")}>{badge?.label || 'Afwezig'}{apptCount > 0 ? ` · ${apptCount}` : ''}</span>;
@@ -1451,7 +1453,7 @@ export default function CalendarPage() {
                   className="p-2.5 rounded-xl bg-secondary/30 border border-border hover:bg-secondary/50 transition-all text-left">
                   <div className="flex items-center gap-2 mb-1">
                     <EmployeeAvatar employee={emp} size="sm" ring={false} />
-                    <span className="text-xs font-medium truncate">{emp.name}</span>
+                    <span className="text-xs font-medium truncate">{staffLabelMap.get(emp.id) || emp.name}</span>
                     <span className={cn("text-[10px] px-1.5 py-0.5 rounded ml-auto", workloadColors[wl.variant])}>{wl.label}</span>
                   </div>
                   <div className="text-[10px] text-muted-foreground">
