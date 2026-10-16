@@ -14,7 +14,7 @@ Code: `supabase/functions/_shared/inactive/isvOnboardingV2.ts` (builds on `isvOn
 - Source code is never taken from Viva Retrieve or webhooks; it must be provisioned separately (UNRESOLVED for live).
 
 ## Branding
-- logoUrl: official GlowPay logo `https://glowsuite.nl/__l5e/assets-v1/b5dafa8b-3daf-4b09-927d-474084acabdc/glowpay-logo.png` (verified public 2026-10-16).
+- logoUrl: official GlowPay logo `https://glowsuite.nl/__l5e/assets-v1/6cb294cf-67e9-446d-8fd1-97e0fcfe2d90/glowpay-horizontaal-transparant-v2.png` (verified public 2026-10-16).
 - primaryColor: owner-confirmed `#002448`; separate GlowPay accent `#00C878`, not sent as primaryColor. Official logo retained unchanged. Prepared factory: `_shared/inactive/isvGlowPayBranding.ts`, no active import. GlowSuite theme unchanged.
 
 ## Wizard step 3 plan (OnboardingWizard GlowPayStep ~line 485)
