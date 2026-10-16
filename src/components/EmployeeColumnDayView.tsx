@@ -5,6 +5,9 @@ import { Clock, GripVertical, ArrowRightLeft } from "lucide-react";
 import { EmployeeAvatarStack } from "@/components/EmployeeAvatar";
 import { cn } from "@/lib/utils";
 import { fineSlots, timeToMinutes } from "@/lib/agendaMove";
+import { useEffect, useMemo, useState } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { noteStaffName, staffColors, staffLabels } from "@/lib/agendaStaff";
 
 export interface ColumnEmployee {
   id: string;
@@ -25,10 +28,16 @@ interface DraggableAppointmentProps {
   draggable: boolean;
   /** Called for the mobile/fallback "move" button. */
   onRequestMove: (apt: any) => void;
+  /** Opens the same appointment details as the day view. */
+  onOpen?: (apt: any) => void;
+  /** Staff color (left border); the service color stays as a small dot. */
+  accentColor?: string;
+  /** Shown when the appointment has no linked employee but old notes name someone. */
+  noteName?: string | null;
 }
 
 export function DraggableAppointmentBlock({
-  apt, service, customer, displayEmps, slotPx, draggable, onRequestMove,
+  apt, service, customer, displayEmps, slotPx, draggable, onRequestMove, onOpen, accentColor, noteName,
 }: DraggableAppointmentProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `apt-${apt.id}`,
@@ -38,7 +47,8 @@ export function DraggableAppointmentBlock({
 
   const duration = service?.duration_minutes || 30;
   const heightPx = Math.max(slotPx * 2, (duration / 15) * slotPx - 2);
-  const color = service?.color || "#7B61FF";
+  const svcColor = service?.color || "#7B61FF";
+  const color = accentColor || svcColor;
 
   return (
     <div
@@ -54,9 +64,15 @@ export function DraggableAppointmentBlock({
         // only the grip below blocks native scrolling.
       }}
       data-apt-id={apt.id}
+      role={onOpen ? "button" : undefined}
+      tabIndex={onOpen ? 0 : undefined}
+      aria-label={onOpen ? `Open afspraak ${customer?.name || "Klant"}` : undefined}
+      onClick={onOpen ? () => onOpen(apt) : undefined}
+      onKeyDown={onOpen ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(apt); } } : undefined}
       className={cn(
         "absolute left-1 right-1 top-0.5 rounded-xl p-2 transition-shadow",
-        draggable && "hover:shadow-md",
+        (draggable || onOpen) && "hover:shadow-md",
+        onOpen && "cursor-pointer",
       )}
     >
       <div className="flex items-start justify-between gap-1.5 h-full">
@@ -70,9 +86,13 @@ export function DraggableAppointmentBlock({
             <p className="text-[11px] font-medium truncate leading-tight">
               {customer?.name || "Klant"}
             </p>
-            <p className="text-[10px] text-muted-foreground truncate leading-tight">
+            <p className="text-[10px] text-muted-foreground truncate leading-tight flex items-center gap-1">
+              {accentColor && <span aria-hidden className="inline-block w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: svcColor }} />}
               {service?.name || ""}
             </p>
+            {noteName && (
+              <p className="text-[9px] text-muted-foreground truncate leading-tight">Notitie: {noteName} (niet gekoppeld)</p>
+            )}
             <p className="text-[9px] text-muted-foreground flex items-center gap-0.5 mt-0.5">
               <Clock className="w-2.5 h-2.5" />
               {duration} min
@@ -157,19 +177,25 @@ interface ColumnViewProps {
   onRequestMove: (apt: any) => void;
   onSlotClick: (empId: string, slot: string) => void;
   draggable: boolean;
+  /** Opens the same appointment details as the day view. */
+  onOpenAppointment?: (apt: any) => void;
 }
 
-const SLOT_PX = 18; // height per 15-min slot
+const SLOT_PX = 18;
+const SLOT_PX_MOBILE = 28; // height per 15-min slot
 
 export function EmployeeColumnDayView(props: ColumnViewProps) {
   const {
     employees, appointments, services, customers, apptEmployees,
     date, getDisplayEmployees, getColumnIdForAppointment,
-    isPauseSlot, onRequestMove, onSlotClick, draggable,
+    isPauseSlot, onRequestMove, onSlotClick, draggable, onOpenAppointment,
   } = props;
+  const isMobile = useIsMobile();
 
-  const columns: ColumnEmployee[] = [
-    ...employees,
+  const labels = useMemo(() => staffLabels(employees), [employees]);
+  const colors = useMemo(() => staffColors(employees), [employees]);
+  const allColumns: ColumnEmployee[] = [
+    ...employees.map((e) => ({ ...e, name: labels.get(e.id) || e.name, color: colors.get(e.id) || e.color })),
     { id: "unassigned", name: "Geen medewerker", color: "#94a3b8", photo_url: null },
   ];
 
@@ -177,12 +203,34 @@ export function EmployeeColumnDayView(props: ColumnViewProps) {
   const hourSlots = fineSlots.filter(s => s.endsWith(":00"));
 
   const aptsForDate = appointments.filter(a => appointmentDisplayDate(a) === date);
+  const countFor = (id: string) => aptsForDate.filter(a => getColumnIdForAppointment(a) === id).length;
+  // "Geen medewerker" only when something is truly unlinked (by employee ID).
+  const switchable = allColumns.filter(c => c.id !== "unassigned" || countFor("unassigned") > 0);
+  const [mobileCol, setMobileCol] = useState<string>("");
+  useEffect(() => {
+    if (!switchable.some(c => c.id === mobileCol)) setMobileCol(switchable[0]?.id || "unassigned");
+  }, [switchable.map(c => c.id).join(","), mobileCol]); // eslint-disable-line react-hooks/exhaustive-deps
+  const columns = isMobile ? allColumns.filter(c => c.id === (mobileCol || switchable[0]?.id)) : allColumns;
 
   return (
-    <div className="overflow-x-auto -mx-2 px-2">
+    <div className={cn(!isMobile && "overflow-x-auto -mx-2 px-2")}>
+      {isMobile && (
+        <div role="group" aria-label="Kies medewerker" className="flex gap-1.5 overflow-x-auto pb-2 mb-2 -mx-1 px-1">
+          {switchable.map(c => (
+            <button key={c.id} type="button" aria-pressed={c.id === columns[0]?.id} onClick={() => setMobileCol(c.id)}
+              className={cn("shrink-0 h-9 px-3 rounded-full border text-xs font-medium flex items-center gap-1.5",
+                c.id === columns[0]?.id ? "border-primary bg-primary/10 text-foreground" : "border-border text-muted-foreground")}>
+              <span aria-hidden className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: c.color || "#7B61FF" }} />
+              {c.name}<span className="text-[10px] text-muted-foreground">{countFor(c.id)}</span>
+            </button>
+          ))}
+        </div>
+      )}
       <div
         className="grid gap-1"
-        style={{ gridTemplateColumns: `48px repeat(${columns.length}, minmax(140px, 1fr))`, minWidth: `${48 + columns.length * 140}px` }}
+        style={isMobile
+          ? { gridTemplateColumns: `40px minmax(0, 1fr)` }
+          : { gridTemplateColumns: `48px repeat(${columns.length}, minmax(140px, 1fr))`, minWidth: `${48 + columns.length * 140}px` }}
       >
         {/* Header row */}
         <div />
@@ -256,6 +304,9 @@ export function EmployeeColumnDayView(props: ColumnViewProps) {
                       slotPx={SLOT_PX}
                       draggable={draggable}
                       onRequestMove={onRequestMove}
+                      onOpen={onOpenAppointment}
+                      accentColor={col.id === "unassigned" ? undefined : (col.color || undefined)}
+                      noteName={col.id === "unassigned" ? noteStaffName(apt.notes) : null}
                     />
                   </div>
                 );
