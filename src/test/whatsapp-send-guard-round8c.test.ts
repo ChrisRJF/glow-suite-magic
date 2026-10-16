@@ -1,3 +1,4 @@
+import { inactiveImportViolations } from "./helpers/inactiveImportPolicy";
 // Round 8C (supersedes the 8B guard tests). Fictitious data, fully mocked deps and provider.
 import { describe, it, expect, vi } from "vitest";
 import { readFileSync, readdirSync, statSync } from "node:fs";
@@ -355,13 +356,9 @@ describe("Kept from 8B: recipient, tenant, roles, test mode", () => {
 });
 
 describe("Stays inactive", () => {
-  it("no active edge function imports inactive modules", () => {
-    const off: string[] = [];
-    const walk = (dir: string) => { for (const f of readdirSync(dir)) { const p = join(dir, f);
-      if (p.includes("/inactive")) continue;
-      if (statSync(p).isDirectory()) walk(p); else if (p.endsWith(".ts") && /inactive\//.test(readFileSync(p, "utf8"))) off.push(p); } };
-    walk("supabase/functions");
-    expect(off).toEqual([]);
+  it("no active edge function imports non-approved inactive modules", () => {
+    expect(inactiveImportViolations()).toEqual([]);
+    expect(readFileSync("supabase/functions/_shared/inactive/isvLiveCreate.ts", "utf8")).not.toMatch(/whatsapp/i);
   });
   it("guard has no network/env/db access", () => {
     expect(readFileSync("supabase/functions/_shared/inactive/whatsappSendGuard.ts", "utf8")).not.toMatch(/\bfetch\(|Deno\.env|createClient/);

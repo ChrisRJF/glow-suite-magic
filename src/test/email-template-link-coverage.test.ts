@@ -36,7 +36,23 @@ const compiled = ts.transpileModule(
   { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } },
 ).outputText;
 
-const context = vm.createContext({ Intl, globalThis: {} });
+// The sender imports its language helpers from _shared/emailTranslations.ts;
+// load that real module so the extracted templates use the same strings.
+const translationsSrc = readFileSync("supabase/functions/_shared/emailTranslations.ts", "utf8");
+const translationsJs = ts.transpileModule(translationsSrc, {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+}).outputText;
+const translationsModule = { exports: {} as Record<string, unknown> };
+vm.runInContext(translationsJs, vm.createContext({ Intl, module: translationsModule, exports: translationsModule.exports }));
+
+const manageSrc = readFileSync("supabase/functions/send-white-label-email/bookingConfirmationManageAction.ts", "utf8");
+const manageModule = { exports: {} as Record<string, unknown> };
+vm.runInContext(
+  ts.transpileModule(manageSrc, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText,
+  vm.createContext({ URL, module: manageModule, exports: manageModule.exports }),
+);
+
+const context = vm.createContext({ Intl, URL, globalThis: {}, ...translationsModule.exports, ...manageModule.exports });
 vm.runInContext(compiled, context);
 
 const renderTemplate = (context.globalThis as { __renderTemplate: (key: TemplateKey, data: Record<string, unknown>, salonName: string, branding: SalonFixture["branding"]) => { html: string; subject: string; text: string } }).__renderTemplate;
@@ -92,7 +108,10 @@ function dataFor(templateKey: TemplateKey, salon: SalonFixture, service: Service
     credits: "3 van 5 beschikbaar",
     next_payment_at: "2026-06-01T00:00:00.000Z",
     benefits: ["Priority booking", "10% korting", "Maandelijkse glow treatment"],
-    manage_url: `${baseUrl}/afspraak/${templateKey}/beheer`,
+    // Booking confirmations only accept the main-domain Mijn afspraak link with a UUID token.
+    manage_url: templateKey === "booking_confirmation"
+      ? "https://glowsuite.nl/mijn-afspraak/0f8fad5b-d9cb-469f-a165-70867728950e"
+      : `${baseUrl}/afspraak/${templateKey}/beheer`,
     appointment_url: `${baseUrl}/afspraak/${templateKey}/details`,
     calendar_url: `${baseUrl}/calendar/${service.slug}/${templateKey}.ics`,
     contact_url: `${baseUrl}/route-contact/${templateKey}`,
@@ -198,5 +217,13 @@ describe("white-label transactional email CTA link coverage", () => {
         expect(new URL(calendarUrl).pathname).toBe(`/calendar/${service.slug}/appointment_reminder-${schedule.hoursBefore}h.ics`);
       }
     }
+  });
+});
+describe("booking confirmation manage button", () => {
+  it("omits the manage button for a non-Mijn-afspraak link", () => {
+    const salon = salons[0];
+    const data = { ...dataFor("booking_confirmation", salon), manage_url: `https://${salon.slug}.glowsuite.nl/afspraak/beheer` };
+    const rendered = renderTemplate("booking_confirmation", data, salon.name, salon.branding);
+    expect(rendered.html).not.toContain("/afspraak/beheer");
   });
 });

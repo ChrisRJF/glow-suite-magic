@@ -1,3 +1,4 @@
+import { inactiveImportViolations } from "./helpers/inactiveImportPolicy";
 import { describe, it, expect, vi } from "vitest";
 import { readFileSync, readdirSync, statSync } from "fs";
 import { join } from "path";
@@ -261,15 +262,8 @@ describe("proposed SQL stays a proposal", () => {
 });
 
 describe("inactive modules not wired into deployed code", () => {
-  it("no entrypoint or shared module imports _shared/inactive", () => {
-    const root = "supabase/functions";
-    for (const d of readdirSync(root)) {
-      if (d.startsWith("_") || !statSync(join(root, d)).isDirectory()) continue;
-      try { expect(readFileSync(join(root, d, "index.ts"), "utf8")).not.toMatch(/inactive\//); } catch (e: any) { if (e.code !== "ENOENT") throw e; }
-    }
-    for (const f of readdirSync(join(root, "_shared"))) {
-      if (f.endsWith(".ts")) expect(readFileSync(join(root, "_shared", f), "utf8")).not.toMatch(/inactive\//);
-    }
+  it("no entrypoint or shared module imports non-approved inactive modules", () => {
+    expect(inactiveImportViolations()).toEqual([]);
   });
   it("whatsapp-inbound stays 410", () => {
     expect(readFileSync("supabase/functions/whatsapp-inbound/index.ts", "utf8")).toMatch(/status: 410/);

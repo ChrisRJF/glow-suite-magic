@@ -21,7 +21,7 @@ import {
 import { cn } from "@/lib/utils";
 import { glowpayPaymentStatus, bookingStatus, type PayStatus, type BookingStatus } from "@/lib/glowpayOnboardingStatus";
 import glowsuiteLogo from "@/assets/glowsuite-logo.png";
-import glowpayLogo from "@/assets/glowpay/glowpay-logo.png.asset.json";
+import glowpayLogo from "@/assets/glowpay/glowpay-horizontaal-transparant.png.asset.json";
 import { missingSeedServices } from "@/lib/onboardingServiceSeed";
 import { buildSettingsPayload } from "@/lib/onboardingSalonProfile";
 import { registrationAction, MISSING_LINK_TEXT, type RegistrationAction } from "@/lib/glowpayMerchantView";
@@ -349,7 +349,7 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
         )}
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto px-5 sm:px-8 py-6 sm:py-8">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 sm:px-8 pt-6 sm:pt-8 pb-10 sm:pb-8 scroll-pb-24" data-testid="wizard-body">
           {data.postWelcome ? (
             <PostWelcomeStep onNavigate={goTo} />
           ) : (
@@ -367,7 +367,7 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
 
         {/* Footer */}
         {showChrome && (
-          <div className="px-5 sm:px-8 py-4 border-t border-border/50 bg-background flex flex-wrap items-center justify-between gap-3">
+          <div className="shrink-0 px-5 sm:px-8 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] border-t border-border/50 bg-background flex flex-wrap items-center justify-between gap-3">
             <Button variant="ghost" size="sm" onClick={back} disabled={saving || step === 0}>
               <ArrowLeft className="w-4 h-4" /> Terug
             </Button>
@@ -588,7 +588,7 @@ function GlowPayStep({ demo, previewMode = false, salonName, onLater }: { demo: 
   return (
     <div className="space-y-6 max-w-lg mx-auto" data-testid="glowpay-step">
       <div className="space-y-3">
-        <img src={glowpayLogo.url} alt="GlowPay" width={1470} height={335} className="h-auto w-44 max-w-full rounded-md object-contain" />
+        <img src={glowpayLogo.url} alt="GlowPay" width={1920} height={421} className="block h-auto w-40 sm:w-44 max-w-full object-contain" />
         <h2 className="text-2xl font-bold tracking-tight">Activeer GlowPay</h2>
         <p className="text-sm text-muted-foreground">
           GlowPay is de betaaloplossing van GlowSuite.

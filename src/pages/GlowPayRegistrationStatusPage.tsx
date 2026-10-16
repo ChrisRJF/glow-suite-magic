@@ -7,7 +7,7 @@ import type { PayStatus } from "@/lib/glowpayOnboardingStatus";
 import { registrationView, visibleView, type RegistrationView } from "@/lib/glowpayRegistrationStatus";
 import { trustedVivaUrl } from "@/lib/vivaOnboardingUrl";
 import { Check, Clock, AlertTriangle, Loader2, LogIn, ExternalLink, ShieldCheck, HelpCircle } from "lucide-react";
-import glowpayLogo from "@/assets/glowpay/glowpay-logo.png.asset.json";
+import glowpayLogo from "@/assets/glowpay/glowpay-horizontaal-transparant.png.asset.json";
 import { GlowSuiteLogo } from "@/components/GlowSuiteLogo";
 
 // Return page after the Viva registration flow. It never assumes approval:
@@ -93,9 +93,9 @@ export default function GlowPayRegistrationStatusPage() {
             <img
               src={glowpayLogo.url}
               alt="GlowPay"
-              width={1470}
-              height={335}
-              className="h-auto w-40 max-w-full rounded-md object-contain"
+              width={1920}
+              height={421}
+              className="block h-auto w-40 sm:w-48 max-w-full object-contain"
             />
             <h1 className="text-2xl font-bold tracking-tight">Registratie bij Viva</h1>
             <p className="text-sm text-muted-foreground max-w-xs sm:max-w-sm">

@@ -23,6 +23,7 @@ vi.mock("@/components/AppLayout", () => ({
 }));
 
 import PlatformPage from "@/pages/PlatformPage";
+import { MemoryRouter } from "react-router-dom";
 
 const usage = (total: number) => ({ period: "p", total, online: 0, cancelled: 0, no_show: 0, per_salon: {}, trend: [] });
 const overview = { salons_total: 0, salons_real: 0, salons_demo: 0, subs_active: 0, subs_trialing: 0, subs_expired: 0, subs_pending: 0, subs_none: 0, trials_ending_7d: 0, cancellations: 0, past_due: 0, free_period: 0, projected_mrr_cents: 0, salons: [] };
@@ -35,7 +36,7 @@ describe("PlatformPage period switch", () => {
   beforeEach(() => { deferreds.length = 0; });
 
   it("an older response never overwrites the latest selected period", async () => {
-    render(<PlatformPage />);
+    render(<MemoryRouter><PlatformPage /></MemoryRouter>);
     // overview RPC resolves
     await act(async () => { deferreds[0].resolve({ data: overview, error: null }); });
     // first period fetch (usage + finance) pending
@@ -66,7 +67,7 @@ describe("PlatformPage period switch", () => {
   });
 
   it("a stale failure cannot override a newer successful result", async () => {
-    render(<PlatformPage />);
+    render(<MemoryRouter><PlatformPage /></MemoryRouter>);
     await act(async () => { deferreds[0].resolve({ data: overview, error: null }); });
 
     const trigger = screen.getByRole("combobox");
