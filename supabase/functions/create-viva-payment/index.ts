@@ -3,6 +3,7 @@
 // Demo mode never calls Viva.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { z } from "https://esm.sh/zod@3.23.8";
+import { livePaymentGate } from "../_shared/inactive/isvLivePaymentGate.ts";
 import { vivaCheckoutUrl } from "../_shared/viva.ts";
 import {
   createVivaIsvOrder,
@@ -87,6 +88,12 @@ Deno.serve(async (req) => {
         }
       }
     }
+    // LIVE KYC payment gate (all Smart Checkout routes): demo/live from salon settings only.
+    const gate = await livePaymentGate(ownerId, "link", { admin, env: (n) => Deno.env.get(n), fetch, providerEnv: Deno.env.get("VIVA_ENVIRONMENT") });
+    if (!gate.ok) {
+      return json({ error: "Online betalen is nog niet actief voor deze salon (verificatie niet bevestigd).", code: "live_payment_blocked", reason: gate.reason }, 409);
+    }
+    input.is_demo = gate.demo;
     const { data: settings } = await admin
       .from("settings")
       .select("id, demo_mode, is_demo, payment_provider, viva_status, viva_live_enabled, viva_demo_enabled")
@@ -95,7 +102,7 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
-    const demoMode = isCheckout ? input.is_demo === true : (input.is_demo === true || Boolean(settings?.is_demo || settings?.demo_mode));
+    const demoMode = gate.demo === true;
     let amountCents = input.amount_cents;
 
     // ---- SERVER-SIDE ENFORCEMENT: verify amount + prevent duplicates for appointment-linked payments ----

@@ -2,6 +2,7 @@
 // POST /functions/v1/create-viva-terminal-payment
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { vivaPosEnv, getVivaPosAccessToken, isVivaPosConfigured, vivaPosSourceCode, vivaPosCredentialKind } from "../_shared/viva.ts";
+import { livePaymentGate } from "../_shared/inactive/isvLivePaymentGate.ts";
 import { requireMerchantContext, isvWarn, maskId } from "../_shared/vivaIsv.ts";
 import { CHECKOUT_MARKER, isInternalCheckoutCall, resolveCheckoutTenant, tenantIsDemo, loadLiveKyc, liveKycReady, environmentMatches } from "../_shared/checkoutGuard.ts";
 
@@ -95,6 +96,13 @@ Deno.serve(async (req) => {
       customer_id = r.customer_id ?? null; kassaOrderId = String(body.kassa_order_id);
       if (!Number.isInteger(amt) || amt < 30) return json({ error: "invalid_total" }, 409);
     }
+
+    // LIVE KYC payment gate (all Cloud Terminal routes): demo/live from salon settings only.
+    const gate = await livePaymentGate(userId, "terminal", { admin, env: (n) => Deno.env.get(n), fetch, providerEnv: Deno.env.get("VIVA_POS_ENVIRONMENT") || Deno.env.get("VIVA_ENVIRONMENT") });
+    if (!gate.ok || (isKassa && gate.demo !== is_demo)) {
+      return json({ error: "live_payment_blocked", message: "Pinnen is nog niet actief voor deze salon (verificatie niet bevestigd).", reason: gate.ok ? "mode_mismatch" : gate.reason }, 409);
+    }
+    is_demo = gate.demo;
 
     // Verify terminal ownership and active status
     const { data: terminal, error: terErr } = await admin
