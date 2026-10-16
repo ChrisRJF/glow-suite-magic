@@ -5,6 +5,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getVivaAccessToken, vivaEnv } from "../_shared/viva.ts";
 import { getIsvAccessToken } from "../_shared/vivaIsv.ts";
+import { liveCreateForSession, rpcReservationStore, type LiveMerchantRow } from "../_shared/inactive/isvLiveCreate.ts";
 
 
 const corsHeaders = {
@@ -52,6 +53,34 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
     const isDemo = Boolean((settings as any)?.is_demo || (settings as any)?.demo_mode);
+
+    // LIVE branch: separate LIVE ISV secrets + reservation, default off (VIVA_ISV_LIVE_ENABLED).
+    // Never falls through to the legacy path below.
+    if (!isDemo) {
+      const r = await liveCreateForSession(user.id, contact_email, {
+        get: (n) => Deno.env.get(n), fetchFn: fetch, newAttemptId: () => crypto.randomUUID(),
+        store: rpcReservationStore(async (fn, args) => { const { data, error } = await admin.rpc(fn, args); return { data, error }; }),
+        findLiveRow: async (uid) => {
+          const { data, error } = await admin.from("glowpay_connected_merchants").select("id, user_id, is_demo, viva_account_id, onboarding_url").eq("user_id", uid).eq("is_demo", false).limit(2);
+          if (error || (data && data.length > 1)) return "error";
+          return (data?.[0] as LiveMerchantRow) ?? null;
+        },
+        persist: async (uid, existing, acc, url, email) => {
+          const fields = { viva_account_id: acc, onboarding_url: url, onboarding_status: "invited", last_synced_at: new Date().toISOString() };
+          if (existing) {
+            const { data, error } = await admin.from("glowpay_connected_merchants").update(fields)
+              .eq("id", existing.id).eq("user_id", uid).eq("is_demo", false).or(`viva_account_id.is.null,viva_account_id.eq.${acc}`).select("id");
+            return !error && (data?.length ?? 0) === 1;
+          }
+          const { error } = await admin.from("glowpay_connected_merchants").insert({ ...fields, user_id: uid, is_demo: false, business_name, contact_email: email, phone, country });
+          return !error;
+        },
+      });
+      return json(r.body, r.status);
+    }
+
+    // DEMO branch only: refuse unless the global environment is unquestionably demo.
+    if (!vivaEnv().api.includes("demo")) return json({ error: "demo_env_mismatch" }, 503);
 
     // Upsert by (user_id, is_demo)
     const { data: existing } = await admin

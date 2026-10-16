@@ -30,6 +30,8 @@ export async function liveCreateForSession(sessionUserId: string | null, rawEmai
   const email = String(rawEmail ?? "").trim();
   if (!EMAIL.test(email) || email.length > 254) return { status: 400, body: { error: "invalid_email" } };
 
+  const payload = buildCreatePayload({ email, returnUrl: LIVE_RETURN_URL, branding: glowPayVivaBranding() });
+  if (!payload) return { status: 400, body: { error: "invalid_email" } };
   const row = await d.findLiveRow(sessionUserId);
   if (row === "error") return { status: 503, body: { error: "unavailable" } };
   if (row && (row.user_id !== sessionUserId || row.is_demo !== false)) return { status: 403, body: { error: "tenant_mismatch" } };
@@ -45,7 +47,7 @@ export async function liveCreateForSession(sessionUserId: string | null, rawEmai
       const r = await d.fetchFn(`${LIVE_ISV_API_HOST}/isv/v1/accounts`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify(buildCreatePayload({ email, returnUrl: LIVE_RETURN_URL, branding: glowPayVivaBranding() })),
+        body: JSON.stringify(payload),
       });
       if (!r.ok) return { kind: "ambiguous" };
       const p = parseCreateV2(await r.json().catch(() => null));
