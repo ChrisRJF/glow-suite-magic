@@ -1,4 +1,4 @@
-# Demo seed: link appointments to demo employees by ID (PROPOSED, not active)
+# Demo seed: link appointments to demo employees by ID (APPLIED 2026-10-16, demo account only)
 
 Cause: `supabase/functions/seed-demo-data/index.ts` never inserts `employees` or
 `appointment_employees`. It writes only `notes: "Medewerker: Bas|Roos|Lisa|Emma"`, so every
