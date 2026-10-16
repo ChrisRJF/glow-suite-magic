@@ -62,9 +62,13 @@ describe("InstellingenPage payment UI", () => {
     expect(src).not.toContain("Automatisch terugvallen op Mollie");
   });
 
-  it("shows GlowPay/Viva as the provider and always saves viva without fallback", () => {
+  it("defaults only brand-new settings rows to viva and never touches existing rows", () => {
     expect(src).toContain("GlowPay gebruikt Viva voor betalingen. Activatie volgt na verificatie bij Viva.");
-    expect(src).toContain("payment_provider: 'viva'");
-    expect(src).toContain("payment_provider_fallback_enabled: false");
+    // provider fields appear only inside the insert() branch for new rows
+    expect(src).toContain("await insert({ ...data, payment_provider: 'viva', payment_provider_fallback_enabled: false })");
+    // the shared payload used by update() must not carry provider fields
+    const payload = src.slice(src.indexOf("const data: Record<string, any> = {"), src.indexOf("if (settings.length > 0)"));
+    expect(payload).not.toContain("payment_provider");
+    expect(src).toContain("await update(settings[0].id, data)");
   });
 });
