@@ -1,6 +1,22 @@
 # Focused final Viva contract review
 
-No deployed code, secrets, merchant/customer rows, provider subscriptions or charge switches were changed. The correction patch is deliberately unapplied because its shared module is imported by active functions. Applying it requires a separate deployment GO.
+## Approved safety correction follow-up
+
+The subsequent safety GO applied and deployed only `viva-webhook`, `verify-viva-payment` and `viva-payment-reconcile`. Their bundles include changed `_shared/inactive/isvLiveConfirm.ts`, `_shared/inactive/isvLivePayments.ts` and new `_shared/inactive/isvLiveRouting.ts`. No charge-creation entrypoint was explicitly redeployed, and no secrets, switches, merchant/customer data or provider subscriptions were changed.
+
+The current production transaction contract is code-only `null`: ambiguous units/endpoint prevent transaction lookup, conversion and payment/refund confirmation even if checkout is accidentally switched on. Synthetic tests explicitly inject a major/minor contract; production adapters do not. The parser requires a numeric amount, safe exact cents and a matching returned transaction ID; it rejects missing IDs and fallback webhook schemas.
+
+Private order existence now controls webhook, redirect and reconciliation routing, including original transaction/parent references. Conflicting references or private storage failure hold without legacy fallback. Only explicit completed-result notes set `processed=true`; holds, disabled, unverified and unknown outcomes remain unfinished. Webhook storage failure prevents further processing. `signature_valid` remains null because no cryptographic POST verifier is proven; the verification key is not a POST HMAC.
+
+Read-only provider checks: LIVE OAuth and verification-key GET returned 200; subscription-list GET returned 405. Therefore existing subscriptions could not be enumerated, and payment subscriptions 1796/1797/1798 remain **unverified**, not absent. The registration helper declares only 8193/8194; it was not invoked or changed.
+
+109 focused tests passed, including the original 84, 24 private-routing/hold/contract-gate tests and one actual redirect-handler test with synthetic private storage. Deno checks passed for all three deployed entrypoints. The original prepared patch below is historical, not a deployment instruction; its unproven major-unit assumption has been superseded by the null production contract.
+
+Remaining external blockers are exact vendor ISV transaction/reversal endpoint, authentication, units, precision/rounding, response IDs/status/currency/parent semantics and verified central subscriptions, followed by salon KYC/acquiring and separate activation GO. No Beautycare status was rechecked. No charge or order was initiated and no UI was published.
+
+## Historical review (before safety GO)
+
+No deployed code, secrets, merchant/customer rows, provider subscriptions or charge switches were changed during the initial review. The correction patch was initially unapplied because its shared module is imported by active functions.
 
 ## Official contract evidence
 
