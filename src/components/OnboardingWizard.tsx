@@ -964,7 +964,7 @@ function DoneStep({ logoUrl, salonName }: { logoUrl?: string; salonName?: string
       <div className="w-full mt-4 rounded-2xl border border-border/60 bg-secondary/20 px-4 py-3 text-left">
         <p className="text-sm font-semibold">Later instellen</p>
         <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-          GlowPay-betalingen rond je apart af bij Viva. Dat is een eigen stap met verificatie en wordt niet automatisch actief.
+          GlowPay-betalingen rond je apart af bij Viva. Dat is een eigen stap met verificatie en die gaat niet vanzelf.
           Automatische berichten regel je via Instellingen, wanneer het je uitkomt.
         </p>
       </div>
