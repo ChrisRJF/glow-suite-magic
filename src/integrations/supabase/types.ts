@@ -2562,6 +2562,48 @@ export type Database = {
         }
         Relationships: []
       }
+      isv_create_reservations: {
+        Row: {
+          attempt_id: string
+          completed_at: string | null
+          dispatched_at: string | null
+          id: string
+          invitation_url: string | null
+          is_demo: boolean
+          provider_account_id: string | null
+          reserved_at: string
+          state: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attempt_id: string
+          completed_at?: string | null
+          dispatched_at?: string | null
+          id?: string
+          invitation_url?: string | null
+          is_demo: boolean
+          provider_account_id?: string | null
+          reserved_at?: string
+          state: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attempt_id?: string
+          completed_at?: string | null
+          dispatched_at?: string | null
+          id?: string
+          invitation_url?: string | null
+          is_demo?: boolean
+          provider_account_id?: string | null
+          reserved_at?: string
+          state?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       kassa_order_lines: {
         Row: {
           id: string
@@ -6086,6 +6128,42 @@ export type Database = {
         Returns: undefined
       }
       is_valid_weekly_schedule: { Args: { _s: Json }; Returns: boolean }
+      isv_create_claim: {
+        Args: {
+          _attempt: string
+          _expiry?: string
+          _is_demo: boolean
+          _user: string
+        }
+        Returns: {
+          attempt_id: string
+          invitation_url: string
+          provider_account_id: string
+          state: string
+        }[]
+      }
+      isv_create_complete: {
+        Args: {
+          _account: string
+          _attempt: string
+          _invite: string
+          _is_demo: boolean
+          _user: string
+        }
+        Returns: boolean
+      }
+      isv_create_hold: {
+        Args: { _attempt: string; _is_demo: boolean; _user: string }
+        Returns: boolean
+      }
+      isv_create_mark_dispatching: {
+        Args: { _attempt: string; _is_demo: boolean; _user: string }
+        Returns: boolean
+      }
+      isv_create_release: {
+        Args: { _attempt: string; _is_demo: boolean; _user: string }
+        Returns: boolean
+      }
       kassa_actor_tenant: {
         Args: { _actor: string }
         Returns: {
