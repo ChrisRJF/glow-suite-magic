@@ -15,7 +15,7 @@ function store(): ReservationStore {
 }
 function deps(o: Partial<LiveCreateDeps> & { enabled?: boolean; providerOk?: boolean; row?: LiveMerchantRow | null } = {}) {
   const calls: string[] = []; let n = 0;
-  const env: Record<string, string> = { VIVA_ISV_LIVE_CLIENT_ID: "x", VIVA_ISV_LIVE_CLIENT_SECRET: "y", VIVA_ISV_LIVE_PILOT_USER_IDS: "11111111-aaaa-4bbb-8ccc-000000000001" };
+  const env: Record<string, string> = { VIVA_ISV_LIVE_CLIENT_ID: "x", VIVA_ISV_LIVE_CLIENT_SECRET: "y" };
   if (o.enabled !== false) env.VIVA_ISV_LIVE_ENABLED = "true";
   const fetchFn = (async (url: string) => {
     calls.push(String(url));
@@ -25,7 +25,9 @@ function deps(o: Partial<LiveCreateDeps> & { enabled?: boolean; providerOk?: boo
   }) as typeof fetch;
   const d: LiveCreateDeps = {
     get: (k) => env[k], fetchFn, store: store(), newAttemptId: () => `a${++n}`,
-    findLiveRow: async () => o.row ?? null, persist: async () => true, ...o,
+    findLiveRow: async () => o.row ?? null, persist: async () => true,
+    tenantFacts: async () => ({ authEmail: "a@b.nl", emailConfirmed: true, isOwner: true, settingsFound: true, isDemo: false, salonName: "Salon" }),
+    rateLimit: async () => true, ...o,
   };
   return { d, calls, posts: () => calls.filter((c) => c.endsWith("/isv/v1/accounts")).length };
 }
@@ -33,34 +35,34 @@ function deps(o: Partial<LiveCreateDeps> & { enabled?: boolean; providerOk?: boo
 describe("LIVE ISV create wiring", () => {
   it("flag absent: no DB, token or Viva call", async () => {
     let reads = 0; const t = deps({ enabled: false, findLiveRow: async () => { reads++; return null; } });
-    const r = await liveCreateForSession("11111111-aaaa-4bbb-8ccc-000000000001", "a@b.nl", t.d);
+    const r = await liveCreateForSession("11111111-aaaa-4bbb-8ccc-000000000001", t.d);
     expect(r).toEqual({ status: 503, body: { error: "live_isv_disabled" } });
     expect(t.calls.length + reads).toBe(0);
   });
   it("row of another tenant is refused without POST", async () => {
     const t = deps({ row: { id: "m", user_id: "u2", is_demo: false, viva_account_id: null, onboarding_url: null } });
-    expect((await liveCreateForSession("11111111-aaaa-4bbb-8ccc-000000000001", "a@b.nl", t.d)).status).toBe(403); expect(t.posts()).toBe(0);
+    expect((await liveCreateForSession("11111111-aaaa-4bbb-8ccc-000000000001", t.d)).status).toBe(403); expect(t.posts()).toBe(0);
   });
   it("existing account is reused, never re-created", async () => {
     const t = deps({ row: { id: "m", user_id: "11111111-aaaa-4bbb-8ccc-000000000001", is_demo: false, viva_account_id: ACC, onboarding_url: "https://www.vivapayments.com/i" } });
-    expect((await liveCreateForSession("11111111-aaaa-4bbb-8ccc-000000000001", "a@b.nl", t.d)).body).toMatchObject({ status: "reused" }); expect(t.calls.length).toBe(0);
+    expect((await liveCreateForSession("11111111-aaaa-4bbb-8ccc-000000000001", t.d)).body).toMatchObject({ status: "reused" }); expect(t.calls.length).toBe(0);
   });
   it("existing account without trusted URL needs manual recovery", async () => {
     const t = deps({ row: { id: "m", user_id: "11111111-aaaa-4bbb-8ccc-000000000001", is_demo: false, viva_account_id: ACC, onboarding_url: "http://evil.com" } });
-    expect((await liveCreateForSession("11111111-aaaa-4bbb-8ccc-000000000001", "a@b.nl", t.d)).status).toBe(409); expect(t.calls.length).toBe(0);
+    expect((await liveCreateForSession("11111111-aaaa-4bbb-8ccc-000000000001", t.d)).status).toBe(409); expect(t.calls.length).toBe(0);
   });
   it("two concurrent requests: one POST", async () => {
     const t = deps();
-    const rs = await Promise.all([liveCreateForSession("11111111-aaaa-4bbb-8ccc-000000000001", "a@b.nl", t.d), liveCreateForSession("11111111-aaaa-4bbb-8ccc-000000000001", "a@b.nl", t.d)]);
+    const rs = await Promise.all([liveCreateForSession("11111111-aaaa-4bbb-8ccc-000000000001", t.d), liveCreateForSession("11111111-aaaa-4bbb-8ccc-000000000001", t.d)]);
     expect(t.posts()).toBe(1); expect(rs.map((r) => (r.body as any).status).sort()).toEqual(["busy", "created"]);
   });
   it("provider 5xx is held for reconciliation, retry never POSTs", async () => {
     const t = deps({ providerOk: false });
-    expect((await liveCreateForSession("11111111-aaaa-4bbb-8ccc-000000000001", "a@b.nl", t.d)).body).toEqual({ status: "reconciliation_required" });
-    await liveCreateForSession("11111111-aaaa-4bbb-8ccc-000000000001", "a@b.nl", t.d); expect(t.posts()).toBe(1);
+    expect((await liveCreateForSession("11111111-aaaa-4bbb-8ccc-000000000001", t.d)).body).toEqual({ status: "reconciliation_required" });
+    await liveCreateForSession("11111111-aaaa-4bbb-8ccc-000000000001", t.d); expect(t.posts()).toBe(1);
   });
   it("merchant persistence failure reports pending, not success", async () => {
     const t = deps({ persist: async () => false });
-    expect(await liveCreateForSession("11111111-aaaa-4bbb-8ccc-000000000001", "a@b.nl", t.d)).toEqual({ status: 202, body: { status: "persistence_pending" } });
+    expect(await liveCreateForSession("11111111-aaaa-4bbb-8ccc-000000000001", t.d)).toEqual({ status: 202, body: { status: "persistence_pending" } });
   });
 });

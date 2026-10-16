@@ -10,6 +10,7 @@ export const APPROVED_ACTIVE_INACTIVE_IMPORTS = new Set([
   "isvLivePaymentGate.ts",
   "isvLiveCreate.ts",
   "isvLiveConfig.ts",
+  "isvLiveAccess.ts",
 ]);
 // Modules an approved module may pull in (Viva ISV only).
 const APPROVED_TRANSITIVE = /^isv[A-Za-z0-9]*\.ts$/;

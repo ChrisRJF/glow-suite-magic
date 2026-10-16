@@ -5,7 +5,7 @@ import type { MerchantRow } from "../../supabase/functions/_shared/inactive/isvO
 // Fictitious values only; no network.
 const ACC = "11111111-aaaa-4aaa-8aaa-111111111111";
 const MID = "aaaaaaaa-0000-4000-8000-00000000000a";
-const ON: Record<string, string> = { VIVA_ISV_LIVE_ENABLED: "true", VIVA_ISV_LIVE_CLIENT_ID: "fake-id", VIVA_ISV_LIVE_CLIENT_SECRET: "fake-secret", VIVA_ISV_LIVE_PILOT_USER_IDS: "11111111-aaaa-4bbb-8ccc-000000000001", VIVA_ENVIRONMENT: "demo", VIVA_ISV_CLIENT_ID: "demo-id" };
+const ON: Record<string, string> = { VIVA_ISV_LIVE_ENABLED: "true", VIVA_ISV_LIVE_CLIENT_ID: "fake-id", VIVA_ISV_LIVE_CLIENT_SECRET: "fake-secret", VIVA_ENVIRONMENT: "demo", VIVA_ISV_CLIENT_ID: "demo-id" };
 const row = (o: Partial<MerchantRow> = {}): MerchantRow => ({ id: "r", user_id: "11111111-aaaa-4bbb-8ccc-000000000001", is_demo: false, viva_account_id: ACC,
   viva_merchant_id: null, viva_source_code: null, onboarding_status: "invited", kyc_status: null, onboarding_url: null, ...o });
 

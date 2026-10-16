@@ -11,7 +11,6 @@ export const LIVE_ISV_SECRET_NAMES = {
   /** Not yet created. Absent or anything other than "true" = LIVE ISV off. */
   enabled: "VIVA_ISV_LIVE_ENABLED",
   /** Comma-separated auth user UUIDs. Absent/empty/any invalid entry = nobody allowed. */
-  pilotUserIds: "VIVA_ISV_LIVE_PILOT_USER_IDS",
   /** Key returned by GET /isv/v1/webhooks/token, echoed on GET viva-webhook?isv=1. */
   webhookVerificationKey: "VIVA_ISV_LIVE_WEBHOOK_VERIFICATION_KEY",
 } as const;
