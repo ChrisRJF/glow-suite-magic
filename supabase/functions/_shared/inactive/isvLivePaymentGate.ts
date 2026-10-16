@@ -29,7 +29,12 @@ export async function livePaymentGate(tenantId: string | null, method: "link" | 
   if (!tenantId) return { ok: false, demo: null, reason: "unauthorized" };
   const demo = await tenantIsDemo(d.admin, tenantId);
   if (demo === null) return { ok: false, demo: null, reason: "mode_unclear" };
-  if (demo) return { ok: true, demo: true };
+  if (demo) {
+    // Demo path must still match the provider environment: a demo salon must never reach a
+    // LIVE provider host (e.g. POS with VIVA_POS_ENVIRONMENT=live).
+    if (!environmentMatches(true, d.providerEnv)) return { ok: false, demo: true, reason: "environment_mismatch" };
+    return { ok: true, demo: true };
+  }
   if (!environmentMatches(false, d.providerEnv)) return { ok: false, demo: false, reason: "environment_mismatch" };
   if (!loadLiveIsvConfig(d.env).ok) return { ok: false, demo: false, reason: "live_isv_disabled" };
   if (!liveKycReady(await loadLiveKyc(d.admin, tenantId), method)) return { ok: false, demo: false, reason: "kyc_not_ready" };
