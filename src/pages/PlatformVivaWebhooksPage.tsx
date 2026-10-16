@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlatformAccess } from "@/hooks/usePlatformAccess";
 import { Button } from "@/components/ui/button";
@@ -11,13 +12,26 @@ const CONFIRM = "register_live_isv_webhooks_8193_8194";
 const LABEL: Record<string, string> = { registered: "Geregistreerd", already_registered: "Was al geregistreerd", failed: "Mislukt" };
 
 export default function PlatformVivaWebhooksPage() {
+  const { user, loading: authLoading } = useAuth();
   const access = usePlatformAccess();
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [result, setResult] = useState<{ events?: Record<string, string>; error?: string; list?: string } | null>(null);
 
-  if (access.loading) return <div className="flex justify-center p-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
-  if (!access.owner) return <Navigate to="/" replace />;
+  // Wait for the session first: on mobile the auth state restores later, and an early "not owner" used to redirect away.
+  if (authLoading || access.loading) return <div className="flex justify-center p-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
+  if (!user) return <Navigate to="/login" replace state={{ from: "/platform/viva-webhooks" }} />;
+  if (!access.owner) {
+    return (
+      <div className="mx-auto max-w-xl p-6">
+        <Card className="space-y-3 p-6" role="alert">
+          <h1 className="text-xl font-semibold">Geen toegang</h1>
+          <p className="text-sm text-muted-foreground">Deze beheeractie is alleen voor de platformbeheerder. Je bent ingelogd, maar dit account heeft geen platformrechten, of de controle kon niet worden uitgevoerd. Ververs de pagina of log opnieuw in.</p>
+          <Link to="/platform" className="text-sm text-primary underline">Terug naar Platform</Link>
+        </Card>
+      </div>
+    );
+  }
 
   const run = async () => {
     if (busy || done) return;

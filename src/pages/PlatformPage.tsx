@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ShieldAlert, Building2, Info } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
@@ -137,12 +137,15 @@ export default function PlatformPage() {
       subtitle="Alleen-lezen overzicht van alle salons op GlowSuite"
       compactMobile
       actions={
+        <div className="flex w-full flex-col gap-2 lg:w-auto lg:flex-row lg:items-center">
+        <Link to="/platform/viva-webhooks" className="text-sm text-primary underline whitespace-nowrap">Viva LIVE webhooks</Link>
         <Select value={period} onValueChange={setPeriod}>
           <SelectTrigger className="w-full lg:w-[190px]" aria-label="Periode"><SelectValue /></SelectTrigger>
           <SelectContent>
             {periods.map((p) => <SelectItem key={p} value={p}>{periodLabel(p)}</SelectItem>)}
           </SelectContent>
         </Select>
+        </div>
       }
     >
       {error && (
