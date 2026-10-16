@@ -1008,52 +1008,18 @@ export default function InstellingenPage() {
           <div className="space-y-3 w-full max-w-full min-w-0 overflow-x-hidden">
             <h3 className="text-sm font-semibold flex items-center gap-2"><Plug className="w-4 h-4 text-primary" /> Integraties</h3>
 
-            {/* Payment Provider Selector */}
+            {/* GlowPay (Viva) - enige zichtbare betaalprovider */}
             <div className="glass-card p-4 flex flex-col gap-3 border border-primary/10">
               <div className="flex items-start gap-3">
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-primary/15">
                   <CreditCard className="w-5 h-5 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">Betaalprovider</p>
-                  <p className="text-[11px] text-muted-foreground">Kies welk platform online betalingen verwerkt.</p>
+                  <p className="text-sm font-medium">GlowPay betalingen</p>
+                  <p className="text-[11px] text-muted-foreground">GlowPay gebruikt Viva voor betalingen. Activatie volgt na verificatie bij Viva.</p>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setPaymentProvider("mollie")}
-                  className={`text-left rounded-xl border p-3 transition ${paymentProvider === "mollie" ? "border-primary bg-primary/5" : "border-border bg-background hover:border-primary/40"}`}
-                >
-                  <p className="text-sm font-semibold">Mollie</p>
-                  <p className="text-[11px] text-muted-foreground">iDEAL, Bancontact, kaart</p>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPaymentProvider("viva")}
-                  className={`text-left rounded-xl border p-3 transition ${paymentProvider === "viva" ? "border-primary bg-primary/5" : "border-border bg-background hover:border-primary/40"}`}
-                >
-                  <p className="text-sm font-semibold">Viva Smart Checkout</p>
-                  <p className="text-[11px] text-muted-foreground">Kaart, wallets, lokaal</p>
-                </button>
-              </div>
-              {/* Provider status labels */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <div className="rounded-lg border border-border bg-secondary/30 p-2 flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-medium">Mollie</span>
-                  <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-success/15 text-success">Fallback actief</span>
-                </div>
-                <div className="rounded-lg border border-border bg-secondary/30 p-2 flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-medium">Viva</span>
-                  {paymentProvider !== "viva" ? (
-                    <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-secondary text-muted-foreground">Niet actief</span>
-                  ) : vivaStatus?.environment === "live" && vivaStatus?.configured ? (
-                    <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-success/15 text-success">Klaar voor live</span>
-                  ) : (
-                    <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-warning/15 text-warning">Testmodus</span>
-                  )}
-                </div>
-              </div>
+
 
               {paymentProvider === "viva" && (
                 <div className="space-y-3">
