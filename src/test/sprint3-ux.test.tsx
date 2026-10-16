@@ -43,7 +43,7 @@ function salonDraft(preview = false, extra = {}) {
     JSON.stringify({ step: 1, salonType: "kapper", salonName: "Fictieve salon", ...extra }));
 }
 beforeEach(() => { localStorage.clear(); mock.roles = ["eigenaar"]; mock.count = 0; mock.serviceNames = []; mock.fail = false; mock.writes = []; mock.reads = []; mock.updatePayloads = {}; vi.clearAllMocks(); });
-afterEach(cleanup);
+afterEach(async () => { const { toast } = await import("sonner"); console.log("TOASTS", JSON.stringify((toast.error as any).mock.calls)); cleanup(); });
 
 describe("Sprint 3 menu", () => {
   it("toont Dagelijks eerst en alleen deze standaard open", () => {
