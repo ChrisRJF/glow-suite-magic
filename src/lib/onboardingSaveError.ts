@@ -37,6 +37,8 @@ function reasonFor(code: string | null): string {
     case "42501":
     case "PGRST301":
       return "dit account heeft geen rechten voor deze stap. Neem contact op met de eigenaar of support.";
+    case "PGRST204":
+      return "een veld voor logo of salontype bestaat nog niet in de database. Je salonnaam is niet overschreven; neem contact op met support.";
     case "23505":
       return "deze gegevens bestaan al. Je eerdere keuzes zijn bewaard.";
     case "23514":

@@ -4,7 +4,7 @@
 // is switched to true. Until then only the verified column salon_name is sent.
 export const SETTINGS_SALON_PROFILE_COLUMNS_ENABLED = false;
 
-const SALON_TYPES = ["kapper", "barbier", "nagelstudio", "schoonheidssalon", "wimpers", "massage", "overig"];
+const SALON_TYPES = ["kapper", "barbershop", "nagelstudio", "beautysalon", "kliniek", "overig"];
 
 /** Accepts only a public URL produced by the existing salon-logos upload under the user's own folder. */
 export function isOwnSalonLogoUrl(url: string, userId: string, supabaseUrl: string): boolean {
