@@ -1,6 +1,6 @@
 // LIVE ISV create orchestration (imported only by create-viva-connected-account).
 // Default off: VIVA_ISV_LIVE_ENABLED !== "true" returns before any DB, token or Viva call.
-import { loadLiveIsvConfig, getLiveIsvToken, LIVE_ISV_API_HOST, type EnvGet } from "./isvLiveConfig.ts";
+import { loadLiveIsvConfig, getLiveIsvToken, isLivePilotUserAllowed, LIVE_ISV_API_HOST, type EnvGet } from "./isvLiveConfig.ts";
 import { buildCreatePayload, parseCreateV2, safeInvitationUrl } from "./isvOnboardingV2.ts";
 import { glowPayVivaBranding } from "./isvGlowPayBranding.ts";
 import { reservedCreate, type ReservationStore, type ProviderOutcome } from "./isvCreateReservation.ts";
@@ -27,6 +27,7 @@ export async function liveCreateForSession(sessionUserId: string | null, rawEmai
   if (!sessionUserId) return { status: 401, body: { error: "unauthorized" } };
   const cfg = loadLiveIsvConfig(d.get);
   if (!cfg.ok) return { status: 503, body: { error: cfg.reason } };
+  if (!isLivePilotUserAllowed(sessionUserId, d.get)) return { status: 503, body: { error: "pilot_not_enabled" } };
   const email = String(rawEmail ?? "").trim();
   if (!EMAIL.test(email) || email.length > 254) return { status: 400, body: { error: "invalid_email" } };
 

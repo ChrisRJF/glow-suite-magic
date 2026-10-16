@@ -17,6 +17,7 @@ const rpcOf = (c: any): RpcFn => (fn, args) => c.rpc(fn, args);
 const retryResponse = () => new Response("retry", { status: 500, headers: { "Content-Type": "text/plain" } });
 import { evaluateDemoConfirmation } from "../_shared/demoAppointmentConfirm.ts";
 import { handleIsvOnboardingEvent, isIsvOnboardingEvent } from "../_shared/inactive/isvLiveWebhook.ts";
+import { liveWebhookVerificationKey } from "../_shared/inactive/isvLiveConfig.ts";
 import { confirmIsvDemoPayment, isIsvDemoPayment } from "../_shared/isvDemoConfirm.ts";
 import { appendConfirmationBlock, buildConfirmationLink, claimReminderDispatch } from "../_shared/reminderEngine.ts";
 
@@ -215,6 +216,13 @@ Deno.serve(async (req) => {
 
   console.log("[viva-webhook] method:", method, "ua:", req.headers.get("user-agent") || "", "content-type:", contentType);
 
+  // Future ISV webhook registration URL = this function's URL + "?isv=1" (not registered yet).
+  if (method === "GET" && new URL(req.url).searchParams.get("isv") === "1") {
+    const key = liveWebhookVerificationKey((n) => Deno.env.get(n));
+    console.log("[viva-webhook] isv verification", key ? "ok" : "unavailable");
+    if (!key) return new Response("unavailable", { status: 503, headers: { "Content-Type": "text/plain", "Cache-Control": "no-store" } });
+    return new Response(JSON.stringify({ key }), { status: 200, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
+  }
   if (["OPTIONS", "GET", "HEAD"].includes(method)) {
     console.log("[viva-webhook] verification ping", method);
     return okText();

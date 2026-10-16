@@ -4,7 +4,7 @@
 // VIVA_ISV_LIVE_ENABLED=true, stored verified KYC + capability, and an authoritative LIVE ISV Retrieve
 // (verified, acquiringEnabled, exact merchantId match, source code). The switch off = no Viva call.
 import { tenantIsDemo, loadLiveKyc, liveKycReady, environmentMatches } from "../checkoutGuard.ts";
-import { liveAccountStatus, loadLiveIsvConfig, type EnvGet } from "./isvLiveConfig.ts";
+import { liveAccountStatus, loadLiveIsvConfig, isLivePilotUserAllowed, type EnvGet } from "./isvLiveConfig.ts";
 import type { Fetch, MerchantRow } from "./isvOnboardingSafety.ts";
 
 export type GateResult = { ok: true; demo: boolean } | { ok: false; demo: boolean | null; reason: string };
@@ -37,6 +37,7 @@ export async function livePaymentGate(tenantId: string | null, method: "link" | 
   }
   if (!environmentMatches(false, d.providerEnv)) return { ok: false, demo: false, reason: "environment_mismatch" };
   if (!loadLiveIsvConfig(d.env).ok) return { ok: false, demo: false, reason: "live_isv_disabled" };
+  if (!isLivePilotUserAllowed(tenantId, d.env)) return { ok: false, demo: false, reason: "pilot_not_enabled" };
   if (!liveKycReady(await loadLiveKyc(d.admin, tenantId), method)) return { ok: false, demo: false, reason: "kyc_not_ready" };
   const row = await loadLiveRow(d.admin, tenantId);
   if (row === "error" || !row || row.user_id !== tenantId || row.is_demo !== false) return { ok: false, demo: false, reason: "merchant_unclear" };

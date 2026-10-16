@@ -10,6 +10,10 @@ export const LIVE_ISV_SECRET_NAMES = {
   clientSecret: "VIVA_ISV_LIVE_CLIENT_SECRET",
   /** Not yet created. Absent or anything other than "true" = LIVE ISV off. */
   enabled: "VIVA_ISV_LIVE_ENABLED",
+  /** Comma-separated auth user UUIDs. Absent/empty/any invalid entry = nobody allowed. */
+  pilotUserIds: "VIVA_ISV_LIVE_PILOT_USER_IDS",
+  /** Key returned by GET /isv/v1/webhooks/token, echoed on GET viva-webhook?isv=1. */
+  webhookVerificationKey: "VIVA_ISV_LIVE_WEBHOOK_VERIFICATION_KEY",
 } as const;
 
 export const LIVE_ISV_ACCOUNT_HOST = "https://accounts.vivapayments.com";
@@ -22,6 +26,26 @@ export type EnvGet = (name: string) => string | undefined;
 export function scopedEnv(get: EnvGet): EnvGet {
   const allowed = new Set<string>(Object.values(LIVE_ISV_SECRET_NAMES));
   return (n) => (allowed.has(n) && !FORBIDDEN.has(n) ? get(n) : undefined);
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Fail-closed pilot allowlist. Any invalid entry invalidates the whole list. */
+export function isLivePilotUserAllowed(userId: string | null | undefined, rawGet: EnvGet): boolean {
+  if (typeof userId !== "string" || !UUID.test(userId)) return false;
+  const raw = (scopedEnv(rawGet)(LIVE_ISV_SECRET_NAMES.pilotUserIds) ?? "").trim();
+  if (!raw) return false;
+  const ids = raw.split(",").map((s) => s.trim());
+  if (ids.some((s) => !UUID.test(s))) return false;
+  return ids.some((s) => s.toLowerCase() === userId.toLowerCase());
+}
+
+/** Webhook verification key only when the LIVE switch is on and a key is configured. */
+export function liveWebhookVerificationKey(rawGet: EnvGet): string | null {
+  const get = scopedEnv(rawGet);
+  if ((get(LIVE_ISV_SECRET_NAMES.enabled) ?? "").trim() !== "true") return null;
+  const k = (get(LIVE_ISV_SECRET_NAMES.webhookVerificationKey) ?? "").trim();
+  return k || null;
 }
 
 export type LiveConfig =
@@ -136,6 +160,7 @@ export async function syncLiveForSession(sessionUserId: string | null, d: LiveSy
   if (!sessionUserId) return { status: 401, result: "unauthorized" };
   const c = loadLiveIsvConfig(d.get);
   if (!c.ok) return { status: 503, result: c.reason };
+  if (!isLivePilotUserAllowed(sessionUserId, d.get)) return { status: 503, result: "pilot_not_enabled" };
   const row = await d.findLiveRowByUser(sessionUserId);
   if (row === "error") return { status: 503, result: "unavailable" };
   if (!row || !row.viva_account_id) return { status: 404, result: "not_connected" };
