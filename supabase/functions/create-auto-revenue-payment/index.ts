@@ -3,7 +3,6 @@
 // Demo mode: never calls Mollie — returns a simulated checkout URL.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import { createVivaOrder, vivaCheckoutUrl, isVivaConfigured } from "../_shared/viva.ts";
 import { GLOWPAY_MARGIN_CENTS } from "../_shared/glowpayMargin.ts";
 
 const corsHeaders = {
@@ -94,7 +93,7 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
-    const demoMode = bodyIsDemo === true || Boolean((settings as any)?.is_demo || (settings as any)?.demo_mode);
+    const demoMode = Boolean((settings as any)?.is_demo || (settings as any)?.demo_mode);
     const paymentMode: "none" | "deposit" | "full" =
       (bodyMode as any) || ((settings as any)?.auto_revenue_payment_mode as any) || "deposit";
     const provider = ((settings as any)?.payment_provider as string) || "mollie";
@@ -174,40 +173,10 @@ Deno.serve(async (req) => {
         return json({ success: true, demo: true, provider: "viva", checkout_url: checkoutUrl, payment, deposit_cents: depositCents, total_amount_cents: totalCents });
       }
 
-      if (!isVivaConfigured()) {
-        return json({ error: "Viva is nog niet gekoppeld.", requiresSetup: true }, 400);
-      }
-
-      try {
-        const order = await createVivaOrder({
-          amountCents: totalCents,
-          description,
-          customerEmail: customer?.email || undefined,
-          customerFullName: customer?.name || undefined,
-          customerPhone: customer?.phone || undefined,
-          successUrl: `${REDIRECT_BASE}/boeken?status=payment-return&offer=${offer_id}`,
-          failureUrl: `${REDIRECT_BASE}/boeken?status=payment-failed&offer=${offer_id}`,
-          source: "auto_revenue",
-          paymentType: paymentType === "full" ? "full" : "deposit",
-        });
-        const checkoutUrl = vivaCheckoutUrl(order.orderCode);
-        const { data: payment } = await admin
-          .from("payments")
-          .insert({
-            user_id, appointment_id, customer_id,
-            mollie_payment_id: order.orderCode,
-            checkout_reference: order.orderCode,
-            amount: totalCents / 100, currency: "EUR",
-            payment_type: paymentType, status: "pending",
-            method: "viva", is_demo: false, provider: "viva",
-            metadata: { ...baseMeta, viva_order_code: order.orderCode, checkout_url: checkoutUrl },
-          })
-          .select().single();
-        return json({ success: true, demo: false, provider: "viva", checkout_url: checkoutUrl, payment, deposit_cents: depositCents, total_amount_cents: totalCents });
-      } catch (e) {
-        console.error("Viva order creation failed (auto-revenue)", e);
-        return json({ error: "Viva-betaling kon niet worden gestart." }, 502);
-      }
+      // Fail-closed (security): never charge salon customers via GlowSuite platform Viva credentials.
+      // Salon-specific ISV routing is not live yet: no order, no charge, no payment row.
+      return json({ success: false, demo: false, provider: "viva", payment_status: "payment_pending", blocked: "salon_routing_unavailable",
+        error: "Online aanbetalen is voor deze salon nog niet beschikbaar. Er is niets afgeschreven." }, 409);
     }
 
     if (demoMode) {
