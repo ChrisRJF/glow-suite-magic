@@ -2,7 +2,6 @@
 // Do not deploy without separate approval. Reference of the current server: public-booking.reference.index.ts
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { z } from "https://esm.sh/zod@3.23.8";
-import { createVivaOrder, vivaCheckoutUrl, isVivaConfigured } from "../_shared/viva.ts";
 import { getDefaultMessageTemplate, normalizeMessageLang, renderMessage, intlLocale } from "../_shared/messageTranslations.ts";
 import { decideDeposit } from "../_shared/depositDecision.ts";
 import { amsterdamToUtc, utcToAmsterdam, busyFromAppointments, normalizeBusyEmployees, resolveBooking, availabilitySlots, startTimes, canDoService, type ScheduleEmployee } from "../_shared/employeeSchedule.ts";
@@ -613,66 +612,12 @@ Deno.serve(async (req) => {
               simulated: true,
             },
           });
-        } else if (!isVivaConfigured()) {
-          if (fallbackEnabled) {
-            console.warn("[public-booking] Viva not configured, falling back to Mollie");
-            provider = "mollie";
-          } else {
-            paymentInitError = "Viva is nog niet gekoppeld. Je afspraak is opgeslagen, maar betaling kon niet worden gestart.";
-            paymentStatus = "payment_pending";
-          }
         } else {
-          try {
-            const origin = req.headers.get("origin") || "https://glowsuite.nl";
-            const returnUrl = `${origin}/boeken/${salonSlugForMeta}?status=payment-return&booking=${primaryAppointment.booking_token}`;
-            const order = await createVivaOrder({
-              amountCents: Math.round(Number(serverPayment.amount) * 100),
-              description: `GlowSuite ${serverPayment.type === "deposit" ? "aanbetaling" : "betaling"}`,
-              customerEmail: email,
-              customerFullName: data.customer.name,
-              customerPhone: data.customer.phone,
-              successUrl: returnUrl,
-              failureUrl: returnUrl,
-              source: "public_booking",
-              paymentType: serverPayment.type === "deposit" ? "deposit" : "full",
-            });
-            checkoutUrl = vivaCheckoutUrl(order.orderCode);
-            paymentStatus = "pending";
-            await supabase.from("payments").insert({
-              user_id: ctx.settings.user_id,
-              appointment_id: primaryAppointment.id,
-              customer_id: customerId,
-              mollie_payment_id: order.orderCode,
-              checkout_reference: order.orderCode,
-              amount: serverPayment.amount,
-              currency: "EUR",
-              payment_type: serverPayment.type,
-              status: "pending",
-              method: "viva",
-              is_demo: false,
-              provider: "viva",
-              metadata: {
-                provider: "viva",
-                source: "public_booking",
-                viva_order_code: order.orderCode,
-                appointment_id: primaryAppointment.id,
-                customer_id: customerId,
-                salon_id: salonSlugForMeta,
-                booking_token: primaryAppointment.booking_token,
-                payment_type: serverPayment.type,
-                checkout_url: checkoutUrl,
-              },
-            });
-          } catch (e) {
-            console.error("Viva order failed (public booking)", e);
-            if (fallbackEnabled) {
-              console.warn("[public-booking] Viva failed, falling back to Mollie");
-              provider = "mollie";
-            } else {
-              paymentInitError = "Betaling kon niet worden gestart. Je afspraak is opgeslagen met betaalstatus in afwachting.";
-              paymentStatus = "payment_pending";
-            }
-          }
+          // Fail-closed (security): salon deposits are never charged via GlowSuite platform Viva
+          // credentials. Salon-specific ISV routing is not live yet, so no order, no charge, no payment row.
+          paymentInitError = "Je afspraak is vastgelegd. Online aanbetalen is bij deze salon nog niet beschikbaar; de salon regelt de betaling met je.";
+          paymentStatus = "payment_pending";
+          provider = "none";
         }
       }
       if (provider === "mollie") {
