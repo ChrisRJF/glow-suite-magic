@@ -1,4 +1,4 @@
-import { Landmark, Banknote, Wallet, User, UserPlus, ShieldCheck as ShieldCheckIcon, Star, Gem } from "lucide-react";
+import { Landmark, User, UserPlus, ShieldCheck as ShieldCheckIcon, Star, Gem } from "lucide-react";
 import { isProviderPayment } from "@/lib/providerPayment";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";

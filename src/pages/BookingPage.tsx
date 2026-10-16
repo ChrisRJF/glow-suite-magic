@@ -55,11 +55,6 @@ const SLOT_LABEL_KEYS: Record<string, { key: string; tone: "primary" | "success"
 const STORAGE_KEY = "glowsuite:booking-progress";
 
 const LEGACY_SLOTS = ["09:00", "10:00", "11:30", "13:00", "14:30", "16:00", "17:00"];
-const paymentMethods = [
-  { id: "ideal", label: "iDEAL | Wero" },
-  { id: "creditcard", label: "Creditcard" },
-  { id: "bancontact", label: "Bancontact" },
-];
 
 // Legacy sample staff: only used until the server sends real employees (availability_version 2).
 const EMPLOYEES: Array<{ key?: string; name: string; role: string }> = [
