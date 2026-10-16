@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import type { PayStatus } from "@/lib/glowpayOnboardingStatus";
-import { registrationView, type RegistrationView } from "@/lib/glowpayRegistrationStatus";
+import { registrationView, visibleView, type RegistrationView } from "@/lib/glowpayRegistrationStatus";
 import { trustedVivaUrl } from "@/lib/vivaOnboardingUrl";
 import { Check, Clock, AlertTriangle, Loader2, LogIn, ExternalLink, ShieldCheck, HelpCircle } from "lucide-react";
 import glowpayLogo from "@/assets/glowpay/glowpay-logo.png.asset.json";
@@ -45,14 +45,16 @@ const STATUS_CONTENT: Record<PayStatus, { icon: any; tone: string; title: string
 
 export default function GlowPayRegistrationStatusPage() {
   const { user, loading: authLoading } = useAuth();
-  const [view, setView] = useState<RegistrationView | null>(null);
+  // The loaded view is bound to the exact auth user.id it was fetched for,
+  // so a previous user's status or Viva link can never paint after a switch.
+  const [loaded, setLoaded] = useState<{ userId: string | null; view: RegistrationView } | null>(null);
 
   useEffect(() => {
     // Reset on user switch / sign-out so a previous user's status or Viva
     // link is never shown while new data loads.
-    setView(null);
+    setLoaded(null);
     if (authLoading) return;
-    if (!user) { setView(registrationView({ signedIn: false, hadError: false, row: null, trustedUrl: null })); return; }
+    if (!user) { setLoaded({ userId: null, view: registrationView({ signedIn: false, hadError: false, row: null, trustedUrl: null }) }); return; }
     let cancelled = false;
     (async () => {
       const { data, error } = await (supabase as any)
@@ -62,16 +64,22 @@ export default function GlowPayRegistrationStatusPage() {
         .eq("is_demo", false)
         .maybeSingle();
       if (cancelled) return;
-      setView(registrationView({
-        signedIn: true,
-        hadError: !!error,
-        row: data ?? null,
-        trustedUrl: trustedVivaUrl(data?.onboarding_url),
-      }));
+      setLoaded({
+        userId: user.id,
+        view: registrationView({
+          signedIn: true,
+          hadError: !!error,
+          row: data ?? null,
+          trustedUrl: trustedVivaUrl(data?.onboarding_url),
+        }),
+      });
     })();
     return () => { cancelled = true; };
   }, [user?.id, authLoading]);
 
+  // Fail-closed during render itself: only show the view when it belongs to
+  // the current auth user and auth has finished loading.
+  const view = visibleView(loaded, user?.id ?? null, authLoading);
   const content = view?.kind === "status" ? STATUS_CONTENT[view.status] : null;
   const Icon = content?.icon;
 
