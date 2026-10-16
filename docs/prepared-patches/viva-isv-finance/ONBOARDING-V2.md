@@ -29,3 +29,11 @@ Code: `supabase/functions/_shared/inactive/isvOnboardingV2.ts` (builds on `isvOn
 4. `create-viva-connected-account` -> `decideCreateV2`, `buildCreatePayload`, `parseCreateV2`.
 5. `_shared/vivaIsv.ts` gate -> `livePaymentAllowedV2` (redeploys all payment functions; count connected-without-verified first).
 6. Wizard step 3 UI, then website publish.
+
+## Separate LIVE ISV config (PREPARED, NOT ACTIVE, 2026-10-16)
+- Code: `_shared/inactive/isvLiveConfig.ts`; tests: `tests/viva-isv/isv-live-config.test.ts`.
+- Secret names only: `VIVA_ISV_LIVE_CLIENT_ID`, `VIVA_ISV_LIVE_CLIENT_SECRET` (present), `VIVA_ISV_LIVE_ENABLED` (not created; absent = off).
+- Never reads `VIVA_ENVIRONMENT`, `VIVA_ISV_CLIENT_*`, merchant or POS credentials (scoped getter).
+- Hosts fixed to LIVE: token `accounts.vivapayments.com/connect/token`, API `api.vivapayments.com`.
+- Fail closed: switch off, missing credentials, token/Viva failure, unparseable response, demo row, missing brand hex or source code.
+- Open blockers: brand hex for `primaryColor`; live source-code provisioning; token scope for ISV accounts unverified on LIVE; logo URL still the older ISV asset (official GlowPay logo needs a public https URL).
