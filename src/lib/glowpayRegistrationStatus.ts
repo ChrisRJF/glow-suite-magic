@@ -10,6 +10,18 @@ export type RegistrationView =
   | { kind: "unavailable" }
   | { kind: "status"; status: PayStatus; continueUrl: string | null };
 
+// Render-guard: a loaded view is only visible for the exact auth user it was
+// fetched for. On a user switch the previous user's view must never paint,
+// not even for one render before the effect resets state.
+export function visibleView<T>(
+  loaded: { userId: string | null; view: T } | null,
+  currentUserId: string | null,
+  authLoading: boolean,
+): T | null {
+  if (authLoading || !loaded) return null;
+  return loaded.userId === currentUserId ? loaded.view : null;
+}
+
 export function registrationView(opts: {
   signedIn: boolean;
   hadError: boolean;

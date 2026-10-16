@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { registrationView } from "@/lib/glowpayRegistrationStatus";
+import { registrationView, visibleView } from "@/lib/glowpayRegistrationStatus";
 
 const activeRow = {
   viva_account_id: "acc-fake", viva_merchant_id: "m-fake", onboarding_status: "active",
@@ -28,5 +28,27 @@ describe("GlowPay registratie retourpagina view-state", () => {
   it("pending zonder source code blijft pending, nooit actief", () => {
     const v = registrationView({ signedIn: true, hadError: false, row: { ...activeRow, viva_source_code: null }, trustedUrl: null });
     expect(v).toEqual({ kind: "status", status: "pending", continueUrl: null });
+  });
+});
+
+describe("visibleView (render-guard bij gebruikerswissel)", () => {
+  const viewA = { kind: "status" as const, status: "active" as const, continueUrl: "https://www.vivapayments.com/x" };
+
+  it("toont de view van gebruiker A nooit voor gebruiker B", () => {
+    expect(visibleView({ userId: "user-a", view: viewA }, "user-b", false)).toBeNull();
+  });
+
+  it("toont de view alleen voor de gebruiker waarmee hij is opgehaald", () => {
+    expect(visibleView({ userId: "user-a", view: viewA }, "user-a", false)).toBe(viewA);
+  });
+
+  it("toont niets zolang auth nog laadt", () => {
+    expect(visibleView({ userId: "user-a", view: viewA }, "user-a", true)).toBeNull();
+  });
+
+  it("toont de uitgelogde view alleen bij uitgelogde sessie", () => {
+    const signedOut = { kind: "signed_out" as const };
+    expect(visibleView({ userId: null, view: signedOut }, null, false)).toBe(signedOut);
+    expect(visibleView({ userId: null, view: signedOut }, "user-a", false)).toBeNull();
   });
 });
