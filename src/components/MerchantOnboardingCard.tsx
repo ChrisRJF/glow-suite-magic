@@ -3,8 +3,11 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoMode } from "@/hooks/useDemoMode";
+import { usePlatformAccess } from "@/hooks/usePlatformAccess";
 import { toast } from "sonner";
-import { Building2, ExternalLink, RefreshCw, Loader2 } from "lucide-react";
+import { Building2, ExternalLink, RefreshCw, Loader2, ChevronDown } from "lucide-react";
+import { registrationAction, kycLabel, onboardingLabel, MISSING_LINK_TEXT } from "@/lib/glowpayMerchantView";
+import { glowpayPaymentStatus } from "@/lib/glowpayOnboardingStatus";
 
 type Merchant = {
   id: string;
@@ -20,12 +23,17 @@ type Merchant = {
   payouts_enabled: boolean;
   terminals_enabled: boolean;
   online_payments_enabled: boolean;
+  viva_source_code?: string | null;
+  is_demo?: boolean | null;
   last_synced_at: string | null;
 };
+
+const yesNo = (v: boolean | undefined) => (v ? "Aan" : "Nog niet");
 
 export function MerchantOnboardingCard() {
   const { user } = useAuth();
   const { demoMode } = useDemoMode();
+  const platform = usePlatformAccess();
   const [merchant, setMerchant] = useState<Merchant | null>(null);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -53,21 +61,26 @@ export function MerchantOnboardingCard() {
   };
   useEffect(() => { load(); }, [user?.id, demoMode]);
 
+  const action = registrationAction(merchant);
+  const payActive = glowpayPaymentStatus(merchant as any) === "active";
+
   const startOnboarding = async () => {
-    if (!businessName.trim() || !email.trim()) { toast.error("Bedrijfsnaam en e-mail vereist"); return; }
+    // Nooit create bij bestaande merchant: alleen de "start"-actie mag hier komen.
+    if (action.kind !== "start") return;
+    if (!businessName.trim() || !email.trim()) { toast.error("Vul je bedrijfsnaam en e-mailadres in"); return; }
     setLoading(true);
     const { data, error } = await supabase.functions.invoke("create-viva-connected-account", {
       body: { business_name: businessName.trim(), contact_email: email.trim(), phone: phone.trim() || null, country: "NL" },
     });
     setLoading(false);
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error("Registratie bij Viva is nu niet beschikbaar. Probeer het later opnieuw."); return; }
     if ((data as any)?.demo) {
-      toast.message("Demo modus", { description: (data as any).message });
+      toast.message("Demo", { description: (data as any).message });
     } else if ((data as any)?.onboarding_url) {
-      toast.success("Onboarding gestart");
+      toast.success("Registratie gestart");
       window.open((data as any).onboarding_url, "_blank", "noopener,noreferrer");
-    } else if ((data as any)?.error) {
-      toast.error((data as any).error);
+    } else {
+      toast.message("Je aanvraag is in behandeling. Klik niet opnieuw; neem contact op met GlowSuite als dit lang duurt.");
     }
     load();
   };
@@ -76,59 +89,87 @@ export function MerchantOnboardingCard() {
     setSyncing(true);
     const { data, error } = await supabase.functions.invoke("sync-viva-connected-account", { body: {} });
     setSyncing(false);
-    if (error) { toast.error(error.message); return; }
-    if ((data as any)?.error) toast.error((data as any).error);
+    if (error || (data as any)?.error) toast.error("Status vernieuwen lukt nu niet. Probeer het later opnieuw.");
     else toast.success("Status bijgewerkt");
     load();
   };
 
   return (
-    <div className="rounded-xl border border-border bg-background/60 p-3 space-y-3 max-w-full overflow-hidden min-w-0">
+    <div className="rounded-xl border border-border bg-background/60 p-4 space-y-3 max-w-full overflow-hidden min-w-0">
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <p className="text-[11px] font-semibold flex items-center gap-2"><Building2 className="w-3.5 h-3.5" /> Merchant onboarding</p>
-        <span className="text-[10px] text-muted-foreground">{demoMode ? "Demo" : "Live"}</span>
+        <p className="text-sm font-semibold flex items-center gap-2"><Building2 className="w-4 h-4" /> Registratie bij Viva</p>
+        {demoMode && <span className="text-xs text-muted-foreground">Demo</span>}
       </div>
 
       {demoMode && (
-        <p className="text-[10px] text-muted-foreground rounded-md bg-muted/40 p-2 break-words">
-          Demo modus gebruikt handmatige Viva credentials. Productie-onboarding gebruikt Viva connected accounts.
+        <p className="text-xs text-muted-foreground rounded-md bg-muted/40 p-2 break-words">
+          In de demo worden geen echte accounts aangemaakt en geen echte betalingen verwerkt.
         </p>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[10px] min-w-0">
-        <div className="min-w-0 break-words"><span className="text-muted-foreground">Status:</span> <code className="break-all">{merchant?.onboarding_status || "not_started"}</code></div>
-        <div className="min-w-0 break-words"><span className="text-muted-foreground">KYC:</span> <code className="break-all">{merchant?.kyc_status || "—"}</code></div>
-        <div className="min-w-0"><span className="text-muted-foreground">Payouts:</span> {merchant?.payouts_enabled ? "✓" : "—"}</div>
-        <div className="min-w-0"><span className="text-muted-foreground">Terminals:</span> {merchant?.terminals_enabled ? "✓" : "—"}</div>
-        <div className="min-w-0"><span className="text-muted-foreground">Online:</span> {merchant?.online_payments_enabled ? "✓" : "—"}</div>
-        <div className="min-w-0 break-words"><span className="text-muted-foreground">Account:</span> <code className="break-all">{merchant?.viva_account_id || "—"}</code></div>
-        <div className="sm:col-span-2 min-w-0 break-words"><span className="text-muted-foreground">Merchant ID:</span> <code className="break-all">{merchant?.viva_merchant_id || "—"}</code></div>
-        <div className="sm:col-span-2 min-w-0 break-words"><span className="text-muted-foreground">Laatst gesynced:</span> {merchant?.last_synced_at ? new Date(merchant.last_synced_at).toLocaleString("nl-NL") : "—"}</div>
-      </div>
+      {merchant?.viva_account_id ? (
+        <div className="space-y-1 text-sm">
+          <p className="font-medium">{payActive ? "GlowPay is actief" : kycLabel(merchant.kyc_status)}</p>
+          <p className="text-xs text-muted-foreground">
+            {payActive
+              ? "Je kunt betalingen ontvangen via GlowPay."
+              : "Je registratie bij Viva is gestart. Rond eventuele stappen af bij Viva. GlowSuite kun je ondertussen gewoon gebruiken."}
+          </p>
+        </div>
+      ) : (
+        <>
+          <p className="text-xs text-muted-foreground">
+            Maak je betaalaccount aan bij onze betaalpartner Viva. Viva controleert daarna je bedrijfsgegevens.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <input aria-label="Bedrijfsnaam" value={businessName} onChange={(e) => setBusinessName(e.target.value)} placeholder="Bedrijfsnaam" className="text-sm h-10 rounded-md border border-border bg-background px-3 w-full min-w-0" />
+            <input aria-label="E-mailadres" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="E-mailadres" className="text-sm h-10 rounded-md border border-border bg-background px-3 w-full min-w-0" />
+            <input aria-label="Telefoon" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Telefoon" className="text-sm h-10 rounded-md border border-border bg-background px-3 w-full min-w-0" />
+          </div>
+        </>
+      )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-        <input value={businessName} onChange={(e) => setBusinessName(e.target.value)} placeholder="Bedrijfsnaam" className="text-[11px] h-8 rounded-md border border-border bg-background px-2 w-full min-w-0" />
-        <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Contact e-mail" className="text-[11px] h-8 rounded-md border border-border bg-background px-2 w-full min-w-0" />
-        <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Telefoon" className="text-[11px] h-8 rounded-md border border-border bg-background px-2 w-full min-w-0" />
-      </div>
+      {action.kind === "missing_link" && !payActive && (
+        <p className="text-xs text-muted-foreground rounded-md bg-muted/40 p-2" role="status">{MISSING_LINK_TEXT}</p>
+      )}
 
       <div className="flex flex-col sm:flex-row flex-wrap gap-2">
-        <Button size="sm" disabled={loading} onClick={startOnboarding} className="h-8 text-[11px] w-full sm:w-auto">
-          {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : "Start Viva onboarding"}
-        </Button>
-        {merchant?.onboarding_url && (
-          <Button size="sm" variant="outline" asChild className="h-8 text-[11px] w-full sm:w-auto">
-            <a href={merchant.onboarding_url} target="_blank" rel="noopener noreferrer">
-              Open onboarding link <ExternalLink className="w-3 h-3 ml-1" />
+        {action.kind === "start" && (
+          <Button size="sm" disabled={loading} onClick={startOnboarding} className="h-10 w-full sm:w-auto">
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Start registratie bij Viva"}
+          </Button>
+        )}
+        {action.kind === "continue" && !payActive && (
+          <Button size="sm" asChild className="h-10 w-full sm:w-auto">
+            <a href={action.url} target="_blank" rel="noopener noreferrer">
+              Verder bij Viva <ExternalLink className="w-4 h-4 ml-1" />
             </a>
           </Button>
         )}
         {merchant?.viva_account_id && !demoMode && (
-          <Button size="sm" variant="outline" disabled={syncing} onClick={refresh} className="h-8 text-[11px] w-full sm:w-auto">
-            {syncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <><RefreshCw className="w-3 h-3 mr-1" /> Refresh status</>}
+          <Button size="sm" variant="outline" disabled={syncing} onClick={refresh} className="h-10 w-full sm:w-auto">
+            {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <><RefreshCw className="w-4 h-4 mr-1" /> Status vernieuwen</>}
           </Button>
         )}
       </div>
+
+      {platform.owner && merchant && (
+        <details className="group text-xs rounded-md border border-border/60 p-2">
+          <summary className="cursor-pointer list-none flex items-center justify-between text-muted-foreground">
+            Technische details <ChevronDown className="w-3.5 h-3.5 transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mt-2 min-w-0">
+            <div className="break-words">Registratie: {onboardingLabel(merchant.onboarding_status)} <code className="break-all">({merchant.onboarding_status})</code></div>
+            <div className="break-words">Verificatie: <code className="break-all">{merchant.kyc_status || "-"}</code></div>
+            <div>Uitbetalingen: {yesNo(merchant.payouts_enabled)}</div>
+            <div>Pinapparaten: {yesNo(merchant.terminals_enabled)}</div>
+            <div>Online betalen: {yesNo(merchant.online_payments_enabled)}</div>
+            <div className="break-words">Account-ID: <code className="break-all">{merchant.viva_account_id || "-"}</code></div>
+            <div className="sm:col-span-2 break-words">Merchant-ID: <code className="break-all">{merchant.viva_merchant_id || "-"}</code></div>
+            <div className="sm:col-span-2">Laatst bijgewerkt: {merchant.last_synced_at ? new Date(merchant.last_synced_at).toLocaleString("nl-NL") : "-"}</div>
+          </div>
+        </details>
+      )}
     </div>
   );
 }
