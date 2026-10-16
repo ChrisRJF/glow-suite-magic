@@ -11,10 +11,10 @@ import { useDemoMode } from "@/hooks/useDemoMode";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { OnboardingSaveError, describeOnboardingSaveError } from "@/lib/onboardingSaveError";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import {
   Sparkles, Check, ArrowRight, ArrowLeft, Store, Scissors,
-  CreditCard, Rocket, Upload, PartyPopper, ShieldCheck, Zap, LockKeyhole,
+  CreditCard, Rocket, Upload, PartyPopper, ShieldCheck, Zap, LockKeyhole, ExternalLink,
   Smartphone, Loader2, Heart, Stethoscope, Hand, Gem,
   Calendar, UserPlus, ShoppingBag, BarChart3,
 } from "lucide-react";
@@ -24,6 +24,7 @@ import glowsuiteLogo from "@/assets/glowsuite-logo.png";
 import glowpayLogo from "@/assets/glowpay/glowpay-logo.png.asset.json";
 import { missingSeedServices } from "@/lib/onboardingServiceSeed";
 import { buildSettingsPayload } from "@/lib/onboardingSalonProfile";
+import { registrationAction, MISSING_LINK_TEXT, type RegistrationAction } from "@/lib/glowpayMerchantView";
 import { inviteActionFromResponse, inviteActionFromError, INVITE_UNAVAILABLE } from "@/lib/vivaInviteAction";
 
 
@@ -500,6 +501,7 @@ function GlowPayStep({ demo, previewMode = false, salonName, onLater }: { demo: 
   const [booking, setBooking] = useState<BookingStatus | null>(null);
   const [inviteBusy, setInviteBusy] = useState(false);
   const [inviteMsg, setInviteMsg] = useState<string | null>(null);
+  const [regAction, setRegAction] = useState<RegistrationAction | null>(null);
   const inviteFlight = useRef(false);
   // Altijd-actuele gebruikers-id: het user-object uit de render-closure is
   // verouderd zodra de async request loopt. Deze ref wordt synchroon tijdens
@@ -519,12 +521,14 @@ function GlowPayStep({ demo, previewMode = false, salonName, onLater }: { demo: 
     (async () => {
       const [m, s] = await Promise.all([
         (supabase as any).from("glowpay_connected_merchants")
-          .select("viva_account_id, viva_merchant_id, onboarding_status, kyc_status, online_payments_enabled, viva_source_code, is_demo")
+          .select("viva_account_id, viva_merchant_id, onboarding_status, kyc_status, online_payments_enabled, viva_source_code, is_demo, onboarding_url")
           .eq("user_id", user.id).eq("is_demo", demo).maybeSingle(),
         (supabase as any).from("settings").select("public_slug").eq("user_id", user.id).maybeSingle(),
       ]);
       if (cancelled) return;
       setPay(m.error ? null : glowpayPaymentStatus(m.data ?? null));
+      // Leesfout: geen actie aanbieden (fail-closed, nooit blind create).
+      setRegAction(m.error ? null : registrationAction(m.data ?? null));
       setBooking(s.error ? null : bookingStatus(s.data?.public_slug));
     })().catch(() => {});
     return () => { cancelled = true; };
@@ -534,7 +538,17 @@ function GlowPayStep({ demo, previewMode = false, salonName, onLater }: { demo: 
   const tone = (ok: boolean) => ok ? "text-success" : "text-muted-foreground";
 
   // Alleen interactief voor een ingelogde, niet-demo gebruiker buiten preview.
-  const canInvite = Boolean(user && !demo && !previewMode && salonName.trim() && user.email);
+  // Create alleen als er aantoonbaar nog geen account is; pilot/KYC checkt de server.
+  const canInvite = Boolean(user && !demo && !previewMode && salonName.trim() && user.email && regAction?.kind === "start");
+  const unavailableReason = demo || previewMode
+    ? "In de demo kun je GlowPay niet activeren. Er worden geen echte betalingen verwerkt."
+    : !user || !user.email
+      ? "Log in om GlowPay te activeren."
+      : !salonName.trim()
+        ? "Vul eerst je salonnaam in bij stap 2."
+        : regAction === null
+          ? "We kunnen je GlowPay-status nu niet ophalen. Probeer het later opnieuw."
+          : null;
 
   const startVivaInvite = async () => {
     // Single-flight: nooit twee registratieverzoeken tegelijk of na elkaar
@@ -604,25 +618,36 @@ function GlowPayStep({ demo, previewMode = false, salonName, onLater }: { demo: 
 
       {status !== "active" && (
         <div className="space-y-2">
-          <Button
-            variant="outline"
-            className="w-full disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100 disabled:shadow-none"
-            disabled={!canInvite || inviteBusy}
-            onClick={startVivaInvite}
-            aria-describedby="glowpay-soon"
-            data-testid="glowpay-invite-button"
-          >
-            {inviteBusy ? <Loader2 className="animate-spin" aria-hidden="true" /> : <LockKeyhole aria-hidden="true" />}
-            {inviteBusy ? "Aanvraag wordt verstuurd..." : "Account aanmaken of koppelen bij Viva"}
-          </Button>
+          {regAction?.kind === "continue" ? (
+            <Button asChild variant="gradient" className="w-full" data-testid="glowpay-continue-button">
+              <a href={regAction.url}><ExternalLink aria-hidden="true" /> Verder met Viva-registratie</a>
+            </Button>
+          ) : regAction?.kind === "missing_link" ? (
+            <p className="text-xs text-center text-muted-foreground" role="status" data-testid="glowpay-missing-link">{MISSING_LINK_TEXT}</p>
+          ) : (
+            <Button
+              variant="gradient"
+              className="w-full"
+              disabled={!canInvite || inviteBusy}
+              onClick={startVivaInvite}
+              aria-describedby={unavailableReason ? "glowpay-reason" : undefined}
+              data-testid="glowpay-invite-button"
+            >
+              {inviteBusy && <Loader2 className="animate-spin" aria-hidden="true" />}
+              {inviteBusy ? "Aanvraag wordt verstuurd..." : "Account aanmaken of koppelen bij Viva"}
+            </Button>
+          )}
           {inviteMsg && (
             <p className="text-xs text-center text-muted-foreground" role="status" data-testid="glowpay-invite-message">{inviteMsg}</p>
           )}
-          <p id="glowpay-soon" className="text-xs text-muted-foreground text-center">
-            {demo || previewMode
-              ? "In de demo kun je GlowPay niet activeren. Er worden geen echte betalingen verwerkt."
-              : "De koppeling met Viva wordt nu ingeschakeld. Lukt het nog niet, probeer het later of neem contact op met GlowSuite."}
-          </p>
+          {unavailableReason && regAction?.kind !== "continue" && (
+            <p id="glowpay-reason" className="text-xs text-muted-foreground text-center">{unavailableReason}</p>
+          )}
+          {regAction && regAction.kind !== "start" && (
+            <Button asChild variant="outline" className="w-full">
+              <Link to="/glowpay/registratie-status">Status bekijken</Link>
+            </Button>
+          )}
           <Button variant="ghost" className="w-full" onClick={onLater}>Later activeren</Button>
         </div>
       )}
