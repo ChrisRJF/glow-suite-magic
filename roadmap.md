@@ -1,5 +1,6 @@
 # Roadmap
 
+- [ ] Gerichte finale Viva-contractreview: POST-trustmodel en onafhankelijke merchant/order/amount/currency-binding controleren, API-eenheden en afronding officieel onderbouwen, alleen bewezen correcties met synthetische tests voorbereiden; geen deployment, charges of Beautycare-wijzigingen.
 - [x] Bestaande ISV-betaalroutes aangesloten en zes functies veilig gedeployed; migraties 0022/0023 aanwezig, 64 gerichte tests en 18 geïsoleerde opslag/concurrentietests geslaagd. Vijfminutenjob actief; accountrefresh onafhankelijk van betaalgate, geen LIVE orders.
 - [ ] LIVE charge-activatie wacht op sluitend Viva LIVE webhook/retrieve-contractbewijs, geverifieerde salon-KYC/acquiring en afzonderlijke activatie-GO; geen salonallowlist.
 - [x] Account/KYC/acquiring-refresh onafhankelijk van betaalgate: viva-webhook en viva-payment-reconcile gedeployed, 39 gerichte tests en Deno-check geslaagd; worker direct uitgevoerd, één LIVE accountstatus opgeslagen, 0 betaalactivaties. Officiële LIVE signature/refund/retrieve-contractdetails blijven onvoldoende bewezen: directe officiële pagina's time-out, subagentclaim niet reproduceerbaar; niets ingeschakeld.
