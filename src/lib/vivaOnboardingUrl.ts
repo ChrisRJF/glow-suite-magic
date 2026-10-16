@@ -6,6 +6,8 @@ const VIVA_HOSTS = new Set([
   "www.vivapayments.com",
   "viva.com",
   "www.viva.com",
+  "vivawallet.com",
+  "www.vivawallet.com",
 ]);
 
 export function isTrustedVivaUrl(raw: string | null | undefined): boolean {
