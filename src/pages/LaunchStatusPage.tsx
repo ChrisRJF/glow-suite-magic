@@ -57,13 +57,13 @@ export default function LaunchStatusPage() {
     // 4. Edge function: create-payment reachable
     // We send an intentionally-invalid body; a 400 "Ongeldige invoer" proves the function is up and validating.
     try {
-      const { error } = await supabase.functions.invoke("create-payment", {
-        body: { __healthcheck: true },
-      });
-      const msg = (error?.message || "").toLowerCase();
-      const reachable =
-        !error ||
-        /non-2xx|400|amount|ongeldige|required/i.test(msg);
+      // CORS preflight only: proves the function is up without sending a payment body.
+      const res = await fetch(
+        `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/create-payment`,
+        { method: "OPTIONS" },
+      );
+      const reachable = res.ok;
+      const error = reachable ? null : { message: `HTTP ${res.status}` };
       results.push({
         id: "fn-pay", label: "Betaal-functie bereikbaar",
         state: reachable ? "ok" : "fail",
