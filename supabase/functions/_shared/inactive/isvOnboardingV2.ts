@@ -11,7 +11,7 @@ const UUIDISH = /^[0-9a-fA-F-]{8,64}$/;
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
 /** Existing real asset (public/assets). The brand green is NOT defined anywhere yet: must be supplied. */
-export const GLOWPAY_LOGO_URL = "https://glowsuite.nl/__l5e/assets-v1/b5dafa8b-3daf-4b09-927d-474084acabdc/glowpay-logo.png"; // official GlowPay logo, verified public 200 image/png 2026-10-16
+export const GLOWPAY_LOGO_URL = "https://glowsuite.nl/__l5e/assets-v1/6cb294cf-67e9-446d-8fd1-97e0fcfe2d90/glowpay-horizontaal-transparant-v2.png"; // official transparent GlowPay logo, verified public 200 image/png RGBA 1920x421 2026-10-16
 
 export interface Branding { partnerName: string; logoUrl: string; primaryColor: string | null }
 

@@ -11,6 +11,6 @@ describe("confirmed GlowPay branding", () => {
     expect(GLOWPAY_ACCENT_COLOR).toBe("#00C878");
   });
   it("preserves the verified official public logo URL", () => {
-    expect(glowPayVivaBranding().logoUrl).toBe("https://glowsuite.nl/__l5e/assets-v1/b5dafa8b-3daf-4b09-927d-474084acabdc/glowpay-logo.png");
+    expect(glowPayVivaBranding().logoUrl).toBe("https://glowsuite.nl/__l5e/assets-v1/6cb294cf-67e9-446d-8fd1-97e0fcfe2d90/glowpay-horizontaal-transparant-v2.png");
   });
 });
