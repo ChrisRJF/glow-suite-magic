@@ -951,7 +951,7 @@ function DoneStep({ logoUrl, salonName }: { logoUrl?: string; salonName?: string
       )}
       <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">Je salon is klaar!</h1>
       <p className="text-base text-muted-foreground mb-6">
-        De inrichting van GlowSuite is afgerond. Je kunt direct werken met:
+        De inrichting van GlowSuite is afgerond. Je kunt nu aan de slag met:
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full text-left">
         {ready.map(t => (
