@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { registrationView } from "@/lib/glowpayRegistrationStatus";
+import { registrationView, visibleView } from "@/lib/glowpayRegistrationStatus";
 
 const activeRow = {
   viva_account_id: "acc-fake", viva_merchant_id: "m-fake", onboarding_status: "active",
