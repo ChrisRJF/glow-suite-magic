@@ -24,6 +24,7 @@ import GlowSuiteAIPage from "./pages/GlowSuiteAIPage";
 import KassaPage from "./pages/KassaPage";
 import GlowPayPage from "./pages/GlowPayPage";
 import GlowPayMarketingPage from "./pages/GlowPayMarketingPage";
+import GlowPayRegistrationStatusPage from "./pages/GlowPayRegistrationStatusPage";
 import ProductenPage from "./pages/ProductenPage";
 import RapportenPage from "./pages/RapportenPage";
 import InstellingenPage from "./pages/InstellingenPage";
@@ -137,6 +138,7 @@ const App = () => (
               <Route path="/pricing" element={<PricingPage />} />
               <Route path="/prijzen" element={<PricingPage />} />
               <Route path="/glowpay-info" element={<GlowPayMarketingPage />} />
+              <Route path="/glowpay/registratie-status" element={<GlowPayRegistrationStatusPage />} />
               <Route path="/betalingen" element={<GlowPayMarketingPage />} />
               <Route path="/agenda" element={<RoleProtectedRoute><CalendarPage /></RoleProtectedRoute>} />
               <Route path="/klanten" element={<RoleProtectedRoute><CustomersPage /></RoleProtectedRoute>} />
