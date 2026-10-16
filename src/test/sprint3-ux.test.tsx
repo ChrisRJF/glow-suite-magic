@@ -104,13 +104,12 @@ describe("Sprint 3 snelle start", () => {
     expect(localStorage.getItem(draftKey)).not.toBeNull();
     expect(localStorage.getItem("glowsuite_automations_synthetic")).toBeNull();
   });
-  it("stuurt alleen de bestaande kolom salon_name naar settings (geen salon_logo_url/salon_type, PGRST204)", async () => {
+  it("stuurt na activatie salon_name en salon_type naar settings; extern logo wordt geweigerd (PGRST204-veilig)", async () => {
     salonDraft(false, { logoUrl: "https://example.invalid/logo.png" }); wizard();
     fireEvent.click(screen.getByRole("button", { name: "Volgende" }));
     await screen.findByRole("heading", { name: "Activeer GlowPay" });
-    expect(mock.updatePayloads.settings).toEqual({ salon_name: "Fictieve salon" });
+    expect(mock.updatePayloads.settings).toEqual({ salon_name: "Fictieve salon", salon_type: "kapper" });
     expect(mock.updatePayloads.settings).not.toHaveProperty("salon_logo_url");
-    expect(mock.updatePayloads.settings).not.toHaveProperty("salon_type");
   });
   it("seedt geen behandelingen als er al behandelingen zijn", async () => {
     mock.serviceNames = ["Eigen dienst A", "Eigen dienst B", "Eigen dienst C"]; salonDraft(); wizard(); fireEvent.click(screen.getByRole("button", { name: "Volgende" }));

@@ -2,7 +2,7 @@
 // salon_type / salon_logo_url only become part of the write once the proposed migration
 // docs/proposed-migrations/2026-10-16_settings_salon_type_logo.sql is applied AND this gate
 // is switched to true. Until then only the verified column salon_name is sent.
-export const SETTINGS_SALON_PROFILE_COLUMNS_ENABLED = false;
+export const SETTINGS_SALON_PROFILE_COLUMNS_ENABLED = true;
 
 const SALON_TYPES = ["kapper", "barbershop", "nagelstudio", "beautysalon", "kliniek", "overig"];
 
