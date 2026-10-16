@@ -378,7 +378,7 @@ export default function CalendarPage() {
   const hiddenEmployeeCount = displayEmployees.length - filteredMedewerkers.length;
   const workingEmployeeCount = displayEmployees.filter((m: any) => getEmployeeStatus(m, currentDate) === 'beschikbaar').length;
   const employeeFilterSummary = workingEmployeeCount === displayEmployees.length
-    ? `Alle ${workingEmployeeCount} medewerkers werken op deze dag, dus beide keuzes tonen hetzelfde`
+    ? ''
     : `${workingEmployeeCount} werken · ${hiddenEmployeeCount} verborgen${filterAvailability === 'beschikbaar' && absentWithAppts.length > 0 ? ` · ${absentWithAppts.length} met afspraken blijven zichtbaar` : ''}`;
 
   const dayAppts = useMemo(() =>
@@ -1977,6 +1977,7 @@ export default function CalendarPage() {
             isPauseSlot={isPauseSlotForEmpId}
             onRequestMove={openMoveSheet}
             onSlotClick={(empId, slot) => openAddModal(dateStr, slot)}
+            onOpenAppointment={(apt) => setDossierAppt(apt)}
             draggable
           />
         ) : (
@@ -2003,7 +2004,10 @@ export default function CalendarPage() {
                         const time = getAppointmentTime(apt);
                         const displayEmps = getDisplayEmployees(apt);
                         return (
-                          <div key={apt.id} className="p-2.5 rounded-xl cursor-pointer transition-all duration-200 hover:scale-[1.02]"
+                          <div key={apt.id} role="button" tabIndex={0} aria-label={`Open afspraak ${cust?.name || 'Klant'} ${dayNames[i]} ${day.getDate()} om ${time}`}
+                            onClick={() => setDossierAppt(apt)}
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDossierAppt(apt); } }}
+                            className="p-2.5 rounded-xl cursor-pointer transition-all duration-200 hover:scale-[1.02]"
                             style={{ backgroundColor: `${svc?.color || '#7B61FF'}12`, borderLeft: `2px solid ${svc?.color || '#7B61FF'}` }}>
                             <div className="flex items-start gap-2">
                               {displayEmps.length > 0 && (

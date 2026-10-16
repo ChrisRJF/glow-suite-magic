@@ -181,8 +181,8 @@ interface ColumnViewProps {
   onOpenAppointment?: (apt: any) => void;
 }
 
-const SLOT_PX = 18;
-const SLOT_PX_MOBILE = 28; // height per 15-min slot
+const SLOT_PX_DESKTOP = 18;
+const SLOT_PX_MOBILE = 28;
 
 export function EmployeeColumnDayView(props: ColumnViewProps) {
   const {
@@ -191,6 +191,7 @@ export function EmployeeColumnDayView(props: ColumnViewProps) {
     isPauseSlot, onRequestMove, onSlotClick, draggable, onOpenAppointment,
   } = props;
   const isMobile = useIsMobile();
+  const SLOT_PX = isMobile ? SLOT_PX_MOBILE : SLOT_PX_DESKTOP;
 
   const labels = useMemo(() => staffLabels(employees), [employees]);
   const colors = useMemo(() => staffColors(employees), [employees]);
