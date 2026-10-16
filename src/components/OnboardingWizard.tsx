@@ -24,6 +24,7 @@ import glowsuiteLogo from "@/assets/glowsuite-logo.png";
 import glowpayLogo from "@/assets/glowpay/glowpay-logo.png.asset.json";
 import { missingSeedServices } from "@/lib/onboardingServiceSeed";
 import { buildSettingsPayload } from "@/lib/onboardingSalonProfile";
+import { inviteActionFromResponse, inviteActionFromError, INVITE_UNAVAILABLE } from "@/lib/vivaInviteAction";
 
 
 interface Props {
@@ -354,7 +355,7 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
             <>
               {step === 0 && <WelcomeStep />}
               {step === 1 && <SalonStep data={data} setData={setData} onLogo={onLogoUpload} />}
-              {step === 2 && <GlowPayStep demo={demoMode} onLater={() => next()} />}
+              {step === 2 && <GlowPayStep demo={demoMode} previewMode={previewMode} salonName={data.salonName} onLater={() => next()} />}
               {step === 3 && <TerminalStep previewMode={previewMode} />}
               {step === 4 && <SystemCheckStep />}
               {step === 5 && <AutomationsStep data={data} setData={setData} />}
