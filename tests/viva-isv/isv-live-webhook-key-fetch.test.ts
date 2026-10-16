@@ -43,3 +43,30 @@ describe("LIVE ISV webhook key admin fetch", () => {
     expect(r).toEqual({ status: 502, body: { error: "key_unavailable" } });
   });
 });
+
+import { resolveLiveVerificationKey, _resetLiveKeyCache } from "../../supabase/functions/_shared/isvLiveWebhookKeyFetch";
+describe("on-demand verification key for viva-webhook GET ?isv=1", () => {
+  const ON = { VIVA_ISV_LIVE_ENABLED: "true", VIVA_ISV_LIVE_CLIENT_ID: "fid", VIVA_ISV_LIVE_CLIENT_SECRET: "fsec" };
+  it("switch off -> null, no calls", async () => {
+    _resetLiveKeyCache(); const calls: string[] = [];
+    expect(await resolveLiveVerificationKey(env({ VIVA_ISV_LIVE_CLIENT_ID: "a", VIVA_ISV_LIVE_CLIENT_SECRET: "b" }), viva(calls))).toBeNull();
+    expect(calls).toHaveLength(0);
+  });
+  it("stored key wins without calls", async () => {
+    _resetLiveKeyCache(); const calls: string[] = [];
+    expect(await resolveLiveVerificationKey(env({ ...ON, VIVA_ISV_LIVE_WEBHOOK_VERIFICATION_KEY: "s" }), viva(calls))).toBe("s");
+    expect(calls).toHaveLength(0);
+  });
+  it("fetches once on demand, then cached and single-flight", async () => {
+    _resetLiveKeyCache(); const calls: string[] = [];
+    const [a, b] = await Promise.all([resolveLiveVerificationKey(env(ON), viva(calls)), resolveLiveVerificationKey(env(ON), viva(calls))]);
+    expect(a).toBe("fake-key"); expect(b).toBe("fake-key");
+    expect(await resolveLiveVerificationKey(env(ON), viva(calls))).toBe("fake-key");
+    expect(calls).toHaveLength(2);
+  });
+  it("provider failure -> null and not cached", async () => {
+    _resetLiveKeyCache(); const calls: string[] = [];
+    expect(await resolveLiveVerificationKey(env(ON), viva(calls, ""))).toBeNull();
+    expect(await resolveLiveVerificationKey(env(ON), viva(calls))).toBe("fake-key");
+  });
+});
