@@ -445,8 +445,6 @@ export default function InstellingenPage() {
         email_enabled: notifications.email,
         whatsapp_enabled: notifications.whatsapp,
         mollie_mode: mollieMode,
-        payment_provider: 'viva',
-        payment_provider_fallback_enabled: false,
         deposit_new_client: depositNewClient,
         deposit_percentage: depositPct,
         full_prepay_threshold: fullPrepayThreshold,
@@ -468,7 +466,9 @@ export default function InstellingenPage() {
       if (settings.length > 0) {
         await update(settings[0].id, data);
       } else {
-        await insert(data);
+        // Only brand-new settings rows default to GlowPay/Viva. Existing rows
+        // (including legacy 'mollie') are never silently switched by a save.
+        await insert({ ...data, payment_provider: 'viva', payment_provider_fallback_enabled: false });
       }
       // Persist profile fields (city + google review url)
       if (user) {
