@@ -2604,6 +2604,48 @@ export type Database = {
         }
         Relationships: []
       }
+      isv_fee_snapshots: {
+        Row: {
+          amount_cents: number
+          bps: number
+          channel: string
+          created_at: string
+          environment: string
+          fee_cents: number
+          fixed_cents: number
+          payment_id: string
+          refunded_amount_cents: number
+          refunded_fee_cents: number
+          tenant_id: string
+        }
+        Insert: {
+          amount_cents: number
+          bps: number
+          channel: string
+          created_at?: string
+          environment: string
+          fee_cents: number
+          fixed_cents: number
+          payment_id: string
+          refunded_amount_cents?: number
+          refunded_fee_cents?: number
+          tenant_id: string
+        }
+        Update: {
+          amount_cents?: number
+          bps?: number
+          channel?: string
+          created_at?: string
+          environment?: string
+          fee_cents?: number
+          fixed_cents?: number
+          payment_id?: string
+          refunded_amount_cents?: number
+          refunded_fee_cents?: number
+          tenant_id?: string
+        }
+        Relationships: []
+      }
       kassa_order_lines: {
         Row: {
           id: string
@@ -3453,6 +3495,39 @@ export type Database = {
           provider_reference?: string
           source?: string
           tenant_id?: string
+        }
+        Relationships: []
+      }
+      platform_isv_fees: {
+        Row: {
+          online_bps: number
+          online_fixed_cents: number
+          scope_key: string
+          tenant_id: string | null
+          terminal_bps: number
+          terminal_fixed_cents: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          online_bps?: number
+          online_fixed_cents?: number
+          scope_key: string
+          tenant_id?: string | null
+          terminal_bps?: number
+          terminal_fixed_cents?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          online_bps?: number
+          online_fixed_cents?: number
+          scope_key?: string
+          tenant_id?: string | null
+          terminal_bps?: number
+          terminal_fixed_cents?: number
+          updated_at?: string
+          updated_by?: string | null
         }
         Relationships: []
       }
@@ -6164,6 +6239,7 @@ export type Database = {
         Args: { _attempt: string; _is_demo: boolean; _user: string }
         Returns: boolean
       }
+      isv_fee_config: { Args: { _tenant: string }; Returns: Json }
       kassa_actor_tenant: {
         Args: { _actor: string }
         Returns: {
@@ -6240,8 +6316,20 @@ export type Database = {
           unconfirmed_count: number
         }[]
       }
+      platform_isv_fees_list: { Args: never; Returns: Json }
       platform_overview: { Args: never; Returns: Json }
       platform_require_owner_aal2: { Args: never; Returns: string }
+      platform_set_isv_fee: {
+        Args: {
+          _online_bps: number
+          _online_fixed_cents: number
+          _reset?: boolean
+          _tenant: string
+          _terminal_bps: number
+          _terminal_fixed_cents: number
+        }
+        Returns: Json
+      }
       platform_usage: { Args: { _period: string }; Returns: Json }
       prevent_live_demo_reset: { Args: { _user_id: string }; Returns: boolean }
       process_paid_webshop_order_stock: {
