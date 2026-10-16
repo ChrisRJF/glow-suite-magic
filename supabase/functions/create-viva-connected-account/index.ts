@@ -6,6 +6,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getVivaAccessToken, vivaEnv } from "../_shared/viva.ts";
 import { getIsvAccessToken } from "../_shared/vivaIsv.ts";
 import { liveCreateForSession, rpcReservationStore, type LiveMerchantRow } from "../_shared/inactive/isvLiveCreate.ts";
+import { LIVE_CREATE_MAX_ATTEMPTS_PER_HOUR, LIVE_CREATE_RATE_WINDOW_SECONDS } from "../_shared/inactive/isvLiveAccess.ts";
 
 
 const corsHeaders = {
@@ -57,22 +58,42 @@ Deno.serve(async (req) => {
     // LIVE branch: separate LIVE ISV secrets + reservation, default off (VIVA_ISV_LIVE_ENABLED).
     // Never falls through to the legacy path below.
     if (!isDemo) {
-      const r = await liveCreateForSession(user.id, contact_email, {
+      const r = await liveCreateForSession(user.id, {
         get: (n) => Deno.env.get(n), fetchFn: fetch, newAttemptId: () => crypto.randomUUID(),
         store: rpcReservationStore(async (fn, args) => { const { data, error } = await admin.rpc(fn, args); return { data, error }; }),
+        tenantFacts: async (uid) => {
+          // Only the session user's own data; email from the verified auth session, never the body.
+          const [{ data: owner, error: roleErr }, { data: st, error: stErr }] = await Promise.all([
+            admin.rpc("has_role", { _user_id: uid, _role: "eigenaar" }),
+            admin.from("settings").select("salon_name, is_demo, demo_mode").eq("user_id", uid).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+          ]);
+          if (roleErr || stErr || typeof owner !== "boolean") return "error";
+          return {
+            authEmail: user.email ?? null,
+            emailConfirmed: Boolean(user.email_confirmed_at),
+            isOwner: owner,
+            settingsFound: Boolean(st),
+            isDemo: Boolean((st as any)?.is_demo || (st as any)?.demo_mode),
+            salonName: (st as any)?.salon_name ?? null,
+          };
+        },
+        rateLimit: async (uid) => {
+          const { data, error } = await admin.rpc("check_public_rate_limit", { _bucket: `isv_live_create:${uid}`, _max: LIVE_CREATE_MAX_ATTEMPTS_PER_HOUR, _window_seconds: LIVE_CREATE_RATE_WINDOW_SECONDS });
+          return error || typeof data !== "boolean" ? "error" : data;
+        },
         findLiveRow: async (uid) => {
           const { data, error } = await admin.from("glowpay_connected_merchants").select("id, user_id, is_demo, viva_account_id, onboarding_url").eq("user_id", uid).eq("is_demo", false).limit(2);
           if (error || (data && data.length > 1)) return "error";
           return (data?.[0] as LiveMerchantRow) ?? null;
         },
-        persist: async (uid, existing, acc, url, email) => {
+        persist: async (uid, existing, acc, url, email, salonName) => {
           const fields = { viva_account_id: acc, onboarding_url: url, onboarding_status: "invited", last_synced_at: new Date().toISOString() };
           if (existing) {
             const { data, error } = await admin.from("glowpay_connected_merchants").update(fields)
               .eq("id", existing.id).eq("user_id", uid).eq("is_demo", false).or(`viva_account_id.is.null,viva_account_id.eq.${acc}`).select("id");
             return !error && (data?.length ?? 0) === 1;
           }
-          const { error } = await admin.from("glowpay_connected_merchants").insert({ ...fields, user_id: uid, is_demo: false, business_name, contact_email: email, phone, country });
+          const { error } = await admin.from("glowpay_connected_merchants").insert({ ...fields, user_id: uid, is_demo: false, business_name: salonName, contact_email: email, phone, country });
           return !error;
         },
       });
