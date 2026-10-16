@@ -30,3 +30,25 @@ describe("GlowPay registratie retourpagina view-state", () => {
     expect(v).toEqual({ kind: "status", status: "pending", continueUrl: null });
   });
 });
+
+describe("visibleView (render-guard bij gebruikerswissel)", () => {
+  const viewA = { kind: "status" as const, status: "active" as const, continueUrl: "https://www.vivapayments.com/x" };
+
+  it("toont de view van gebruiker A nooit voor gebruiker B", () => {
+    expect(visibleView({ userId: "user-a", view: viewA }, "user-b", false)).toBeNull();
+  });
+
+  it("toont de view alleen voor de gebruiker waarmee hij is opgehaald", () => {
+    expect(visibleView({ userId: "user-a", view: viewA }, "user-a", false)).toBe(viewA);
+  });
+
+  it("toont niets zolang auth nog laadt", () => {
+    expect(visibleView({ userId: "user-a", view: viewA }, "user-a", true)).toBeNull();
+  });
+
+  it("toont de uitgelogde view alleen bij uitgelogde sessie", () => {
+    const signedOut = { kind: "signed_out" as const };
+    expect(visibleView({ userId: null, view: signedOut }, null, false)).toBe(signedOut);
+    expect(visibleView({ userId: null, view: signedOut }, "user-a", false)).toBeNull();
+  });
+});
