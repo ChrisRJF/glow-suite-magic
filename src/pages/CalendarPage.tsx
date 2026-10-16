@@ -411,6 +411,10 @@ export default function CalendarPage() {
 
 
   const weekDays = useMemo(() => weekDaysFor(currentDate), [currentDate]);
+  // Mobile week view shows a window of 3 days with prev/next controls.
+  const [weekWindow, setWeekWindow] = useState(0);
+  useEffect(() => setWeekWindow(0), [currentDate]);
+  const visibleWeekDays = isMobile ? weekDays.slice(weekWindow, weekWindow + 3) : weekDays;
 
   const dayNames = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'];
 
@@ -2003,19 +2007,37 @@ export default function CalendarPage() {
             draggable
           />
         ) : (
-          <div className="overflow-x-auto">
-            <div className="grid grid-cols-7 gap-3 min-w-[800px]">
-              {weekDays.map((day, i) => {
+          <div>
+            {isMobile && (
+              <div className="flex items-center justify-between mb-2">
+                <button type="button" aria-label="Eerdere dagen" disabled={weekWindow === 0}
+                  onClick={() => setWeekWindow(w => Math.max(0, w - 3))}
+                  className="h-9 w-9 rounded-lg border border-border flex items-center justify-center disabled:opacity-30">
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <span className="text-xs text-muted-foreground">
+                  {visibleWeekDays[0]?.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })} – {visibleWeekDays[visibleWeekDays.length - 1]?.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}
+                </span>
+                <button type="button" aria-label="Latere dagen" disabled={weekWindow >= weekDays.length - 3}
+                  onClick={() => setWeekWindow(w => Math.min(weekDays.length - 3, w + 3))}
+                  className="h-9 w-9 rounded-lg border border-border flex items-center justify-center disabled:opacity-30">
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+            <div className="grid gap-2 sm:gap-3" style={{ gridTemplateColumns: `repeat(${visibleWeekDays.length}, minmax(0, 1fr))` }}>
+              {visibleWeekDays.map((day, i) => {
                 const ds = formatLocalDate(day);
                 const apts = filterByEmployee(appointments.filter(a => getAppointmentDate(a) === ds));
                 const isSelected = ds === dateStr;
                 const freeSlots = timeSlots.length - apts.length;
                 return (
-                  <div key={ds} className="flex flex-col">
-                    <button onClick={() => setCurrentDate(day)}
+                  <div key={ds} className="flex flex-col min-w-0">
+                    <button onClick={() => { setCurrentDate(day); setView('day'); }}
+                      title="Open deze dag"
                       className={cn("text-sm font-semibold mb-3 pb-2 border-b-2 transition-colors text-left",
                         isSelected ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground')}>
-                      {dayNames[i]} <span className="text-xs">{day.getDate()}</span>
+                      {dayNames[(isMobile ? weekWindow : 0) + i]} <span className="text-xs">{day.getDate()}</span>
                       <span className="ml-2 text-xs text-muted-foreground">{apts.length}</span>
                       {freeSlots > 10 && <span className="ml-1 text-[10px] text-primary">• {freeSlots} vrij</span>}
                     </button>
@@ -2048,12 +2070,10 @@ export default function CalendarPage() {
                           </div>
                         );
                       })}
-                      {apts.length < 4 && (
-                        <button onClick={() => openAddModal(ds, '09:00')}
-                          className="w-full p-2 rounded-xl border border-dashed border-border/50 text-xs text-muted-foreground hover:bg-primary/5 hover:border-primary/30 hover:text-foreground transition-colors">
-                          <Plus className="w-3 h-3 inline mr-1" />Vrij
-                        </button>
-                      )}
+                      <button onClick={() => openAddModal(ds, '09:00')}
+                        className="w-full p-2 rounded-xl border border-dashed border-border/50 text-xs text-muted-foreground hover:bg-primary/5 hover:border-primary/30 hover:text-foreground transition-colors">
+                        <Plus className="w-3 h-3 inline mr-1" />Vrij
+                      </button>
                     </div>
                   </div>
                 );

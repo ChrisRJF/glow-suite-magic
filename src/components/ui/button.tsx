@@ -17,8 +17,11 @@ const buttonVariants = cva(
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-xl",
         ghost: "hover:bg-secondary text-muted-foreground hover:text-foreground rounded-xl",
         link: "text-primary underline-offset-4 hover:underline",
+        // Solid deep purple primary (no gradient/heavy glow) for in-app CTAs.
+        // Marketing and GlowPay surfaces use explicit gradient-bg classes and
+        // are unaffected by this variant.
         gradient:
-          "btn-shine gradient-bg text-primary-foreground hover:opacity-95 rounded-xl shadow-[0_2px_6px_hsl(var(--glow-purple)/0.3),0_8px_20px_-6px_hsl(var(--glow-purple)/0.4)]",
+          "bg-primary text-primary-foreground hover:bg-primary/92 rounded-xl shadow-[0_1px_2px_hsl(var(--primary)/0.25),0_4px_12px_-4px_hsl(var(--primary)/0.35)]",
       },
       size: {
         default: "h-10 px-5 py-2",

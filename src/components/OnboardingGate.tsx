@@ -104,5 +104,13 @@ export function OnboardingGate() {
     })();
   }, [user, authLoading, bootstrapReady, roleLoading, demoLoading, isAdmin, demoMode, services, loading, checked]);
 
-  return <OnboardingWizard open={open} onOpenChange={setOpen} />;
+  // Closing the wizard (X, Escape, "Later") counts as a persistent dismissal:
+  // it must not auto-open again on later navigation or logins. Explicit resume
+  // via Instellingen opens the wizard directly and is unaffected.
+  const handleOpenChange = (o: boolean) => {
+    setOpen(o);
+    if (!o && user && !hasLocalCompletion(user.id)) markCompleted(user.id, "dismissed");
+  };
+
+  return <OnboardingWizard open={open} onOpenChange={handleOpenChange} />;
 }
