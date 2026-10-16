@@ -9,6 +9,7 @@
 import { LIVE_ISV_API_HOST } from "./isvLiveConfig.ts";
 import type { AuthoritativeAccount, MerchantRow } from "./isvOnboardingSafety.ts";
 import { onlineIsvFeeCents } from "../vivaIsvPrepared.ts";
+import { computeIsvFee, validFeeConfig, type FeeBreakdown, type FeeConfig } from "./isvFee.ts";
 
 /** Stays false until source-code provisioning and LIVE ISV transaction confirmation are proven. */
 export const LIVE_ISV_CHECKOUT_ENABLED = false as const;
@@ -37,12 +38,14 @@ export function deriveCapabilities(row: MerchantRow | null, acc: AuthoritativeAc
 export const ISV_WEB_SOURCE_CODE = "Default";
 
 export type LiveOrder =
-  | { ok: true; url: string; body: Record<string, unknown>; merchantId: string; feeCents: number }
+  | { ok: true; url: string; body: Record<string, unknown>; merchantId: string; feeCents: number; fee?: FeeBreakdown }
   | { ok: false; error: string };
 
 export function prepareLiveIsvOrder(i: {
   tenantId: string; row: MerchantRow | null; caps: Capabilities; amountCents: number; description: string;
   successUrl: string; failureUrl: string; enabled?: boolean;
+  /** Per-salon fee config from isv_fee_config(tenant). Omitted = legacy fixed online fee. */
+  feeConfig?: FeeConfig;
 }): LiveOrder {
   if (!(i.enabled ?? LIVE_ISV_CHECKOUT_ENABLED)) return { ok: false, error: "live_isv_checkout_disabled" };
   const r = i.row;
@@ -50,7 +53,12 @@ export function prepareLiveIsvOrder(i: {
   if (!i.caps.online_payments_enabled) return { ok: false, error: i.caps.reason };
   if (!Number.isInteger(i.amountCents) || i.amountCents <= 0) return { ok: false, error: "invalid_amount_cents" };
   const merchantId = r.viva_merchant_id!;
-  const feeCents = onlineIsvFeeCents(i.amountCents);
+  let fee: FeeBreakdown | undefined;
+  if (i.feeConfig !== undefined) {
+    if (!validFeeConfig(i.feeConfig)) return { ok: false, error: "invalid_fee_config" };
+    fee = computeIsvFee(i.amountCents, i.feeConfig, "online");
+  }
+  const feeCents = fee ? fee.feeCents : onlineIsvFeeCents(i.amountCents);
   return {
     ok: true, merchantId, feeCents,
     url: `${LIVE_ISV_API_HOST}/checkout/v2/isv/orders?merchantId=${encodeURIComponent(merchantId)}`,
