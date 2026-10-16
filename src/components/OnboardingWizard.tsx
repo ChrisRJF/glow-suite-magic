@@ -552,7 +552,8 @@ function GlowPayStep({ demo, previewMode = false, salonName, onLater }: { demo: 
       setInviteMsg(action.text);
     } catch (e) {
       if (user?.id !== forUserId) return;
-      setInviteMsg(inviteActionFromError(e).kind === "message" ? (inviteActionFromError(e) as any).text : INVITE_UNAVAILABLE);
+      const action = inviteActionFromError(e);
+      setInviteMsg(action.kind === "message" ? action.text : INVITE_UNAVAILABLE);
     } finally {
       inviteFlight.current = false;
       setInviteBusy(false);
