@@ -42,7 +42,7 @@ function slugify(value: string) {
 // first month is charged here. Renewal will require a separate scheduler.
 // ─────────────────────────────────────────────────────────────────────────────
 async function handleSaasSubscriptionEvent(
-  supabase: ReturnType<typeof createClient>,
+  supabase: ReturnType<typeof createClient<any>>,
   orderCode: string,
   status: string,
 ): Promise<boolean> {
@@ -198,7 +198,7 @@ function canTransition(from: string, to: string): boolean {
   return false;
 }
 
-async function sendWhiteLabelEmail(supabase: ReturnType<typeof createClient>, body: Record<string, unknown>) {
+async function sendWhiteLabelEmail(supabase: ReturnType<typeof createClient<any>>, body: Record<string, unknown>) {
   const { error } = await supabase.functions.invoke("send-white-label-email", { body });
   if (error) console.error("White-label email failed", error.message);
 }

@@ -253,6 +253,7 @@ Deno.serve(async (req) => {
       }, 409);
     }
     const { merchantId, sourceCode } = merchantResult.context;
+    if (!sourceCode) return json({ error: "Betaalbron ontbreekt.", code: "source_missing" }, 409);
 
     isvLog("payment_request_context", {
       fn: "create-viva-payment",

@@ -73,7 +73,7 @@ export function parseVivaPayload(contentType: string, rawBody: string): Record<s
 }
 
 export async function writeWebhookDebugLog(
-  supabase: ReturnType<typeof createClient>,
+  supabase: ReturnType<typeof createClient<any>>,
   req: Request,
   rawBody: string,
   label = "viva-webhook",
