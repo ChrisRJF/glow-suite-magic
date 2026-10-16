@@ -14,8 +14,8 @@ Code: `supabase/functions/_shared/inactive/isvOnboardingV2.ts` (builds on `isvOn
 - Source code is never taken from Viva Retrieve or webhooks; it must be provisioned separately (UNRESOLVED for live).
 
 ## Branding
-- logoUrl: existing asset `https://glowsuite.nl/assets/glowsuite-viva-isv-logo.png` (public/assets, published site).
-- primaryColor: UNRESOLVED. No GlowPay green exists in the codebase (logo is black/white; app accent is purple). The payload refuses until a real hex is supplied; not invented.
+- logoUrl: official GlowPay logo `https://glowsuite.nl/__l5e/assets-v1/b5dafa8b-3daf-4b09-927d-474084acabdc/glowpay-logo.png` (verified public 2026-10-16).
+- primaryColor: UNRESOLVED. Logo is black/white only; no GlowPay hex in tokens. Needs the owner to supply it; create stays blocked (payload refuses).
 
 ## Wizard step 3 plan (OnboardingWizard GlowPayStep ~line 485)
 - Title "Activeer GlowPay", CTA "Activeer GlowPay via Viva" (opens invitation link; demo shows a note instead, demo cannot follow production onboarding).
