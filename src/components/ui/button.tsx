@@ -21,7 +21,7 @@ const buttonVariants = cva(
         // Marketing and GlowPay surfaces use explicit gradient-bg classes and
         // are unaffected by this variant.
         gradient:
-          "bg-primary text-primary-foreground hover:bg-primary/92 rounded-xl shadow-[0_1px_2px_hsl(var(--primary)/0.25),0_4px_12px_-4px_hsl(var(--primary)/0.35)]",
+          "bg-cta text-cta-foreground hover:bg-cta/92 rounded-xl shadow-[0_1px_2px_hsl(var(--cta)/0.18),0_2px_8px_-3px_hsl(var(--cta)/0.25)]",
       },
       size: {
         default: "h-10 px-5 py-2",
