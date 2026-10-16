@@ -179,6 +179,8 @@ interface ColumnViewProps {
   draggable: boolean;
   /** Opens the same appointment details as the day view. */
   onOpenAppointment?: (apt: any) => void;
+  /** Opens the review list for appointments without a linked employee. */
+  onReviewUnassigned?: () => void;
 }
 
 const SLOT_PX_DESKTOP = 18;
@@ -188,7 +190,7 @@ export function EmployeeColumnDayView(props: ColumnViewProps) {
   const {
     employees, appointments, services, customers, apptEmployees,
     date, getDisplayEmployees, getColumnIdForAppointment,
-    isPauseSlot, onRequestMove, onSlotClick, draggable, onOpenAppointment,
+    isPauseSlot, onRequestMove, onSlotClick, draggable, onOpenAppointment, onReviewUnassigned,
   } = props;
   const isMobile = useIsMobile();
   const SLOT_PX = isMobile ? SLOT_PX_MOBILE : SLOT_PX_DESKTOP;
@@ -197,7 +199,6 @@ export function EmployeeColumnDayView(props: ColumnViewProps) {
   const colors = useMemo(() => staffColors(employees), [employees]);
   const allColumns: ColumnEmployee[] = [
     ...employees.map((e) => ({ ...e, name: labels.get(e.id) || e.name, color: colors.get(e.id) || e.color })),
-    { id: "unassigned", name: "Geen medewerker", color: "#94a3b8", photo_url: null },
   ];
 
   // Hour labels appear once per hour
@@ -205,16 +206,26 @@ export function EmployeeColumnDayView(props: ColumnViewProps) {
 
   const aptsForDate = appointments.filter(a => appointmentDisplayDate(a) === date);
   const countFor = (id: string) => aptsForDate.filter(a => getColumnIdForAppointment(a) === id).length;
-  // "Geen medewerker" only when something is truly unlinked (by employee ID).
-  const switchable = allColumns.filter(c => c.id !== "unassigned" || countFor("unassigned") > 0);
+  // Only real staff are columns; unlinked appointments go to a review list.
+  const switchable = allColumns;
+  const unassignedCount = countFor("unassigned");
   const [mobileCol, setMobileCol] = useState<string>("");
   useEffect(() => {
-    if (!switchable.some(c => c.id === mobileCol)) setMobileCol(switchable[0]?.id || "unassigned");
+    if (!switchable.some(c => c.id === mobileCol)) setMobileCol(switchable[0]?.id || "");
   }, [switchable.map(c => c.id).join(","), mobileCol]); // eslint-disable-line react-hooks/exhaustive-deps
   const columns = isMobile ? allColumns.filter(c => c.id === (mobileCol || switchable[0]?.id)) : allColumns;
 
   return (
     <div className={cn(!isMobile && "overflow-x-auto -mx-2 px-2")}>
+      {unassignedCount > 0 && (
+        <div role="status" className="mb-2 flex items-center gap-2 rounded-xl border border-warning/40 bg-warning/10 px-3 py-2 text-xs">
+          <span className="flex-1">{unassignedCount} {unassignedCount === 1 ? "afspraak" : "afspraken"} zonder medewerker op deze dag</span>
+          {onReviewUnassigned && (
+            <button type="button" onClick={onReviewUnassigned} className="h-9 px-3 rounded-lg bg-background border border-border font-medium">Bekijken</button>
+          )}
+        </div>
+      )}
+      {allColumns.length === 0 && <p className="text-sm text-muted-foreground py-6 text-center">Nog geen medewerkers. Voeg ze toe bij Medewerkers.</p>}
       {isMobile && (
         <div role="group" aria-label="Kies medewerker" className="flex gap-1.5 overflow-x-auto pb-2 mb-2 -mx-1 px-1">
           {switchable.map(c => (

@@ -37,3 +37,5 @@ export function noteStaffName(notes?: string | null): string | null {
   const m = notes?.match(/Medewerker: ([^|\n]+)/)?.[1]?.trim();
   return m && m !== "Niet toegewezen" ? m : null;
 }
+
+export const NO_STAFF_MESSAGE = "Kies een medewerker voor deze afspraak.";
