@@ -548,9 +548,9 @@ function GlowPayStep({ demo, previewMode = false, salonName, onLater }: { demo: 
       const { data: res, error } = await supabase.functions.invoke("create-viva-connected-account", {
         body: { business_name: salonName.trim(), contact_email: user!.email, country: "NL" },
       });
-      // Gebruiker is tijdens het wachten gewisseld: nooit met een vorige
-      // gebruikers-URL navigeren of status tonen.
-      if (user?.id !== forUserId) return;
+      // Gebruiker is tijdens het wachten gewisseld of de stap is weg: nooit
+      // met een vorige gebruikers-URL navigeren of status tonen.
+      if (!mountedRef.current || currentUserIdRef.current !== forUserId) return;
       const action = error
         ? inviteActionFromError(error)
         : inviteActionFromResponse((res as any) ?? {});
