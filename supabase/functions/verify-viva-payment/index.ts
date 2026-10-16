@@ -4,6 +4,7 @@
 // Idempotent: never demotes a paid payment.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { handleLivePaymentEvent, makeWebhookDeps } from "../_shared/inactive/isvLivePayments.ts";
 import { getVivaTransaction } from "../_shared/viva.ts";
 
 const corsHeaders = {
@@ -50,6 +51,11 @@ Deno.serve(async (req) => {
     }
     if (!payment) return json({ status: "unknown", reason: "payment_not_found" });
 
+    if (payment.metadata?.route === "viva_isv_live") {
+      if (transactionId) await handleLivePaymentEvent(1796, { OrderCode: orderCode ?? payment.checkout_reference, TransactionId: transactionId }, makeWebhookDeps(supabase, (n) => Deno.env.get(n)), new Date().toISOString());
+      const r = await supabase.from("isv_payment_orders").select("state").eq("payment_id", payment.id).maybeSingle();
+      return json({ status: !r.error && r.data?.state === "paid" ? "paid" : "pending" });
+    }
     if (payment.status === "paid") return json({ status: "paid", idempotent: true });
     if (payment.is_demo) return json({ status: payment.status, demo: true });
 

@@ -41,7 +41,7 @@ describe("LIVE ISV lookup (mock fetch, no network)", () => {
     const tx = await fetchLiveIsvTransaction(env, MID, TX, f as any);
     expect(urls[0]).toBe("https://accounts.vivapayments.com/connect/token");
     expect(urls[1]).toBe(`https://api.vivapayments.com/checkout/v2/isv/transactions/${TX}?merchantId=${MID}`);
-    expect(tx).toEqual({ statusId: "F", amountCents: 2500, currencyCode: "978", orderCode: "123", merchantId: null });
+    expect(tx).toEqual({ statusId: "F", amountCents: 2500, currencyCode: "978", orderCode: "123", merchantId: null, parentId: null });
   });
   it("switch off = no network call", async () => {
     let called = false;

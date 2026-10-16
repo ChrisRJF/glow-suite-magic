@@ -5,7 +5,7 @@ import {
 
 const MID = "11111111-2222-3333-4444-555555555555";
 const row = { id: "r", user_id: "t1", is_demo: false, viva_account_id: "acc-12345678", viva_merchant_id: MID, viva_source_code: "5555", onboarding_status: "active", kyc_status: "verified" };
-const acc = { accountId: "acc-12345678", merchantId: MID, verified: true as boolean | null };
+const acc = { accountId: "acc-12345678", merchantId: MID, acquiringEnabled: true, verified: true as boolean | null };
 const order = (o: any = {}) => prepareLiveIsvOrder({ tenantId: "t1", row, caps: deriveCapabilities(row, acc), amountCents: 2500, description: "Aanbetaling", successUrl: "https://glowsuite.nl/s", failureUrl: "https://glowsuite.nl/f", enabled: true, ...o });
 
 describe("LIVE ISV capabilities (Retrieve only)", () => {

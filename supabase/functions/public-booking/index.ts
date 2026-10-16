@@ -1,5 +1,6 @@
 // PREPARED, INACTIVE replacement for supabase/functions/public-booking/index.ts (Agenda 3.0 step 2b).
 // Do not deploy without separate approval. Reference of the current server: public-booking.reference.index.ts
+import { startLiveDeposit, makeDepositDeps } from "../_shared/inactive/isvLivePayments.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { z } from "https://esm.sh/zod@3.23.8";
 import { getDefaultMessageTemplate, normalizeMessageLang, renderMessage, intlLocale } from "../_shared/messageTranslations.ts";
@@ -613,11 +614,17 @@ Deno.serve(async (req) => {
             },
           });
         } else {
-          // Fail-closed (security): salon deposits are never charged via GlowSuite platform Viva
-          // credentials. Salon-specific ISV routing is not live yet, so no order, no charge, no payment row.
-          paymentInitError = "Je afspraak is vastgelegd. Online aanbetalen is bij deze salon nog niet beschikbaar; de salon regelt de betaling met je.";
+          const ret = `https://glowsuite.nl/boeken/${encodeURIComponent(salonSlugForMeta)}?status=payment-return&booking=${primaryAppointment.booking_token}`;
+          const live = await startLiveDeposit({ tenantId: ctx.settings.user_id, source: "public_booking",
+            idempotencyKey: `appointment:${primaryAppointment.id}:${serverPayment.type}`, amountCents: Math.round(serverPayment.amount * 100), description: "GlowPay aanbetaling",
+            successUrl: ret, failureUrl: ret, refs: { appointment_id: primaryAppointment.id, customer_id: customerId, booking_token: primaryAppointment.booking_token, payment_type: serverPayment.type } },
+            makeDepositDeps(supabase, (n) => Deno.env.get(n)));
           paymentStatus = "payment_pending";
-          provider = "none";
+          if (live.ok) checkoutUrl = live.checkoutUrl;
+          else {
+            paymentInitError = "Je afspraak is vastgelegd. Online aanbetalen is bij deze salon nog niet beschikbaar; de salon regelt de betaling met je.";
+            provider = "none";
+          }
         }
       }
       if (provider === "mollie" && !isDemo) {

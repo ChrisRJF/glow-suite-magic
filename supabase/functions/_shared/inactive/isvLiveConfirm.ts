@@ -6,7 +6,7 @@
 import { getLiveIsvToken, LIVE_ISV_API_HOST, type EnvGet } from "./isvLiveConfig.ts";
 import type { Fetch } from "./isvOnboardingSafety.ts";
 
-export type LiveTx = { statusId: string; amountCents: number; currencyCode: string; orderCode: string; merchantId: string | null };
+export type LiveTx = { statusId: string; amountCents: number; currencyCode: string; orderCode: string; merchantId: string | null; parentId?: string | null };
 
 export interface LivePayment {
   id: string; user_id: string; status: string; is_demo: boolean; provider: string | null; amount: number;
@@ -41,12 +41,13 @@ export function evaluateLiveConfirmation(i: LiveConfirmInput, nowIso: string): L
   if (tx.orderCode !== order) return { ok: false, reason: "order_code_mismatch" };
   if (tx.amountCents !== Math.round(Number(p.amount) * 100)) return { ok: false, reason: "amount_mismatch" };
   if (tx.currencyCode !== "978") return { ok: false, reason: "currency_mismatch" };
-  if (tx.merchantId !== null && tx.merchantId !== stored) return { ok: false, reason: "viva_merchant_mismatch" };
+  if (tx.merchantId !== stored) return { ok: false, reason: "viva_merchant_mismatch" };
   return { ok: true, record: { transaction_id: i.transactionId, order_code: order, amount_cents: tx.amountCents, merchant_id: stored, verified_via: "viva_isv_live_api", verified_at: nowIso } };
 }
 
 /** LIVE ISV lookup scoped to the salon merchant. Null on any doubt. */
 export async function fetchLiveIsvTransaction(env: EnvGet, merchantId: string, transactionId: string, f: Fetch): Promise<LiveTx | null> {
+  if (!/^[0-9a-fA-F-]{8,64}$/.test(merchantId) || !/^[0-9a-fA-F-]{8,64}$/.test(transactionId)) return null;
   const token = await getLiveIsvToken(env, f);
   if (!token) return null;
   try {
@@ -59,6 +60,6 @@ export async function fetchLiveIsvTransaction(env: EnvGet, merchantId: string, t
     if (!d || !Number.isFinite(amount)) return null;
     const mid = d.merchantId ?? d.MerchantId;
     return { statusId: String(d.statusId ?? d.StatusId ?? ""), amountCents: Math.round(amount * 100),
-      currencyCode: String(d.currencyCode ?? d.CurrencyCode ?? ""), orderCode: String(d.orderCode ?? d.OrderCode ?? ""), merchantId: mid ? String(mid) : null };
+      currencyCode: String(d.currencyCode ?? d.CurrencyCode ?? ""), orderCode: String(d.orderCode ?? d.OrderCode ?? ""), merchantId: mid ? String(mid) : null, parentId: d.parentId ?? d.ParentId ?? null };
   } catch { return null; }
 }

@@ -43,12 +43,45 @@ export async function handleIsvOnboardingEvent(eventData: unknown, d: IsvWebhook
   const row = live[0];
   const token = await getLiveIsvToken(d.env, d.fetch);
   if (!token) return { processed: false, status: 503, note: "isv_onboarding_token_unavailable" };
-  const acc = await retrieveV2(row.viva_account_id!, "live", token, d.fetch);
+  if (!row.viva_account_id) return { processed: false, status: 503, note: "isv_onboarding_invalid_account_id" };
+  const acc = await retrieveV2(row.viva_account_id, "live", token, d.fetch);
   if (!acc) return { processed: false, status: 503, note: "isv_onboarding_retrieve_failed" };
   const upd = deriveUpdateV2(row, acc);
   if (!upd) return { processed: true, status: 200, note: "isv_onboarding_identity_mismatch_hold", userId: row.user_id };
-  for (const k of ["viva_source_code", "online_payments_enabled", "payouts_enabled", "terminals_enabled", "setup_complete"]) delete upd[k];
+  const eligible = acc.verified && acc.acquiringEnabled && !!acc.merchantId && (!row.viva_merchant_id || acc.merchantId === row.viva_merchant_id);
+  upd.online_payments_enabled = eligible;
+  upd.payouts_enabled = eligible;
+  upd.terminals_enabled = eligible && !!row.viva_source_code && row.viva_source_code !== "Default";
+  upd.setup_complete = eligible;
   const ok = await d.updateRow(row, upd);
   if (!ok) return { processed: false, status: 503, note: "isv_onboarding_update_failed", userId: row.user_id };
   return { processed: true, status: 200, note: "isv_onboarding_synced", userId: row.user_id };
+}
+
+/** Uses the existing five-minute worker. Keyset paging avoids starving later salons. */
+export async function refreshLiveMerchants(admin: any, env: EnvGet, fetchFn: Fetch = fetch) {
+  if (!loadLiveIsvConfig(env).ok) return { scanned: 0, synced: 0 };
+  let after = "", scanned = 0, synced = 0;
+  for (;;) {
+    let q = admin.from("glowpay_connected_merchants").select("id,user_id,is_demo,viva_account_id,viva_merchant_id,viva_source_code,onboarding_status,kyc_status")
+      .eq("is_demo", false).not("viva_account_id", "is", null).order("id").limit(100);
+    if (after) q = q.gt("id", after);
+    const r = await q;
+    if (r.error) throw r.error;
+    const rows: MerchantRow[] = r.data ?? [];
+    for (const row of rows) {
+      scanned++;
+      const result = await handleIsvOnboardingEvent({ ConnectedAccountId: row.viva_account_id }, {
+        env, fetch: fetchFn, findLiveRows: async () => [row],
+        updateRow: async (expected, upd) => {
+          const w = await admin.from("glowpay_connected_merchants").update(upd).eq("id", expected.id).eq("user_id", expected.user_id).eq("is_demo", false).eq("viva_account_id", expected.viva_account_id).select("id");
+          return !w.error && w.data?.length === 1;
+        },
+      });
+      if (result.note === "isv_onboarding_synced") synced++;
+    }
+    if (rows.length < 100) break;
+    const last = rows[rows.length - 1]; if (!last) break; after = last.id;
+  }
+  return { scanned, synced };
 }

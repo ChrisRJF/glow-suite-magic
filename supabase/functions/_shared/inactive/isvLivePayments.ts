@@ -2,7 +2,7 @@
 // payment links) and LIVE ISV payment webhooks 1796/1797/1798. All DB/network via injected deps so
 // the running functions only need a thin call once activation is approved. Every doubt = no charge,
 // no paid status. Master switch LIVE_ISV_CHECKOUT_ENABLED (isvLiveCheckout.ts) stays false.
-import { getLiveIsvToken, type EnvGet } from "./isvLiveConfig.ts";
+import { getLiveIsvToken, retrieveLiveAccount, type EnvGet } from "./isvLiveConfig.ts";
 import type { Fetch, MerchantRow, AuthoritativeAccount } from "./isvOnboardingSafety.ts";
 import { deriveCapabilities, prepareLiveIsvOrder, LIVE_ISV_CHECKOUT_ENABLED } from "./isvLiveCheckout.ts";
 import { evaluateLiveConfirmation, fetchLiveIsvTransaction, type LivePayment } from "./isvLiveConfirm.ts";
@@ -21,6 +21,7 @@ export interface DepositDeps {
   /** Inserts pending payment + fee snapshot atomically; "duplicate" on unique-key race. */
   insertPending(payment: Record<string, unknown>, snapshot: Record<string, unknown>): Promise<"ok" | "duplicate" | "error">;
   attachOrder(paymentId: string, orderCode: string, checkoutUrl: string): Promise<boolean>;
+  /** Holds uncertain orders permanently; never releases the idempotency reservation. */
   markFailed(paymentId: string, reason: string): Promise<void>;
   newId(): string;
 }
@@ -77,6 +78,7 @@ export const LIVE_PAYMENT_EVENTS = new Set([1796, 1797, 1798]);
 export interface WebhookDeps {
   env: EnvGet; fetch: Fetch; enabled?: boolean;
   findByOrderCode(orderCode: string): Promise<(LivePayment & { refunded_cents?: number; refunded_fee_cents?: number }) | null | "error">;
+  findByTransactionId?(transactionId: string): Promise<LivePayment | null | "error">;
   loadVerifiedMerchant(tenantId: string): Promise<{ user_id: string; viva_merchant_id: string; verified: boolean } | null>;
   loadSnapshot(paymentId: string): Promise<{ amount_cents: number; fee_cents: number } | null>;
   /** Conditional pending->paid (WHERE status='pending'); false if already changed. */
@@ -93,17 +95,21 @@ export async function handleLivePaymentEvent(eventTypeId: number, data: any, d: 
   if (!LIVE_PAYMENT_EVENTS.has(eventTypeId)) return { status: 200, note: "ignored_event" };
   const orderCode = String(data?.OrderCode ?? ""), txId = String(data?.TransactionId ?? "");
   const eventMerchant = data?.MerchantId ? String(data.MerchantId) : null;
-  const p = await d.findByOrderCode(orderCode);
+  const p = orderCode ? await d.findByOrderCode(orderCode) : data?.ParentId && d.findByTransactionId ? await d.findByTransactionId(String(data.ParentId)) : null;
   if (p === "error") return { status: 503, note: "lookup_failed" };
   if (!p || (p.metadata as any)?.route !== "viva_isv_live") return { status: 200, note: "not_live_isv_order" };
   const merchant = await d.loadVerifiedMerchant(p.user_id);
   const stored = String((p.metadata as any)?.viva_merchant_id ?? "");
   if (!merchant || merchant.user_id !== p.user_id || merchant.viva_merchant_id !== stored) return { status: 200, note: "merchant_hold" };
+  if (eventMerchant && eventMerchant !== stored) return { status: 200, note: "merchant_hold" };
   const tx = await fetchLiveIsvTransaction(d.env, stored, txId, d.fetch);
+  const boundOrder = String(p.metadata?.viva_order_code ?? "");
 
   if (eventTypeId === 1798) {
-    if (tx && tx.statusId !== "F" && tx.orderCode === orderCode) await d.markFailedIfPending(p.id, `viva_${tx.statusId || "failed"}`);
-    return { status: 200, note: tx ? "failed_recorded" : "failed_unverified" };
+    if (!tx) return { status: 503, note: "retry_unverified" };
+    if (!["R", "X", "E"].includes(tx.statusId) || tx.orderCode !== boundOrder || tx.currencyCode !== "978" || tx.merchantId !== stored || tx.amountCents !== Math.round(p.amount * 100)) return { status: 200, note: "failed_mismatch_hold" };
+    await d.markFailedIfPending(p.id, `viva_${tx.statusId}`);
+    return { status: 200, note: "failed_recorded" };
   }
   if (eventTypeId === 1796) {
     const r = evaluateLiveConfirmation({ payment: p, merchant, eventMerchantId: eventMerchant, transactionId: txId, tx }, nowIso);
@@ -113,13 +119,74 @@ export async function handleLivePaymentEvent(eventTypeId: number, data: any, d: 
   // 1797 refund: Viva must confirm the reversal for this merchant/order; fee returned proportionally.
   if (p.status !== "paid") return { status: 200, note: "refund_on_unpaid_hold" };
   if (!tx) return { status: 503, note: "retry_unverified" };
-  if (tx.statusId !== "F" || tx.orderCode !== orderCode || tx.currencyCode !== "978" || (tx.merchantId !== null && tx.merchantId !== stored)) return { status: 200, note: "refund_mismatch_hold" };
+  if (tx.statusId !== "F" || tx.orderCode !== boundOrder || tx.currencyCode !== "978" || tx.merchantId !== stored || tx.amountCents >= 0 || !tx.parentId || tx.parentId !== p.metadata?.viva_transaction_id) return { status: 200, note: "refund_mismatch_hold" };
   const snap = await d.loadSnapshot(p.id);
   if (!snap) return { status: 200, note: "snapshot_missing_hold" };
   let fee: number;
   try {
-    fee = refundIsvFeeCents({ amountCents: snap.amount_cents, feeCents: snap.fee_cents, refundedAmountCents: p.refunded_cents ?? 0, refundedFeeCents: p.refunded_fee_cents ?? 0 }, tx.amountCents);
+    fee = refundIsvFeeCents({ amountCents: snap.amount_cents, feeCents: snap.fee_cents, refundedAmountCents: p.refunded_cents ?? 0, refundedFeeCents: p.refunded_fee_cents ?? 0 }, -tx.amountCents);
   } catch { return { status: 200, note: "refund_exceeds_hold" }; }
-  const w = await d.recordRefund(p.id, txId, tx.amountCents, fee);
+  const w = await d.recordRefund(p.id, txId, -tx.amountCents, fee);
   return w === "error" ? { status: 503, note: "refund_write_failed" } : { status: 200, note: w === "ok" ? "refund_recorded" : "refund_duplicate" };
+}
+
+// Concrete adapters shared by the existing entrypoints. Secret and database access stay server-side.
+export function makeDepositDeps(admin: any, env: EnvGet, fetchFn: Fetch = fetch): DepositDeps {
+  return {
+    env, fetch: fetchFn, newId: () => crypto.randomUUID(),
+    async loadMerchant(tid) {
+      const r = await admin.from("glowpay_connected_merchants").select("*").eq("user_id", tid).eq("is_demo", false).limit(2);
+      return r.error || r.data?.length !== 1 ? "error" : r.data[0];
+    },
+    async retrieve(row) { return row.viva_account_id ? retrieveLiveAccount(row.viva_account_id, env, fetchFn) : null; },
+    async feeConfig(tid) { const r = await admin.rpc("isv_fee_config", { _tenant: tid }); return r.error ? null : r.data; },
+    async findExisting(tid, key) {
+      const r = await admin.from("isv_payment_orders").select("payment_id,state,checkout_url").eq("tenant_id", tid).eq("request_key", key).maybeSingle();
+      return r.error ? "error" : r.data ? { id: r.data.payment_id, status: r.data.state === "ready" ? "pending" : r.data.state, checkout_url: r.data.checkout_url } : null;
+    },
+    async insertPending(payment, snapshot) { const r = await admin.rpc("isv_payment_reserve", { _payment: payment, _snapshot: snapshot }); return r.error ? "error" : r.data; },
+    async attachOrder(pid, code, url) { const r = await admin.rpc("isv_payment_attach", { _payment_id: pid, _order_code: code, _checkout_url: url }); return !r.error && r.data === true; },
+    async markFailed(pid, reason) {
+      const r = await admin.from("isv_payment_orders").update({ state: "held", failure_reason: reason }).eq("payment_id", pid).eq("state", "dispatching");
+      if (r.error) throw r.error;
+    },
+  };
+}
+
+export function makeWebhookDeps(admin: any, env: EnvGet, fetchFn: Fetch = fetch): WebhookDeps {
+  const find = async (column: string, value: string) => {
+    const r = await admin.from("isv_payment_orders").select("*").eq(column, value).maybeSingle();
+    if (r.error) return "error" as const;
+    if (!r.data) return null;
+    const [p, s] = await Promise.all([
+      admin.from("payments").select("*").eq("id", r.data.payment_id).eq("user_id", r.data.tenant_id).eq("is_demo", false).maybeSingle(),
+      admin.from("isv_fee_snapshots").select("*").eq("payment_id", r.data.payment_id).maybeSingle(),
+    ]);
+    if (p.error || s.error || !p.data || !s.data) return "error" as const;
+    // Bind to the private order record, never salon-editable JSON or status.
+    return { ...p.data, status: r.data.state === "paid" ? "paid" : "pending", amount: s.data.amount_cents / 100,
+      metadata: { ...p.data.metadata, route: "viva_isv_live", viva_merchant_id: r.data.merchant_id, viva_order_code: r.data.order_code, viva_transaction_id: r.data.transaction_id },
+      refunded_cents: s.data.refunded_amount_cents, refunded_fee_cents: s.data.refunded_fee_cents };
+  };
+  return {
+    env, fetch: fetchFn,
+    findByOrderCode: (v) => find("order_code", v), findByTransactionId: (v) => find("transaction_id", v),
+    async loadVerifiedMerchant(tid) {
+      const d = makeDepositDeps(admin, env, fetchFn); const row = await d.loadMerchant(tid);
+      if (!row || row === "error" || !row.viva_merchant_id) return null;
+      const acc = await d.retrieve(row);
+      return { user_id: tid, viva_merchant_id: row.viva_merchant_id, verified: deriveCapabilities(row, acc).online_payments_enabled };
+    },
+    async loadSnapshot(pid) { const r = await admin.from("isv_fee_snapshots").select("amount_cents,fee_cents").eq("payment_id", pid).maybeSingle(); return r.error ? null : r.data; },
+    async markPaid(pid, evidence) {
+      const r = await admin.rpc("isv_payment_record", { _payment_id: pid, _transaction_id: evidence.transaction_id, _kind: "payment", _amount_cents: evidence.amount_cents });
+      if (r.error || r.data === "error") throw new Error("live_payment_record_failed");
+      return r.data === "ok";
+    },
+    async markFailedIfPending(pid, reason) {
+      const r = await admin.from("isv_payment_orders").update({ state: "failed", failure_reason: reason }).eq("payment_id", pid).eq("state", "ready");
+      if (r.error) throw r.error;
+    },
+    async recordRefund(pid, tx, cents) { const r = await admin.rpc("isv_payment_record", { _payment_id: pid, _transaction_id: tx, _kind: "refund", _amount_cents: cents }); return r.error ? "error" : r.data; },
+  };
 }
