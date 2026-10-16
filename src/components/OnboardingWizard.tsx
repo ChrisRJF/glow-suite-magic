@@ -21,7 +21,7 @@ import {
 import { cn } from "@/lib/utils";
 import { glowpayPaymentStatus, bookingStatus, type PayStatus, type BookingStatus } from "@/lib/glowpayOnboardingStatus";
 import glowsuiteLogo from "@/assets/glowsuite-logo.png";
-import glowpayLogo from "@/assets/glowpay/glowpay-logo.png.asset.json";
+import glowpayLogo from "@/assets/glowpay/glowpay-horizontaal-transparant.png.asset.json";
 import { missingSeedServices } from "@/lib/onboardingServiceSeed";
 import { buildSettingsPayload } from "@/lib/onboardingSalonProfile";
 import { registrationAction, MISSING_LINK_TEXT, type RegistrationAction } from "@/lib/glowpayMerchantView";
@@ -588,7 +588,7 @@ function GlowPayStep({ demo, previewMode = false, salonName, onLater }: { demo: 
   return (
     <div className="space-y-6 max-w-lg mx-auto" data-testid="glowpay-step">
       <div className="space-y-3">
-        <img src={glowpayLogo.url} alt="GlowPay" width={1470} height={335} className="h-auto w-44 max-w-full rounded-md object-contain" />
+        <img src={glowpayLogo.url} alt="GlowPay" width={1920} height={421} className="block h-auto w-40 sm:w-44 max-w-full object-contain" />
         <h2 className="text-2xl font-bold tracking-tight">Activeer GlowPay</h2>
         <p className="text-sm text-muted-foreground">
           GlowPay is de betaaloplossing van GlowSuite.
