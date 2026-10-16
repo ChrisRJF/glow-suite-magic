@@ -20,16 +20,28 @@ describe("agenda staff (fictional)", () => {
     expect(noteStaffName("Medewerker: Roos")).toBe("Roos");
     expect(noteStaffName("Medewerker: Niet toegewezen")).toBeNull();
   });
-  it("unlinked appointment stays in Geen medewerker and opens details on click", () => {
-    const onOpen = vi.fn();
+  it("unlinked appointment is not a staff column; review list is offered", () => {
+    const onOpen = vi.fn(); const onReview = vi.fn();
     const apt = { id: "a1", appointment_date: "2026-10-13T10:00:00", start_time: "10:00", service_id: "s", customer_id: "c", notes: "Medewerker: Roos" };
     render(<EmployeeColumnDayView employees={two} appointments={[apt]} services={[{ id: "s", duration_minutes: 30, name: "Knippen" }]}
       customers={[{ id: "c", name: "Klant Fictief" }]} apptEmployees={[]} date="2026-10-13" getDisplayEmployees={() => []}
       getColumnIdForAppointment={() => "unassigned"} isPauseSlot={() => false} onRequestMove={vi.fn()} onSlotClick={vi.fn()}
-      draggable={false} onOpenAppointment={onOpen} />);
+      draggable={false} onOpenAppointment={onOpen} onReviewUnassigned={onReview} />);
     expect(screen.getByText("Tino (1)")).toBeInTheDocument();
     expect(screen.getByText("Tino (2)")).toBeInTheDocument();
-    expect(screen.getByText(/Notitie: Roos/)).toBeInTheDocument();
+    expect(screen.queryByText("Geen medewerker")).toBeNull();
+    expect(screen.queryByText("Klant Fictief")).toBeNull();
+    expect(screen.getByText("1 afspraak zonder medewerker op deze dag")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Bekijken" }));
+    expect(onReview).toHaveBeenCalled();
+  });
+  it("linked appointment opens details on click", () => {
+    const onOpen = vi.fn();
+    const apt = { id: "a2", appointment_date: "2026-10-13T10:00:00", start_time: "10:00", service_id: "s", customer_id: "c", notes: "" };
+    render(<EmployeeColumnDayView employees={two} appointments={[apt]} services={[{ id: "s", duration_minutes: 30, name: "Knippen" }]}
+      customers={[{ id: "c", name: "Klant Fictief" }]} apptEmployees={[]} date="2026-10-13" getDisplayEmployees={() => []}
+      getColumnIdForAppointment={() => "t2"} isPauseSlot={() => false} onRequestMove={vi.fn()} onSlotClick={vi.fn()}
+      draggable={false} onOpenAppointment={onOpen} />);
     fireEvent.click(screen.getByRole("button", { name: /Open afspraak Klant Fictief/ }));
     expect(onOpen).toHaveBeenCalledWith(apt);
   });
