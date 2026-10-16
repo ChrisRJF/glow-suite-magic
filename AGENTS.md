@@ -21,3 +21,4 @@
 - Platform-wide owner data (/platform) is read only through SECURITY DEFINER RPCs that call platform_require_owner_aal2 and write audit_logs; the sidebar link and page gate are UI hints only; why: salon users must never read cross-tenant data or ISV commissions.
 - MFA settings only ever unenroll unverified setups or an explicitly chosen verified factor, and hide removal of a platform owner's final factor (docs/security/platform-owner-mfa.md); why: Supabase Auth cannot block final-factor unenroll server-side, so the UI is a hint and recovery is an admin procedure.
 - Reminders use _shared/reminderSafety.ts for tenant-scoped loads before claims and exact start instants; why: DST and mixed storage must not mis-send.
+- Onboarding salon_type/salon_logo_url writes are gated by SETTINGS_SALON_PROFILE_COLUMNS_ENABLED in src/lib/onboardingSalonProfile.ts (default false) and only accept own salon-logos URLs; why: the columns exist only after a separately approved migration.
