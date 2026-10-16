@@ -29,3 +29,14 @@ Code: `supabase/functions/_shared/inactive/isvOnboardingV2.ts` (builds on `isvOn
 4. `create-viva-connected-account` -> `decideCreateV2`, `buildCreatePayload`, `parseCreateV2`.
 5. `_shared/vivaIsv.ts` gate -> `livePaymentAllowedV2` (redeploys all payment functions; count connected-without-verified first).
 6. Wizard step 3 UI, then website publish.
+
+## Separate LIVE ISV config (PREPARED, NOT ACTIVE, 2026-10-16)
+- Code: `_shared/inactive/isvLiveConfig.ts`; tests: `tests/viva-isv/isv-live-config.test.ts`.
+- Secret names only: `VIVA_ISV_LIVE_CLIENT_ID`, `VIVA_ISV_LIVE_CLIENT_SECRET` (present), `VIVA_ISV_LIVE_ENABLED` (not created; absent = off).
+- Never reads `VIVA_ENVIRONMENT`, `VIVA_ISV_CLIENT_*`, merchant or POS credentials (scoped getter).
+- Hosts fixed to LIVE: token `accounts.vivapayments.com/connect/token`, API `api.vivapayments.com`.
+- Fail closed: switch off, missing credentials, token/Viva failure, unparseable response, demo row, missing brand hex or source code.
+- Open blockers: brand hex for `primaryColor`; live source-code provisioning; token scope for ISV accounts unverified on LIVE; logo URL still the older ISV asset (official GlowPay logo needs a public https URL).
+- Session-derived user ID must match the supplied row before create/status; no database writes are implemented here. The future adapter must enforce tenant-scoped lookup, atomic create claims and persistence. Ambiguous create outcomes require reconciliation, never automatic retry (otherwise duplicate external accounts are possible).
+- LIVE status readiness here is only a prepared check, not a payment-routing activation or permission. No active function imports this module. The account/token contracts remain DEMO-derived, not LIVE-verified.
+- The earlier activation list is historical planning, not permission to execute. Credentials are now present; enable switch remains absent/off. No secret was read or changed during preparation.
