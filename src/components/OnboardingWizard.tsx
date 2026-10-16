@@ -23,6 +23,7 @@ import { glowpayPaymentStatus, bookingStatus, type PayStatus, type BookingStatus
 import glowsuiteLogo from "@/assets/glowsuite-logo.png";
 import glowpayLogo from "@/assets/glowpay/glowpay-logo.png.asset.json";
 import { missingSeedServices } from "@/lib/onboardingServiceSeed";
+import { buildSettingsPayload } from "@/lib/onboardingSalonProfile";
 
 
 interface Props {
@@ -150,16 +151,6 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
     })();
   }, [user, open]);
 
-  // Preview mode: load saved salon logo (if any) so the header reflects the real brand,
-  // but never overwrite unsaved user input.
-  useEffect(() => {
-    if (!user || !open || !previewMode || data.logoUrl) return;
-    (async () => {
-      const { data: s } = await supabase.from("settings").select("salon_logo_url").eq("user_id", user.id).maybeSingle();
-      const url = (s as any)?.salon_logo_url;
-      if (url) setData(d => ({ ...d, logoUrl: url }));
-    })();
-  }, [user, open, previewMode]);
 
   const setStep = (s: number) => setData(d => ({ ...d, step: s }));
   const step = data.step;
@@ -192,15 +183,18 @@ export function OnboardingWizard({ open, onOpenChange, onComplete, previewMode =
     // instead of silently picking an arbitrary one.
     const { data: s, error: settingsError } = await supabase.from("settings").select("id").eq("user_id", user.id).eq("is_demo", false).maybeSingle();
     if (settingsError) throw new OnboardingSaveError("settings_lookup", settingsError);
+    // Gate-controlled: until the proposed settings migration is applied only salon_name is sent.
+    const built = buildSettingsPayload({
+      name, salonType: data.salonType, logoUrl: data.logoUrl, userId: user.id,
+      supabaseUrl: import.meta.env.VITE_SUPABASE_URL ?? "",
+    });
+    let persistedExtras = false;
     if (s?.id) {
-      // Only verified existing column: salon_name. settings has no salon_logo_url/salon_type
-      // columns (PGRST204), so logo and salon type stay as local wizard state for now.
-      const { error } = await (supabase.from("settings") as any).update({
-        salon_name: name,
-      }).eq("id", s.id);
+      const { error } = await (supabase.from("settings") as any).update(built.payload).eq("id", s.id);
       if (error) throw new OnboardingSaveError("settings_update", error);
+      persistedExtras = built.persistedExtras;
     }
-    if (data.logoUrl || data.salonType) {
+    if ((data.logoUrl || data.salonType) && !persistedExtras) {
       toast.info("Salonnaam opgeslagen. Logo en salontype worden nog niet definitief bewaard en blijven in deze wizard staan.");
     }
     // Recoverable, idempotent seeding scoped to this salon: fills only missing default services
