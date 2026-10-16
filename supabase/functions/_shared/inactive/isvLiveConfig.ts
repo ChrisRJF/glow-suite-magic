@@ -30,15 +30,6 @@ export function scopedEnv(get: EnvGet): EnvGet {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** Fail-closed pilot allowlist. Any invalid entry invalidates the whole list. */
-export function isLivePilotUserAllowed(userId: string | null | undefined, rawGet: EnvGet): boolean {
-  if (typeof userId !== "string" || !UUID.test(userId)) return false;
-  const raw = (scopedEnv(rawGet)(LIVE_ISV_SECRET_NAMES.pilotUserIds) ?? "").trim();
-  if (!raw) return false;
-  const ids = raw.split(",").map((s) => s.trim());
-  if (ids.some((s) => !UUID.test(s))) return false;
-  return ids.some((s) => s.toLowerCase() === userId.toLowerCase());
-}
 
 /** Webhook verification key only when the LIVE switch is on and a key is configured. */
 export function liveWebhookVerificationKey(rawGet: EnvGet): string | null {
@@ -160,7 +151,6 @@ export async function syncLiveForSession(sessionUserId: string | null, d: LiveSy
   if (!sessionUserId) return { status: 401, result: "unauthorized" };
   const c = loadLiveIsvConfig(d.get);
   if (!c.ok) return { status: 503, result: c.reason };
-  if (!isLivePilotUserAllowed(sessionUserId, d.get)) return { status: 503, result: "pilot_not_enabled" };
   const row = await d.findLiveRowByUser(sessionUserId);
   if (row === "error") return { status: 503, result: "unavailable" };
   if (!row || !row.viva_account_id) return { status: 404, result: "not_connected" };
