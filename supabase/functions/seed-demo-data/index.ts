@@ -159,6 +159,28 @@ Deno.serve(async (req) => {
       }
       const { data: insertedAppts } = await supabase.from("appointments").insert(appointmentsData).select("id, appointment_date, notes");
 
+      // Demo staff with stable per-tenant identity (name + is_demo); reused on every reset.
+      const DEMO_STAFF = [
+        { name: "Bas", role: "Heren en kinderen", color: "#2F7DE1", sort_order: 10 },
+        { name: "Roos", role: "Dames en kleuren", color: "#E0457B", sort_order: 11 },
+        { name: "Lisa", role: "Allround", color: "#0E9F8E", sort_order: 12 },
+        { name: "Emma", role: "Junior", color: "#E07B12", sort_order: 13 },
+      ];
+      const { data: existingStaff } = await supabase.from("employees").select("id, name").eq("user_id", uid).eq("is_demo", true).in("name", medewerkers);
+      const staffId = new Map<string, string>((existingStaff || []).map((e: any) => [e.name, e.id]));
+      const missing = DEMO_STAFF.filter((s) => !staffId.has(s.name));
+      if (missing.length) {
+        const { data: created } = await supabase.from("employees")
+          .insert(missing.map((s) => ({ ...s, user_id: uid, is_demo: true, is_active: true }))).select("id, name");
+        for (const e of created || []) staffId.set((e as any).name, (e as any).id);
+      }
+      // Link every seeded appointment to its demo staff member by ID (notes stay for history).
+      const links = (insertedAppts || []).flatMap((a: any) => {
+        const id = staffId.get(String(a.notes).match(/Medewerker: ([^ |]+)/)?.[1] || "");
+        return id ? [{ user_id: uid, appointment_id: a.id, employee_id: id, is_primary: true, is_demo: true }] : [];
+      });
+      if (links.length) await supabase.from("appointment_employees").insert(links);
+
       // Create a demo group booking for today
       if (insertedAppts && insertedAppts.length > 0) {
         const todayAppts = insertedAppts.filter(a => a.appointment_date.startsWith(today.toISOString().split("T")[0]));
