@@ -7,9 +7,11 @@ const own = `${base}/storage/v1/object/public/salon-logos/user-a/logo-123.png`;
 const input = { name: "Fictief", salonType: "kapper", logoUrl: own, userId: "user-a", supabaseUrl: base };
 
 describe("onboarding salontype/logo opslag", () => {
-  it("gate staat standaard uit: alleen salon_name", () => {
-    expect(SETTINGS_SALON_PROFILE_COLUMNS_ENABLED).toBe(false);
-    expect(buildSettingsPayload(input)).toEqual({ payload: { salon_name: "Fictief" }, persistedExtras: false });
+  it("gate staat aan na activatie: type en eigen logo worden meegestuurd", () => {
+    expect(SETTINGS_SALON_PROFILE_COLUMNS_ENABLED).toBe(true);
+    expect(buildSettingsPayload(input)).toEqual({
+      payload: { salon_name: "Fictief", salon_type: "kapper", salon_logo_url: own }, persistedExtras: true,
+    });
   });
   it("met gate aan worden type en eigen logo opgeslagen", () => {
     expect(buildSettingsPayload(input, true)).toEqual({
