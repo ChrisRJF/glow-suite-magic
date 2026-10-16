@@ -4,8 +4,8 @@ import { handleIsvOnboardingEvent, isIsvOnboardingEvent, type IsvWebhookDeps } f
 
 const ACC = "11111111-2222-4333-8444-555555555555";
 const MID = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
-const ON = { VIVA_ISV_LIVE_ENABLED: "true", VIVA_ISV_LIVE_CLIENT_ID: "id", VIVA_ISV_LIVE_CLIENT_SECRET: "s" } as Record<string, string>;
-const row = (o: any = {}) => ({ id: "r1", user_id: "u1", is_demo: false, viva_account_id: ACC, viva_merchant_id: null, viva_source_code: null, onboarding_status: "invited", kyc_status: "pending", ...o });
+const ON = { VIVA_ISV_LIVE_ENABLED: "true", VIVA_ISV_LIVE_CLIENT_ID: "id", VIVA_ISV_LIVE_CLIENT_SECRET: "s", VIVA_ISV_LIVE_PILOT_USER_IDS: "11111111-aaaa-4bbb-8ccc-000000000001" } as Record<string, string>;
+const row = (o: any = {}) => ({ id: "r1", user_id: "11111111-aaaa-4bbb-8ccc-000000000001", is_demo: false, viva_account_id: ACC, viva_merchant_id: null, viva_source_code: null, onboarding_status: "invited", kyc_status: "pending", ...o });
 const forged = { ConnectedAccountId: ACC, MerchantId: MID, Verified: true, OnboardingStatus: "active", SourceCode: "9999", OnlinePaymentsEnabled: true };
 
 function deps(o: { env?: any; rows?: any[] | null; retrieve?: any; token?: boolean; updOk?: boolean } = {}) {
