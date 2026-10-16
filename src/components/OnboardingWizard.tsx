@@ -488,7 +488,7 @@ const PAY_LABEL: Record<PayStatus, string> = {
 };
 const PAY_TEXT: Record<PayStatus, string> = {
   not_started: "Je kunt GlowPay activeren wanneer het jou uitkomt.",
-  pending: "Viva controleert je bedrijfsgegevens. Je hoort het zodra dit klaar is.",
+  pending: "Je registratie is nog niet bevestigd als afgerond. Controleer bij Viva of je nog stappen moet afronden.",
   action_needed: "Ga verder met de verificatie bij Viva om betalingen te ontvangen.",
   active: "Je betaalaccount is goedgekeurd. Betalingen zijn beschikbaar.",
 };
