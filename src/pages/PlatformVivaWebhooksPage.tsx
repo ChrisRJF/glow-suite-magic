@@ -39,8 +39,15 @@ export default function PlatformVivaWebhooksPage() {
     setBusy(true);
     const { data, error } = await supabase.functions.invoke("register-viva-isv-live-webhooks", { body: { confirm: CONFIRM } });
     let body: any = data;
-    if (error) { try { body = await (error as any).context?.json?.(); } catch { body = null; } }
-    const safe = { events: body?.events, error: typeof body?.error === "string" ? body.error : error ? "request_failed" : undefined, list: body?.list };
+    let httpStatus: number | undefined;
+    const ctx = (error as any)?.context;
+    if (error) {
+      httpStatus = typeof ctx?.status === "number" ? ctx.status : undefined;
+      try { body = await ctx?.json?.(); } catch { body = null; }
+    }
+    const code = typeof body?.error === "string" && /^[a-z0-9_]{1,64}$/.test(body.error) ? body.error : undefined;
+    const kind = (error as any)?.name === "FunctionsFetchError" ? "netwerk_of_cors_geblokkeerd" : (error as any)?.name === "FunctionsRelayError" ? "gateway_fout" : "request_failed";
+    const safe = { events: body?.events, error: error || code ? `${code ?? kind}${httpStatus ? ` (HTTP ${httpStatus})` : ""}` : undefined, list: body?.list };
     setResult(safe);
     if (safe.events) setDone(true);
     setBusy(false);
