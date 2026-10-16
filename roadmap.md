@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Bestaande ISV-betaalroutes verbinden en veilig deployen, inclusief atomische snapshots/refunds, webhookverificatie en periodieke KYC-refresh; echte charges blijven geblokkeerd zonder bewezen Viva-contract.
+
 - [x] GlowPay-branding voorbereid; bestaande merchant-UNIQUE read-only geverifieerd, geen salonrijen gelezen.
 - [ ] LIVE ISV-create koppelen: blokkerende server-only reservering/recovery vereist aparte schema-GO en LIVE-contractverificatie; schakelaar blijft uit.
 
