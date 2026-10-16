@@ -2,11 +2,29 @@
 // Mirrors the demo flow (../isvDemoConfirm.ts) on the LIVE host with LIVE ISV OAuth only.
 // Endpoint: GET {LIVE_ISV_API_HOST}/checkout/v2/isv/transactions/{transactionId}?merchantId={merchantId}
 // Status semantics (same as demo): statusId "F" = finished/paid; anything else = not paid.
-// Amount in the response is in currency units (EUR), currencyCode "978".
+// Exact LIVE ISV endpoint/schema/amount units remain unverified. Production is blocked.
 import { getLiveIsvToken, LIVE_ISV_API_HOST, type EnvGet } from "./isvLiveConfig.ts";
 import type { Fetch } from "./isvOnboardingSafety.ts";
 
 export type LiveTx = { statusId: string; amountCents: number; currencyCode: string; orderCode: string; merchantId: string | null; parentId?: string | null };
+
+export type TransactionContract = { amountUnit: "major" | "minor" };
+// No env/client override: only authoritative vendor proof plus separate GO can replace null.
+export const LIVE_TRANSACTION_CONTRACT: TransactionContract | null = null;
+
+export function parseLiveTransaction(d: any, transactionId: string, contract: TransactionContract | null): LiveTx | null {
+  if (!contract || !d || typeof d.amount !== "number" || !Number.isFinite(d.amount)) return null;
+  const scaled = contract.amountUnit === "major" ? d.amount * 100 : d.amount;
+  const amountCents = Math.round(scaled);
+  const tolerance = Math.min(0.000001, Number.EPSILON * Math.max(1, Math.abs(scaled)) * 4);
+  if (!Number.isSafeInteger(amountCents) || Math.abs(scaled - amountCents) > tolerance) return null;
+  if (typeof d.transactionId !== "string" || d.transactionId.toLowerCase() !== transactionId.toLowerCase()) return null;
+  if (typeof d.statusId !== "string" || typeof d.merchantId !== "string" || !d.merchantId) return null;
+  if (!(typeof d.orderCode === "string" || (typeof d.orderCode === "number" && Number.isSafeInteger(d.orderCode)))) return null;
+  if (!(typeof d.currencyCode === "string" || (typeof d.currencyCode === "number" && Number.isSafeInteger(d.currencyCode)))) return null;
+  if (d.parentId != null && typeof d.parentId !== "string") return null;
+  return { statusId: d.statusId, amountCents, currencyCode: String(d.currencyCode), orderCode: String(d.orderCode), merchantId: d.merchantId, parentId: d.parentId ?? null };
+}
 
 export interface LivePayment {
   id: string; user_id: string; status: string; is_demo: boolean; provider: string | null; amount: number;
@@ -46,7 +64,8 @@ export function evaluateLiveConfirmation(i: LiveConfirmInput, nowIso: string): L
 }
 
 /** LIVE ISV lookup scoped to the salon merchant. Null on any doubt. */
-export async function fetchLiveIsvTransaction(env: EnvGet, merchantId: string, transactionId: string, f: Fetch): Promise<LiveTx | null> {
+export async function fetchLiveIsvTransaction(env: EnvGet, merchantId: string, transactionId: string, f: Fetch, contract: TransactionContract | null = LIVE_TRANSACTION_CONTRACT): Promise<LiveTx | null> {
+  if (!contract) return null; // No request or amount conversion using an unverified endpoint.
   if (!/^[0-9a-fA-F-]{8,64}$/.test(merchantId) || !/^[0-9a-fA-F-]{8,64}$/.test(transactionId)) return null;
   const token = await getLiveIsvToken(env, f);
   if (!token) return null;
@@ -56,10 +75,6 @@ export async function fetchLiveIsvTransaction(env: EnvGet, merchantId: string, t
     });
     if (!r.ok) return null;
     const d: any = await r.json().catch(() => null);
-    const amount = Number(d?.amount ?? d?.Amount);
-    if (!d || !Number.isFinite(amount)) return null;
-    const mid = d.merchantId ?? d.MerchantId;
-    return { statusId: String(d.statusId ?? d.StatusId ?? ""), amountCents: Math.round(amount * 100),
-      currencyCode: String(d.currencyCode ?? d.CurrencyCode ?? ""), orderCode: String(d.orderCode ?? d.OrderCode ?? ""), merchantId: mid ? String(mid) : null, parentId: d.parentId ?? d.ParentId ?? null };
+    return parseLiveTransaction(d, transactionId, contract);
   } catch { return null; }
 }

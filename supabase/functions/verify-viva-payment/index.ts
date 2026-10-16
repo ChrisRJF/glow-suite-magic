@@ -5,6 +5,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { handleLivePaymentEvent, makeWebhookDeps } from "../_shared/inactive/isvLivePayments.ts";
+import { resolvePrivateIsvRoute } from "../_shared/inactive/isvLiveRouting.ts";
 import { getVivaTransaction } from "../_shared/viva.ts";
 
 const corsHeaders = {
@@ -31,9 +32,19 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const transactionId: string | undefined = body?.transaction_id || body?.t;
     const orderCode: string | undefined = body?.order_code || body?.s;
+    if ((transactionId && (typeof transactionId !== "string" || !/^[0-9a-f-]{8,64}$/i.test(transactionId))) || (orderCode && (typeof orderCode !== "string" || !/^\d{10,20}$/.test(orderCode)))) return json({ error: "invalid_reference" }, 400);
     if (!transactionId && !orderCode) return json({ error: "transaction_id or order_code required" }, 400);
 
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+    const privateRoute = await resolvePrivateIsvRoute(supabase, { orderCode, transactionId });
+    if (privateRoute.kind === "hold") return json({ status: "pending", reason: "private_order_lookup_failed" }, 503);
+    if (privateRoute.kind === "live") {
+      const o = privateRoute.order;
+      const result = transactionId ? await handleLivePaymentEvent(1796, { OrderCode: o.order_code, TransactionId: transactionId }, makeWebhookDeps(supabase, (n) => Deno.env.get(n)), new Date().toISOString()) : null;
+      const r = await supabase.from("isv_payment_orders").select("state").eq("payment_id", o.payment_id).eq("tenant_id", o.tenant_id).maybeSingle();
+      return json({ status: !r.error && r.data?.state === "paid" ? "paid" : "pending", reason: result?.note ?? "no_transaction_id" }, r.error || result?.status === 503 ? 503 : 200);
+    }
 
     // Find local payment first (so we can keep merchant isolation).
     let payment: any = null;
@@ -51,11 +62,8 @@ Deno.serve(async (req) => {
     }
     if (!payment) return json({ status: "unknown", reason: "payment_not_found" });
 
-    if (payment.metadata?.route === "viva_isv_live") {
-      if (transactionId) await handleLivePaymentEvent(1796, { OrderCode: orderCode ?? payment.checkout_reference, TransactionId: transactionId }, makeWebhookDeps(supabase, (n) => Deno.env.get(n)), new Date().toISOString());
-      const r = await supabase.from("isv_payment_orders").select("state").eq("payment_id", payment.id).maybeSingle();
-      return json({ status: !r.error && r.data?.state === "paid" ? "paid" : "pending" });
-    }
+    const matchedRoute = await resolvePrivateIsvRoute(supabase, { paymentId: payment.id });
+    if (matchedRoute.kind !== "legacy") return json({ status: "pending", reason: "private_order_reference_hold" }, 503);
     if (payment.status === "paid") return json({ status: "paid", idempotent: true });
     if (payment.is_demo) return json({ status: payment.status, demo: true });
 

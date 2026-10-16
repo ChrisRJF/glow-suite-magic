@@ -70,7 +70,7 @@ describe("LIVE deposit start", () => {
 function whDeps(tx: any, o: Partial<WebhookDeps> = {}, status = "pending") {
   const log: any = { paid: null, failed: null, refund: null };
   const d: WebhookDeps = {
-    env, enabled: true,
+    env, enabled: true, transactionContract: { amountUnit: "major" },
     fetch: (async (u: string) => new Response(JSON.stringify(u.includes("token") ? { access_token: "t" } : tx), { status: tx || u.includes("token") ? 200 : 500 })) as any,
     findByOrderCode: async () => ({ id: "p1", user_id: "t1", status, is_demo: false, provider: "viva", amount: 25, metadata: { route: "viva_isv_live", viva_merchant_id: MID, viva_order_code: "1234567890", viva_transaction_id: TX } }),
     loadVerifiedMerchant: async () => ({ user_id: "t1", viva_merchant_id: MID, verified: true }),
@@ -82,7 +82,7 @@ function whDeps(tx: any, o: Partial<WebhookDeps> = {}, status = "pending") {
   return { d, log };
 }
 const ev = { OrderCode: "1234567890", TransactionId: TX, MerchantId: MID };
-const okTx = { statusId: "F", amount: 25, currencyCode: "978", orderCode: 1234567890, merchantId: MID };
+const okTx = { transactionId: TX, statusId: "F", amount: 25, currencyCode: "978", orderCode: 1234567890, merchantId: MID };
 
 describe("LIVE payment webhooks", () => {
   it("1796 paid only after Viva F + all matches", async () => {

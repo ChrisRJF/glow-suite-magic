@@ -9,6 +9,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { refreshLiveMerchants } from "../_shared/inactive/isvLiveWebhook.ts";
 import { handleLivePaymentEvent, makeWebhookDeps } from "../_shared/inactive/isvLivePayments.ts";
+import { resolvePrivateIsvRoute } from "../_shared/inactive/isvLiveRouting.ts";
 import { getVivaTransaction, vivaEnv } from "../_shared/viva.ts";
 
 const corsHeaders = {
@@ -128,9 +129,13 @@ async function reconcileOnce(): Promise<ReconcileSummary> {
     const transactionId: string | null = meta.viva_transaction_id || null;
     const orderCode: string | null = meta.viva_order_code || p.mollie_payment_id || p.checkout_reference || null;
 
-    if (meta.route === "viva_isv_live") {
+    const privateRoute = await resolvePrivateIsvRoute(supabase, { paymentId: p.id, orderCode, transactionId });
+    if (privateRoute.kind === "hold") { summary.failed++; continue; }
+    if (privateRoute.kind === "live") {
       // Never query a salon transaction through the platform-merchant API, and never POST another order.
-      if (transactionId) await handleLivePaymentEvent(1796, { OrderCode: orderCode, TransactionId: transactionId }, makeWebhookDeps(supabase, (n) => Deno.env.get(n)), new Date().toISOString());
+      const o = privateRoute.order;
+      if (o.payment_id !== p.id || o.tenant_id !== p.user_id) { summary.failed++; continue; }
+      if (transactionId) await handleLivePaymentEvent(1796, { OrderCode: o.order_code, TransactionId: transactionId }, makeWebhookDeps(supabase, (n) => Deno.env.get(n)), new Date().toISOString());
       // Missing IDs/uncertain dispatch stay held for matching webhook evidence. No retry-as-new-charge.
       continue;
     }

@@ -4,6 +4,7 @@
 // failures are recoverable. Returns 2xx fast.
 
 import { handleLivePaymentEvent, makeWebhookDeps } from "../_shared/inactive/isvLivePayments.ts";
+import { resolvePrivateIsvRoute, liveEventProcessed } from "../_shared/inactive/isvLiveRouting.ts";
 import { isCheckoutPayment, makeLedgerDeps } from "../_shared/checkoutGuard.ts";
 import { applyEvidence, syncAppointment } from "../_shared/providerLedger.ts";
 import { isKassaPayment, processKassaEvent } from "../_shared/kassaGuard.ts";
@@ -275,20 +276,14 @@ Deno.serve(async (req) => {
   console.log("[viva-webhook] event:", eventTypeId, eventTypeName, "tx:", transactionId, "orderCode:", orderCode, "status:", status);
 
   // ---- Webhook security checks (non-breaking) ----
-  // 1. Optional signature header check vs VIVA_WEBHOOK_KEY secret.
+  // POST is an untrusted hint. GET ownership verification is not a POST signature.
   // 2. Replay protection: event timestamp older than 24h is suspicious.
   // 3. Unknown event with no identifiers is suspicious.
   const sigHeader = req.headers.get("viva-signature") || req.headers.get("x-viva-signature") || req.headers.get("x-signature") || null;
-  const expectedKey = Deno.env.get("VIVA_WEBHOOK_KEY") || null;
-  let signatureValid: boolean | null = null;
-  if (sigHeader && expectedKey) signatureValid = sigHeader.trim() === expectedKey.trim();
-  else if (expectedKey) signatureValid = null; // Viva rarely sends explicit signature header; do not reject
+  const signatureValid = null; // No documented cryptographic POST verifier.
 
   let suspicious = false;
   const suspiciousReasons: string[] = [];
-  if (sigHeader && expectedKey && signatureValid === false) {
-    suspicious = true; suspiciousReasons.push("invalid_signature");
-  }
   const eventTimestampRaw = (p?.Created || p?.created || (eventData as any)?.InsDate || (eventData as any)?.insDate || null) as string | null;
   if (eventTimestampRaw) {
     const ts = Date.parse(String(eventTimestampRaw));
@@ -343,7 +338,7 @@ Deno.serve(async (req) => {
           return okText();
         }
         console.log("[viva-webhook] reprocessing unfinished event");
-        ledgerId = (prev as any).id;
+        ledgerId = prev?.id ?? null;
       } else {
         console.error("[viva-webhook] ledger insert failed", insErr);
       }
@@ -351,6 +346,8 @@ Deno.serve(async (req) => {
       ledgerId = inserted?.id ?? null;
     }
   }
+
+  if (!ledgerId) return retryResponse(); // Never process an unstored/unrecoverable event.
 
   if (eventTypeId === 1799) {
     // Transaction Price Calculated: fee info only. No payment, refund, ledger or appointment change.
@@ -402,6 +399,20 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const privateRoute = await resolvePrivateIsvRoute(supabase, { orderCode, transactionId, parentId });
+    if (privateRoute.kind === "hold") return retryResponse();
+    if (privateRoute.kind === "live") {
+      const o = privateRoute.order;
+      const result = await handleLivePaymentEvent(eventTypeId ?? 0, { ...eventData, OrderCode: o.order_code, TransactionId: transactionId, MerchantId: eventMerchantId }, makeWebhookDeps(supabase, (n) => Deno.env.get(n)), new Date().toISOString());
+      const processed = liveEventProcessed(result);
+      const saved = await supabase.from("viva_webhook_events").update({ processed, processed_at: processed ? new Date().toISOString() : null, error: result.note, payment_id: o.payment_id, user_id: o.tenant_id }).eq("id", ledgerId);
+      if (saved.error) return retryResponse();
+      if (["paid", "refund_recorded", "already_processed"].includes(result.note)) {
+        const p = await supabase.from("payments").select("appointment_id").eq("id", o.payment_id).eq("user_id", o.tenant_id).maybeSingle();
+        if (p.data?.appointment_id) await syncAppointment(o.tenant_id, p.data.appointment_id, makeLedgerDeps(supabase));
+      }
+      return result.status === 503 ? retryResponse() : okText();
+    }
     // ---- MERCHANT RESOLUTION (ISV) ----
     // 1. Event carries MerchantId -> map via glowpay_connected_merchants.
     // 2. Local payment/order/transaction mapping -> payment.user_id.
@@ -534,13 +545,9 @@ Deno.serve(async (req) => {
       return okText();
     }
 
-    if (payment.metadata?.route === "viva_isv_live") {
-      // Never let a LIVE ISV row fall through to legacy/platform verification, even with switch OFF.
-      const result = await handleLivePaymentEvent(eventTypeId ?? 0, eventData, makeWebhookDeps(supabase, (n) => Deno.env.get(n)), new Date().toISOString());
-      if (ledgerId) await supabase.from("viva_webhook_events").update({ processed: result.status === 200 && !result.note.startsWith("hold_") && result.note !== "live_disabled", error: result.note, payment_id: payment.id, user_id: payment.user_id }).eq("id", ledgerId);
-      if ((result.note === "paid" || result.note === "refund_recorded" || result.note === "already_processed") && payment.appointment_id) await syncAppointment(payment.user_id, payment.appointment_id, makeLedgerDeps(supabase));
-      return result.status === 503 ? retryResponse() : okText();
-    }
+    // Alternate public references must not smuggle a private ISV payment into legacy processing.
+    const matchedRoute = await resolvePrivateIsvRoute(supabase, { paymentId: payment.id });
+    if (matchedRoute.kind !== "legacy") return retryResponse();
 
     // Tag ledger with user/payment for merchant isolation.
     if (ledgerId) {
