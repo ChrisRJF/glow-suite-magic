@@ -754,9 +754,12 @@ export default function BookingPage() {
           return;
         }
 
-        const message = result.paymentInitError || (paymentDecision?.required ? t("booking.toasts.bookingSaved") : t("booking.toasts.bookingConfirmedNoPay"));
-        setPaymentResult({ status: result.paymentInitError ? "failed" : "success", message });
-        toast[result.paymentInitError ? "error" : "success"](message);
+        const outcome = bookingOutcome(result);
+        const message = outcome === "saved_unpaid"
+          ? t("booking.payment.savedUnpaid")
+          : result.paymentInitError || (paymentDecision?.required ? t("booking.toasts.bookingSaved") : t("booking.toasts.bookingConfirmedNoPay"));
+        setPaymentResult({ status: outcome, message });
+        if (outcome === "failed") toast.error(message); else toast.success(outcome === "saved_unpaid" ? t("booking.payment.appointmentSaved") : message);
         try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
         trackEvent("booking_completed", { paid: !paymentDecision?.required, public: true });
       } catch (err: any) {
@@ -1532,7 +1535,17 @@ export default function BookingPage() {
               </div>
             )}
 
-            {paymentResult && paymentResult.status !== "success" && (
+            {paymentResult && paymentResult.status === "saved_unpaid" && (
+              <div className="mt-6 p-5 rounded-2xl bg-secondary/50 border border-border text-center" role="status">
+                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                  <Info className="w-6 h-6 text-primary" aria-hidden="true" />
+                </div>
+                <p className="font-semibold text-base">{t("booking.payment.appointmentSaved")}</p>
+                <p className="text-sm text-muted-foreground mt-1">{paymentResult.message}</p>
+              </div>
+            )}
+
+            {paymentResult && paymentResult.status === "failed" && (
               <div className="mt-6 p-4 rounded-xl text-sm text-center bg-destructive/10 border border-destructive/20 text-destructive">
                 <p className="font-semibold">{paymentResult.message}</p>
                 <p className="text-xs mt-1 text-muted-foreground">{t("booking.payment.tryAgainOrMethod")}</p>
