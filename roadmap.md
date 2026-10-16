@@ -1,5 +1,6 @@
 # Roadmap
 
+- [ ] Veilige correctie-GO: parser contract-fail-closed maken, private orderrouting en herhaalbare holds herstellen, synthetische regressies en gerichte functie-typechecks uitvoeren, uitsluitend veiligheidsfuncties deployen; geen LIVE-activatie of Beautycare-acties.
 - [x] Gerichte finale Viva-contractreview afgerond: POST is ongeauthenticeerde trigger met onafhankelijke OAuth-opvraag; exacte ISV API-route/eenheden/refundschema blijven onbewezen. Kleine parserpatch met tests uitsluitend voorbereid, 62 bestaande + 22 geïsoleerde tests geslaagd; 9 regressies bewezen tegen origineel; geen deployment, charges of Beautycare-wijzigingen.
 - [x] Bestaande ISV-betaalroutes aangesloten en zes functies veilig gedeployed; migraties 0022/0023 aanwezig, 64 gerichte tests en 18 geïsoleerde opslag/concurrentietests geslaagd. Vijfminutenjob actief; accountrefresh onafhankelijk van betaalgate, geen LIVE orders.
 - [ ] LIVE charge-activatie wacht op sluitend Viva LIVE webhook/retrieve-contractbewijs, geverifieerde salon-KYC/acquiring en afzonderlijke activatie-GO; geen salonallowlist.
