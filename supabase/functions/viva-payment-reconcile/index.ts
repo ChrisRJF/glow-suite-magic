@@ -11,6 +11,7 @@ import { refreshLiveMerchants } from "../_shared/inactive/isvLiveWebhook.ts";
 import { handleLivePaymentEvent, makeWebhookDeps } from "../_shared/inactive/isvLivePayments.ts";
 import { resolvePrivateIsvRoute } from "../_shared/inactive/isvLiveRouting.ts";
 import { getVivaTransaction, vivaEnv } from "../_shared/viva.ts";
+import { schedulerAuthorized } from "./schedulerAuth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -86,11 +87,7 @@ async function recordFailure(
 }
 
 
-async function reconcileOnce(): Promise<ReconcileSummary> {
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-  );
+async function reconcileOnce(supabase: ReturnType<typeof createClient<any>>): Promise<ReconcileSummary> {
   const summary: ReconcileSummary = {
     scanned: 0, updated: 0, unchanged: 0, failed: 0, no_transaction_id: 0, details: [],
   };
@@ -235,15 +232,36 @@ async function reconcileOnce(): Promise<ReconcileSummary> {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  // Allow GET for manual triggering / health check from the dashboard.
-  if (req.method !== "POST" && req.method !== "GET") {
+  // Authorization precedes client construction, database reads, locks and provider calls.
+  if (!schedulerAuthorized(req, Deno.env.get("VIVA_RECONCILE_CRON_SECRET"))) {
+    return json({ error: "unauthorized" }, 401);
+  }
+  if (req.method !== "POST") {
     return json({ error: "method_not_allowed" }, 405);
   }
+  const url = Deno.env.get("SUPABASE_URL");
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !key) return json({ error: "configuration_unavailable" }, 503);
+  const supabase = createClient(url, key, { auth: { persistSession: false } });
+  const holder = crypto.randomUUID();
+  let acquired = false;
   try {
-    const summary = await reconcileOnce();
+    const lock = await supabase.rpc("try_acquire_scheduler_lock", {
+      _name: "viva-payment-reconcile", _ttl_seconds: 600, _holder: holder,
+    });
+    if (lock.error) return json({ error: "lock_unavailable" }, 503);
+    if (lock.data !== true) return json({ ok: true, skipped: "locked" });
+    acquired = true;
+    const summary = await reconcileOnce(supabase);
     return json({ ok: true, env: vivaEnv().api.includes("demo") ? "demo" : "live", ...summary });
-  } catch (e) {
-    console.error("[viva-reconcile] fatal", e);
-    return json({ ok: false, error: String((e as Error)?.message || e) }, 500);
+  } catch {
+    console.error("[viva-reconcile] fatal");
+    return json({ ok: false, error: "reconciliation_failed" }, 500);
+  } finally {
+    if (acquired) {
+      // A late execution must never release a newer holder's lease.
+      await supabase.from("scheduler_locks").delete().eq("lock_name", "viva-payment-reconcile").eq("holder", holder)
+        .then(() => {}, () => { console.error("[viva-reconcile] lock_release_failed"); });
+    }
   }
 });
