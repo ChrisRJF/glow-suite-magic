@@ -45,7 +45,14 @@ const translationsJs = ts.transpileModule(translationsSrc, {
 const translationsModule = { exports: {} as Record<string, unknown> };
 vm.runInContext(translationsJs, vm.createContext({ Intl, module: translationsModule, exports: translationsModule.exports }));
 
-const context = vm.createContext({ Intl, globalThis: {}, ...translationsModule.exports });
+const manageSrc = readFileSync("supabase/functions/send-white-label-email/bookingConfirmationManageAction.ts", "utf8");
+const manageModule = { exports: {} as Record<string, unknown> };
+vm.runInContext(
+  ts.transpileModule(manageSrc, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText,
+  vm.createContext({ URL, module: manageModule, exports: manageModule.exports }),
+);
+
+const context = vm.createContext({ Intl, URL, globalThis: {}, ...translationsModule.exports, ...manageModule.exports });
 vm.runInContext(compiled, context);
 
 const renderTemplate = (context.globalThis as { __renderTemplate: (key: TemplateKey, data: Record<string, unknown>, salonName: string, branding: SalonFixture["branding"]) => { html: string; subject: string; text: string } }).__renderTemplate;
