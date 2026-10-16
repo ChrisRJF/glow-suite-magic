@@ -5,7 +5,7 @@ const MID = "11111111-2222-3333-4444-555555555555";
 const TX = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
 const env = (n: string) => ({ VIVA_ISV_LIVE_ENABLED: "true", VIVA_ISV_LIVE_CLIENT_ID: "id", VIVA_ISV_LIVE_CLIENT_SECRET: "s" } as Record<string, string>)[n];
 const row = { id: "r", user_id: "t1", is_demo: false, viva_account_id: "acc-12345678", viva_merchant_id: MID, viva_source_code: null, onboarding_status: "active", kyc_status: "verified" };
-const acc = { accountId: "acc-12345678", merchantId: MID, verified: true };
+const acc = { accountId: "acc-12345678", merchantId: MID, acquiringEnabled: true, verified: true };
 const fee = { online_bps: 100, online_fixed_cents: 25, terminal_bps: 0, terminal_fixed_cents: 0 };
 
 function depDeps(o: Partial<DepositDeps> = {}) {
@@ -62,7 +62,7 @@ function whDeps(tx: any, o: Partial<WebhookDeps> = {}, status = "pending") {
   const d: WebhookDeps = {
     env, enabled: true,
     fetch: (async (u: string) => new Response(JSON.stringify(u.includes("token") ? { access_token: "t" } : tx), { status: tx || u.includes("token") ? 200 : 500 })) as any,
-    findByOrderCode: async () => ({ id: "p1", user_id: "t1", status, is_demo: false, provider: "viva", amount: 25, metadata: { route: "viva_isv_live", viva_merchant_id: MID, viva_order_code: "1234567890" } }),
+    findByOrderCode: async () => ({ id: "p1", user_id: "t1", status, is_demo: false, provider: "viva", amount: 25, metadata: { route: "viva_isv_live", viva_merchant_id: MID, viva_order_code: "1234567890", viva_transaction_id: TX } }),
     loadVerifiedMerchant: async () => ({ user_id: "t1", viva_merchant_id: MID, verified: true }),
     loadSnapshot: async () => ({ amount_cents: 2500, fee_cents: 50 }),
     markPaid: async (_i, r) => { log.paid = r; return true; },
@@ -100,7 +100,7 @@ describe("LIVE payment webhooks", () => {
     expect(log.failed).toBe("viva_E");
   });
   it("1797 partial refund returns fee proportionally", async () => {
-    const { d, log } = whDeps({ ...okTx, amount: 12.5 }, {}, "paid");
+    const { d, log } = whDeps({ ...okTx, amount: -12.5, parentId: TX }, {}, "paid");
     expect((await handleLivePaymentEvent(1797, ev, d, "now")).note).toBe("refund_recorded");
     expect(log.refund).toEqual({ c: 1250, f: 25 });
   });

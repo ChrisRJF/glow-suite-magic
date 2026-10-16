@@ -537,7 +537,7 @@ Deno.serve(async (req) => {
       // Never let a LIVE ISV row fall through to legacy/platform verification, even with switch OFF.
       const result = await handleLivePaymentEvent(eventTypeId ?? 0, eventData, makeWebhookDeps(supabase, (n) => Deno.env.get(n)), new Date().toISOString());
       if (ledgerId) await supabase.from("viva_webhook_events").update({ processed: result.status === 200 && !result.note.startsWith("hold_") && result.note !== "live_disabled", error: result.note, payment_id: payment.id, user_id: payment.user_id }).eq("id", ledgerId);
-      if (result.note === "paid" || result.note === "refund_recorded") await syncAppointment(payment, makeLedgerDeps(supabase));
+      if ((result.note === "paid" || result.note === "refund_recorded" || result.note === "already_processed") && payment.appointment_id) await syncAppointment(payment.user_id, payment.appointment_id, makeLedgerDeps(supabase));
       return result.status === 503 ? retryResponse() : okText();
     }
 

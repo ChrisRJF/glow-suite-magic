@@ -39,7 +39,7 @@ describe("ISV onboarding webhook 8193/8194", () => {
     expect(r.processed).toBe(true);
     expect(updates[0].onboarding_status).toBe("invited");
     expect(updates[0].viva_source_code).toBeUndefined();
-    expect(updates[0].online_payments_enabled).toBeUndefined();
+    expect(updates[0].online_payments_enabled).toBe(false);
     expect(updates[0].viva_merchant_id).toBeUndefined();
   });
   it("verified Retrieve updates status from provider only", async () => {
