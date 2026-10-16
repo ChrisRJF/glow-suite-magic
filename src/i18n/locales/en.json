@@ -210,6 +210,7 @@
       "demoNoCharge": "Demo: nothing will be charged.",
       "methodsInfo": "The payment page shows which payment methods are available.",
       "appointmentSaved": "Appointment saved",
+      "savedUnpaid": "Your appointment is saved. Online deposits are not yet available at this salon; the salon will contact you about payment. Nothing has been charged.",
       "choosePaymentMethod": "Choose your payment method",
       "statusPaid": "Paid",
       "statusPending": "Pending",

@@ -210,6 +210,7 @@
       "demoNoCharge": "Demo: Es wird nichts abgebucht.",
       "methodsInfo": "Auf der Zahlungsseite siehst du die verfügbaren Zahlungsmethoden.",
       "appointmentSaved": "Termin gespeichert",
+      "savedUnpaid": "Dein Termin ist gespeichert. Online-Anzahlung ist bei diesem Salon noch nicht verfügbar; der Salon meldet sich wegen der Zahlung. Es wurde nichts abgebucht.",
       "choosePaymentMethod": "Wähle deine Zahlungsmethode",
       "statusPaid": "Bezahlt",
       "statusPending": "Ausstehend",

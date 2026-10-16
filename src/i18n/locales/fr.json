@@ -210,6 +210,7 @@
       "demoNoCharge": "Démo : rien ne sera débité.",
       "methodsInfo": "La page de paiement indique les moyens de paiement disponibles.",
       "appointmentSaved": "Rendez-vous enregistré",
+      "savedUnpaid": "Votre rendez-vous est enregistré. L'acompte en ligne n'est pas encore disponible dans ce salon ; le salon vous contactera pour le paiement. Rien n'a été débité.",
       "choosePaymentMethod": "Choisissez votre moyen de paiement",
       "statusPaid": "Payé",
       "statusPending": "En attente",
