@@ -501,6 +501,17 @@ function GlowPayStep({ demo, previewMode = false, salonName, onLater }: { demo: 
   const [inviteBusy, setInviteBusy] = useState(false);
   const [inviteMsg, setInviteMsg] = useState<string | null>(null);
   const inviteFlight = useRef(false);
+  // Altijd-actuele gebruikers-id: het user-object uit de render-closure is
+  // verouderd zodra de async request loopt. Deze ref wordt synchroon tijdens
+  // elke render bijgewerkt, zodat een accountwissel tijdens de await fail-closed
+  // wordt opgevangen en een invitation van gebruiker A nooit bij B opent.
+  const currentUserIdRef = useRef<string | null>(null);
+  currentUserIdRef.current = user?.id ?? null;
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -537,9 +548,9 @@ function GlowPayStep({ demo, previewMode = false, salonName, onLater }: { demo: 
       const { data: res, error } = await supabase.functions.invoke("create-viva-connected-account", {
         body: { business_name: salonName.trim(), contact_email: user!.email, country: "NL" },
       });
-      // Gebruiker is tijdens het wachten gewisseld: nooit met een vorige
-      // gebruikers-URL navigeren of status tonen.
-      if (user?.id !== forUserId) return;
+      // Gebruiker is tijdens het wachten gewisseld of de stap is weg: nooit
+      // met een vorige gebruikers-URL navigeren of status tonen.
+      if (!mountedRef.current || currentUserIdRef.current !== forUserId) return;
       const action = error
         ? inviteActionFromError(error)
         : inviteActionFromResponse((res as any) ?? {});
@@ -551,7 +562,7 @@ function GlowPayStep({ demo, previewMode = false, salonName, onLater }: { demo: 
       }
       setInviteMsg(action.text);
     } catch (e) {
-      if (user?.id !== forUserId) return;
+      if (!mountedRef.current || currentUserIdRef.current !== forUserId) return;
       const action = inviteActionFromError(e);
       setInviteMsg(action.kind === "message" ? action.text : INVITE_UNAVAILABLE);
     } finally {
