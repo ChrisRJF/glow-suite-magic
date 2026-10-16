@@ -1293,11 +1293,11 @@ export default function CalendarPage() {
               <CalendarDays className="w-4 h-4 sm:mr-1" /> <span className="sr-only sm:not-sr-only">Vandaag</span>
             </Button>
             <div className="flex flex-1 lg:flex-none rounded-xl border border-border overflow-hidden min-w-0">
-              <button onClick={() => setView('day')} className={cn("flex-1 lg:flex-none px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium transition-colors", view === 'day' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')}>Dag</button>
-              <button onClick={() => setView('columns')} className={cn("flex-1 lg:flex-none px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium transition-colors flex items-center justify-center gap-1", view === 'columns' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')} title="Eén dag, alle medewerkers die werken naast elkaar">
+              <button onClick={() => setView('day')} className={cn("flex-1 lg:flex-none px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium transition-colors", view === 'day' ? 'bg-cta text-cta-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')}>Dag</button>
+              <button onClick={() => setView('columns')} className={cn("flex-1 lg:flex-none px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium transition-colors flex items-center justify-center gap-1", view === 'columns' ? 'bg-cta text-cta-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')} title="Eén dag, alle medewerkers die werken naast elkaar">
                 <Columns3 className="w-3.5 h-3.5 hidden sm:block" /><span className="whitespace-nowrap">Per medewerker</span>
               </button>
-              <button onClick={() => setView('week')} className={cn("flex-1 lg:flex-none px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium transition-colors", view === 'week' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')}>Week</button>
+              <button onClick={() => setView('week')} className={cn("flex-1 lg:flex-none px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium transition-colors", view === 'week' ? 'bg-cta text-cta-foreground' : 'bg-transparent text-muted-foreground hover:text-foreground')}>Week</button>
             </div>
           </div>
           {/* Eén primaire actie; slim plannen blijft secundair */}
@@ -1335,7 +1335,7 @@ export default function CalendarPage() {
         <div role="group" aria-label="Agendaweergave" className="flex rounded-lg border border-border overflow-hidden">
           {([{ value: 'day', label: 'Dag' }, { value: 'columns', label: 'Per medewerker' }, { value: 'week', label: 'Week' }] as const).map(option => (
             <Button key={option.value} variant="ghost" aria-pressed={view === option.value} onClick={() => setView(option.value)}
-              className={cn('flex-1 h-9 rounded-none px-2 text-xs', view === option.value && 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground')}>{option.label}</Button>
+              className={cn('flex-1 h-9 rounded-none px-2 text-xs', view === option.value && 'bg-cta text-cta-foreground hover:bg-cta hover:text-cta-foreground')}>{option.label}</Button>
           ))}
         </div>
       </div>
