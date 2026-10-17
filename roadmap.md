@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] WhatsApp security preparation: isolated auth/tenant/retry candidates and migration plan in docs/prepared-patches/whatsapp-security; 45 focused tests passed. Active functions untouched because edits auto-deploy. Broader inactive-security suite: 53 passed, one existing Viva import-policy failure left out of scope. No live actions.
+- [ ] WhatsApp scheduler activation: blocked on proven current managed authentication/binding and separate configuration/deployment GO; prepared scheduler must not be activated as-is.
+
 - [x] Kleine herstelronde: NoShowCenter telt isHigh; AutoRevenueMetrics verduidelijkt creation-cohort/statusconversie, ontbrekende cohort geeft geen percentage; btw-aanname/refunds-labels verduidelijkt; Autopilot UI noemt schattingen. 79 gerichte tests geslaagd; formules, financiële logica, backend en productie ongewijzigd; geen deployment/publicatie. Netto-omzet niet opnieuw gedefinieerd zonder aparte GO.
 
 - [x] Trial banner: navigation-only GlowPay CTA; 28 tests and fictitious mobile/desktop rendering checked. Real TEST-account screenshot unavailable; no deployment/publication or real-account login.

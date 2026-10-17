@@ -1,0 +1,817 @@
+import { retryAppointmentVerdict } from "../_shared/whatsappSecurity.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { loadAIModes, canAutoRun, effectiveMode, type AICategory } from "../_shared/aiModes.ts";
+import { getDefaultMessageTemplate, normalizeMessageLang, renderMessage, intlLocale } from "../_shared/messageTranslations.ts";
+import {
+  acquireSchedulerLock,
+  appendConfirmationBlock,
+  buildConfirmationLink,
+  claimReminderDispatch,
+  MAX_ATTEMPTS,
+  maskPhone,
+  recordFailureAndMaybeRetry,
+  reminderAlreadySent,
+  releaseSchedulerLock,
+  publicAppOrigin,
+  selectChannel,
+  type ReminderType,
+} from "../_shared/reminderEngine.ts";
+import { runAutoRebookSweep } from "../_shared/autoRebookPass.ts";
+import { canStillSendRebook, maskContact } from "../_shared/autoRebookGuards.ts";
+import { sendAppointmentReminder } from "../_shared/sendAppointmentReminder.ts";
+import { reminderWindow, classifyReminderCandidate } from "../_shared/reminderSafety.ts";
+import { runDossierFormPass } from "../_shared/dossierForms.ts";
+
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+const DEFAULT_TZ = "Europe/Amsterdam";
+
+// Get the wall-clock time in a given IANA timezone as discrete parts.
+function getLocalParts(date: Date, timeZone: string) {
+  const fmt = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+  const parts = Object.fromEntries(fmt.formatToParts(date).map((p) => [p.type, p.value]));
+  return {
+    year: Number(parts.year),
+    month: Number(parts.month),
+    day: Number(parts.day),
+    hour: Number(parts.hour === "24" ? "00" : parts.hour),
+    minute: Number(parts.minute),
+    second: Number(parts.second),
+  };
+}
+
+// Add minutes to a {y,m,d,h,min} struct via Date arithmetic in UTC space, then
+// re-project back into the target timezone. This is DST-safe because we add
+// real elapsed minutes, not calendar hours.
+function addMinutesLocal(
+  local: { year: number; month: number; day: number; hour: number; minute: number },
+  minutes: number,
+  timeZone: string,
+) {
+  // Treat the local parts as if they were UTC to get a stable reference point
+  const asUtc = Date.UTC(local.year, local.month - 1, local.day, local.hour, local.minute, 0);
+  // Find the offset that timezone has at that wall-clock moment by round-trip
+  const refDate = new Date(asUtc);
+  const projected = getLocalParts(refDate, timeZone);
+  const projectedUtc = Date.UTC(
+    projected.year,
+    projected.month - 1,
+    projected.day,
+    projected.hour,
+    projected.minute,
+    0,
+  );
+  const offsetMs = asUtc - projectedUtc; // local - tz(local) ≈ tz offset
+  // Actual UTC instant for the original local wall-clock:
+  const instantUtc = asUtc - offsetMs + minutes * 60 * 1000;
+  // Re-project back to local
+  return getLocalParts(new Date(instantUtc), timeZone);
+}
+
+function pad(n: number) { return n.toString().padStart(2, "0"); }
+function fmtDate(p: { year: number; month: number; day: number }) {
+  return `${p.year}-${pad(p.month)}-${pad(p.day)}`;
+}
+function fmtTime(p: { hour: number; minute: number }) {
+  return `${pad(p.hour)}:${pad(p.minute)}:00`;
+}
+function timeToMinutes(t: string) {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + (m || 0);
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+  const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const admin = createClient(SUPABASE_URL, SERVICE_KEY);
+
+  // ---------- MANUAL TEST SEND ----------
+  // Same function, same sender, same templates, same logs. Only difference:
+  // it ignores the 24-hour window and does not consume the real reminder slot.
+  let reqBody: any = {};
+  try { reqBody = await req.clone().json(); } catch { /* cron sends no body */ }
+
+  if (reqBody?.test_appointment_id) {
+    const authHeader = req.headers.get("Authorization") || "";
+    const jwt = authHeader.replace(/^Bearer\s+/i, "");
+    const userClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: `Bearer ${jwt}` } },
+    });
+    const { data: userRes } = await userClient.auth.getUser();
+    const caller = userRes?.user;
+    if (!caller) {
+      return new Response(JSON.stringify({ success: false, error: "Niet ingelogd" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { data: allowed } = await admin.rpc("has_any_role", {
+      _user_id: caller.id,
+      _roles: ["eigenaar", "manager", "admin"],
+    });
+    if (!allowed) {
+      return new Response(JSON.stringify({ success: false, error: "Geen toestemming" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { data: salonSettings } = await admin
+      .from("settings")
+      .select("timezone")
+      .eq("user_id", caller.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const { data: waSettings } = await admin
+      .from("whatsapp_settings")
+      .select("reminder_hours_before")
+      .eq("user_id", caller.id)
+      .maybeSingle();
+
+    const result = await sendAppointmentReminder(admin, {
+      supabaseUrl: SUPABASE_URL,
+      serviceKey: SERVICE_KEY,
+      userId: caller.id,
+      appointmentId: String(reqBody.test_appointment_id),
+      timezone: salonSettings?.timezone || DEFAULT_TZ,
+      reminderHoursBefore: waSettings?.reminder_hours_before || 24,
+      test: true,
+      meta: { manual_test: true, triggered_by: caller.id },
+    });
+
+    return new Response(JSON.stringify({ success: result.status === "sent", ...result }), {
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+
+
+  const stats = {
+    checked: 0,
+    sent: 0,
+    skipped: 0,
+    failed: 0,
+    errors: [] as string[],
+    windows: [] as Array<Record<string, unknown>>,
+  };
+
+  // Record run start
+  const { data: runRow } = await admin
+    .from("whatsapp_scheduler_runs")
+    .insert({ started_at: new Date().toISOString() })
+    .select("id")
+    .maybeSingle();
+  const runId = runRow?.id || null;
+
+  // -------- SCHEDULER OVERLAP LOCK -------- (lease-based; TTL 4 minutes)
+  // Prevents two overlapping cron ticks from processing the same reminders.
+  const lockAcquired = await acquireSchedulerLock(admin, "whatsapp-reminder-scheduler", 240, runId ?? "unknown");
+  if (!lockAcquired) {
+    if (runId) {
+      await admin.from("whatsapp_scheduler_runs").update({
+        finished_at: new Date().toISOString(),
+        meta: { skipped: "another run holds the lease" },
+      }).eq("id", runId);
+    }
+    return new Response(JSON.stringify({ success: true, skipped: "lock_busy" }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  try {
+    // -------- RETRY PASS -------- (canonical 1/5/15 min backoff, max 3 attempts)
+    // Runs before the send passes so we recover transient Twilio failures
+    // before the next fresh scheduling tick.
+    const nowIso = new Date().toISOString();
+    const { data: retryRows } = await admin
+      .from("whatsapp_logs")
+      .select("id, user_id, to_number, message, customer_id, appointment_id, kind, reminder_type, booking_token, confirmation_link, retry_count, meta")
+      .eq("status", "failed")
+      .eq("dead_letter", false)
+      .not("reminder_type", "is", null)
+      .not("next_retry_at", "is", null)
+      .lte("next_retry_at", nowIso)
+      .lt("retry_count", MAX_ATTEMPTS)
+      .limit(50);
+
+    for (const row of retryRows || []) {
+      try {
+        if (row.customer_id) {
+          const { data: retryCustomer } = await admin.from("customers")
+            .select("archived_at, pseudonymized_at, communication_blocked_at")
+            .eq("id", row.customer_id).eq("user_id", row.user_id).maybeSingle();
+          if (!retryCustomer || retryCustomer.archived_at || retryCustomer.pseudonymized_at || retryCustomer.communication_blocked_at) {
+            await admin.from("whatsapp_logs").update({ dead_letter: true, status: "suppressed", error: "customer_communication_blocked", next_retry_at: null }).eq("id", row.id);
+            continue;
+          }
+        }
+        // If the appointment has been cancelled/rescheduled in the meantime,
+        // dead-letter without further attempts — never send a stale reminder.
+        if (!row.appointment_id && (row.reminder_type === "reminder" || row.reminder_type === "reminder_test")) {
+          await admin.from("whatsapp_logs").update({ dead_letter: true, error: "appointment_no_longer_valid", next_retry_at: null }).eq("id", row.id);
+          continue;
+        }
+        if (row.appointment_id) {
+          const { data: appt } = await admin
+            .from("appointments")
+            .select("user_id, customer_id, appointment_date, start_time, status, confirmation_status")
+            .eq("id", row.appointment_id)
+            .eq("user_id", row.user_id)
+            .maybeSingle();
+          const staleReason = retryAppointmentVerdict(row, appt);
+          if (staleReason) {
+            await admin.from("whatsapp_logs").update({
+              dead_letter: true,
+              error: staleReason,
+              next_retry_at: null,
+            }).eq("id", row.id);
+            continue;
+          }
+        }
+
+        // Auto Rebook: re-evaluate consent, opt-outs, the master toggle and a
+        // possible new booking BEFORE every retry. A blocked retry is
+        // suppressed, never counted as a delivery failure.
+        if (row.reminder_type === "auto_rebook" && row.customer_id) {
+          const guard = await canStillSendRebook(
+            admin,
+            row.user_id,
+            row.customer_id,
+            (row.meta as any)?.rebook_action_id || null,
+          );
+          if (!guard.allowed) {
+            await admin.from("whatsapp_logs").update({
+              dead_letter: true,
+              status: "suppressed",
+              error: guard.reason,
+              next_retry_at: null,
+            }).eq("id", row.id);
+            const raId = (row.meta as any)?.rebook_action_id;
+            if (raId) {
+              await admin.from("rebook_actions")
+                .update({ status: "suppressed" })
+                .eq("id", raId)
+                .is("booked_at", null);
+            }
+            continue;
+          }
+        }
+
+
+
+        const toPlain = String(row.to_number || "").replace(/^whatsapp:/, "");
+        const resp = await fetch(`${SUPABASE_URL}/functions/v1/whatsapp-send`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${SERVICE_KEY}` },
+          body: JSON.stringify({
+            user_id: row.user_id,
+            to: toPlain,
+            message: row.message,
+            customer_id: row.customer_id,
+            appointment_id: row.appointment_id,
+            kind: row.kind,
+            reminder_type: row.reminder_type,
+            booking_token: row.booking_token,
+            confirmation_link: row.confirmation_link,
+            meta: { ...(row.meta as any || {}), retry_of: row.id, attempt: (row.retry_count || 0) + 1 },
+          }),
+        });
+        const data = await resp.json();
+        if (resp.ok && (data.success || data.deduped)) {
+          // Mark the original failed row as resolved so it won't be picked again.
+          await admin.from("whatsapp_logs").update({
+            next_retry_at: null,
+            error: null,
+            status: data.deduped ? "sent" : "sent",
+          }).eq("id", row.id);
+          stats.sent++;
+        } else {
+          const outcome = await recordFailureAndMaybeRetry(admin, row as any, data?.error || `http_${resp.status}`);
+          if (outcome.status === "dead_letter") stats.failed++;
+        }
+      } catch (e) {
+        const outcome = await recordFailureAndMaybeRetry(admin, row as any, e instanceof Error ? e.message : "unknown");
+        if (outcome.status === "dead_letter") stats.failed++;
+      }
+    }
+
+    const { data: settingsList, error: sErr } = await admin
+      .from("whatsapp_settings")
+      .select("user_id, enabled, send_reminders, send_review_request, send_no_show_followup, send_revenue_boost, revenue_boost_after_days, revenue_boost_max_per_month, reminder_hours_before")
+      .eq("enabled", true);
+    if (sErr) throw sErr;
+
+    const now = new Date();
+    const WINDOW_MIN = 15; // ±15 minutes
+
+    for (const s of settingsList || []) {
+      // Load AI modes once per salon (live mode; demo uses its own scheduler path).
+      const aiModes = await loadAIModes(admin, s.user_id, false);
+      const gate = (cat: AICategory) => canAutoRun(aiModes, cat);
+      const skipLog = (cat: AICategory, pass: string) => ({
+        ai_mode: effectiveMode(aiModes, cat),
+        ai_category: cat,
+        skipped_reason: "ai_mode_not_autopilot",
+        pass,
+      });
+
+      // -------- REMINDER PASS -------- (no_show prevention)
+      if (!s.send_reminders || !gate("no_show")) {
+        if (s.send_reminders && !gate("no_show")) {
+          stats.windows.push({ user_id: s.user_id, ...skipLog("no_show", "reminder") });
+        }
+      } else {
+      const hoursBefore = s.reminder_hours_before || 24;
+
+      // Resolve salon timezone
+      const { data: salonSettings } = await admin
+        .from("settings")
+        .select("timezone")
+        .eq("user_id", s.user_id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const tz = salonSettings?.timezone || DEFAULT_TZ;
+
+      // Exact-instant window: now + hoursBefore ± WINDOW_MIN (real elapsed time).
+      const w = reminderWindow(now, hoursBefore, WINDOW_MIN, tz);
+      const nowLocal = getLocalParts(now, tz);
+      const lowLocal = getLocalParts(new Date(w.startMs), tz);
+      const highLocal = getLocalParts(new Date(w.endMs), tz);
+      const targetLocal = getLocalParts(new Date(now.getTime() + hoursBefore * 3600000), tz);
+
+      const windowInfo = {
+        user_id: s.user_id,
+        tz,
+        hours_before: hoursBefore,
+        now_local: `${fmtDate(nowLocal)} ${fmtTime(nowLocal)}`,
+        target_local: `${fmtDate(targetLocal)} ${fmtTime(targetLocal)}`,
+        window_local_start: `${fmtDate(lowLocal)} ${fmtTime(lowLocal)}`,
+        window_local_end: `${fmtDate(highLocal)} ${fmtTime(highLocal)}`,
+      };
+      stats.windows.push(windowInfo);
+
+      // Broad query (±1 day covers legacy wall-clock rows), exact filter below.
+      const { data: appts, error: aErr } = await admin
+        .from("appointments")
+        .select("id, customer_id, appointment_date, start_time, status, user_id, booking_token, confirmation_status, service_id")
+        .eq("user_id", s.user_id)
+        .gte("appointment_date", w.startIso)
+        .lt("appointment_date", w.endIsoExclusive)
+        .in("status", ["confirmed", "gepland", "pending_confirmation"]);
+      if (aErr) {
+        stats.errors.push(`appts ${s.user_id}: ${aErr.message}`);
+        continue;
+      }
+
+      for (const appt of appts || []) {
+        const v = classifyReminderCandidate(w, appt.appointment_date, appt.start_time, tz);
+        if (v === "out_of_window") continue;
+        if (v !== "in_window") {
+          // Privacy-safe: ids and reason only, no contact data or bodies.
+          stats.skipped++;
+          stats.windows.push({ user_id: s.user_id, appt_id: appt.id, skipped_reason: v });
+          console.log(JSON.stringify({ event: "reminder_skipped_unresolvable_time", appt_id: appt.id, reason: v }));
+          continue;
+        }
+
+        stats.checked++;
+
+        // Canonical single-appointment sender — the exact same path the
+        // manual "Test herinnering versturen" action uses.
+        const result = await sendAppointmentReminder(admin, {
+          supabaseUrl: SUPABASE_URL,
+          serviceKey: SERVICE_KEY,
+          userId: s.user_id,
+          appointmentId: appt.id,
+          timezone: tz,
+          reminderHoursBefore: hoursBefore,
+          emailEnabled: Boolean((s as any).email_enabled ?? true),
+          meta: {
+            scheduler_window: `${windowInfo.window_local_start} → ${windowInfo.window_local_end}`,
+          },
+        });
+
+        if (result.status === "sent") {
+          stats.sent++;
+        } else if (result.status === "skipped") {
+          stats.skipped++;
+          stats.windows.push({ user_id: s.user_id, appt_id: appt.id, skipped_reason: result.reason });
+        } else {
+          stats.failed++;
+          stats.errors.push(`appt ${appt.id}: ${result.error || result.reason || "unknown"}`);
+        }
+
+      }
+      } // end reminder else-block
+
+      // -------- REVIEW PASS -------- (klant_retention)
+      if (s.send_review_request && gate("klant_retention")) {
+        try {
+          const { data: salonSettings2 } = await admin
+            .from("settings")
+            .select("timezone")
+            .eq("user_id", s.user_id)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          const tz2 = salonSettings2?.timezone || DEFAULT_TZ;
+
+          // Look at appointments that ended between 2h and 26h ago, status voltooid/completed
+          const since = new Date(now.getTime() - 26 * 60 * 60 * 1000).toISOString();
+          const until = new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString();
+
+          const { data: doneAppts } = await admin
+            .from("appointments")
+            .select("id, customer_id, appointment_date, start_time, status, user_id")
+            .eq("user_id", s.user_id)
+            .gte("appointment_date", since)
+            .lte("appointment_date", until)
+            .in("status", ["voltooid", "completed"]);
+
+          // Load review template once
+          const { data: revTpl } = await admin
+            .from("whatsapp_templates")
+            .select("content, is_active")
+            .eq("user_id", s.user_id)
+            .eq("template_type", "review")
+            .maybeSingle();
+          if (revTpl?.is_active === false) {
+            // template disabled — skip review pass
+          } else {
+            const { data: profile2 } = await admin
+              .from("profiles")
+              .select("salon_name, google_review_url")
+              .eq("user_id", s.user_id)
+              .maybeSingle();
+            const salonName2 = profile2?.salon_name || "ons salon";
+            const reviewLink = (profile2 as any)?.google_review_url || "";
+
+            for (const appt of doneAppts || []) {
+              stats.checked++;
+              if (!appt.customer_id) { stats.skipped++; continue; }
+
+              const { data: existingLog } = await admin
+                .from("whatsapp_logs")
+                .select("id")
+                .eq("appointment_id", appt.id)
+                .eq("kind", "review")
+                .eq("status", "sent")
+                .limit(1)
+                .maybeSingle();
+              if (existingLog) { stats.skipped++; continue; }
+
+              const { data: customer } = await admin
+                .from("customers")
+                .select("id, name, phone, whatsapp_opt_in, preferred_language, archived_at, pseudonymized_at, communication_blocked_at")
+                .eq("id", appt.customer_id)
+                .eq("user_id", s.user_id)
+                .maybeSingle();
+              if (!customer || !customer.phone || customer.whatsapp_opt_in === false || customer.archived_at || customer.pseudonymized_at || customer.communication_blocked_at) {
+                stats.skipped++;
+                continue;
+              }
+
+              const reviewLang = normalizeMessageLang((customer as any).preferred_language || "nl");
+              const reviewContent = revTpl?.content
+                || getDefaultMessageTemplate("review_request", reviewLang, "whatsapp");
+
+              const apptInstant = new Date(appt.appointment_date);
+              const dateStr = new Intl.DateTimeFormat(intlLocale(reviewLang), {
+                timeZone: tz2, day: "numeric", month: "long",
+              }).format(apptInstant);
+              const timeStr = (appt.start_time as string | null)?.substring(0, 5)
+                || String(appt.appointment_date).substring(11, 16);
+
+              const message = renderMessage(reviewContent, {
+                customer_name: customer.name || "",
+                salon_name: salonName2,
+                appointment_date: dateStr,
+                appointment_time: timeStr,
+                services: "",
+                reschedule_link: "",
+                review_link: reviewLink,
+              });
+
+              try {
+                const fnUrl = `${SUPABASE_URL}/functions/v1/whatsapp-send`;
+                const resp = await fetch(fnUrl, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${SERVICE_KEY}`,
+                  },
+                  body: JSON.stringify({
+                    user_id: s.user_id,
+                    to: customer.phone,
+                    message,
+                    customer_id: customer.id,
+                    appointment_id: appt.id,
+                    kind: "review",
+                    meta: { tz: tz2 },
+                  }),
+                });
+                const data = await resp.json();
+                if (resp.ok && (data.success || data.deduped)) {
+                  if (data.deduped) stats.skipped++; else stats.sent++;
+                } else {
+                  stats.failed++;
+                  stats.errors.push(`review ${appt.id}: ${data.error || resp.status}`);
+                }
+              } catch (e) {
+                stats.failed++;
+                stats.errors.push(`review ${appt.id}: ${e instanceof Error ? e.message : "unknown"}`);
+              }
+            }
+          }
+        } catch (e) {
+          stats.errors.push(`review pass ${s.user_id}: ${e instanceof Error ? e.message : "unknown"}`);
+        }
+      }
+
+      // -------- NO-SHOW PASS -------- (no_show)
+      if (s.send_no_show_followup && gate("no_show")) {
+        try {
+          // Look at appointments scheduled in the last 24h with no-show status
+          const since = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+          const until = new Date(now.getTime() + 60 * 60 * 1000).toISOString();
+
+          const { data: nsAppts } = await admin
+            .from("appointments")
+            .select("id, customer_id, appointment_date, start_time, status, user_id")
+            .eq("user_id", s.user_id)
+            .gte("appointment_date", since)
+            .lte("appointment_date", until)
+            .in("status", ["no-show", "no_show", "noshow", "niet_verschenen"]);
+
+          const { data: nsTpl } = await admin
+            .from("whatsapp_templates")
+            .select("content, is_active")
+            .eq("user_id", s.user_id)
+            .eq("template_type", "no_show")
+            .maybeSingle();
+
+          if (nsTpl?.is_active === false) {
+            // template disabled — skip
+          } else {
+            const { data: profileNs } = await admin
+              .from("profiles")
+              .select("salon_name")
+              .eq("user_id", s.user_id)
+              .maybeSingle();
+            const salonNameNs = profileNs?.salon_name || "ons salon";
+
+            for (const appt of nsAppts || []) {
+              stats.checked++;
+              if (!appt.customer_id) { stats.skipped++; continue; }
+
+              const { data: existingLog } = await admin
+                .from("whatsapp_logs")
+                .select("id")
+                .eq("appointment_id", appt.id)
+                .eq("kind", "no_show")
+                .eq("status", "sent")
+                .limit(1)
+                .maybeSingle();
+              if (existingLog) { stats.skipped++; continue; }
+
+              const { data: customer } = await admin
+                .from("customers")
+                .select("id, name, phone, whatsapp_opt_in, preferred_language, archived_at, pseudonymized_at, communication_blocked_at")
+                .eq("id", appt.customer_id)
+                .eq("user_id", s.user_id)
+                .maybeSingle();
+              if (!customer || !customer.phone || customer.whatsapp_opt_in === false || customer.archived_at || customer.pseudonymized_at || customer.communication_blocked_at) {
+                stats.skipped++;
+                continue;
+              }
+
+              const nsLang = normalizeMessageLang((customer as any).preferred_language || "nl");
+              const nsContent = nsTpl?.content
+                || getDefaultMessageTemplate("no_show", nsLang, "whatsapp");
+
+              const apptInstant = new Date(appt.appointment_date);
+              const dateStr = new Intl.DateTimeFormat(intlLocale(nsLang), {
+                day: "numeric", month: "long",
+              }).format(apptInstant);
+              const timeStr = (appt.start_time as string | null)?.substring(0, 5)
+                || String(appt.appointment_date).substring(11, 16);
+
+              const message = renderMessage(nsContent, {
+                customer_name: customer.name || "",
+                salon_name: salonNameNs,
+                appointment_date: dateStr,
+                appointment_time: timeStr,
+              });
+
+              try {
+                const fnUrl = `${SUPABASE_URL}/functions/v1/whatsapp-send`;
+                const resp = await fetch(fnUrl, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${SERVICE_KEY}`,
+                  },
+                  body: JSON.stringify({
+                    user_id: s.user_id,
+                    to: customer.phone,
+                    message,
+                    customer_id: customer.id,
+                    appointment_id: appt.id,
+                    kind: "no_show",
+                  }),
+                });
+                const data = await resp.json();
+                if (resp.ok && (data.success || data.deduped)) {
+                  if (data.deduped) stats.skipped++; else stats.sent++;
+                } else {
+                  stats.failed++;
+                  stats.errors.push(`no_show ${appt.id}: ${data.error || resp.status}`);
+                }
+              } catch (e) {
+                stats.failed++;
+                stats.errors.push(`no_show ${appt.id}: ${e instanceof Error ? e.message : "unknown"}`);
+              }
+            }
+          }
+        } catch (e) {
+          stats.errors.push(`no_show pass ${s.user_id}: ${e instanceof Error ? e.message : "unknown"}`);
+        }
+      }
+
+    }
+
+    // -------- AUTO REBOOK DEAD-LETTER FALLBACK --------
+    // WhatsApp gave up after all retries. Try exactly ONE canonical email
+    // fallback (never a second full retry cycle), otherwise notify the salon
+    // in plain language. Idempotency lives in meta.dl_handled + the email
+    // idempotency key, so two channels can never both deliver.
+    try {
+      const { data: dlRows } = await admin
+        .from("whatsapp_logs")
+        .select("id, user_id, customer_id, meta")
+        .eq("reminder_type", "auto_rebook")
+        .eq("dead_letter", true)
+        .eq("status", "failed")
+        .is("meta->>dl_handled", null)
+        .limit(30);
+
+      for (const row of dlRows || []) {
+        const meta = (row.meta as any) || {};
+        const markHandled = async (how: string) =>
+          admin.from("whatsapp_logs")
+            .update({ meta: { ...meta, dl_handled: how, dl_handled_at: new Date().toISOString() } })
+            .eq("id", row.id);
+
+        if (!row.customer_id) { await markHandled("no_customer"); continue; }
+
+        const guard = await canStillSendRebook(admin, row.user_id, row.customer_id, meta.rebook_action_id || null);
+        if (!guard.allowed) { await markHandled(`suppressed:${guard.reason}`); continue; }
+
+        const [{ data: cust }, { data: pref }, { data: cfg }, { data: prof }] = await Promise.all([
+          admin.from("customers").select("id, name, email, preferred_language").eq("id", row.customer_id).eq("user_id", row.user_id).maybeSingle(),
+          admin.from("customer_message_preferences").select("email_opt_out").eq("user_id", row.user_id).eq("customer_id", row.customer_id).maybeSingle(),
+          admin.from("settings").select("email_enabled, public_slug").eq("user_id", row.user_id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+          admin.from("profiles").select("salon_name").eq("user_id", row.user_id).maybeSingle(),
+        ]);
+
+        const emailOk = Boolean(cust?.email) && !pref?.email_opt_out && Boolean(cfg?.email_enabled ?? true);
+        let delivered = false;
+        if (emailOk) {
+          try {
+            const res = await admin.functions.invoke("send-white-label-email", {
+              body: {
+                user_id: row.user_id,
+                salon_name: prof?.salon_name || "ons salon",
+                salon_slug: cfg?.public_slug || undefined,
+                sender_legacy_name_id: true,
+                recipient_email: cust.email,
+                recipient_name: cust.name || "",
+                template_key: "auto_rebook",
+                idempotency_key: `auto-rebook-${meta.rebook_action_id || row.id}`,
+                language: normalizeMessageLang(cust.preferred_language || "nl"),
+                template_data: {
+                  customer_name: cust.name || "",
+                  salon_name: prof?.salon_name || "ons salon",
+                  rebook_url: meta.booking_link || "",
+                  booking_url: meta.booking_link || "",
+                },
+              },
+            });
+            delivered = !res.error;
+          } catch (_) { delivered = false; }
+        }
+
+        if (delivered) {
+          if (meta.rebook_action_id) {
+            await admin.from("rebook_actions").update({
+              status: "verzonden", channel: "email", sent_at: new Date().toISOString(),
+            }).eq("id", meta.rebook_action_id).is("booked_at", null);
+          }
+          await markHandled("email_fallback");
+        } else {
+          await admin.from("admin_notifications").insert({
+            user_id: row.user_id,
+            type: "auto_rebook_undeliverable",
+            severity: "warning",
+            title: "Een Auto Rebook-bericht kon niet worden verstuurd.",
+            body: "We hebben deze klant niet kunnen bereiken via WhatsApp of e-mail. Neem eventueel zelf contact op.",
+            payload: { customer_id: row.customer_id, log_id: row.id },
+            link: "/herboekingen",
+          });
+          if (meta.rebook_action_id) {
+            await admin.from("rebook_actions").update({ status: "mislukt" })
+              .eq("id", meta.rebook_action_id).is("booked_at", null);
+          }
+          await markHandled("merchant_notified");
+        }
+      }
+    } catch (e) {
+      stats.errors.push(`auto_rebook dead_letter: ${e instanceof Error ? e.message : "unknown"}`);
+    }
+
+    // -------- AUTO REBOOK SWEEP -------- (klant_retention)
+    // Fair, resumable round-robin across salons with keyset-paginated
+    // customer batches. No salon or customer is silently truncated.
+    const rebookSalons = (settingsList || []).filter((s) => s.send_revenue_boost).map((s) => s.user_id);
+    const rebookCfg = new Map<string, { maxPerMonth: number }>();
+    for (const s of settingsList || []) {
+      rebookCfg.set(s.user_id, { maxPerMonth: Math.max(1, s.revenue_boost_max_per_month || 1) });
+    }
+    try {
+      await runAutoRebookSweep({
+        admin,
+        supabaseUrl: SUPABASE_URL,
+        serviceKey: SERVICE_KEY,
+        now,
+        stats,
+        salonIds: rebookSalons,
+        configFor: (uid) => rebookCfg.get(uid) || { maxPerMonth: 1 },
+        aiGate: async (uid) => canAutoRun(await loadAIModes(admin, uid, false), "klant_retention"),
+        getLocalHour: (tz) => getLocalParts(now, tz).hour,
+      });
+    } catch (e) {
+      stats.errors.push(`auto_rebook sweep: ${e instanceof Error ? e.message : "unknown"}`);
+    }
+
+    // Klantdossier P1: automatic form sending + open form reminders.
+    try {
+      const dossier = await runDossierFormPass(admin, now);
+      stats.sent += dossier.auto_sent + dossier.reminders_sent;
+      stats.skipped += dossier.skipped;
+      stats.windows.push({
+        pass: "dossier_forms",
+        queue_processed: dossier.queue_processed,
+        auto_sent: dossier.auto_sent,
+        reminders_sent: dossier.reminders_sent,
+      });
+      for (const err of dossier.errors.slice(0, 5)) stats.errors.push(`dossier: ${err}`);
+    } catch (e) {
+      stats.errors.push(`dossier pass: ${e instanceof Error ? e.message : "unknown"}`);
+    }
+
+
+    if (runId) {
+      await admin.from("whatsapp_scheduler_runs").update({
+        finished_at: new Date().toISOString(),
+        checked: stats.checked, sent: stats.sent, skipped: stats.skipped, failed: stats.failed,
+        meta: { windows: stats.windows, errors: stats.errors.slice(0, 20) },
+      }).eq("id", runId);
+    }
+
+    return new Response(JSON.stringify({ success: true, ...stats }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (err) {
+    console.error("scheduler error", err);
+    if (runId) {
+      await admin.from("whatsapp_scheduler_runs").update({
+        finished_at: new Date().toISOString(),
+        checked: stats.checked, sent: stats.sent, skipped: stats.skipped, failed: stats.failed,
+        meta: { error: err instanceof Error ? err.message : "unknown" },
+      }).eq("id", runId);
+    }
+    return new Response(
+      JSON.stringify({ success: false, error: err instanceof Error ? err.message : "unknown", ...stats }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  } finally {
+    await releaseSchedulerLock(admin, "whatsapp-reminder-scheduler");
+  }
+});
