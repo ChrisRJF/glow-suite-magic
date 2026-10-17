@@ -131,7 +131,9 @@ export default function InstellingenPage() {
   const [activeLanguages, setActiveLanguages] = useState<string[]>(["nl","en","de","fr","es"]);
   const [allowLangSwitch, setAllowLangSwitch] = useState(true);
   const [autoDetectLang, setAutoDetectLang] = useState(true);
-  const [activeTab, setActiveTab] = useState("algemeen");
+  const [activeTab, setActiveTab] = useState(() =>
+    new URLSearchParams(window.location.search).get("tab") === "integraties" ? "integraties" : "algemeen"
+  );
   const [saveLoading, setSaveLoading] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   // User management
