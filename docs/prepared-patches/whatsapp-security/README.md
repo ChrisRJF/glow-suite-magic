@@ -60,6 +60,8 @@ Retry comparisons happen before dispatch, not atomically with provider delivery.
 
 `src/test/whatsapp-security-prepared.test.ts` exercises existing prepared transport authentication, tenant/recipient binding, manual transport tests, demo simulation and cancelled/deleted/moved/snapshotless retries, plus the isolated scheduler proposal's denied, probe, manual/member and verified-scheduler routes. The scheduler verifier and dispatch are fictional test doubles, NOT evidence of a supported production identity or an actual scheduled run. The proposal is not yet wired into the 817-line scheduler candidate; that integration requires separate GO and its own bounded integration test.
 
+Result in this round: `bunx vitest run src/test/whatsapp-security-prepared.test.ts`, **41/41 passed**. No production requests, sends, deployments or configuration changes. Modified files: this README, the isolated test file; added schedulerAuth.proposal.ts. Existing transport/security/scheduler/shared-reminder candidates were left unchanged.
+
 Manual reminder `test:true` is **not** a dry run: the existing shared sender can send WhatsApp or email, skips the timing window/canonical claim and keeps its 60-second test cooldown. Do not execute it against production to prove this proposal. Preserve existing lease/claims and test cooldown during cutover; do not replay accepted/uncertain sends. Before release, demonstrate non-sending scheduled execution using a supported provider-disabled or isolated test scope. If unavailable, stop. Retry check/delivery races and ambiguous provider acceptance remain explicitly unresolved, not solved by these tests.
 
 ## Integration notes after separate GO
