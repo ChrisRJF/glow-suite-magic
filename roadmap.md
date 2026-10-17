@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Atomic Agenda punt 1: prepare inactive server-mediated move route and focused tests; preserve CalendarPage legacy unchanged. No DB/grants/flags, Edge deployment or publication. Activation waits for separately approved service-only DB wrapper and server route.
+
 - [x] Focused fair no-show preparation: six isolated files in docs/prepared-patches/no-show-risk plus src/test/noshow-risk-prepared.test.ts; unknown cancellation timing/legacy counters are not evidence, verified attendance dilutes risk, late-only cannot be high, risk deposits require sufficient high evidence. 77 targeted tests passed, preview build OK. Active engines/callers unchanged to preserve parity without auto-deploy; no DB/live/financial actions.
 - [ ] Fair no-show activation: blocked on synchronized frontend/server rollout with verified rollback and authoritative complete tenant-scoped appointment-history adapter; unknown history must remain neutral, late cancellation timing unavailable. Existing live formula is not corrected yet.
 
