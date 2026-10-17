@@ -3,12 +3,13 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { AutoRevenueMetrics } from "@/components/AutoRevenueMetrics";
 
 const state = vi.hoisted(() => ({
+  user: { id: "test-salon" },
   offers: [] as { status: string; created_at: string }[],
   payments: [] as Record<string, unknown>[],
   offerError: null as null | { message: string },
   filters: [] as [string, string, unknown][],
 }));
-vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "test-salon" } }) }));
+vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: state.user }) }));
 vi.mock("@/hooks/useDemoMode", () => ({ useDemoMode: () => ({ demoMode: true }) }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: {
   from: (table: string) => {
