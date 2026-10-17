@@ -169,6 +169,13 @@
       "when": 1792181030628,
       "tag": "0023_isv_atomic_commission_reconciliation",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1792250365707,
+      "tag": "0024_remove_legacy_whatsapp_scheduler_job4",
+      "breakpoints": true
     }
   ]
 }

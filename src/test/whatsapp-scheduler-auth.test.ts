@@ -83,7 +83,7 @@ describe("scheduler gate: scheduled route", () => {
     expect(d).toMatchObject({ allow: false, status: 405 });
   });
   it("unknown body fields (including user_id) are rejected", async () => {
-    const d = await authorizeSchedulerRequest(req(CRON, { user_id: A }), mockAdmin({}), CRON);
+    const d = await authorizeSchedulerRequest(req(CRON, { user_id: A }), { user_id: A }, mockAdmin({}), CRON);
     expect(d).toMatchObject({ allow: false, status: 400 });
   });
 });
