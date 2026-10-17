@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Kleine herstelronde: uitsluitend hoog no-showrisico tellen; aanbodconversie onderbouwen; bewezen financiële labelfouten corrigeren; Autopilot-schattingen verduidelijken; gerichte tests, geen backendwijzigingen of publicatie.
+
 - [x] Trial banner: navigation-only GlowPay CTA; 28 tests and fictitious mobile/desktop rendering checked. Real TEST-account screenshot unavailable; no deployment/publication or real-account login.
 
 - [x] Minimale vijf-eventregistratie: eigenaar-aangeleverd officieel POST {url,eventTypeId}/204-contract toegepast; admin+AAL2+nieuw expliciet vijf-eventwoord behouden, actuele callback-keyvergelijking vóór POST, overige HTTP-statussen failed en netwerkuitkomsten unknown zonder retries. Alleen register-viva-isv-live-webhooks gedeployed (index.ts + helper); pagina/test/AGENTS alleen code. 21 tests en Deno-check geslaagd, preview build OK; productie anonieme POST 401 en GET callback 200 met key (niet getoond). Geen registratie/MFA-klikflow uitgevoerd of UI gepubliceerd; docs onafhankelijk ophalen mislukte, geen duplicate-errorsemantiek verzonnen.
