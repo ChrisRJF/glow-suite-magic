@@ -294,7 +294,7 @@ export default function DashboardPage() {
       <section data-tour="auto-revenue" id="auto-revenue-engine">
         <AutoRevenueEngine />
         <p className="sm:hidden mt-2 text-xs leading-relaxed text-muted-foreground">
-          Verwachte omzet is de raming voor voorgestelde acties. Extra omzet is het resultaat uit het actielog{demoMode ? " en de demosimulatie, geen betaalde omzet" : ", niet hetzelfde als betaalde omzet"}.
+          Verwachte omzet is een indicatieve schatting op basis van vaste aannames, geen gemeten voorspelling. Extra omzet is het resultaat uit het actielog{demoMode ? " en de demosimulatie, geen betaalde omzet" : ", niet hetzelfde als betaalde omzet"}.
         </p>
       </section>
 

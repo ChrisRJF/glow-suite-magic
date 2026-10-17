@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useAppointments, useCustomers, useServices } from "@/hooks/useSupabaseData";
 import { useCrud } from "@/hooks/useCrud";
 import { formatEuro } from "@/lib/data";
-import { TrendingUp, TrendingDown, AlertTriangle } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { useState, useMemo } from "react";
 
 export default function OmzetPage() {
