@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 const BC = "1c6c885e-c944-4717-b2ef-9cfdb9fa15ae";
@@ -12,6 +12,16 @@ vi.mock("@/hooks/useSubscription", () => ({ startMollieCheckout: vi.fn() }));
 
 const state = vi.fn();
 vi.mock("@/contexts/SubscriptionStateContext", () => ({ useSubscriptionState: () => state() }));
+const auth = vi.fn(() => ({ user: null as { id: string } | null, loading: false }));
+const role = vi.fn(() => ({ roles: ["eigenaar"], loading: false }));
+const settings = vi.fn(() => ({ data: [] as Record<string, unknown>[], loading: false, error: null as unknown }));
+const merchant = vi.fn(async () => ({ data: null as Record<string, unknown> | null, error: null as unknown }));
+const eq = vi.fn();
+const from = vi.fn(() => ({ select: () => ({ eq }) }));
+eq.mockImplementation(() => ({ eq, maybeSingle: merchant }));
+vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => auth() }));
+vi.mock("@/hooks/useUserRole", () => ({ useUserRole: () => role() }));
+vi.mock("@/hooks/useSupabaseData", () => ({ useSettings: () => settings() }));
 
 import { TrialBanner } from "@/components/TrialBanner";
 
@@ -73,5 +83,59 @@ describe("TrialBanner verlengingsmelding", () => {
     expect(screen.getByText(/Nog 3 dagen gratis over/)).toBeTruthy();
     expect(screen.queryByText(/verlengd/)).toBeNull();
     expect(rpc).not.toHaveBeenCalled();
+  });
+});
+
+describe("TrialBanner GlowPay navigation eligibility", () => {
+  const prepare = () => {
+    auth.mockReturnValue({ user: { id: OTHER }, loading: false });
+    role.mockReturnValue({ roles: ["eigenaar"], loading: false });
+    settings.mockReturnValue({ data: [{ user_id: OTHER, demo_mode: false }], loading: false, error: null });
+    merchant.mockResolvedValue({ data: null, error: null });
+  };
+  afterEach(() => { auth.mockReturnValue({ user: null, loading: false }); vi.clearAllMocks(); });
+
+  it.each(["eigenaar", "admin"])("allows %s with a confirmed non-demo account and no merchant", async (allowedRole) => {
+    prepare();
+    role.mockReturnValue({ roles: [allowedRole], loading: false });
+    show(subFor(OTHER, { free_period_starts_at: "2026-11-01T00:00:00Z" }));
+    expect(await screen.findByRole("button", { name: "GlowPay activeren" })).toBeTruthy();
+    expect(eq).toHaveBeenCalledWith("user_id", OTHER);
+    expect(eq).toHaveBeenCalledWith("is_demo", false);
+  });
+
+  it.each(["medewerker", "manager", "financieel", "receptie"])("hides for %s", () => {
+    prepare(); role.mockReturnValue({ roles: [argumentsRolePlaceholder], loading: false });
+  });
+
+  it("hides demo accounts without loading a merchant", () => {
+    prepare(); settings.mockReturnValue({ data: [{ user_id: OTHER, demo_mode: true }], loading: false, error: null });
+    show(subFor(OTHER));
+    expect(screen.queryByRole("button", { name: "GlowPay activeren" })).toBeNull();
+    expect(from).not.toHaveBeenCalled();
+  });
+
+  it("hides an active merchant", async () => {
+    prepare(); merchant.mockResolvedValue({ data: { viva_account_id: "a", viva_merchant_id: "m", onboarding_status: "active", kyc_status: "verified", online_payments_enabled: true, viva_source_code: "s", is_demo: false }, error: null });
+    show(subFor(OTHER));
+    await waitFor(() => expect(merchant).toHaveBeenCalled());
+    expect(screen.queryByRole("button", { name: "GlowPay activeren" })).toBeNull();
+  });
+
+  it("hides unreadable merchant status", async () => {
+    prepare(); merchant.mockResolvedValue({ data: null, error: { message: "unavailable" } });
+    show(subFor(OTHER));
+    await waitFor(() => expect(merchant).toHaveBeenCalled());
+    expect(screen.queryByRole("button", { name: "GlowPay activeren" })).toBeNull();
+  });
+
+  it("hides missing or unreadable settings and a different signed-in account", () => {
+    prepare(); settings.mockReturnValue({ data: [], loading: false, error: null });
+    const view = show(subFor(OTHER));
+    expect(screen.queryByRole("button", { name: "GlowPay activeren" })).toBeNull();
+    view.unmount(); prepare(); auth.mockReturnValue({ user: { id: "different-test-user" }, loading: false });
+    show(subFor(OTHER));
+    expect(screen.queryByRole("button", { name: "GlowPay activeren" })).toBeNull();
+    expect(from).not.toHaveBeenCalled();
   });
 });

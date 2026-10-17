@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { trialExtensionText } from "@/lib/trialExtension";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,52 @@ import { Sparkles, X, Loader2, AlertTriangle, Lock, CreditCard } from "lucide-re
 import { startMollieCheckout } from "@/hooks/useSubscription";
 import { useSubscriptionState } from "@/contexts/SubscriptionStateContext";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { useUserRole } from "@/hooks/useUserRole";
+import { useSettings } from "@/hooks/useSupabaseData";
+import { supabase } from "@/integrations/supabase/client";
+import { glowpayPaymentStatus, type MerchantStatusRow } from "@/lib/glowpayOnboardingStatus";
+
+/** Navigation only: never starts registration or refreshes provider status. */
+function TrialGlowPayAction({ userId }: { userId: string }) {
+  const { user, loading: authLoading } = useAuth();
+  const { roles, loading: rolesLoading } = useUserRole();
+  const { data: settings, loading: settingsLoading, error: settingsError } = useSettings();
+  const navigate = useNavigate();
+  const ownSettings = settings.find((row) => row.user_id === user?.id);
+  const eligible = !authLoading && !rolesLoading && !settingsLoading && !settingsError &&
+    user?.id === userId && ownSettings?.demo_mode === false &&
+    roles.some((role) => role === "eigenaar" || role === "admin");
+  const [loaded, setLoaded] = useState<{ userId: string; inactive: boolean } | null>(null);
+
+  useEffect(() => {
+    if (!eligible) return;
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("glowpay_connected_merchants")
+          .select("viva_account_id,viva_merchant_id,onboarding_status,kyc_status,online_payments_enabled,viva_source_code,is_demo")
+          .eq("user_id", userId)
+          .eq("is_demo", false)
+          .maybeSingle();
+        if (!cancelled) setLoaded({ userId, inactive: !error && glowpayPaymentStatus(data as MerchantStatusRow) !== "active" });
+      } catch {
+        if (!cancelled) setLoaded({ userId, inactive: false });
+      }
+    };
+    void load();
+    return () => { cancelled = true; };
+  }, [eligible, userId]);
+
+  if (!eligible || loaded?.userId !== userId || !loaded.inactive) return null;
+  return (
+    <Button size="sm" variant="outline" className="w-full sm:w-auto shrink-0" onClick={() => navigate("/instellingen?tab=integraties")}>
+      <CreditCard className="w-3.5 h-3.5 mr-1.5" />
+      GlowPay activeren
+    </Button>
+  );
+}
 
 export function TrialBanner() {
   const { sub, daysLeft, isReadOnly } = useSubscriptionState();
@@ -21,9 +67,10 @@ export function TrialBanner() {
   const extension = trialExtensionText(sub.user_id, sub);
   if (extension) {
     return (
-      <div className="px-4 py-2.5 text-sm flex items-center justify-center gap-2 border-b bg-primary/5 border-primary/20 text-center">
+      <div className="px-4 py-2.5 text-sm flex flex-col sm:flex-row sm:flex-wrap items-center justify-center gap-2 sm:gap-3 border-b bg-primary/5 border-primary/20 text-center">
         <Sparkles className="w-4 h-4 shrink-0" />
         <span className="font-medium leading-tight">{extension}</span>
+        <TrialGlowPayAction userId={sub.user_id} />
       </div>
     );
   }
@@ -35,13 +82,14 @@ export function TrialBanner() {
     const fmt = (iso: string) =>
       new Date(iso).toLocaleDateString("nl-NL", { day: "numeric", month: "long", timeZone: "Europe/Amsterdam" });
     return (
-      <div className="px-4 py-2.5 text-sm flex items-center justify-center gap-2 border-b bg-primary/5 border-primary/20 text-center">
+      <div className="px-4 py-2.5 text-sm flex flex-col sm:flex-row sm:flex-wrap items-center justify-center gap-2 sm:gap-3 border-b bg-primary/5 border-primary/20 text-center">
         <Sparkles className="w-4 h-4 shrink-0" />
         <span className="font-medium leading-tight">
           {beforeStart
             ? `Je account staat klaar voor ${fmt(sub.free_period_starts_at)}. Je gratis gebruiksmaand begint dan.`
             : `Je gebruikt GlowSuite gratis tot ${fmt(sub.trial_ends_at)}.`}
         </span>
+        <TrialGlowPayAction userId={sub.user_id} />
       </div>
     );
   }
@@ -96,6 +144,7 @@ export function TrialBanner() {
         <Button size="sm" variant="ghost" className="flex-1 sm:flex-none" onClick={() => navigate("/pricing")}>
           Plan bekijken
         </Button>
+        <TrialGlowPayAction userId={sub.user_id} />
       </div>
       {!urgent && (
         <button
