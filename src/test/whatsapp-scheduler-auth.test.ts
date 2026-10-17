@@ -153,3 +153,15 @@ describe("retry staleness verdict", () => {
     expect(retryAppointmentVerdict({ ...row, meta: {} }, appt)).toBe("appointment_snapshot_missing");
   });
 });
+
+describe("scheduler vault binding + no-send mode", () => {
+  it("no-send is fixed on", async () => {
+    const m = await import("../../supabase/functions/_shared/whatsappSchedulerMode.ts");
+    expect(m.SCHEDULED_DISPATCH_ENABLED).toBe(false);
+  });
+  it("user JWTs never trigger a vault read; opaque tokens do", async () => {
+    const { OPAQUE_BEARER } = await import("../../supabase/functions/_shared/whatsappSchedulerMode.ts");
+    expect(OPAQUE_BEARER.test("Bearer aaa.bbb.ccc")).toBe(false);
+    expect(OPAQUE_BEARER.test("Bearer " + "a".repeat(64))).toBe(true);
+  });
+});
