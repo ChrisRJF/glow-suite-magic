@@ -11,6 +11,11 @@ export const APPROVED_ACTIVE_INACTIVE_IMPORTS = new Set([
   "isvLiveCreate.ts",
   "isvLiveConfig.ts",
   "isvLiveAccess.ts",
+  // Owner-approved wiring: LIVE ISV payments (default-off gate) and the
+  // WhatsApp send auth module deployed in the WhatsApp security round.
+  "isvLivePayments.ts",
+  "isvLiveRouting.ts",
+  "whatsappSendAuth.ts",
 ]);
 // Modules an approved module may pull in (Viva ISV only).
 const APPROVED_TRANSITIVE = /^isv[A-Za-z0-9]*\.ts$/;

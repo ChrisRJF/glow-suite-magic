@@ -66,8 +66,14 @@ describe("payment.type mapping for create_booking", () => {
     expect(requestType(decision({ type: "iets-anders" as any }))).toBe("deposit");
   });
 
-  it("elevated no-show risk still resolves to the deposit branch", () => {
+  it("legacy no-show counters alone are not risk evidence (fail-safe)", () => {
     const risk = calculateNoShowRisk({ no_show_count: 2, cancellation_count: 0 });
+    expect(risk.isElevated).toBe(false);
+    expect(risk.hasSufficientData).toBe(false);
+  });
+
+  it("verified history with repeated no-shows is elevated", () => {
+    const risk = calculateNoShowRisk({ verifiedHistory: { completed: 1, noShows: 2, lateCancellations: 0 } });
     expect(risk.isElevated).toBe(true);
   });
 });
