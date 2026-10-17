@@ -223,6 +223,10 @@ Deno.serve(async (req) => {
         }
         // If the appointment has been cancelled/rescheduled in the meantime,
         // dead-letter without further attempts — never send a stale reminder.
+        if (!row.appointment_id && (row.reminder_type === "reminder" || row.reminder_type === "reminder_test")) {
+          await admin.from("whatsapp_logs").update({ dead_letter: true, error: "appointment_no_longer_valid", next_retry_at: null }).eq("id", row.id);
+          continue;
+        }
         if (row.appointment_id) {
           const { data: appt } = await admin
             .from("appointments")
