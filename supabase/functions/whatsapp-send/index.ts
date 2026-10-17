@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
     // internal callers must prove exact server-key possession.
     const auth = await authorizeSendRequest(req, body, admin, SERVICE_KEY);
     if (!auth.allow) return new Response(JSON.stringify({ success: false, error: auth.reason }), { status: auth.status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    body.user_id = auth.tenantId;
+    body.user_id = (auth as { tenantId: string }).tenantId;
 
     const {
       user_id,
