@@ -385,7 +385,7 @@ export function AutoRevenueEngine({ source = "overview" }: AutoRevenueEngineProp
             <p className="text-base font-semibold">{totalActions}</p>
           </div>
           <div className="p-3 rounded-xl bg-success/10 border border-success/20">
-            <p className="text-[10px] uppercase tracking-wider text-success/80 mb-1">Verwachte omzet</p>
+            <p className="text-[10px] uppercase tracking-wider text-success/80 mb-1">Geschatte extra omzet</p>
             <p className="text-base font-semibold text-success">{formatEuro(projectedExtraRevenue)}</p>
           </div>
           <div className="p-3 rounded-xl bg-primary/10 border border-primary/20">
@@ -407,7 +407,7 @@ export function AutoRevenueEngine({ source = "overview" }: AutoRevenueEngineProp
                 Autopilot decisions · top {scoredDecisions.length}
               </p>
               <span className="text-[11px] font-semibold text-success whitespace-nowrap">
-                Verwachte omzet +{formatEuro(projectedExtraRevenue)}
+                Schatting +{formatEuro(projectedExtraRevenue)}
               </span>
             </div>
             <div className="space-y-1.5">
@@ -421,10 +421,10 @@ export function AutoRevenueEngine({ source = "overview" }: AutoRevenueEngineProp
                       {d.startsAt.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })}
                       {" · "}
                       <span className="text-primary">{ACTION_LABELS[d.action]}</span>
-                      {" · +"}{formatEuro(d.projectedRevenue)}
+                      {" · schatting +"}{formatEuro(d.projectedRevenue)}
                     </p>
                     <p className="text-muted-foreground mt-0.5">
-                      <span className="font-medium">Waarom deze actie?</span> {d.reason}
+                      <span className="font-medium">Waarom deze actie?</span> {d.reason.replace("Lage vulkans", "Lage geschatte vulkans").replace("Vulkans hoog", "Geschatte vulkans hoog").replaceAll("—", ":")}
                     </p>
                   </div>
                 </div>

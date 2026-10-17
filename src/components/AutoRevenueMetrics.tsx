@@ -27,11 +27,11 @@ interface Metrics {
   pending: number;
   paid: number;
   expired: number;
-  conversion: number;
+  conversion: number | null;
   revenue: number;
 }
 
-const EMPTY: Metrics = { sent: 0, replies: 0, pending: 0, paid: 0, expired: 0, conversion: 0, revenue: 0 };
+const EMPTY: Metrics = { sent: 0, replies: 0, pending: 0, paid: 0, expired: 0, conversion: null, revenue: 0 };
 
 export function AutoRevenueMetrics() {
   const { user } = useAuth();
@@ -102,7 +102,9 @@ export function AutoRevenueMetrics() {
           })
           .reduce((sum, p) => sum + Number(p.amount || 0), 0);
 
-        const conversion = sent > 0 ? Math.round((paid / sent) * 100) : 0;
+        // Both counts use the same creation cohort, not payments paid in this period.
+        // A missing/failed cohort cannot establish a conversion rate.
+        const conversion = !offersRes.error && sent > 0 ? Math.round((paid / sent) * 100) : null;
 
         if (!cancelled) {
           setMetrics({ sent, replies, pending, paid, expired, conversion, revenue });
@@ -120,13 +122,13 @@ export function AutoRevenueMetrics() {
   }, [user, demoMode, sinceIso]);
 
   const cards = [
-    { label: "Verstuurd", value: metrics.sent, icon: Send, tone: "text-primary bg-primary/10 border-primary/20" },
+    { label: "Aanbiedingen", value: metrics.sent, icon: Send, tone: "text-primary bg-primary/10 border-primary/20" },
     { label: "Reacties", value: metrics.replies, icon: MessageSquare, tone: "text-primary bg-primary/10 border-primary/20" },
     { label: "Wacht op betaling", value: metrics.pending, icon: Clock, tone: "text-amber-600 bg-amber-500/10 border-amber-500/20" },
     { label: "Betaald", value: metrics.paid, icon: CheckCircle2, tone: "text-emerald-600 bg-emerald-500/10 border-emerald-500/20" },
     { label: "Verlopen", value: metrics.expired, icon: XCircle, tone: "text-muted-foreground bg-muted border-border" },
-    { label: "Conversie", value: `${metrics.conversion}%`, icon: Percent, tone: "text-primary bg-primary/10 border-primary/20" },
-    { label: "Omzet via Autopilot", value: formatEuro(metrics.revenue), icon: TrendingUp, tone: "text-success bg-success/10 border-success/20" },
+    { label: "Aanbodconversie", value: metrics.conversion === null ? "Niet beschikbaar" : `${metrics.conversion}%`, icon: Percent, tone: "text-primary bg-primary/10 border-primary/20" },
+    { label: "Ontvangen via Autopilot", value: formatEuro(metrics.revenue), icon: TrendingUp, tone: "text-success bg-success/10 border-success/20" },
   ];
 
   return (
@@ -134,7 +136,7 @@ export function AutoRevenueMetrics() {
       <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
         <div>
           <p className="text-sm font-semibold">Auto Revenue conversie</p>
-          <p className="text-[11px] text-muted-foreground">Dit laat zien hoeveel omzet Auto Revenue automatisch terugwint.</p>
+          <p className="text-[11px] text-muted-foreground">Aanbodconversie: het aandeel aangemaakte aanbiedingen in de gekozen periode met nu de status betaald. Ontvangen bedragen volgen de betaaldatum en kunnen aanbetalingen bevatten. Reacties volgen de ontvangstdatum; wacht op betaling toont alle openstaande afspraken.</p>
         </div>
         <div className="inline-flex rounded-lg border border-border bg-background p-0.5 text-[11px]">
           {(["today", "week", "month"] as Range[]).map((r) => (
