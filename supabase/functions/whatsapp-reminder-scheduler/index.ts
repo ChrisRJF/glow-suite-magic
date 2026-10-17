@@ -20,6 +20,8 @@ import { canStillSendRebook, maskContact } from "../_shared/autoRebookGuards.ts"
 import { sendAppointmentReminder } from "../_shared/sendAppointmentReminder.ts";
 import { reminderWindow, classifyReminderCandidate } from "../_shared/reminderSafety.ts";
 import { runDossierFormPass } from "../_shared/dossierForms.ts";
+import { authorizeSchedulerRequest } from "../_shared/whatsappSchedulerAuth.ts";
+import { retryAppointmentVerdict } from "../_shared/whatsappSecurity.ts";
 
 
 const corsHeaders = {
