@@ -25,6 +25,7 @@ export interface CustomerSignal {
   total_spent?: number | null;
   no_show_count?: number | null;
   cancellation_count?: number | null;
+  verifiedHistory?: import("./noShowRisk").NoShowRiskInput["verifiedHistory"];
   /** ISO date of last appointment, if any. */
   lastVisitAt?: Date | null;
 }

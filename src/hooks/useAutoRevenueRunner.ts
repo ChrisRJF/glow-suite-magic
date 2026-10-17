@@ -217,6 +217,7 @@ export function useAutoRevenueRunner(
         name: c.name,
         total_spent: c.total_spent,
         no_show_count: c.no_show_count,
+        verifiedHistory: c.verifiedHistory,
         lastVisitAt: last ? new Date(last.appointment_date) : null,
       };
     });

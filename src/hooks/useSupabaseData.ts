@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Tables, TablesInsert } from "@/integrations/supabase/types";
+import { useCustomerRiskHistory } from "./useCustomerRiskHistory";
 import { fetchAllRows } from "@/lib/fetchAllRows";
 
 type TableName = keyof import("@/integrations/supabase/types").Database["public"]["Tables"];
@@ -42,7 +43,9 @@ export function useSupabaseQuery<T extends AnyTableName>(
 }
 
 export function useCustomers() {
-  return useSupabaseQuery("customers", { orderBy: "name", ascending: true });
+  const result = useSupabaseQuery("customers", { orderBy: "name", ascending: true });
+  const data = useCustomerRiskHistory(result.data);
+  return { ...result, data };
 }
 
 export function useServices() {

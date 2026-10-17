@@ -16,6 +16,7 @@ interface Customer {
   no_show_count?: number;
   cancellation_count?: number;
   total_spent?: number;
+  verifiedHistory?: import("@/lib/noShowRisk").NoShowRiskInput["verifiedHistory"];
 }
 
 interface PaymentDecision {
@@ -51,7 +52,7 @@ export function usePaymentRules(settings: PaymentSettings | null) {
       }
 
       // No-show risk — shared engine
-      if (s.deposit_noshow_risk && customer && calculateNoShowRisk(customer).isElevated) {
+      if (s.deposit_noshow_risk && customer && calculateNoShowRisk(customer).isHigh) {
         const depositAmount = Math.round(servicePrice * (s.deposit_percentage || 50) / 100 * 100) / 100;
         return { required: true, type: "deposit", amount: depositAmount, reason: "Aanbetaling vereist (no-show risico)" };
       }
