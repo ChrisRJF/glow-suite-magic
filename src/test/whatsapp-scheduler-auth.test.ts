@@ -36,28 +36,21 @@ function mockAdmin(o: MockOpts) {
     },
     from(table: string) {
       return {
-        select: () => ({
-          eq: (_c: string, _v: unknown) => {
-            const chain: any = {
-              eq: (_c2: string, _v2: unknown) => chain,
-              maybeSingle: async () => {
-                if (table === "appointments") return { data: o.appointment ?? null, error: null };
-                return { data: null, error: null };
-              },
-              then: undefined as unknown,
-            };
-            // user_roles / user_access resolve as awaitable chains
-            const result = table === "user_roles"
-              ? { data: (o.ownerRoles ?? []).map((role) => ({ role })), error: null }
-              : table === "user_access"
-                ? { data: o.membership ?? [], error: null }
-                : null;
-            if (result) {
-              return Object.assign(Promise.resolve(result), chain);
-            }
-            return chain;
-          },
-        }),
+        select: () => {
+          const result = table === "user_roles"
+            ? { data: (o.ownerRoles ?? []).map((role) => ({ role })), error: null }
+            : table === "user_access"
+              ? { data: o.membership ?? [], error: null }
+              : table === "appointments"
+                ? { data: o.appointment ?? null, error: null }
+                : { data: null, error: null };
+          const chain: any = {
+            eq: () => chain,
+            maybeSingle: async () => result,
+            then: (onF: any, onR: any) => Promise.resolve(result).then(onF, onR),
+          };
+          return chain;
+        },
       };
     },
   };
