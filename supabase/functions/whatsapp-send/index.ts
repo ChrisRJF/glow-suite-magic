@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { authorizeSendRequest } from "../_shared/whatsappSecurity.ts";
 import { maskPhone } from "../_shared/reminderEngine.ts";
 
 const corsHeaders = {
@@ -46,17 +47,22 @@ function safeError(payload: unknown): string {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  if (req.method !== "POST") return new Response(JSON.stringify({ error: "method_not_allowed" }), { status: 405, headers: corsHeaders });
   try {
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    const TWILIO_API_KEY = Deno.env.get("TWILIO_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY niet geconfigureerd");
-    if (!TWILIO_API_KEY) throw new Error("Centrale Twilio koppeling ontbreekt — neem contact op met GlowSuite support.");
-
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-    const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+    const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!SUPABASE_URL || !SERVICE_KEY) throw new Error("server_auth_unavailable");
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
+    let body;
+    try { body = await req.json(); } catch { return new Response(JSON.stringify({ error: "invalid_body" }), { status: 400, headers: corsHeaders }); }
+    if (!body || typeof body !== "object" || Array.isArray(body)) return new Response(JSON.stringify({ error: "invalid_body" }), { status: 400, headers: corsHeaders });
+    // Authentication and tenant binding BEFORE any log write, demo simulation
+    // or provider call. Users can never choose an arbitrary user_id/salon;
+    // internal callers must prove exact server-key possession.
+    const auth = await authorizeSendRequest(req, body, admin, SERVICE_KEY);
+    if (!auth.allow) return new Response(JSON.stringify({ success: false, error: auth.reason }), { status: auth.status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    body.user_id = auth.tenantId;
 
-    const body = await req.json();
     const {
       user_id,
       to,
@@ -127,6 +133,10 @@ Deno.serve(async (req) => {
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
+
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const TWILIO_API_KEY = Deno.env.get("TWILIO_API_KEY");
+    if (!LOVABLE_API_KEY || !TWILIO_API_KEY) throw new Error("provider_configuration_missing");
 
     // Load salon settings (central Twilio is used; salon only toggles enabled + from sender preference)
     const { data: settings } = await admin
