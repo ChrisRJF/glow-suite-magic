@@ -1,0 +1,282 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { authorizeSendRequest } from "../_shared/whatsappSecurity.ts";
+import { maskPhone } from "../_shared/reminderEngine.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+const GATEWAY_URL = "https://connector-gateway.lovable.dev/twilio";
+const DEFAULT_FROM = "whatsapp:+14155238886"; // Twilio sandbox number (central GlowSuite)
+
+function normalizePhone(phone: string): string | null {
+  if (!phone) return null;
+  const digits = phone.replace(/[^\d+]/g, "");
+  if (!digits) return null;
+  if (digits.startsWith("+")) return digits;
+  if (digits.startsWith("0")) return "+31" + digits.substring(1);
+  return "+" + digits;
+}
+
+// A document share link carries a bearer token. The customer and Twilio get the
+// real link, but nothing token-bearing may stay readable in our own storage/logs.
+const SHARE_LINK_RE = /(\/document\/)[a-f0-9]{32,}/gi;
+function redactShareLinks<T>(value: T): T {
+  if (typeof value !== "string") return value;
+  return value.replace(SHARE_LINK_RE, "$1[beveiligde-link]") as unknown as T;
+}
+
+function safeError(payload: unknown): string {
+  try {
+    if (!payload) return "Onbekende fout";
+    if (typeof payload === "string") return payload.slice(0, 500);
+    const p = payload as Record<string, unknown>;
+    const parts = [
+      p.message ? `${p.message}` : null,
+      p.code ? `code=${p.code}` : null,
+      p.more_info ? `info=${p.more_info}` : null,
+    ].filter(Boolean);
+    if (parts.length) return parts.join(" · ").slice(0, 500);
+    return JSON.stringify(payload).slice(0, 500);
+  } catch {
+    return "Onbekende fout";
+  }
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  if (req.method !== "POST") return new Response(JSON.stringify({ error: "method_not_allowed" }), { status: 405, headers: corsHeaders });
+  try {
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+    const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!SUPABASE_URL || !SERVICE_KEY) throw new Error("server_auth_unavailable");
+    const admin = createClient(SUPABASE_URL, SERVICE_KEY);
+    let body;
+    try { body = await req.json(); } catch { return new Response(JSON.stringify({ error: "invalid_body" }), { status: 400, headers: corsHeaders }); }
+    if (!body || typeof body !== "object" || Array.isArray(body)) return new Response(JSON.stringify({ error: "invalid_body" }), { status: 400, headers: corsHeaders });
+    const auth = await authorizeSendRequest(req, body, admin, SERVICE_KEY);
+    if (!auth.allow) return new Response(JSON.stringify({ success: false, error: auth.reason }), { status: auth.status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    body.user_id = auth.tenantId;
+
+    const {
+      user_id,
+      to,
+      message,
+      customer_id = null,
+      appointment_id = null,
+      kind = "manual",
+      test = false,
+      meta = {},
+      reminder_type = null,
+      booking_token = null,
+      confirmation_link = null,
+    } = body;
+
+    if (!user_id || !to || !message) {
+      return new Response(JSON.stringify({ success: false, error: "user_id, to, message verplicht" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Final safety gate. Every higher-level sender also checks this, but the
+    // transport itself must refuse archived or pseudonymized customers.
+    if (customer_id) {
+      const { data: customer } = await admin
+        .from("customers")
+        .select("id, archived_at, pseudonymized_at, communication_blocked_at")
+        .eq("id", customer_id)
+        .eq("user_id", user_id)
+        .maybeSingle();
+      if (!customer || customer.archived_at || customer.pseudonymized_at || customer.communication_blocked_at) {
+        return new Response(JSON.stringify({ success: false, suppressed: true, error: "customer_communication_blocked" }), {
+          status: 409,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // Demo mode guard — never call Twilio for demo accounts. Simulate + log only.
+    const { data: salonSettings } = await admin
+      .from("settings")
+      .select("is_demo, demo_mode")
+      .eq("user_id", user_id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const isDemoAccount = Boolean((salonSettings as any)?.is_demo || (salonSettings as any)?.demo_mode);
+
+    if (isDemoAccount) {
+      await admin.from("whatsapp_logs").insert({
+        user_id,
+        customer_id,
+        appointment_id,
+        to_number: `whatsapp:${to}`,
+        message: redactShareLinks(message),
+        status: "demo",
+        twilio_sid: null,
+        error: null,
+        kind,
+        meta: { ...meta, demo: true, simulated: true },
+        reminder_type,
+        booking_token,
+        confirmation_link: redactShareLinks(confirmation_link),
+      });
+      console.log("whatsapp-send simulated (demo)", { user_id, kind, to: maskPhone(to) });
+      return new Response(
+        JSON.stringify({ success: true, demo: true, simulated: true, status: "demo" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const TWILIO_API_KEY = Deno.env.get("TWILIO_API_KEY");
+    if (!LOVABLE_API_KEY || !TWILIO_API_KEY) throw new Error("provider_configuration_missing");
+
+    // Load salon settings (central Twilio is used; salon only toggles enabled + from sender preference)
+    const { data: settings } = await admin
+      .from("whatsapp_settings")
+      .select("enabled, from_number")
+      .eq("user_id", user_id)
+      .maybeSingle();
+
+    if (!test && (!settings || !settings.enabled)) {
+      return new Response(JSON.stringify({ success: false, error: "WhatsApp is niet ingeschakeld voor deze salon." }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // From: salon override (rare) or central GlowSuite sender
+    const rawFrom = settings?.from_number || DEFAULT_FROM;
+    const fromNumber = rawFrom.startsWith("whatsapp:") ? rawFrom : `whatsapp:${rawFrom}`;
+
+    const normalizedTo = normalizePhone(to);
+    if (!normalizedTo) {
+      return new Response(JSON.stringify({ success: false, error: "Ongeldig telefoonnummer formaat (gebruik +31...)" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const waTo = `whatsapp:${normalizedTo}`;
+    const isSandbox = fromNumber === DEFAULT_FROM;
+
+    // Send via central Twilio gateway
+    const twResp = await fetch(`${GATEWAY_URL}/Messages.json`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "X-Connection-Api-Key": TWILIO_API_KEY,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        To: waTo,
+        From: fromNumber,
+        Body: message,
+      }),
+    });
+
+    let twData: any = {};
+    try { twData = await twResp.json(); } catch { twData = { raw: await twResp.text().catch(() => "") }; }
+    const ok = twResp.ok && (twData?.sid || twData?.status === "queued" || twData?.status === "accepted");
+    const twStatus = twData?.status || (ok ? "queued" : "failed");
+
+    console.log("whatsapp-send result", {
+      user_id,
+      to: maskPhone(waTo),
+      from: maskPhone(fromNumber),
+      kind,
+      http: twResp.status,
+      twilio_status: twStatus,
+      sid: twData?.sid,
+      error_code: twData?.code,
+      error_message: redactShareLinks(twData?.message),
+      sandbox: isSandbox,
+    });
+
+    const logMeta = {
+      ...meta,
+      twilio_status: twStatus,
+      twilio_code: twData?.code ?? null,
+      twilio_more_info: twData?.more_info ?? null,
+      sandbox: isSandbox,
+      http_status: twResp.status,
+    };
+
+    const { error: logErr } = await admin.from("whatsapp_logs").insert({
+      user_id,
+      customer_id,
+      appointment_id,
+      to_number: waTo,
+      message: redactShareLinks(message),
+      status: ok ? "sent" : "failed",
+      twilio_sid: twData?.sid ?? null,
+      error: ok ? null : redactShareLinks(safeError(twData)),
+      kind,
+      meta: logMeta,
+      reminder_type,
+      booking_token,
+      confirmation_link: redactShareLinks(confirmation_link),
+      retry_count: 0,
+      next_retry_at: ok ? null : new Date(Date.now() + 60 * 1000).toISOString(),
+    });
+
+    // Race-safe dedup
+    if (logErr && (logErr.code === "23505" || /duplicate key/i.test(logErr.message))) {
+      return new Response(
+        JSON.stringify({ success: true, deduped: true, sid: twData?.sid ?? null }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // Increment usage atomically (only count real sends/fails, skip pure tests if you want — we count both for transparency)
+    try {
+      await admin.rpc("increment_whatsapp_usage", {
+        _user_id: user_id,
+        _sent: ok ? 1 : 0,
+        _failed: ok ? 0 : 1,
+      });
+    } catch (usageErr) {
+      console.error("usage increment failed (non-blocking)", usageErr);
+    }
+
+    if (!ok) {
+      // Detect sandbox "not joined" Twilio error 63007/63015/21608 etc.
+      const code = twData?.code;
+      const sandboxNotJoined = isSandbox && (code === 63007 || code === 21608 || code === 63015 ||
+        /sandbox|not.*joined|not been.*verified/i.test(twData?.message || ""));
+      const friendly = sandboxNotJoined
+        ? "Sandbox: dit nummer heeft nog geen 'join <code>' gestuurd naar de Twilio sandbox. Vraag de ontvanger eerst de join-code te sturen."
+        : (twData?.message || "Twilio kon het bericht niet versturen.");
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: friendly,
+          twilio_code: code ?? null,
+          twilio_status: twStatus,
+          sandbox: isSandbox,
+          details: twData,
+        }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    return new Response(JSON.stringify({
+      success: true,
+      sid: twData.sid,
+      twilio_status: twStatus,
+      sandbox: isSandbox,
+    }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (err) {
+    console.error("whatsapp-send error", err);
+    const msg = err instanceof Error ? err.message : "Onbekende fout";
+    return new Response(JSON.stringify({ success: false, error: msg }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
