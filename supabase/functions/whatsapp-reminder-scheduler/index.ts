@@ -20,6 +20,8 @@ import { canStillSendRebook, maskContact } from "../_shared/autoRebookGuards.ts"
 import { sendAppointmentReminder } from "../_shared/sendAppointmentReminder.ts";
 import { reminderWindow, classifyReminderCandidate } from "../_shared/reminderSafety.ts";
 import { runDossierFormPass } from "../_shared/dossierForms.ts";
+import { authorizeSchedulerRequest } from "../_shared/whatsappSchedulerAuth.ts";
+import { retryAppointmentVerdict } from "../_shared/whatsappSecurity.ts";
 
 
 const corsHeaders = {
@@ -99,40 +101,37 @@ Deno.serve(async (req) => {
   const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
+  // ---------- AUTHENTICATION GATE ----------
+  // One gate, three routes, decided BEFORE any run row, lease, settings read
+  // or dispatch. The automatic sweep requires the dedicated server-only cron
+  // secret (constant-time comparison, fail-closed when unset). A verified
+  // user with {} gets a no-dispatch probe; a verified owner/manager/admin can
+  // run a manual single-appointment test inside their own derived tenant.
+  let reqBody: unknown = {};
+  try { reqBody = await req.json(); } catch { /* cron sends no body */ }
+  const gate = await authorizeSchedulerRequest(req, reqBody, admin, Deno.env.get("WA_SCHEDULER_CRON_SECRET"));
+  if (!gate.allow) {
+    return new Response(JSON.stringify({ success: false, error: gate.reason }), {
+      status: gate.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  if (gate.route === "probe") {
+    return new Response(JSON.stringify({ success: true, dispatch: false }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   // ---------- MANUAL TEST SEND ----------
   // Same function, same sender, same templates, same logs. Only difference:
   // it ignores the 24-hour window and does not consume the real reminder slot.
-  let reqBody: any = {};
-  try { reqBody = await req.clone().json(); } catch { /* cron sends no body */ }
-
-  if (reqBody?.test_appointment_id) {
-    const authHeader = req.headers.get("Authorization") || "";
-    const jwt = authHeader.replace(/^Bearer\s+/i, "");
-    const userClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
-      global: { headers: { Authorization: `Bearer ${jwt}` } },
-    });
-    const { data: userRes } = await userClient.auth.getUser();
-    const caller = userRes?.user;
-    if (!caller) {
-      return new Response(JSON.stringify({ success: false, error: "Niet ingelogd" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const { data: allowed } = await admin.rpc("has_any_role", {
-      _user_id: caller.id,
-      _roles: ["eigenaar", "manager", "admin"],
-    });
-    if (!allowed) {
-      return new Response(JSON.stringify({ success: false, error: "Geen toestemming" }), {
-        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+  if (gate.route === "manual") {
+    const tenantId = gate.tenantId;
 
     const { data: salonSettings } = await admin
       .from("settings")
       .select("timezone")
-      .eq("user_id", caller.id)
+      .eq("user_id", tenantId)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -140,24 +139,26 @@ Deno.serve(async (req) => {
     const { data: waSettings } = await admin
       .from("whatsapp_settings")
       .select("reminder_hours_before")
-      .eq("user_id", caller.id)
+      .eq("user_id", tenantId)
       .maybeSingle();
 
     const result = await sendAppointmentReminder(admin, {
       supabaseUrl: SUPABASE_URL,
       serviceKey: SERVICE_KEY,
-      userId: caller.id,
-      appointmentId: String(reqBody.test_appointment_id),
+      userId: tenantId,
+      appointmentId: gate.appointmentId,
       timezone: salonSettings?.timezone || DEFAULT_TZ,
       reminderHoursBefore: waSettings?.reminder_hours_before || 24,
       test: true,
-      meta: { manual_test: true, triggered_by: caller.id },
+      meta: { manual_test: true, triggered_by: tenantId },
     });
 
     return new Response(JSON.stringify({ success: result.status === "sent", ...result }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
+
+
 
 
 
@@ -222,16 +223,22 @@ Deno.serve(async (req) => {
         }
         // If the appointment has been cancelled/rescheduled in the meantime,
         // dead-letter without further attempts — never send a stale reminder.
+        // The reload is scoped to the same salon and the current date/start
+        // time must match the snapshot stored when the reminder was rendered.
+        // Legacy rows without a snapshot cannot prove they are current and
+        // are suppressed rather than replayed.
         if (row.appointment_id) {
           const { data: appt } = await admin
             .from("appointments")
-            .select("status, confirmation_status")
+            .select("user_id, customer_id, status, confirmation_status, appointment_date, start_time")
             .eq("id", row.appointment_id)
+            .eq("user_id", row.user_id)
             .maybeSingle();
-          if (!appt || appt.status === "geannuleerd" || appt.confirmation_status === "declined") {
+          const verdict = retryAppointmentVerdict(row, appt);
+          if (verdict) {
             await admin.from("whatsapp_logs").update({
               dead_letter: true,
-              error: "appointment_no_longer_valid",
+              error: verdict,
               next_retry_at: null,
             }).eq("id", row.id);
             continue;
@@ -474,6 +481,7 @@ Deno.serve(async (req) => {
                 .from("customers")
                 .select("id, name, phone, whatsapp_opt_in, preferred_language, archived_at, pseudonymized_at, communication_blocked_at")
                 .eq("id", appt.customer_id)
+                .eq("user_id", s.user_id)
                 .maybeSingle();
               if (!customer || !customer.phone || customer.whatsapp_opt_in === false || customer.archived_at || customer.pseudonymized_at || customer.communication_blocked_at) {
                 stats.skipped++;
@@ -587,6 +595,7 @@ Deno.serve(async (req) => {
                 .from("customers")
                 .select("id, name, phone, whatsapp_opt_in, preferred_language, archived_at, pseudonymized_at, communication_blocked_at")
                 .eq("id", appt.customer_id)
+                .eq("user_id", s.user_id)
                 .maybeSingle();
               if (!customer || !customer.phone || customer.whatsapp_opt_in === false || customer.archived_at || customer.pseudonymized_at || customer.communication_blocked_at) {
                 stats.skipped++;
@@ -676,7 +685,7 @@ Deno.serve(async (req) => {
         if (!guard.allowed) { await markHandled(`suppressed:${guard.reason}`); continue; }
 
         const [{ data: cust }, { data: pref }, { data: cfg }, { data: prof }] = await Promise.all([
-          admin.from("customers").select("id, name, email, preferred_language").eq("id", row.customer_id).maybeSingle(),
+          admin.from("customers").select("id, name, email, preferred_language").eq("id", row.customer_id).eq("user_id", row.user_id).maybeSingle(),
           admin.from("customer_message_preferences").select("email_opt_out").eq("user_id", row.user_id).eq("customer_id", row.customer_id).maybeSingle(),
           admin.from("settings").select("email_enabled, public_slug").eq("user_id", row.user_id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
           admin.from("profiles").select("salon_name").eq("user_id", row.user_id).maybeSingle(),
