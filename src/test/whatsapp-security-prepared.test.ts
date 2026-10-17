@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { authorizeSendRequest, isServiceBearer, retryAppointmentVerdict } from "../../docs/prepared-patches/whatsapp-security/security";
+import { authorizeSchedulerProposal } from "../../docs/prepared-patches/whatsapp-security/schedulerAuth.proposal";
 
 const A = "aaaaaaaa-0000-4000-8000-000000000001";
 const B = "bbbbbbbb-0000-4000-8000-000000000002";
@@ -79,4 +80,82 @@ describe("prepared transport demo and unauthorized paths", () => {
   }
   it("anonymous request gets 401 without sending or logging", async () => { const r = await run(undefined, true); expect(r.status).toBe(401); expect(r.fetchMock).not.toHaveBeenCalled(); expect(r.insert).not.toHaveBeenCalled(); });
   it("demo simulates without provider configuration or network", async () => { const r = await run(KEY, true); expect(r.body).toMatchObject({ success: true, demo: true, simulated: true }); expect(r.fetchMock).not.toHaveBeenCalled(); expect(r.insert).toHaveBeenCalledOnce(); });
+});
+
+describe("isolated scheduler authentication and route proposal", () => {
+  const request = (token?: string, body: unknown = {}, method = "POST") => new Request("http://localhost/scheduler", {
+    method, headers: token ? { Authorization: `Bearer ${token}` } : {},
+    ...(method === "POST" ? { body: JSON.stringify(body) } : {}),
+  });
+  async function route(r: Request, d = db(), verifier?: (r: Request) => Promise<boolean>) {
+    const dispatch = vi.fn();
+    const runWrite = vi.fn();
+    const lock = vi.fn();
+    const decision = await authorizeSchedulerProposal(r, d.admin, verifier);
+    if (decision.allow && decision.route !== "probe") {
+      if (decision.route === "scheduled") { runWrite(); lock(); }
+      dispatch(decision);
+    }
+    return { decision, dispatch, runWrite, lock };
+  }
+  it("anonymous {} denied before auth reads, logs, locks and dispatch", async () => {
+    const d = db(); const r = await route(request(), d);
+    expect(r.decision).toMatchObject({ allow: false, status: 401 });
+    expect(d.calls).toEqual([]); expect(d.admin.auth.getUser).not.toHaveBeenCalled();
+    expect(r.dispatch).not.toHaveBeenCalled(); expect(r.runWrite).not.toHaveBeenCalled(); expect(r.lock).not.toHaveBeenCalled();
+  });
+  it("user frontend {} becomes a no-dispatch probe", async () => {
+    const r = await route(request("user"));
+    expect(r.decision).toEqual({ allow: true, route: "probe", tenantId: A });
+    expect(r.dispatch).not.toHaveBeenCalled(); expect(r.runWrite).not.toHaveBeenCalled(); expect(r.lock).not.toHaveBeenCalled();
+  });
+  it("valid internal transport key does not establish scheduled authority", async () => {
+    const r = await route(request(KEY), db({ invalid: true }));
+    expect(r.decision).toMatchObject({ allow: false, status: 401 }); expect(r.dispatch).not.toHaveBeenCalled();
+  });
+  it("verified scheduler fixture permits only the automated route", async () => {
+    const d = db(); const r = await route(request("fictional-scheduler"), d, async () => true);
+    expect(r.decision).toEqual({ allow: true, route: "scheduled" });
+    expect(d.calls).toEqual([]); expect(d.admin.auth.getUser).not.toHaveBeenCalled();
+    expect(r.dispatch).toHaveBeenCalledOnce(); expect(r.runWrite).toHaveBeenCalledOnce(); expect(r.lock).toHaveBeenCalledOnce();
+  });
+  it("failed scheduler verifier is fail-closed", async () => {
+    const d = db(); const r = await route(request("wrong"), d, async () => { throw new Error("unavailable"); });
+    expect(r.decision).toMatchObject({ allow: false, status: 401 }); expect(d.calls).toEqual([]); expect(r.dispatch).not.toHaveBeenCalled();
+  });
+  it("wrong token denied with rejecting verifier", async () => {
+    const r = await route(request("wrong"), db({ invalid: true }), async () => false);
+    expect(r.decision).toMatchObject({ allow: false, status: 401 }); expect(r.dispatch).not.toHaveBeenCalled();
+  });
+  it("anonymous GET is 401 and verified scheduler GET is 405", async () => {
+    expect((await route(request(undefined, {}, "GET"))).decision).toMatchObject({ allow: false, status: 401 });
+    const r = await route(request("scheduler", {}, "GET"), db(), async () => true);
+    expect(r.decision).toMatchObject({ allow: false, status: 405 }); expect(r.dispatch).not.toHaveBeenCalled();
+  });
+  it("own-tenant manual appointment test keeps scoped dispatch", async () => {
+    const r = await route(request("user", { test_appointment_id: "a" }));
+    expect(r.decision).toEqual({ allow: true, route: "manual", tenantId: A, appointmentId: "a" });
+    expect(r.dispatch).toHaveBeenCalledOnce(); expect(r.runWrite).not.toHaveBeenCalled();
+  });
+  it.each(["admin", "manager"])("active %s member manual test uses salon owner, not member ID", async role => {
+    const d = db({ uid: B, tables: { user_roles: [], user_access: [{ member_user_id: B, owner_user_id: A, role, status: "active" }] } });
+    expect((await route(request("user", { test_appointment_id: "a" }), d)).decision).toEqual({ allow: true, route: "manual", tenantId: A, appointmentId: "a" });
+  });
+  it("employee cannot use manual route", async () => {
+    const d = db({ uid: B, tables: { user_roles: [], user_access: [{ member_user_id: B, owner_user_id: A, role: "medewerker", status: "active" }] } });
+    const r = await route(request("user", { test_appointment_id: "a" }), d);
+    expect(r.decision).toMatchObject({ allow: false, status: 403 }); expect(r.dispatch).not.toHaveBeenCalled();
+  });
+  it("cross-tenant appointment denied", async () => {
+    const r = await route(request("user", { test_appointment_id: "a" }), db({ tables: { appointments: [{ id: "a", user_id: B }] } }));
+    expect(r.decision).toMatchObject({ allow: false, status: 403 }); expect(r.dispatch).not.toHaveBeenCalled();
+  });
+  it("body salon cannot authorize a sweep", async () => {
+    const r = await route(request("user", { user_id: B }));
+    expect(r.decision).toMatchObject({ allow: false, status: 400 }); expect(r.dispatch).not.toHaveBeenCalled();
+  });
+  it("scheduler identity cannot invoke manual test bypass", async () => {
+    const r = await route(request("scheduler", { test_appointment_id: "a" }), db(), async () => true);
+    expect(r.decision).toMatchObject({ allow: false, status: 403 }); expect(r.dispatch).not.toHaveBeenCalled();
+  });
 });
