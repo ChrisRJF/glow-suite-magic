@@ -162,11 +162,17 @@ export default function RapportenPage() {
           <div className="glass-card p-5"><p className="text-xs text-muted-foreground mb-2">Verwachte omzet 7 dagen</p><p className="text-xl font-bold">{eur(report.wow.upcoming7Revenue)}</p><p className="text-xs text-muted-foreground mt-1">Geboekte niet-geannuleerde afspraken</p></div>
         </div>
 
-        {reportType === "omzet" && <MetricGrid items={[["Vandaag", eur(report.revenue.today)], ["Deze week", eur(report.revenue.week)], ["Deze maand", eur(report.revenue.month)], ["Lifetime", eur(report.revenue.lifetime)], ["Gem. orderwaarde", eur(report.revenue.averageOrder)], ["Openstaand", eur(report.revenue.openAmount)], ["Refunds", eur(report.revenue.refundTotal)], ["Beste klant maand", report.wow.bestCustomerThisMonth?.name || "—"]]} />}
+        {reportType === "omzet" && <MetricGrid items={[["Vandaag", eur(report.revenue.today)], ["Deze week", eur(report.revenue.week)], ["Deze maand", eur(report.revenue.month)], ["Lifetime", eur(report.revenue.lifetime)], ["Ontvangen in periode (bruto)", eur(report.revenue.period)], ["Refunds in periode", eur(report.revenue.refundTotal)], ["Netto ontvangen in periode", eur(report.revenue.net)], ["Gem. orderwaarde", eur(report.revenue.averageOrder)], ["Openstaand", eur(report.revenue.openAmount)], ["Beste klant maand", report.wow.bestCustomerThisMonth?.name || "—"]]} />}
         {reportType === "afspraken" && <MetricGrid items={[["Vandaag", String(report.appointments.today)], ["Komend", String(report.appointments.upcoming)], ["Afgerond", String(report.appointments.completed)], ["Geannuleerd", String(report.appointments.canceled)], ["No-show", `${report.appointments.noShowPct}%`], ["Gem. afspraakwaarde", eur(report.appointments.averageValue)], ["Populairst", report.appointments.mostPopularService], ["Drukste tijd", report.appointments.busiestTime]]} />}
         {reportType === "klanten" && <CustomerList report={report} />}
         {reportType === "betalingen" && <PaymentList report={report} customers={customers} />}
-        {reportType === "btw" && <MetricGrid items={[["Betaald bedrag (aanname: incl. 21% BTW)", eur(report.revenue.period)], ["Berekend excl. 21% BTW", eur(report.revenue.period / 1.21)], ["Berekende BTW (aanname: 21%)", eur(report.revenue.period * 0.21 / 1.21)], ["Betaalde transacties", String(report.rows.periodPayments.length)]]} />}
+        {reportType === "btw" && (
+          <div className="glass-card p-6">
+            <h3 className="text-sm font-semibold mb-2">BTW overzicht</h3>
+            <p className="text-sm text-muted-foreground">Niet beschikbaar: btw-tarieven per dienst ontbreken. Een betrouwbare btw-berekening vereist het juiste tarief per dienst of product; een vaste 21%-aanname kan afwijken en wordt daarom niet getoond.</p>
+            <p className="text-xs text-muted-foreground mt-3">Betaalde transacties in periode: {report.rows.periodPayments.length} · Ontvangen (bruto): {eur(report.revenue.period)}</p>
+          </div>
+        )}
         {reportType === "producten" && <ProductList products={products} />}
         {reportType === "diensten" && <ServiceList services={report.services} />}
         {reportType === "export" && <ExportCenter canExport={can("reports:export")} onExport={handleExport} />}

@@ -206,6 +206,10 @@ export function buildReports(params: {
       month: sum(paidPayments.filter((p) => inDateRange(p.created_at, monthStart, today)).map((p) => Number(p.amount))),
       lifetime: sum(paidPayments.map((p) => Number(p.amount))),
       period: totalRevenue,
+      // Netto ontvangen in de periode: bruto betaalde ontvangsten minus refunds met refunddatum in dezelfde periode.
+      // periodRefunds is al gefilterd op refunddatum (created_at) binnen [from, to], dus geen dubbele aftrek mogelijk.
+      // Dit is een cashflow-indicator, geen fiscale omzet.
+      net: totalRevenue - refundTotal,
       averageOrder: avgOrderValue,
       openAmount,
       refundTotal,
