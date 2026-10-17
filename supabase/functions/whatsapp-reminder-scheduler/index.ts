@@ -101,40 +101,37 @@ Deno.serve(async (req) => {
   const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
+  // ---------- AUTHENTICATION GATE ----------
+  // One gate, three routes, decided BEFORE any run row, lease, settings read
+  // or dispatch. The automatic sweep requires the dedicated server-only cron
+  // secret (constant-time comparison, fail-closed when unset). A verified
+  // user with {} gets a no-dispatch probe; a verified owner/manager/admin can
+  // run a manual single-appointment test inside their own derived tenant.
+  let reqBody: unknown = {};
+  try { reqBody = await req.json(); } catch { /* cron sends no body */ }
+  const gate = await authorizeSchedulerRequest(req, reqBody, admin, Deno.env.get("WA_SCHEDULER_CRON_SECRET"));
+  if (!gate.allow) {
+    return new Response(JSON.stringify({ success: false, error: gate.reason }), {
+      status: gate.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  if (gate.route === "probe") {
+    return new Response(JSON.stringify({ success: true, dispatch: false }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   // ---------- MANUAL TEST SEND ----------
   // Same function, same sender, same templates, same logs. Only difference:
   // it ignores the 24-hour window and does not consume the real reminder slot.
-  let reqBody: any = {};
-  try { reqBody = await req.clone().json(); } catch { /* cron sends no body */ }
-
-  if (reqBody?.test_appointment_id) {
-    const authHeader = req.headers.get("Authorization") || "";
-    const jwt = authHeader.replace(/^Bearer\s+/i, "");
-    const userClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
-      global: { headers: { Authorization: `Bearer ${jwt}` } },
-    });
-    const { data: userRes } = await userClient.auth.getUser();
-    const caller = userRes?.user;
-    if (!caller) {
-      return new Response(JSON.stringify({ success: false, error: "Niet ingelogd" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const { data: allowed } = await admin.rpc("has_any_role", {
-      _user_id: caller.id,
-      _roles: ["eigenaar", "manager", "admin"],
-    });
-    if (!allowed) {
-      return new Response(JSON.stringify({ success: false, error: "Geen toestemming" }), {
-        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+  if (gate.route === "manual") {
+    const tenantId = gate.tenantId;
 
     const { data: salonSettings } = await admin
       .from("settings")
       .select("timezone")
-      .eq("user_id", caller.id)
+      .eq("user_id", tenantId)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -142,24 +139,26 @@ Deno.serve(async (req) => {
     const { data: waSettings } = await admin
       .from("whatsapp_settings")
       .select("reminder_hours_before")
-      .eq("user_id", caller.id)
+      .eq("user_id", tenantId)
       .maybeSingle();
 
     const result = await sendAppointmentReminder(admin, {
       supabaseUrl: SUPABASE_URL,
       serviceKey: SERVICE_KEY,
-      userId: caller.id,
-      appointmentId: String(reqBody.test_appointment_id),
+      userId: tenantId,
+      appointmentId: gate.appointmentId,
       timezone: salonSettings?.timezone || DEFAULT_TZ,
       reminderHoursBefore: waSettings?.reminder_hours_before || 24,
       test: true,
-      meta: { manual_test: true, triggered_by: caller.id },
+      meta: { manual_test: true, triggered_by: tenantId },
     });
 
     return new Response(JSON.stringify({ success: result.status === "sent", ...result }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
+
+
 
 
 
