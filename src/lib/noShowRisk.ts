@@ -33,4 +33,4 @@ export function calculateNoShowRisk(input: NoShowRiskInput | null | undefined): 
 }
 export const NO_SHOW_RISK_LABELS: Record<NoShowRiskLevel, string> = {
   laag: "Laag", gemiddeld: "Gemiddeld", hoog: "Hoog",
-};--- a/supabase/functions/_shared/noShowRisk.ts
+};
