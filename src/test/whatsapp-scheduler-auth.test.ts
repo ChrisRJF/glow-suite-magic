@@ -71,7 +71,7 @@ describe("scheduler gate: scheduled route", () => {
     expect(d).toMatchObject({ allow: true, route: "scheduled" });
   });
   it("cron secret cannot use the manual test route", async () => {
-    const d = await authorizeSchedulerRequest(req(CRON, { test_appointment_id: APPT }), mockAdmin({}), CRON);
+    const d = await authorizeSchedulerRequest(req(CRON, { test_appointment_id: APPT }), { test_appointment_id: APPT }, mockAdmin({}), CRON);
     expect(d).toMatchObject({ allow: false, status: 403 });
   });
   it("unset cron secret fails closed even for the right-shaped request", async () => {
