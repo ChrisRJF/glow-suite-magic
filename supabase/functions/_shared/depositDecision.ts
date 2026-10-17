@@ -16,7 +16,7 @@ export interface DepositCustomerInput {
   no_show_count?: number | null;
   cancellation_count?: number | null;
   total_visits?: number | null;
-  verifiedHistory?: import("./noShowRisk").NoShowRiskInput["verifiedHistory"];
+  verifiedHistory?: import("./noShowRisk.ts").NoShowRiskInput["verifiedHistory"];
 }
 
 export type DepositType = "none" | "deposit" | "full";
