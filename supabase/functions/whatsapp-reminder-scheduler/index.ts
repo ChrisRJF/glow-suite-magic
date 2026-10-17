@@ -223,16 +223,22 @@ Deno.serve(async (req) => {
         }
         // If the appointment has been cancelled/rescheduled in the meantime,
         // dead-letter without further attempts — never send a stale reminder.
+        // The reload is scoped to the same salon and the current date/start
+        // time must match the snapshot stored when the reminder was rendered.
+        // Legacy rows without a snapshot cannot prove they are current and
+        // are suppressed rather than replayed.
         if (row.appointment_id) {
           const { data: appt } = await admin
             .from("appointments")
-            .select("status, confirmation_status")
+            .select("user_id, customer_id, status, confirmation_status, appointment_date, start_time")
             .eq("id", row.appointment_id)
+            .eq("user_id", row.user_id)
             .maybeSingle();
-          if (!appt || appt.status === "geannuleerd" || appt.confirmation_status === "declined") {
+          const verdict = retryAppointmentVerdict(row, appt);
+          if (verdict) {
             await admin.from("whatsapp_logs").update({
               dead_letter: true,
-              error: "appointment_no_longer_valid",
+              error: verdict,
               next_retry_at: null,
             }).eq("id", row.id);
             continue;
@@ -475,6 +481,7 @@ Deno.serve(async (req) => {
                 .from("customers")
                 .select("id, name, phone, whatsapp_opt_in, preferred_language, archived_at, pseudonymized_at, communication_blocked_at")
                 .eq("id", appt.customer_id)
+                .eq("user_id", s.user_id)
                 .maybeSingle();
               if (!customer || !customer.phone || customer.whatsapp_opt_in === false || customer.archived_at || customer.pseudonymized_at || customer.communication_blocked_at) {
                 stats.skipped++;
@@ -588,6 +595,7 @@ Deno.serve(async (req) => {
                 .from("customers")
                 .select("id, name, phone, whatsapp_opt_in, preferred_language, archived_at, pseudonymized_at, communication_blocked_at")
                 .eq("id", appt.customer_id)
+                .eq("user_id", s.user_id)
                 .maybeSingle();
               if (!customer || !customer.phone || customer.whatsapp_opt_in === false || customer.archived_at || customer.pseudonymized_at || customer.communication_blocked_at) {
                 stats.skipped++;
@@ -677,7 +685,7 @@ Deno.serve(async (req) => {
         if (!guard.allowed) { await markHandled(`suppressed:${guard.reason}`); continue; }
 
         const [{ data: cust }, { data: pref }, { data: cfg }, { data: prof }] = await Promise.all([
-          admin.from("customers").select("id, name, email, preferred_language").eq("id", row.customer_id).maybeSingle(),
+          admin.from("customers").select("id, name, email, preferred_language").eq("id", row.customer_id).eq("user_id", row.user_id).maybeSingle(),
           admin.from("customer_message_preferences").select("email_opt_out").eq("user_id", row.user_id).eq("customer_id", row.customer_id).maybeSingle(),
           admin.from("settings").select("email_enabled, public_slug").eq("user_id", row.user_id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
           admin.from("profiles").select("salon_name").eq("user_id", row.user_id).maybeSingle(),
