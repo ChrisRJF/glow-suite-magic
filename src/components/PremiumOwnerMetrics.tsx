@@ -31,10 +31,7 @@ export function PremiumOwnerMetrics() {
 
     const refundedMonth = (refunds as any[]).filter((r) => (r.created_at || "") >= monthStart).reduce((s, r) => s + Number(r.amount || 0), 0);
 
-    // Estimated next payout = last 7d paid online minus refunds
-    const sevenAgo = new Date(Date.now() - 7 * 86400_000).toISOString();
-    const recentOnline = paid.filter((p) => !isTerminal(p) && (p.paid_at || p.created_at) >= sevenAgo).reduce((s, p) => s + Number(p.amount || 0), 0);
-    const estimatedPayout = Math.max(0, recentOnline - refundedMonth * 0.1);
+    // Geen uitbetalingsschatting: zonder provider settlement-data is elk bedrag ongefundeerd.
 
     const activeMembers = (memberships as any[]).filter((mm) => mm.status === "active").length;
 
@@ -47,7 +44,7 @@ export function PremiumOwnerMetrics() {
 
     const returning = (customers as any[]).filter((c) => (c.total_visits || 0) > 1).length;
 
-    return { todayTotal, monthTotal, onlineMonth, terminalMonth, refundedMonth, estimatedPayout, activeMembers, preventedNoShows, returning };
+    return { todayTotal, monthTotal, onlineMonth, terminalMonth, refundedMonth, activeMembers, preventedNoShows, returning };
   }, [payments, refunds, memberships, appointments, customers]);
 
   const Tile = ({ icon: Icon, label, value, hint, onClick, accent }: any) => (
@@ -76,7 +73,7 @@ export function PremiumOwnerMetrics() {
         <Tile icon={RefreshCcw} label="Refunds" value={formatEuro(m.refundedMonth)} hint="Deze maand" onClick={() => navigate("/refunds")} accent="text-destructive" />
         <Tile icon={ShieldCheck} label="No-shows voorkomen" value={String(m.preventedNoShows)} hint="Risico-klanten kwamen toch" onClick={() => navigate("/agenda")} accent="text-success" />
         <Tile icon={Crown} label="Actieve leden" value={String(m.activeMembers)} onClick={() => navigate("/abonnementen")} />
-        <Tile icon={Repeat} label="Volgende uitbetaling" value={`±${formatEuro(m.estimatedPayout)}`} hint="Schatting o.b.v. afgelopen 7 dagen" onClick={() => navigate("/glowpay")} accent="text-success" />
+        <Tile icon={Repeat} label="Volgende uitbetaling" value="Nog onbekend" hint="Vereist uitbetalingsdata van de betaalprovider" onClick={() => navigate("/glowpay")} />
       </div>
     </section>
   );

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useAppointments, useCustomers, useServices } from "@/hooks/useSupabaseData";
 import { useCrud } from "@/hooks/useCrud";
 import { formatEuro } from "@/lib/data";
-import { TrendingUp, TrendingDown, AlertTriangle } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { useState, useMemo } from "react";
 
 export default function OmzetPage() {
@@ -32,9 +32,9 @@ export default function OmzetPage() {
   const maxAmount = Math.max(...dailyRevenue.map(d => Math.max(d.amount, d.target)), 1);
 
   const predictions = [
-    { label: "Verwachte omzet deze week", value: totalRevenue },
-    { label: "Verwachte omzet deze maand", value: totalRevenue * 4 },
-    { label: "Groei t.o.v. vorige maand", value: 12, isPercent: true },
+    { label: "Geboekte waarde deze week", value: totalRevenue },
+    { label: "Verwachte omzet deze maand", value: null as number | null },
+    { label: "Groei t.o.v. vorige maand", value: null as number | null },
   ];
 
   const missedRevenue = [
@@ -58,14 +58,14 @@ export default function OmzetPage() {
           {predictions.map((p) => (
             <div key={p.label} className="stat-card">
               <p className="text-xs text-muted-foreground">{p.label}</p>
-              <p className="text-2xl font-bold mt-3 leading-none">{p.isPercent ? `+${p.value}%` : formatEuro(p.value)}</p>
-              <div className="flex items-center gap-1.5 mt-3 text-xs text-success"><TrendingUp className="w-3 h-3" /><span>Stijgend</span></div>
+              <p className="text-2xl font-bold mt-3 leading-none">{p.value === null ? "Nog onvoldoende gegevens" : formatEuro(p.value)}</p>
+              {p.value !== null && <p className="text-[11px] text-muted-foreground mt-2">Niet-geannuleerde afspraken, ongeacht betaling</p>}
             </div>
           ))}
         </div>
 
         <div className="glass-card p-6">
-          <h3 className="text-sm font-semibold mb-5">Omzet per dag</h3>
+          <h3 className="text-sm font-semibold mb-5">Geboekte waarde per dag</h3>
           <div className="flex items-end gap-3 h-44 pt-2">
             {dailyRevenue.map((d) => {
               const height = (d.amount / maxAmount) * 100;
