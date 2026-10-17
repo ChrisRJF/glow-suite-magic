@@ -127,6 +127,6 @@ describe('proposed DB wrapper stays service-only', () => {
     const call = sql.indexOf('_r := public.move_appointment_atomic(');
     expect(sql.indexOf("'sub_appointments_unsupported'")).toBeLessThan(call);
     expect(sql.indexOf("'multi_employee_unsupported'")).toBeLessThan(call);
-    expect(sql.indexOf('pg_advisory_xact_lock')).toBeLessThan(sql.indexOf('FOR UPDATE'));
+    expect(sql.indexOf('pg_advisory_xact_lock')).toBeLessThan(sql.indexOf('user_id = _tenant FOR UPDATE'));
   });
 });
