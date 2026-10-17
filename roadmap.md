@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] WhatsApp security: prepare isolated auth/tenant/retry corrections and fictional tests; active functions remain unchanged because edits auto-deploy. Scheduler authentication blocked on current credential evidence; provide migration plan, no live actions.
+
 - [x] Kleine herstelronde: NoShowCenter telt isHigh; AutoRevenueMetrics verduidelijkt creation-cohort/statusconversie, ontbrekende cohort geeft geen percentage; btw-aanname/refunds-labels verduidelijkt; Autopilot UI noemt schattingen. 79 gerichte tests geslaagd; formules, financiële logica, backend en productie ongewijzigd; geen deployment/publicatie. Netto-omzet niet opnieuw gedefinieerd zonder aparte GO.
 
 - [x] Trial banner: navigation-only GlowPay CTA; 28 tests and fictitious mobile/desktop rendering checked. Real TEST-account screenshot unavailable; no deployment/publication or real-account login.
