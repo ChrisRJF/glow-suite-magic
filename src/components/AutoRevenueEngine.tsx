@@ -424,7 +424,7 @@ export function AutoRevenueEngine({ source = "overview" }: AutoRevenueEngineProp
                       {" · schatting +"}{formatEuro(d.projectedRevenue)}
                     </p>
                     <p className="text-muted-foreground mt-0.5">
-                      <span className="font-medium">Waarom deze actie?</span> {d.reason.replace("Lage vulkans", "Lage geschatte vulkans").replace("Vulkans hoog", "Geschatte vulkans hoog").replaceAll("—", ":")}
+                      <span className="font-medium">Waarom deze actie?</span> {d.reason.replace("Lage vulkans", "Lage geschatte vulkans").replace("Vulkans hoog", "Geschatte vulkans hoog").replace(/—/g, ":")}
                     </p>
                   </div>
                 </div>

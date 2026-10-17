@@ -1,6 +1,6 @@
 # Roadmap
 
-- [ ] Kleine herstelronde: uitsluitend hoog no-showrisico tellen; aanbodconversie onderbouwen; bewezen financiële labelfouten corrigeren; Autopilot-schattingen verduidelijken; gerichte tests, geen backendwijzigingen of publicatie.
+- [x] Kleine herstelronde: NoShowCenter telt isHigh; AutoRevenueMetrics verduidelijkt creation-cohort/statusconversie, ontbrekende cohort geeft geen percentage; btw-aanname/refunds-labels verduidelijkt; Autopilot UI noemt schattingen. 79 gerichte tests geslaagd; formules, financiële logica, backend en productie ongewijzigd; geen deployment/publicatie. Netto-omzet niet opnieuw gedefinieerd zonder aparte GO.
 
 - [x] Trial banner: navigation-only GlowPay CTA; 28 tests and fictitious mobile/desktop rendering checked. Real TEST-account screenshot unavailable; no deployment/publication or real-account login.
 
