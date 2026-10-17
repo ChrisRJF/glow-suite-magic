@@ -37,7 +37,7 @@ AS bash -c "$P -d gs_move -f $BASE/tests-move-as.sql 2>&1" | { grep -E "PASS|FAI
 # ---- races ----
 race() { echo "$1" > "$BASE/s1.sql"; echo "$2" > "$BASE/s2.sql"; chown $RUNUID "$BASE"/s?.sql
   AS bash -c "$P -d gs_move -f $BASE/s1.sql > $BASE/s1.out 2>&1 & sleep 0.5; $P -d gs_move -f $BASE/s2.sql > $BASE/s2.out 2>&1; wait"; cat "$BASE/s1.out" "$BASE/s2.out" >> "$BASE/race.log"; cat "$BASE/s1.out" "$BASE/s2.out" | { grep -E "^s[12]" || true; } | tr '\n' ' '; }
-mv1() { echo "BEGIN; SET LOCAL ROLE service_role; SELECT '$1:'||(public.move_appointment_atomic_as('11111111-1111-1111-1111-111111111111','b1000000-0000-0000-0000-000000000001','2026-11-02','$2','e0000000-0000-0000-0000-00000000000b',(SELECT updated_at FROM appointments WHERE id='b1000000-0000-0000-0000-000000000001'))->>'code'); SELECT pg_sleep($3); COMMIT;"; }
+mv1() { echo "BEGIN; SET LOCAL ROLE service_role; SELECT '$1:'||(public.move_appointment_atomic_as('11111111-1111-1111-1111-111111111111','b1000000-0000-0000-0000-000000000001','2026-11-02','$2','e0000000-0000-0000-0000-00000000000b',t_upd('b1000000-0000-0000-0000-000000000001'))->>'code'); SELECT pg_sleep($3); COMMIT;"; }
 R=$(race "$(mv1 s1 10:00 2)" "$(mv1 s2 11:00 0)")
 echo "RACE1: $R"; ok "X01 two concurrent moves of one row: first moved, second stale (read before commit)" "$(echo "$R" | grep -o 's1:moved')/$(echo "$R" | grep -o 's2:stale')" "s1:moved/s2:stale"
 ok "X01 row at first target" "$(Q "select appointment_date='2026-11-02 09:00Z' from appointments where id='b1000000-0000-0000-0000-000000000001'")" "t"
@@ -46,8 +46,8 @@ INSERT INTO sub_appointments (parent_appointment_id,user_id,person_name) VALUES 
 SELECT 's2:waited:'||(extract(epoch from clock_timestamp()-:'t0'::timestamptz)>1)::text;"
 R=$(race "$(mv1 s1 13:00 2)" "$S2")
 ok "X02 sub_appointment insert waits for the move lock (FK key-share)" "$(echo "$R" | grep -o 's1:moved')/$(echo "$R" | grep -o 's2:waited:true')" "s1:moved/s2:waited:true"
-ok "X03 after that sub exists, next move refused" "$(Q "set role service_role; select public.move_appointment_atomic_as('11111111-1111-1111-1111-111111111111','b1000000-0000-0000-0000-000000000001','2026-11-02','10:00','e0000000-0000-0000-0000-00000000000b',(select updated_at from appointments where id='b1000000-0000-0000-0000-000000000001'))->>'code'" | tail -1)" "sub_appointments_unsupported"
+ok "X03 after that sub exists, next move refused" "$(Q "set role service_role; select public.move_appointment_atomic_as('11111111-1111-1111-1111-111111111111','b1000000-0000-0000-0000-000000000001','2026-11-02','10:00','e0000000-0000-0000-0000-00000000000b',t_upd('b1000000-0000-0000-0000-000000000001'))->>'code'" | tail -1)" "sub_appointments_unsupported"
 S3="INSERT INTO appointment_employees (user_id,appointment_id,employee_id) VALUES ('11111111-1111-1111-1111-111111111111','b1000000-0000-0000-0000-000000000003','e0000000-0000-0000-0000-00000000000a'); SELECT 's2:inserted';"
-mv3="BEGIN; SET LOCAL ROLE service_role; SELECT pg_sleep(1); SELECT 's1:'||(public.move_appointment_atomic_as('11111111-1111-1111-1111-111111111111','b1000000-0000-0000-0000-000000000003','2026-11-03','13:00','e0000000-0000-0000-0000-00000000000b',(SELECT updated_at FROM appointments WHERE id='b1000000-0000-0000-0000-000000000003'))->>'code'); COMMIT;"
+mv3="BEGIN; SET LOCAL ROLE service_role; SELECT pg_sleep(1); SELECT 's1:'||(public.move_appointment_atomic_as('11111111-1111-1111-1111-111111111111','b1000000-0000-0000-0000-000000000003','2026-11-03','13:00','e0000000-0000-0000-0000-00000000000b',t_upd('b1000000-0000-0000-0000-000000000003'))->>'code'); COMMIT;"
 R=$(race "$mv3" "$S3")
 ok "X04 link committed concurrently before the check: move refused, links kept" "$(echo "$R" | grep -o 's1:multi_employee_unsupported')/$(Q "select count(*) from appointment_employees where appointment_id='b1000000-0000-0000-0000-000000000003'")" "s1:multi_employee_unsupported/2"
