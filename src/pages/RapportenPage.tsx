@@ -58,7 +58,7 @@ export default function RapportenPage() {
     { label: "Vandaag omzet", value: eur(report.revenue.today), icon: Euro, trend: "alleen paid" },
     { label: "Deze maand", value: eur(report.revenue.month), icon: BarChart3, trend: trendLabel(report.revenue.trend), trendValue: report.revenue.trend },
     { label: "Openstaand", value: eur(report.revenue.openAmount), icon: Clock, trend: `${report.rows.openAppointments.length} afspraken` },
-    { label: "Refunds", value: eur(report.revenue.refundTotal), icon: RefreshCw, trend: "apart verwerkt" },
+    { label: "Refunds", value: eur(report.revenue.refundTotal), icon: RefreshCw, trend: "niet afgetrokken van omzet" },
   ];
 
   const reportTabs: { key: ReportType; label: string }[] = [
@@ -166,7 +166,7 @@ export default function RapportenPage() {
         {reportType === "afspraken" && <MetricGrid items={[["Vandaag", String(report.appointments.today)], ["Komend", String(report.appointments.upcoming)], ["Afgerond", String(report.appointments.completed)], ["Geannuleerd", String(report.appointments.canceled)], ["No-show", `${report.appointments.noShowPct}%`], ["Gem. afspraakwaarde", eur(report.appointments.averageValue)], ["Populairst", report.appointments.mostPopularService], ["Drukste tijd", report.appointments.busiestTime]]} />}
         {reportType === "klanten" && <CustomerList report={report} />}
         {reportType === "betalingen" && <PaymentList report={report} customers={customers} />}
-        {reportType === "btw" && <MetricGrid items={[["Omzet incl. BTW", eur(report.revenue.period)], ["Omzet excl. BTW", eur(report.revenue.period / 1.21)], ["BTW 21%", eur(report.revenue.period * 0.21 / 1.21)], ["Betaalde transacties", String(report.rows.periodPayments.length)]]} />}
+        {reportType === "btw" && <MetricGrid items={[["Betaald bedrag (aanname: incl. 21% BTW)", eur(report.revenue.period)], ["Berekend excl. 21% BTW", eur(report.revenue.period / 1.21)], ["Berekende BTW (aanname: 21%)", eur(report.revenue.period * 0.21 / 1.21)], ["Betaalde transacties", String(report.rows.periodPayments.length)]]} />}
         {reportType === "producten" && <ProductList products={products} />}
         {reportType === "diensten" && <ServiceList services={report.services} />}
         {reportType === "export" && <ExportCenter canExport={can("reports:export")} onExport={handleExport} />}

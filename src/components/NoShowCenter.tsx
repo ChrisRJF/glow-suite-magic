@@ -140,7 +140,7 @@ export function NoShowCenter() {
       if (when < now || when > end) continue;
       if (a.status === "geannuleerd") continue;
       const c = custMap.get(a.customer_id);
-      if (c && calculateNoShowRisk(c).isElevated) count++;
+      if (c && calculateNoShowRisk(c).isHigh) count++;
     }
     return count;
   }, [appointments, customers]);
