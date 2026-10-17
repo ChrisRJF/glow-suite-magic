@@ -31,4 +31,4 @@ export function useCustomerRiskHistory<T extends Customer>(customers: T[]) {
   // Never reuse history after account/data change or while a fresh read is pending.
   return state?.source === customers ? state.data
     : customers.map(customer => ({ ...customer, verifiedHistory: undefined }));
-}--- a/src/hooks/useSupabaseData.ts
+}

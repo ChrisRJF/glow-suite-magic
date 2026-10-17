@@ -62,4 +62,4 @@ export async function loadAppointmentRiskHistory(
     }
   } catch { return undefined; }
   return undefined;
-}--- /dev/null
+}
