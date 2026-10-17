@@ -1,0 +1,430 @@
+--- a/src/lib/noShowRisk.ts
++++ b/src/lib/noShowRisk.ts
+@@ -1,36 +1,57 @@
+-/** Prepared only: complete tenant-scoped outcome history, never browser claims.
+- * This score is an indication, not a calibrated probability.
++/**
++ * Central No-show risk engine.
++ *
++ * Single source of truth used by:
++ * - Dashboard (TodayAtAGlance)
++ * - Automations
++ * - Customer profile (useCustomerIntelligence)
++ * - Coach (DailyCoach)
++ * - Deposits (usePaymentRules)
++ * - Reminders / revenue scoring (revenueScoring rankCustomers)
++ *
++ * Rules:
++ *   score = clamp(no_show_count * 30 + cancellation_count * 15, 0..100)
++ *   level = score >= 50 ? "hoog" : score >= 20 ? "gemiddeld" : "laag"
++ *
++ * No new factors. Just one shared formula so labels & thresholds agree
++ * everywhere.
+  */
++
+ export type NoShowRiskLevel = "laag" | "gemiddeld" | "hoog";
++
+ export interface NoShowRiskInput {
+   no_show_count?: number | null;
+   cancellation_count?: number | null;
+-  verifiedHistory?: { completed: number; noShows: number; lateCancellations: number } | null;
+ }
++
+ export interface NoShowRisk {
+   score: number;
+   level: NoShowRiskLevel;
+-  isElevated: boolean;
+-  isHigh: boolean;
++  /** Convenience booleans so callers don't re-derive thresholds. */
++  isElevated: boolean; // level != "laag"
++  isHigh: boolean; // level === "hoog"
++  /** Penalty in 0..1 for use in ranking formulas (was ad-hoc in revenueScoring). */
+   penalty: number;
+-  hasSufficientData: boolean;
+ }
++
++const clamp = (n: number) => Math.max(0, Math.min(100, n));
++
+ export function calculateNoShowRisk(input: NoShowRiskInput | null | undefined): NoShowRisk {
+-  const h = input?.verifiedHistory;
+-  const valid = h != null && [h.completed, h.noShows, h.lateCancellations]
+-    .every(n => Number.isSafeInteger(n) && n >= 0);
+-  const total = valid && h ? h.completed + h.noShows + h.lateCancellations : 0;
+-  const hasSufficientData = valid && Number.isSafeInteger(total) && total >= 2;
+-  // Ordinary cancellation_count has no timing evidence and never contributes.
+-  // Minimum two observed outcomes; late cancellations alone cannot reach high.
+-  const score = hasSufficientData && h
+-    ? Math.round(Math.min(100, h.noShows * 30 + Math.min(40, h.lateCancellations * 10),
+-      100 * (h.noShows + h.lateCancellations * 0.5) / total))
+-    : 0;
++  const noShows = Number(input?.no_show_count) || 0;
++  const cancels = Number(input?.cancellation_count) || 0;
++  const score = clamp(noShows * 30 + cancels * 15);
+   const level: NoShowRiskLevel = score >= 50 ? "hoog" : score >= 20 ? "gemiddeld" : "laag";
+-  return { score, level, isElevated: hasSufficientData && level !== "laag",
+-    isHigh: hasSufficientData && level === "hoog", penalty: score / 100, hasSufficientData };
++  return {
++    score,
++    level,
++    isElevated: level !== "laag",
++    isHigh: level === "hoog",
++    penalty: score / 100,
++  };
+ }
++
+ export const NO_SHOW_RISK_LABELS: Record<NoShowRiskLevel, string> = {
+-  laag: "Laag", gemiddeld: "Gemiddeld", hoog: "Hoog",
+-};+  laag: "Laag",
++  gemiddeld: "Gemiddeld",
++  hoog: "Hoog",
++};
+--- a/supabase/functions/_shared/noShowRisk.ts
++++ b/supabase/functions/_shared/noShowRisk.ts
+@@ -1,36 +1,40 @@
+-/** Prepared only: complete tenant-scoped outcome history, never browser claims.
+- * This score is an indication, not a calibrated probability.
++/**
++ * Canonical server-side no-show risk engine.
++ * MUST stay in sync with `src/lib/noShowRisk.ts`.
++ *
++ *   score = clamp(no_show_count * 30 + cancellation_count * 15, 0..100)
++ *   level = score >= 50 ? "hoog" : score >= 20 ? "gemiddeld" : "laag"
++ *
++ * No extra factors. One shared formula so backend + frontend agree.
+  */
++
+ export type NoShowRiskLevel = "laag" | "gemiddeld" | "hoog";
++
+ export interface NoShowRiskInput {
+   no_show_count?: number | null;
+   cancellation_count?: number | null;
+-  verifiedHistory?: { completed: number; noShows: number; lateCancellations: number } | null;
+ }
++
+ export interface NoShowRisk {
+   score: number;
+   level: NoShowRiskLevel;
+   isElevated: boolean;
+   isHigh: boolean;
+   penalty: number;
+-  hasSufficientData: boolean;
+ }
++
++const clamp = (n: number) => Math.max(0, Math.min(100, n));
++
+ export function calculateNoShowRisk(input: NoShowRiskInput | null | undefined): NoShowRisk {
+-  const h = input?.verifiedHistory;
+-  const valid = h != null && [h.completed, h.noShows, h.lateCancellations]
+-    .every(n => Number.isSafeInteger(n) && n >= 0);
+-  const total = valid && h ? h.completed + h.noShows + h.lateCancellations : 0;
+-  const hasSufficientData = valid && Number.isSafeInteger(total) && total >= 2;
+-  // Ordinary cancellation_count has no timing evidence and never contributes.
+-  // Minimum two observed outcomes; late cancellations alone cannot reach high.
+-  const score = hasSufficientData && h
+-    ? Math.round(Math.min(100, h.noShows * 30 + Math.min(40, h.lateCancellations * 10),
+-      100 * (h.noShows + h.lateCancellations * 0.5) / total))
+-    : 0;
++  const noShows = Number(input?.no_show_count) || 0;
++  const cancels = Number(input?.cancellation_count) || 0;
++  const score = clamp(noShows * 30 + cancels * 15);
+   const level: NoShowRiskLevel = score >= 50 ? "hoog" : score >= 20 ? "gemiddeld" : "laag";
+-  return { score, level, isElevated: hasSufficientData && level !== "laag",
+-    isHigh: hasSufficientData && level === "hoog", penalty: score / 100, hasSufficientData };
++  return {
++    score,
++    level,
++    isElevated: level !== "laag",
++    isHigh: level === "hoog",
++    penalty: score / 100,
++  };
+ }
+-export const NO_SHOW_RISK_LABELS: Record<NoShowRiskLevel, string> = {
+-  laag: "Laag", gemiddeld: "Gemiddeld", hoog: "Hoog",
+-};--- a/supabase/functions/_shared/depositDecision.ts
++++ b/supabase/functions/_shared/depositDecision.ts
+@@ -16,7 +16,6 @@
+   no_show_count?: number | null;
+   cancellation_count?: number | null;
+   total_visits?: number | null;
+-  verifiedHistory?: import("./noShowRisk").NoShowRiskInput["verifiedHistory"];
+ }
+ 
+ export type DepositType = "none" | "deposit" | "full";
+@@ -83,7 +82,7 @@
+   }
+ 
+   // No-show risk
+-  if (useRisk && risk.hasSufficientData && risk.isHigh) {
++  if (useRisk && risk.isElevated) {
+     const deposit = Math.round((price * percentage) / 100 * 100) / 100;
+     return build(true, "deposit", deposit, "Aanbetaling vereist (no-show risico)");
+   }
+--- a/src/hooks/usePaymentRules.ts
++++ b/src/hooks/usePaymentRules.ts
+@@ -16,7 +16,6 @@
+   no_show_count?: number;
+   cancellation_count?: number;
+   total_spent?: number;
+-  verifiedHistory?: import("@/lib/noShowRisk").NoShowRiskInput["verifiedHistory"];
+ }
+ 
+ interface PaymentDecision {
+@@ -52,7 +51,7 @@
+       }
+ 
+       // No-show risk — shared engine
+-      if (s.deposit_noshow_risk && customer && calculateNoShowRisk(customer).isHigh) {
++      if (s.deposit_noshow_risk && customer && calculateNoShowRisk(customer).isElevated) {
+         const depositAmount = Math.round(servicePrice * (s.deposit_percentage || 50) / 100 * 100) / 100;
+         return { required: true, type: "deposit", amount: depositAmount, reason: "Aanbetaling vereist (no-show risico)" };
+       }
+--- a/src/lib/revenueScoring.ts
++++ b/src/lib/revenueScoring.ts
+@@ -25,7 +25,6 @@
+   total_spent?: number | null;
+   no_show_count?: number | null;
+   cancellation_count?: number | null;
+-  verifiedHistory?: import("./noShowRisk").NoShowRiskInput["verifiedHistory"];
+   /** ISO date of last appointment, if any. */
+   lastVisitAt?: Date | null;
+ }
+--- a/supabase/functions/_shared/appointmentRiskHistory.ts
++++ /dev/null
+@@ -1,65 +0,0 @@
+-import type { NoShowRiskInput } from "./noShowRisk.ts";
+-
+-export interface RiskAppointment {
+-  id: string;
+-  user_id: string;
+-  customer_id: string | null;
+-  status: string;
+-}
+-const completed = new Set(["voltooid", "completed", "afgerond", "done"]);
+-const noShows = new Set(["no-show", "no_show", "noshow", "niet_verschenen"]);
+-
+-/** Caller must supply a successful complete, authorized database read.
+- * No client-provided history, counters, dates or audit guesses are accepted.
+- */
+-export function appointmentRiskHistory(
+-  rows: readonly RiskAppointment[], tenantId: string, customerId: string,
+-  complete: boolean,
+-): NoShowRiskInput["verifiedHistory"] {
+-  if (!complete || !tenantId || !customerId) return undefined;
+-  const seen = new Set<string>();
+-  const history = { completed: 0, noShows: 0, lateCancellations: 0 };
+-  for (const row of rows) {
+-    if (!row.id || seen.has(row.id) || row.user_id !== tenantId
+-      || row.customer_id !== customerId || typeof row.status !== "string") return undefined;
+-    seen.add(row.id);
+-    // Current explicit outcomes only. Cancellation timing is NOT inferred.
+-    if (completed.has(row.status)) history.completed++;
+-    else if (noShows.has(row.status)) history.noShows++;
+-  }
+-  return history;
+-}
+-
+-interface HistoryPage {
+-  data: RiskAppointment[] | null;
+-  error: unknown;
+-  count: number | null;
+-}
+-export type ReadHistoryPage = (scope: {
+-  tenantId: string; customerId: string; from: number; to: number;
+-}) => PromiseLike<HistoryPage>;
+-
+-/** Read-only paged loader; tenant/customer must be server-derived for deposits.
+- * Frontend uses its authenticated RLS client, never a service-role client.
+- */
+-export async function loadAppointmentRiskHistory(
+-  readPage: ReadHistoryPage, tenantId: string, customerId: string,
+-): Promise<NoShowRiskInput["verifiedHistory"]> {
+-  if (!tenantId || !customerId) return undefined;
+-  const rows: RiskAppointment[] = [];
+-  let expected: number | undefined;
+-  try {
+-    for (let from = 0; from < 100_000; from += 1000) {
+-      const page = await readPage({ tenantId, customerId, from, to: from + 999 });
+-      if (page.error || !page.data || !Number.isSafeInteger(page.count)
+-        || page.count == null || page.count < 0) return undefined;
+-      if (expected === undefined) expected = page.count;
+-      if (page.count !== expected || page.data.length > 1000) return undefined;
+-      rows.push(...page.data);
+-      if (rows.length > expected) return undefined;
+-      if (rows.length === expected) return appointmentRiskHistory(rows, tenantId, customerId, true);
+-      if (page.data.length < 1000) return undefined;
+-    }
+-  } catch { return undefined; }
+-  return undefined;
+-}--- a/src/lib/appointmentRiskHistory.ts
++++ /dev/null
+@@ -1,65 +0,0 @@
+-import type { NoShowRiskInput } from "./noShowRisk";
+-
+-export interface RiskAppointment {
+-  id: string;
+-  user_id: string;
+-  customer_id: string | null;
+-  status: string;
+-}
+-const completed = new Set(["voltooid", "completed", "afgerond", "done"]);
+-const noShows = new Set(["no-show", "no_show", "noshow", "niet_verschenen"]);
+-
+-/** Caller must supply a successful complete, authorized database read.
+- * No client-provided history, counters, dates or audit guesses are accepted.
+- */
+-export function appointmentRiskHistory(
+-  rows: readonly RiskAppointment[], tenantId: string, customerId: string,
+-  complete: boolean,
+-): NoShowRiskInput["verifiedHistory"] {
+-  if (!complete || !tenantId || !customerId) return undefined;
+-  const seen = new Set<string>();
+-  const history = { completed: 0, noShows: 0, lateCancellations: 0 };
+-  for (const row of rows) {
+-    if (!row.id || seen.has(row.id) || row.user_id !== tenantId
+-      || row.customer_id !== customerId || typeof row.status !== "string") return undefined;
+-    seen.add(row.id);
+-    // Current explicit outcomes only. Cancellation timing is NOT inferred.
+-    if (completed.has(row.status)) history.completed++;
+-    else if (noShows.has(row.status)) history.noShows++;
+-  }
+-  return history;
+-}
+-
+-interface HistoryPage {
+-  data: RiskAppointment[] | null;
+-  error: unknown;
+-  count: number | null;
+-}
+-export type ReadHistoryPage = (scope: {
+-  tenantId: string; customerId: string; from: number; to: number;
+-}) => PromiseLike<HistoryPage>;
+-
+-/** Read-only paged loader; tenant/customer must be server-derived for deposits.
+- * Frontend uses its authenticated RLS client, never a service-role client.
+- */
+-export async function loadAppointmentRiskHistory(
+-  readPage: ReadHistoryPage, tenantId: string, customerId: string,
+-): Promise<NoShowRiskInput["verifiedHistory"]> {
+-  if (!tenantId || !customerId) return undefined;
+-  const rows: RiskAppointment[] = [];
+-  let expected: number | undefined;
+-  try {
+-    for (let from = 0; from < 100_000; from += 1000) {
+-      const page = await readPage({ tenantId, customerId, from, to: from + 999 });
+-      if (page.error || !page.data || !Number.isSafeInteger(page.count)
+-        || page.count == null || page.count < 0) return undefined;
+-      if (expected === undefined) expected = page.count;
+-      if (page.count !== expected || page.data.length > 1000) return undefined;
+-      rows.push(...page.data);
+-      if (rows.length > expected) return undefined;
+-      if (rows.length === expected) return appointmentRiskHistory(rows, tenantId, customerId, true);
+-      if (page.data.length < 1000) return undefined;
+-    }
+-  } catch { return undefined; }
+-  return undefined;
+-}--- a/src/hooks/useCustomerRiskHistory.ts
++++ /dev/null
+@@ -1,34 +0,0 @@
+-import { useEffect, useState } from "react";
+-import { supabase } from "@/integrations/supabase/client";
+-import { loadAppointmentRiskHistory } from "@/lib/appointmentRiskHistory";
+-import type { NoShowRiskInput } from "@/lib/noShowRisk";
+-
+-type Customer = { id: string; user_id: string };
+-/** RLS-only presentation evidence. Server deposits always reload independently. */
+-export function useCustomerRiskHistory<T extends Customer>(customers: T[]) {
+-  const [state, setState] = useState<{ source: T[]; data: Array<T & NoShowRiskInput> }>();
+-  useEffect(() => {
+-    let stale = false;
+-    async function load() {
+-      const data: Array<T & NoShowRiskInput> = [];
+-      // Serial reads avoid an unbounded per-customer request burst.
+-      for (const customer of customers) {
+-        if (stale) return;
+-        const verifiedHistory = await loadAppointmentRiskHistory(
+-          ({ tenantId, customerId, from, to }) => supabase.from("appointments")
+-            .select("id,user_id,customer_id,status", { count: "exact" })
+-            .eq("user_id", tenantId).eq("customer_id", customerId)
+-            .order("id", { ascending: true }).range(from, to),
+-          customer.user_id, customer.id,
+-        );
+-        data.push({ ...customer, verifiedHistory });
+-      }
+-      if (!stale) setState({ source: customers, data });
+-    }
+-    void load();
+-    return () => { stale = true; };
+-  }, [customers]);
+-  // Never reuse history after account/data change or while a fresh read is pending.
+-  return state?.source === customers ? state.data
+-    : customers.map(customer => ({ ...customer, verifiedHistory: undefined }));
+-}--- a/src/hooks/useSupabaseData.ts
++++ b/src/hooks/useSupabaseData.ts
+@@ -2,7 +2,6 @@
+ import { supabase } from "@/integrations/supabase/client";
+ import { useAuth } from "@/contexts/AuthContext";
+ import type { Tables, TablesInsert } from "@/integrations/supabase/types";
+-import { useCustomerRiskHistory } from "./useCustomerRiskHistory";
+ import { fetchAllRows } from "@/lib/fetchAllRows";
+ 
+ type TableName = keyof import("@/integrations/supabase/types").Database["public"]["Tables"];
+@@ -43,9 +42,7 @@
+ }
+ 
+ export function useCustomers() {
+-  const result = useSupabaseQuery("customers", { orderBy: "name", ascending: true });
+-  const data = useCustomerRiskHistory(result.data);
+-  return { ...result, data };
++  return useSupabaseQuery("customers", { orderBy: "name", ascending: true });
+ }
+ 
+ export function useServices() {
+--- a/src/hooks/useAutoRevenueRunner.ts
++++ b/src/hooks/useAutoRevenueRunner.ts
+@@ -217,7 +217,6 @@
+         name: c.name,
+         total_spent: c.total_spent,
+         no_show_count: c.no_show_count,
+-        verifiedHistory: c.verifiedHistory,
+         lastVisitAt: last ? new Date(last.appointment_date) : null,
+       };
+     });
+--- a/supabase/functions/public-booking/index.ts
++++ b/supabase/functions/public-booking/index.ts
+@@ -4,7 +4,6 @@
+ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+ import { z } from "https://esm.sh/zod@3.23.8";
+ import { getDefaultMessageTemplate, normalizeMessageLang, renderMessage, intlLocale } from "../_shared/messageTranslations.ts";
+-import { loadAppointmentRiskHistory } from "../_shared/appointmentRiskHistory.ts";
+ import { decideDeposit } from "../_shared/depositDecision.ts";
+ import { amsterdamToUtc, utcToAmsterdam, busyFromAppointments, normalizeBusyEmployees, resolveBooking, availabilitySlots, startTimes, canDoService, type ScheduleEmployee } from "../_shared/employeeSchedule.ts";
+ import { resolvePublicSalon, LEGACY_SCAN_LIMIT } from "./publicSalonResolve.ts";
+@@ -388,7 +387,7 @@
+     const email = data.customer.email.toLowerCase();
+     const { data: existingCustomer } = await supabase
+       .from("customers")
+-      .select("id, is_vip, no_show_count, cancellation_count")
++      .select("id, is_vip, no_show_count, cancellation_count, total_visits")
+       .eq("user_id", ctx.settings.user_id)
+       .ilike("email", email)
+       .maybeSingle();
+@@ -426,18 +425,9 @@
+     // Ignore whatever the browser sent in `serverPayment.required` / `serverPayment.amount`.
+     // Only `serverPayment.method` is honored as a display hint.
+     const totalPriceEuros = bookingRows.reduce((sum, row) => sum + Number(row.service.price || 0), 0);
+-    const verifiedHistory = existingCustomer?.id
+-      ? await loadAppointmentRiskHistory(
+-          ({ tenantId, customerId, from, to }) => supabase.from("appointments")
+-            .select("id,user_id,customer_id,status", { count: "exact" })
+-            .eq("user_id", tenantId).eq("customer_id", customerId)
+-            .order("id", { ascending: true }).range(from, to),
+-          ctx.settings.user_id, existingCustomer.id,
+-        )
+-      : undefined;
+     const decision = decideDeposit({
+       settings: ctx.settings,
+-      customer: existingCustomer ? { ...existingCustomer, verifiedHistory } : null,
++      customer: existingCustomer || null,
+       isNewCustomer: !existingCustomer,
+       servicePriceEuros: totalPriceEuros,
+     });
