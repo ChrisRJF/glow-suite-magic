@@ -21,6 +21,7 @@ import { sendAppointmentReminder } from "../_shared/sendAppointmentReminder.ts";
 import { reminderWindow, classifyReminderCandidate } from "../_shared/reminderSafety.ts";
 import { runDossierFormPass } from "../_shared/dossierForms.ts";
 import { authorizeSchedulerRequest } from "../_shared/whatsappSchedulerAuth.ts";
+import { readSchedulerVaultSecret, SCHEDULED_DISPATCH_ENABLED } from "../_shared/whatsappSchedulerVault.ts";
 import { retryAppointmentVerdict } from "../_shared/whatsappSecurity.ts";
 
 
@@ -109,7 +110,8 @@ Deno.serve(async (req) => {
   // run a manual single-appointment test inside their own derived tenant.
   let reqBody: unknown = {};
   try { reqBody = await req.json(); } catch { /* cron sends no body */ }
-  const gate = await authorizeSchedulerRequest(req, reqBody, admin, Deno.env.get("WA_SCHEDULER_CRON_SECRET"));
+  const cronSecret = await readSchedulerVaultSecret(req, Deno.env.get("SUPABASE_DB_URL"));
+  const gate = await authorizeSchedulerRequest(req, reqBody, admin, cronSecret);
   if (!gate.allow) {
     return new Response(JSON.stringify({ success: false, error: gate.reason }), {
       status: gate.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -118,6 +120,15 @@ Deno.serve(async (req) => {
 
   if (gate.route === "probe") {
     return new Response(JSON.stringify({ success: true, dispatch: false }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  // Fixed no-send mode: authenticated scheduled runs stop here, before any
+  // run row, lease, data read, provider or transport call.
+  if (gate.route === "scheduled" && !SCHEDULED_DISPATCH_ENABLED) {
+    console.log("[wa-scheduler] scheduled run authenticated; no_send mode, dispatched=0");
+    return new Response(JSON.stringify({ success: true, mode: "no_send", dispatched: 0 }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
