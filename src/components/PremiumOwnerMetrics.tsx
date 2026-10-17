@@ -44,7 +44,7 @@ export function PremiumOwnerMetrics() {
 
     const returning = (customers as any[]).filter((c) => (c.total_visits || 0) > 1).length;
 
-    return { todayTotal, monthTotal, onlineMonth, terminalMonth, refundedMonth, estimatedPayout, activeMembers, preventedNoShows, returning };
+    return { todayTotal, monthTotal, onlineMonth, terminalMonth, refundedMonth, activeMembers, preventedNoShows, returning };
   }, [payments, refunds, memberships, appointments, customers]);
 
   const Tile = ({ icon: Icon, label, value, hint, onClick, accent }: any) => (
