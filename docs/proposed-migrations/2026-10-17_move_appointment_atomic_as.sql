@@ -55,7 +55,8 @@ BEGIN
   PERFORM 1 FROM public.appointment_employees ae WHERE ae.appointment_id = _a.id FOR UPDATE;
   SELECT count(*)::int INTO _links FROM public.appointment_employees ae WHERE ae.appointment_id = _a.id;
   IF _links > 1 THEN RETURN pg_catalog.jsonb_build_object('ok', false, 'code', 'multi_employee_unsupported'); END IF;
-  PERFORM 1 FROM public.sub_appointments s WHERE s.parent_appointment_id = _a.id FOR UPDATE;
+  -- New sub_appointments rows cannot appear concurrently: their FK takes FOR KEY SHARE on the parent,
+  -- which waits for the FOR UPDATE row lock above until this transaction ends.
   SELECT count(*)::int INTO _subs FROM public.sub_appointments s WHERE s.parent_appointment_id = _a.id;
   IF _subs > 0 THEN RETURN pg_catalog.jsonb_build_object('ok', false, 'code', 'sub_appointments_unsupported'); END IF;
 
@@ -70,6 +71,11 @@ BEGIN
   END;
   PERFORM pg_catalog.set_config('request.jwt.claim.sub', COALESCE(_prev, ''), true);
 
+  -- Defence in depth: a concurrently committed extra link (no FK on appointment_employees) aborts all writes.
+  IF COALESCE((_r ->> 'ok')::boolean, false) AND
+     (SELECT count(*) FROM public.appointment_employees ae WHERE ae.appointment_id = _a.id) > 1 THEN
+    RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = 'gs_move:links_changed';
+  END IF;
   -- Group membership must be unchanged after the move (defence in depth).
   IF (SELECT x.booking_group_id FROM public.appointments x WHERE x.id = _a.id) IS DISTINCT FROM _a.booking_group_id THEN
     RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = 'gs_move:group_changed';
@@ -85,8 +91,11 @@ COMMENT ON FUNCTION public.move_appointment_atomic_as(uuid, uuid, text, text, uu
   'Server-only agenda move for a verified actor. Group members move individually. Proposed 2026-10-17, not applied.';
 
 -- BLOCKERS before activation:
+--  0. appointment_employees has NO foreign key to appointments (checked read-only 2026-10-17), so a
+--     concurrent INSERT of a link is not blocked by the row lock; the post-check only catches links
+--     committed before our check. Closing this needs either an FK (schema change, separate GO) or
+--     removal of all legacy link writers for the salon before activation.
 --  1. Legacy browser writers (CalendarPage.applyMove, dossier edits) insert appointment_employees /
 --     sub_appointments without this lock; FOR UPDATE does not stop new INSERTs. Activation per salon
 --     only when that salon has no legacy writers left (atomic mode replaces applyMove entirely).
---  2. Confirm appointments has column booking_group_id in production schema before applying.
 --  3. Local PG lock/rollback tests (concurrent move vs booking, stale, group sibling untouched).

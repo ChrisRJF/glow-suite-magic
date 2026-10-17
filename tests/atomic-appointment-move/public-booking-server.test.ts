@@ -75,8 +75,21 @@ describe("prepared server file", () => {
     const h = (s: string) => createHash("sha256").update(s).digest("hex");
     expect(h(ref)).toBe(h(live));
   });
-  it("active server is exactly the approved step-2b atomic file", () => {
-    expect(live).toBe(atomic);
+  // The live server later gained owner-approved changes (no-show verified history, GlowPay deposit,
+  // no Mollie fallback). The approved step-2b ATOMIC SAVE block itself must stay byte-identical.
+  it("active server keeps the approved step-2b atomic save block byte for byte", () => {
+    const save = (s: string) => s.slice(s.indexOf("ATOMIC SAVE"), s.indexOf("if (rebookAction && appointments?.[0])"));
+    expect(save(atomic).length).toBeGreaterThan(1000);
+    expect(save(live)).toBe(save(atomic));
+  });
+  it("active server keeps atomic, no-show and payment protections", () => {
+    expect(live).toMatch(/rpc\("create_public_booking_atomic"/);
+    expect(live).not.toMatch(/from\("appointments"\)\s*\.insert/);
+    expect(live).not.toMatch(/appointment_employees/);
+    expect(live).toMatch(/loadAppointmentRiskHistory\(/);
+    expect(live).toMatch(/verifiedHistory/);
+    expect(live).toMatch(/startLiveDeposit\(/);
+    expect(live).not.toMatch(/falling back to Mollie/);
   });
   it("no direct appointment insert and no separate employee-link write", () => {
     expect(atomic).not.toMatch(/from\("appointments"\)\s*\.insert/);

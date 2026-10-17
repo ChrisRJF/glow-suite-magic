@@ -32,3 +32,8 @@ Historische moveAppointmentRpc.ts en calendarPage.applyMove.patch.md zijn NIET h
 - DB-wrapper uitgeschreven als voorstel: docs/proposed-migrations/2026-10-17_move_appointment_atomic_as.sql. NIET uitgevoerd.
 - Groepsleden (booking_group_id) verplaatsen individueel: alleen deze afspraak wijzigt; groep, andere leden en hun koppelingen blijven ongemoeid. Route eist dat de wrapper dezelfde groep terugmeldt.
 - Nog geweigerd vóór writes: meerdere medewerkers en afspraken met sub_appointments.
+
+## Herstel-/testronde (2026-10-17)
+
+- Lokale wegwerp-PostgreSQL: tests/atomic-appointment-move/run-local-pg-move-as.sh + tests-move-as.sql, 29/29 PASS (rechten, geweigerde actoren, stale, conflict, groepslid apart, multi-employee, sub_appointments, flag uit, rollback, races).
+- Bewezen: deelafspraak-INSERT wacht op de rij-lock (FK). Niet bewezen/open: koppeling in appointment_employees die commit NA de controle maar vóór commit van de move (geen FK). Vereist FK-GO of verwijderen van legacy-koppelschrijvers vóór activatie.
