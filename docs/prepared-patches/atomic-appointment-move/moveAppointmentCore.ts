@@ -12,7 +12,7 @@ export interface MoveAppointment { id: string; updated_at?: string | null }
 export type MoveCode =
   | "moved" | "noop" | "not_authenticated" | "invalid_input" | "not_found" | "invalid_status" | "stale"
   | "missing_version" | "ambiguous_time" | "unknown_duration" | "outside_hours" | "invalid_local_time"
-  | "multi_employee_unsupported" | "legacy_assignment_requires_choice" | "salon_closed" | "unknown_employee"
+  | "multi_employee_unsupported" | "sub_appointments_unsupported" | "legacy_assignment_requires_choice" | "salon_closed" | "unknown_employee"
   | "employee_inactive" | "not_qualified" | "employee_absent" | "not_working" | "outside_working_hours"
   | "in_break" | "conflict" | "disabled" | "unavailable" | "failed";
 
@@ -28,6 +28,7 @@ export const MOVE_MESSAGES: Record<Exclude<MoveCode, "moved" | "noop">, string> 
   outside_hours: "Deze tijd valt buiten de dag.",
   invalid_local_time: "Deze tijd bestaat niet of komt dubbel voor door de zomertijd.",
   multi_employee_unsupported: "Deze afspraak heeft meerdere medewerkers. Verplaats hem via het dossier.",
+  sub_appointments_unsupported: "Deze afspraak heeft deelafspraken. Verplaats hem via het dossier.",
   legacy_assignment_requires_choice: "Kies eerst een medewerker voor deze afspraak.",
   salon_closed: "De salon is dan gesloten.",
   unknown_employee: "Deze medewerker is niet gevonden.",
