@@ -163,7 +163,16 @@ export async function sendAppointmentReminder(
   message = message.replace(/^✨[ \t]*$/gm, "").replace(/\n{3,}/g, "\n\n");
   message = appendConfirmationBlock(message, confirmationLink, "reminder", lang);
 
-  const baseMeta = { ...meta, tz, canonical_key: `reminder:${reminderType}:${appt.id}` };
+  // Snapshot of the appointment moment at render time. The scheduler retry
+  // pass compares the current appointment against this before every retry and
+  // suppresses the reminder when the appointment moved or the snapshot is
+  // absent. Stored after rendering; overrides any caller-supplied snapshot.
+  const baseMeta = {
+    ...meta,
+    tz,
+    canonical_key: `reminder:${reminderType}:${appt.id}`,
+    appointment_snapshot: { appointment_date: appt.appointment_date, start_time: startTime },
+  };
 
   if (chan.channel === "whatsapp") {
     try {
