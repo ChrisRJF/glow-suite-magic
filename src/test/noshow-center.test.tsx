@@ -15,13 +15,24 @@ vi.mock("@/integrations/supabase/client", () => ({ supabase: {} }));
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 
 describe("NoShowCenter high-risk count", () => {
-  it("counts only isHigh appointments, excluding elevated, cancelled and outside the window", () => {
+  it("legacy counters alone never count as high risk (fail-safe)", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-17T12:00:00"));
+    fixtures.customers = [{ id: "high", no_show_count: 5, cancellation_count: 4 }];
+    fixtures.appointments = [
+      { customer_id: "high", appointment_date: "2026-10-17T14:00:00", status: "bevestigd" },
+    ];
+    render(<MemoryRouter><NoShowCenter /></MemoryRouter>);
+    expect(screen.getByText("Hoog risico").previousElementSibling?.textContent).toBe("0");
+  });
+
+  it("counts only isHigh appointments from verified history, excluding elevated, cancelled and outside the window", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-10-17T12:00:00"));
     fixtures.customers = [
-      { id: "low", no_show_count: 0 },
-      { id: "medium", no_show_count: 1 },
-      { id: "high", no_show_count: 2 },
+      { id: "low", verifiedHistory: { completed: 5, noShows: 0, lateCancellations: 0 } },
+      { id: "medium", verifiedHistory: { completed: 3, noShows: 0, lateCancellations: 2 } },
+      { id: "high", verifiedHistory: { completed: 1, noShows: 2, lateCancellations: 0 } },
     ];
     fixtures.appointments = [
       ...["low", "medium", "high"].map((customer_id) => ({ customer_id, appointment_date: "2026-10-17T14:00:00", status: "bevestigd" })),
