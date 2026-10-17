@@ -26,3 +26,9 @@ Bestaand move-RPC heeft geen bewezen groepsverplaatscontract. Groepen blijven on
 4. Desktopdrag, mobiele sheet, verplaatsdialoog en Smart Reflow behouden één applyMove en boolean/refetch-contract. Reflow wordt geen transactionele batch; geen groepverplaatsing claimen.
 
 Historische moveAppointmentRpc.ts en calendarPage.applyMove.patch.md zijn NIET het activatiepad: zij veronderstellen directe browser-RPC-toegang. Gebruik de nieuwe servervoorbereiding.
+
+## Stap 2 (2026-10-17), inactief
+
+- DB-wrapper uitgeschreven als voorstel: docs/proposed-migrations/2026-10-17_move_appointment_atomic_as.sql. NIET uitgevoerd.
+- Groepsleden (booking_group_id) verplaatsen individueel: alleen deze afspraak wijzigt; groep, andere leden en hun koppelingen blijven ongemoeid. Route eist dat de wrapper dezelfde groep terugmeldt.
+- Nog geweigerd vóór writes: meerdere medewerkers en afspraken met sub_appointments.
