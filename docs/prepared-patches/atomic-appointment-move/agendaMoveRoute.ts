@@ -10,11 +10,12 @@ export interface MoveRouteDeps {
   readFlag: (tenant: string) => Promise<{ data: unknown; error: unknown }>;
   // Full authoritative tenant/demo-scoped read, including group siblings and sub_appointments.
   // Incomplete reads are not empty defaults. Null means missing/foreign.
-  readAppointment: (id: string, context: ActorContext) => Promise<{ complete: boolean; employeeLinkCount: number; grouped: boolean } | null>;
+  // grouped = booking_group_id member: allowed, moves individually (siblings/links untouched).
+  readAppointment: (id: string, context: ActorContext) => Promise<{ complete: boolean; employeeLinkCount: number; grouped: boolean; subAppointmentCount: number } | null>;
   // Future service-only move_appointment_atomic_as, repeating protections under DB locks.
   callMoveAs: (actor: string, body: MoveBody) => Promise<unknown>;
 }
-export interface MoveRouteResult { status: number; data: { ok: boolean; code: string; appointment_id?: string; updated_at?: string } }
+export interface MoveRouteResult { status: number; data: { ok: boolean; code: string; appointment_id?: string; updated_at?: string; booking_group_id?: string | null } }
 const fail = (status: number, code: string): MoveRouteResult => ({ status, data: { ok: false, code } });
 export function validateMoveBody(value: unknown): MoveBody | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
@@ -45,15 +46,18 @@ export async function handleMove(req: { method: string; jwt: string | null; body
     if (mode !== 'atomic') return fail(403, 'disabled');
     const apt = await deps.readAppointment(body.appointment_id, ctx);
     if (!apt) return fail(404, 'not_found');
-    if (apt.complete !== true || !Number.isInteger(apt.employeeLinkCount) || apt.employeeLinkCount < 0 || typeof apt.grouped !== 'boolean') return fail(503, 'unavailable');
-    if (apt.grouped) return fail(422, 'group_move_unsupported');
+    if (apt.complete !== true || !Number.isInteger(apt.employeeLinkCount) || apt.employeeLinkCount < 0 || typeof apt.grouped !== 'boolean' || !Number.isInteger(apt.subAppointmentCount) || apt.subAppointmentCount < 0) return fail(503, 'unavailable');
+    if (apt.subAppointmentCount > 0) return fail(422, 'sub_appointments_unsupported');
     if (apt.employeeLinkCount > 1) return fail(422, 'multi_employee_unsupported');
     const value = await deps.callMoveAs(actor, body);
     if (!value || typeof value !== 'object') return fail(503, 'failed');
     const r = value as Record<string, unknown>;
     if (r.ok === false && typeof r.code === 'string') return fail(r.code === 'stale' || r.code === 'conflict' ? 409 : 422, r.code);
     if (r.ok !== true || (r.code !== 'moved' && r.code !== 'noop') || r.appointment_id !== body.appointment_id || typeof r.updated_at !== 'string' || !Number.isFinite(Date.parse(r.updated_at))) return fail(503, 'failed');
-    return { status: 200, data: { ok: true, code: r.code, appointment_id: body.appointment_id, updated_at: r.updated_at } };
+    const group = r.booking_group_id ?? null;
+    if (group !== null && (typeof group !== 'string' || !UUID.test(group))) return fail(503, 'failed');
+    if (apt.grouped !== (group !== null)) return fail(503, 'failed');
+    return { status: 200, data: { ok: true, code: r.code, appointment_id: body.appointment_id, updated_at: r.updated_at, booking_group_id: group } };
   } catch {
     // Ambiguous outcome: no automatic retry or fallback, even if a write might have committed.
     return fail(503, 'unavailable');
