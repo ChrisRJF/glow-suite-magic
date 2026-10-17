@@ -20,7 +20,7 @@ ok() { if [ "$2" = "$3" ]; then echo "PASS: $1"; else echo "FAIL: $1 (got '$2' w
 AS $P -d postgres -c "create database gs_move" >/dev/null
 AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/fixture.sql" >/dev/null
 AS bash -c "$P -d gs_move -1 -v ON_ERROR_STOP=1 -f $BASE/2026-10-10_atomic_appointment_move.sql" >/dev/null
-AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/2026-10-10_atomic_appointment_activate_booking.sql -f $BASE/2026-10-10_atomic_appointment_activate_agenda.sql" >/dev/null
+AS bash -c "$P -d gs_move -v ON_ERROR_STOP=1 -f $BASE/2026-10-10_atomic_appointment_activate_booking.sql" >/dev/null
 Q "CREATE TABLE public.user_access (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), owner_user_id uuid NOT NULL, member_user_id uuid, role public.app_role NOT NULL, status text NOT NULL DEFAULT 'active', is_demo boolean NOT NULL DEFAULT false, created_at timestamptz NOT NULL DEFAULT now());
  INSERT INTO public.user_access (owner_user_id, member_user_id, role) VALUES
  ('11111111-1111-1111-1111-111111111111','33333333-3333-3333-3333-333333333333','medewerker'),
@@ -29,6 +29,7 @@ Q "CREATE TABLE public.user_access (id uuid PRIMARY KEY DEFAULT gen_random_uuid(
  ('22222222-2222-2222-2222-222222222222','66666666-6666-6666-6666-666666666666','receptie');
  INSERT INTO public.tenant_feature_flags (tenant_id) VALUES ('11111111-1111-1111-1111-111111111111'),('22222222-2222-2222-2222-222222222222') ON CONFLICT DO NOTHING;" >/dev/null
 AS bash -c "$P -d gs_move -1 -v ON_ERROR_STOP=1 -f $BASE/2026-10-11_agenda_create_route.sql" >/dev/null
+# Production state checked read-only 2026-10-17: authenticated has NO EXECUTE on move_appointment_atomic, so the agenda activation file is not applied.
 AS bash -c "$P -d gs_move -1 -v ON_ERROR_STOP=1 -f $BASE/2026-10-17_move_appointment_atomic_as.sql" >/dev/null && echo "PASS: W00 proposed wrapper applies in one transaction (local only)"
 Q "update tenant_feature_flags set atomic_agenda_enabled=true" >/dev/null
 ok "W01 authenticated call is denied" "$(AS $P -d gs_move -c "set role authenticated; select public.move_appointment_atomic_as('11111111-1111-1111-1111-111111111111','b1000000-0000-0000-0000-000000000001','2026-11-02','10:00',NULL,now())" 2>&1 | grep -c 'permission denied')" "1"
