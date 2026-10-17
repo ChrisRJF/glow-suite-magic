@@ -33,13 +33,13 @@ AS bash -c "$P -d gs_move -1 -v ON_ERROR_STOP=1 -f $BASE/2026-10-11_agenda_creat
 AS bash -c "$P -d gs_move -1 -v ON_ERROR_STOP=1 -f $BASE/2026-10-17_move_appointment_atomic_as.sql" >/dev/null && echo "PASS: W00 proposed wrapper applies in one transaction (local only)"
 Q "update tenant_feature_flags set atomic_agenda_enabled=true" >/dev/null
 ok "W01 authenticated call is denied" "$(AS $P -d gs_move -c "set role authenticated; select public.move_appointment_atomic_as('11111111-1111-1111-1111-111111111111','b1000000-0000-0000-0000-000000000001','2026-11-02','10:00',NULL,now())" 2>&1 | grep -c 'permission denied')" "1"
-AS bash -c "$P -d gs_move -f $BASE/tests-move-as.sql 2>&1" | grep -E "PASS|FAIL" | grep -v boom | sed 's/^psql:[^:]*:[0-9]*: //'
+AS bash -c "$P -d gs_move -f $BASE/tests-move-as.sql 2>&1" | { grep -E "PASS|FAIL" || true; } | sed 's/^psql:[^:]*:[0-9]*: //'
 # ---- races ----
 race() { echo "$1" > "$BASE/s1.sql"; echo "$2" > "$BASE/s2.sql"; chown $RUNUID "$BASE"/s?.sql
-  AS bash -c "$P -d gs_move -f $BASE/s1.sql > $BASE/s1.out 2>&1 & sleep 0.5; $P -d gs_move -f $BASE/s2.sql > $BASE/s2.out 2>&1; wait"; cat "$BASE/s1.out" "$BASE/s2.out" | grep -E '^s[12]' | tr '\n' ' '; }
+  AS bash -c "$P -d gs_move -f $BASE/s1.sql > $BASE/s1.out 2>&1 & sleep 0.5; $P -d gs_move -f $BASE/s2.sql > $BASE/s2.out 2>&1; wait"; cat "$BASE/s1.out" "$BASE/s2.out" >> "$BASE/race.log"; cat "$BASE/s1.out" "$BASE/s2.out" | { grep -E "^s[12]" || true; } | tr '\n' ' '; }
 mv1() { echo "BEGIN; SET LOCAL ROLE service_role; SELECT '$1:'||(public.move_appointment_atomic_as('11111111-1111-1111-1111-111111111111','b1000000-0000-0000-0000-000000000001','2026-11-02','$2','e0000000-0000-0000-0000-00000000000b',(SELECT updated_at FROM appointments WHERE id='b1000000-0000-0000-0000-000000000001'))->>'code'); SELECT pg_sleep($3); COMMIT;"; }
 R=$(race "$(mv1 s1 10:00 2)" "$(mv1 s2 11:00 0)")
-ok "X01 two concurrent moves of one row: first moved, second stale (read before commit)" "$(echo "$R" | grep -o 's1:moved')/$(echo "$R" | grep -o 's2:stale')" "s1:moved/s2:stale"
+echo "RACE1: $R"; ok "X01 two concurrent moves of one row: first moved, second stale (read before commit)" "$(echo "$R" | grep -o 's1:moved')/$(echo "$R" | grep -o 's2:stale')" "s1:moved/s2:stale"
 ok "X01 row at first target" "$(Q "select appointment_date='2026-11-02 09:00Z' from appointments where id='b1000000-0000-0000-0000-000000000001'")" "t"
 S2="SELECT clock_timestamp() AS t0 \gset
 INSERT INTO sub_appointments (parent_appointment_id,user_id,person_name) VALUES ('b1000000-0000-0000-0000-000000000001','11111111-1111-1111-1111-111111111111','Kim');
