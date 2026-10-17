@@ -4,6 +4,7 @@ import { startLiveDeposit, makeDepositDeps } from "../_shared/inactive/isvLivePa
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { z } from "https://esm.sh/zod@3.23.8";
 import { getDefaultMessageTemplate, normalizeMessageLang, renderMessage, intlLocale } from "../_shared/messageTranslations.ts";
+import { loadAppointmentRiskHistory } from "../_shared/appointmentRiskHistory.ts";
 import { decideDeposit } from "../_shared/depositDecision.ts";
 import { amsterdamToUtc, utcToAmsterdam, busyFromAppointments, normalizeBusyEmployees, resolveBooking, availabilitySlots, startTimes, canDoService, type ScheduleEmployee } from "../_shared/employeeSchedule.ts";
 import { resolvePublicSalon, LEGACY_SCAN_LIMIT } from "./publicSalonResolve.ts";
@@ -387,7 +388,7 @@ Deno.serve(async (req) => {
     const email = data.customer.email.toLowerCase();
     const { data: existingCustomer } = await supabase
       .from("customers")
-      .select("id, is_vip, no_show_count, cancellation_count, total_visits")
+      .select("id, is_vip, no_show_count, cancellation_count")
       .eq("user_id", ctx.settings.user_id)
       .ilike("email", email)
       .maybeSingle();
@@ -425,9 +426,18 @@ Deno.serve(async (req) => {
     // Ignore whatever the browser sent in `serverPayment.required` / `serverPayment.amount`.
     // Only `serverPayment.method` is honored as a display hint.
     const totalPriceEuros = bookingRows.reduce((sum, row) => sum + Number(row.service.price || 0), 0);
+    const verifiedHistory = existingCustomer?.id
+      ? await loadAppointmentRiskHistory(
+          ({ tenantId, customerId, from, to }) => supabase.from("appointments")
+            .select("id,user_id,customer_id,status", { count: "exact" })
+            .eq("user_id", tenantId).eq("customer_id", customerId)
+            .order("id", { ascending: true }).range(from, to),
+          ctx.settings.user_id, existingCustomer.id,
+        )
+      : undefined;
     const decision = decideDeposit({
       settings: ctx.settings,
-      customer: existingCustomer || null,
+      customer: existingCustomer ? { ...existingCustomer, verifiedHistory } : null,
       isNewCustomer: !existingCustomer,
       servicePriceEuros: totalPriceEuros,
     });

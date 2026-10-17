@@ -16,6 +16,7 @@ export interface DepositCustomerInput {
   no_show_count?: number | null;
   cancellation_count?: number | null;
   total_visits?: number | null;
+  verifiedHistory?: import("./noShowRisk.ts").NoShowRiskInput["verifiedHistory"];
 }
 
 export type DepositType = "none" | "deposit" | "full";
@@ -82,7 +83,7 @@ export function decideDeposit(params: {
   }
 
   // No-show risk
-  if (useRisk && risk.isElevated) {
+  if (useRisk && risk.hasSufficientData && risk.isHigh) {
     const deposit = Math.round((price * percentage) / 100 * 100) / 100;
     return build(true, "deposit", deposit, "Aanbetaling vereist (no-show risico)");
   }
