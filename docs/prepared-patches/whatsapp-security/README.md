@@ -1,9 +1,23 @@
 # WhatsApp security correction, prepared only
 
-## Activation status: NO-GO
+## Activation status: PARTIALLY ACTIVATED 17 October 2026 (owner GO)
 
-No active Edge Function, secret, scheduler, database or provider setting changed.
-Managed Edge Function source edits automatically deploy, so the requested no-deployment boundary requires isolated preparation here. These files are NOT a deployable release as a set: scheduler authentication is unresolved. Do not copy/deploy the scheduler candidate as-is.
+Activated in active functions and deployed: `whatsapp-send` authentication
+gate (`_shared/whatsappSecurity.ts`, server-derived tenant, role/membership,
+customer/recipient/appointment binding, POST-only), scheduler gate
+(`_shared/whatsappSchedulerAuth.ts`: scheduled route only via dedicated
+server-only `WA_SCHEDULER_CRON_SECRET`, constant-time, fail-closed when unset;
+user `{}` probe is no-dispatch; manual test requires owner/manager/admin in
+the derived tenant and a tenant-scoped appointment), tenant-scoped retry
+reload with date/start-time snapshot verdict (snapshotless legacy rows
+suppressed), tenant-scoped review/no-show/dead-letter customer reads, and
+appointment snapshots in `sendAppointmentReminder` meta. Production verified:
+anonymous POST to both functions returns 401 before any side effect. Job 4
+`whatsapp-reminder-every-15min` remains Disabled; the scheduled route stays
+inert until the secret is configured and a new job is created under a separate
+GO. The prepared-only files below remain as design history; the scheduler
+candidate file here was NOT deployed (the active scheduler was patched
+directly with a minimal diff instead).
 
 ## Inspected call chain
 
