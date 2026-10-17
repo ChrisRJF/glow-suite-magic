@@ -1,5 +1,6 @@
 # Roadmap
 
+- [ ] Focused WhatsApp scheduler follow-up: read-only job/auth classification and isolated migration-plan update; no active function edits, credentials, DB writes, cron changes or messages.
 - [x] WhatsApp security preparation: isolated auth/tenant/retry candidates and migration plan in docs/prepared-patches/whatsapp-security; 45 focused tests passed. Active functions untouched because edits auto-deploy. Broader inactive-security suite: 53 passed, one existing Viva import-policy failure left out of scope. No live actions.
 - [ ] WhatsApp scheduler activation: blocked on proven current managed authentication/binding and separate configuration/deployment GO; prepared scheduler must not be activated as-is.
 
