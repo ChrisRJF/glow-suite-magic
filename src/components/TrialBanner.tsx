@@ -144,8 +144,8 @@ export function TrialBanner() {
         <Button size="sm" variant="ghost" className="flex-1 sm:flex-none" onClick={() => navigate("/pricing")}>
           Plan bekijken
         </Button>
-        <TrialGlowPayAction userId={sub.user_id} />
       </div>
+      <TrialGlowPayAction userId={sub.user_id} />
       {!urgent && (
         <button
           type="button"

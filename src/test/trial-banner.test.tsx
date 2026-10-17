@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router-dom";
 
 const BC = "1c6c885e-c944-4717-b2ef-9cfdb9fa15ae";
 const OTHER = "cbd7d158-0133-4f2f-a504-4b82f73f2e20";
 
-// Guard: the banner must not run any extra query of its own.
+// Guard: the trial extension itself needs no extra RPC.
 const rpc = vi.fn((..._args: unknown[]) => Promise.resolve({ data: null, error: { message: "nope" } }));
-vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: (...a: unknown[]) => rpc(...a) } }));
+vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: (...a: unknown[]) => rpc(...a), from: () => from() } }));
 vi.mock("@/hooks/useSubscription", () => ({ startMollieCheckout: vi.fn() }));
 
 const state = vi.fn();
@@ -104,8 +104,11 @@ describe("TrialBanner GlowPay navigation eligibility", () => {
     expect(eq).toHaveBeenCalledWith("is_demo", false);
   });
 
-  it.each(["medewerker", "manager", "financieel", "receptie"])("hides for %s", () => {
-    prepare(); role.mockReturnValue({ roles: [argumentsRolePlaceholder], loading: false });
+  it.each(["medewerker", "manager", "financieel", "receptie"])("hides for %s", (deniedRole) => {
+    prepare(); role.mockReturnValue({ roles: [deniedRole], loading: false });
+    show(subFor(OTHER));
+    expect(screen.queryByRole("button", { name: "GlowPay activeren" })).toBeNull();
+    expect(from).not.toHaveBeenCalled();
   });
 
   it("hides demo accounts without loading a merchant", () => {
@@ -120,6 +123,16 @@ describe("TrialBanner GlowPay navigation eligibility", () => {
     show(subFor(OTHER));
     await waitFor(() => expect(merchant).toHaveBeenCalled());
     expect(screen.queryByRole("button", { name: "GlowPay activeren" })).toBeNull();
+  });
+
+  it("navigates only to the existing integration registration page", async () => {
+    prepare();
+    state.mockReturnValue({ sub: subFor(OTHER), daysLeft: 81, isReadOnly: false });
+    function Location() { const location = useLocation(); return <output>{location.pathname + location.search}</output>; }
+    render(<MemoryRouter><TrialBanner /><Location /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole("button", { name: "GlowPay activeren" }));
+    expect(screen.getByRole("status").textContent).toBe("/instellingen?tab=integraties");
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it("hides unreadable merchant status", async () => {
@@ -139,3 +152,4 @@ describe("TrialBanner GlowPay navigation eligibility", () => {
     expect(from).not.toHaveBeenCalled();
   });
 });
+
