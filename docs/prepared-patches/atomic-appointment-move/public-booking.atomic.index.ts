@@ -1,10 +1,9 @@
 // PREPARED, INACTIVE replacement for supabase/functions/public-booking/index.ts (Agenda 3.0 step 2b).
 // Do not deploy without separate approval. Reference of the current server: public-booking.reference.index.ts
-import { startLiveDeposit, makeDepositDeps } from "../_shared/inactive/isvLivePayments.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { z } from "https://esm.sh/zod@3.23.8";
+import { createVivaOrder, vivaCheckoutUrl, isVivaConfigured } from "../_shared/viva.ts";
 import { getDefaultMessageTemplate, normalizeMessageLang, renderMessage, intlLocale } from "../_shared/messageTranslations.ts";
-import { loadAppointmentRiskHistory } from "../_shared/appointmentRiskHistory.ts";
 import { decideDeposit } from "../_shared/depositDecision.ts";
 import { amsterdamToUtc, utcToAmsterdam, busyFromAppointments, normalizeBusyEmployees, resolveBooking, availabilitySlots, startTimes, canDoService, type ScheduleEmployee } from "../_shared/employeeSchedule.ts";
 import { resolvePublicSalon, LEGACY_SCAN_LIMIT } from "./publicSalonResolve.ts";
@@ -78,7 +77,7 @@ function slugify(value: string) {
   return value.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
-async function getSalon(supabase: ReturnType<typeof createClient<any>>, slug: string): Promise<SalonContext | null> {
+async function getSalon(supabase: ReturnType<typeof createClient>, slug: string): Promise<SalonContext | null> {
   const normalized = slugify(slug);
   const { data: settingsRows, error } = await supabase
     .from("settings")
@@ -196,7 +195,7 @@ function addMinutesToTime(time: string, minutes: number) {
   return `${String(nextHour).padStart(2, "0")}:${String(nextMinute).padStart(2, "0")}:00`;
 }
 
-async function sendWhiteLabelEmail(supabase: ReturnType<typeof createClient<any>>, body: Record<string, unknown>) {
+async function sendWhiteLabelEmail(supabase: ReturnType<typeof createClient>, body: Record<string, unknown>) {
   const { error } = await supabase.functions.invoke("send-white-label-email", { body });
   if (error) console.error("White-label email failed", error.message);
 }
@@ -211,7 +210,7 @@ function todayAmsterdam() {
   return utcToAmsterdam(new Date());
 }
 
-async function loadDay(supabase: ReturnType<typeof createClient<any>>, ctx: SalonContext, date: string) {
+async function loadDay(supabase: ReturnType<typeof createClient>, ctx: SalonContext, date: string) {
   const userId = ctx.settings.user_id;
   // Local-day bounds in UTC (DST-safe), widened by a day so long treatments are never missed.
   const from = new Date(amsterdamToUtc(date, "00:00").getTime() - 24 * 3600000).toISOString();
@@ -244,7 +243,7 @@ async function loadDay(supabase: ReturnType<typeof createClient<any>>, ctx: Salo
 }
 
 /** Server-side availability decision. Returns the rows with verified employee ids, or null. */
-async function assertAvailability(supabase: ReturnType<typeof createClient<any>>, ctx: SalonContext, date: string, bookings: Array<{ time: string; service: ServiceRow; employee: string | null }>): Promise<{ ids: Array<string | null> } | { code: "slot_unavailable" | "booking_page_outdated" }> {
+async function assertAvailability(supabase: ReturnType<typeof createClient>, ctx: SalonContext, date: string, bookings: Array<{ time: string; service: ServiceRow; employee: string | null }>): Promise<{ ids: Array<string | null> } | { code: "slot_unavailable" | "booking_page_outdated" }> {
   if (date < todayAmsterdam().date) return { code: "slot_unavailable" };
   // A requested employee must be a real employee id of this salon. Old booking pages send names
   // (e.g. "Bas"): refuse explicitly instead of silently picking someone else.
@@ -258,7 +257,7 @@ async function assertAvailability(supabase: ReturnType<typeof createClient<any>>
 
 const OUTDATED_MSG = "Deze boekingspagina is verouderd. Vernieuw de pagina en kies opnieuw een medewerker en tijd.";
 
-async function createMolliePayment(args: { req: Request; supabase: ReturnType<typeof createClient<any>>; amount: number; paymentType: string; method: string; appointmentId: string; customerId: string; salonId: string; salonOwnerId: string; settingsId: string; bookingToken: string; isDemo: boolean }) {
+async function createMolliePayment(args: { req: Request; supabase: ReturnType<typeof createClient>; amount: number; paymentType: string; method: string; appointmentId: string; customerId: string; salonId: string; salonOwnerId: string; settingsId: string; bookingToken: string; isDemo: boolean }) {
   if (args.isDemo) {
     return { demo: true, status: "paid", mollieId: `demo_${crypto.randomUUID().slice(0, 8)}`, checkoutUrl: null };
   }
@@ -388,7 +387,7 @@ Deno.serve(async (req) => {
     const email = data.customer.email.toLowerCase();
     const { data: existingCustomer } = await supabase
       .from("customers")
-      .select("id, is_vip, no_show_count, cancellation_count")
+      .select("id, is_vip, no_show_count, cancellation_count, total_visits")
       .eq("user_id", ctx.settings.user_id)
       .ilike("email", email)
       .maybeSingle();
@@ -426,18 +425,9 @@ Deno.serve(async (req) => {
     // Ignore whatever the browser sent in `serverPayment.required` / `serverPayment.amount`.
     // Only `serverPayment.method` is honored as a display hint.
     const totalPriceEuros = bookingRows.reduce((sum, row) => sum + Number(row.service.price || 0), 0);
-    const verifiedHistory = existingCustomer?.id
-      ? await loadAppointmentRiskHistory(
-          ({ tenantId, customerId, from, to }) => supabase.from("appointments")
-            .select("id,user_id,customer_id,status", { count: "exact" })
-            .eq("user_id", tenantId).eq("customer_id", customerId)
-            .order("id", { ascending: true }).range(from, to),
-          ctx.settings.user_id, existingCustomer.id,
-        )
-      : undefined;
     const decision = decideDeposit({
       settings: ctx.settings,
-      customer: existingCustomer ? { ...existingCustomer, verifiedHistory } : null,
+      customer: existingCustomer || null,
       isNewCustomer: !existingCustomer,
       servicePriceEuros: totalPriceEuros,
     });
@@ -623,25 +613,67 @@ Deno.serve(async (req) => {
               simulated: true,
             },
           });
+        } else if (!isVivaConfigured()) {
+          if (fallbackEnabled) {
+            console.warn("[public-booking] Viva not configured, falling back to Mollie");
+            provider = "mollie";
+          } else {
+            paymentInitError = "Viva is nog niet gekoppeld. Je afspraak is opgeslagen, maar betaling kon niet worden gestart.";
+            paymentStatus = "payment_pending";
+          }
         } else {
-          const ret = `https://glowsuite.nl/boeken/${encodeURIComponent(salonSlugForMeta)}?status=payment-return&booking=${primaryAppointment.booking_token}`;
-          const live = await startLiveDeposit({ tenantId: ctx.settings.user_id, source: "public_booking",
-            idempotencyKey: `appointment:${primaryAppointment.id}:${serverPayment.type}`, amountCents: Math.round(serverPayment.amount * 100), description: "GlowPay aanbetaling",
-            successUrl: ret, failureUrl: ret, refs: { appointment_id: primaryAppointment.id, customer_id: customerId, booking_token: primaryAppointment.booking_token, payment_type: serverPayment.type } },
-            makeDepositDeps(supabase, (n) => Deno.env.get(n)));
-          paymentStatus = "payment_pending";
-          if (live.ok) checkoutUrl = live.checkoutUrl;
-          else {
-            paymentInitError = "Je afspraak is vastgelegd. Online aanbetalen is bij deze salon nog niet beschikbaar; de salon regelt de betaling met je.";
-            provider = "none";
+          try {
+            const origin = req.headers.get("origin") || "https://glowsuite.nl";
+            const returnUrl = `${origin}/boeken/${salonSlugForMeta}?status=payment-return&booking=${primaryAppointment.booking_token}`;
+            const order = await createVivaOrder({
+              amountCents: Math.round(Number(serverPayment.amount) * 100),
+              description: `GlowSuite ${serverPayment.type === "deposit" ? "aanbetaling" : "betaling"}`,
+              customerEmail: email,
+              customerFullName: data.customer.name,
+              customerPhone: data.customer.phone,
+              successUrl: returnUrl,
+              failureUrl: returnUrl,
+              source: "public_booking",
+              paymentType: serverPayment.type === "deposit" ? "deposit" : "full",
+            });
+            checkoutUrl = vivaCheckoutUrl(order.orderCode);
+            paymentStatus = "pending";
+            await supabase.from("payments").insert({
+              user_id: ctx.settings.user_id,
+              appointment_id: primaryAppointment.id,
+              customer_id: customerId,
+              mollie_payment_id: order.orderCode,
+              checkout_reference: order.orderCode,
+              amount: serverPayment.amount,
+              currency: "EUR",
+              payment_type: serverPayment.type,
+              status: "pending",
+              method: "viva",
+              is_demo: false,
+              provider: "viva",
+              metadata: {
+                provider: "viva",
+                source: "public_booking",
+                viva_order_code: order.orderCode,
+                appointment_id: primaryAppointment.id,
+                customer_id: customerId,
+                salon_id: salonSlugForMeta,
+                booking_token: primaryAppointment.booking_token,
+                payment_type: serverPayment.type,
+                checkout_url: checkoutUrl,
+              },
+            });
+          } catch (e) {
+            console.error("Viva order failed (public booking)", e);
+            if (fallbackEnabled) {
+              console.warn("[public-booking] Viva failed, falling back to Mollie");
+              provider = "mollie";
+            } else {
+              paymentInitError = "Betaling kon niet worden gestart. Je afspraak is opgeslagen met betaalstatus in afwachting.";
+              paymentStatus = "payment_pending";
+            }
           }
         }
-      }
-      if (provider === "mollie" && !isDemo) {
-        // Fail-closed (security): salon customer payments never run through Mollie.
-        paymentInitError = "Je afspraak is vastgelegd. Online aanbetalen is bij deze salon nog niet beschikbaar; de salon regelt de betaling met je.";
-        paymentStatus = "payment_pending";
-        provider = "none";
       }
       if (provider === "mollie") {
         // Mollie (default fallback) — unchanged
@@ -690,7 +722,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      const nextPaymentStatus = paymentStatus === "paid" ? "paid" : paymentStatus === "payment_pending" ? "payment_pending" : paymentInitError ? "payment_failed" : "pending";
+      const nextPaymentStatus = paymentStatus === "paid" ? "paid" : paymentInitError ? "payment_failed" : "pending";
       if (bookingGroupId) await supabase.from("appointments").update({ payment_status: nextPaymentStatus, status: paymentStatus === "paid" ? "confirmed" : "pending_confirmation" }).eq("booking_group_id", bookingGroupId).eq("user_id", ctx.settings.user_id);
       await supabase.from("appointments").update({ payment_status: nextPaymentStatus, status: paymentStatus === "paid" ? "confirmed" : "pending_confirmation" }).eq("id", primaryAppointment.id);
     }
